@@ -116,8 +116,8 @@ extension Monitor {
 
         audioBufferLevel.intValue = fillLevel
         audioBufferLevelText.stringValue = "\(fillLevel) %"
-        audioBufferUnderflows.intValue = Int32(paula.bufferUnderflows())
-        audioBufferOverflows.intValue = Int32(paula.bufferOverflows())
+        audioBufferUnderflows.integerValue = paula.bufferUnderflows
+        audioBufferOverflows.integerValue = paula.bufferOverflows
         audioWaveformView.update()
     }
 }

@@ -32,15 +32,15 @@ extension PreferencesController {
         updateJoyKeyMap(1, dir: JOYSTICK_FIRE, button: devFire2button, txt: devFire2)
         devDisconnectKeys.state = controller.keyboardcontroller.disconnectJoyKeys ? .on : .off
         
-        assert(joystick1.autofire() == joystick2.autofire())
-        assert(joystick1.autofireBullets() == joystick2.autofireBullets())
-        assert(joystick1.autofireFrequency() == joystick2.autofireFrequency())
+        assert(joystick1.autofire == joystick2.autofire)
+        assert(joystick1.autofireBullets == joystick2.autofireBullets)
+        assert(joystick1.autofireFrequency == joystick2.autofireFrequency)
         
         // Joystick buttons
-        devAutofire.state = joystick1.autofire() ? .on : .off
-        devAutofireCease.state = joystick1.autofireBullets() > 0 ? .on : .off
-        devAutofireBullets.integerValue = Int(joystick1.autofireBullets().magnitude)
-        devAutofireFrequency.floatValue = joystick1.autofireFrequency()
+        devAutofire.state = joystick1.autofire ? .on : .off
+        devAutofireCease.state = joystick1.autofireBullets > 0 ? .on : .off
+        devAutofireBullets.integerValue = Int(joystick1.autofireBullets.magnitude)
+        devAutofireFrequency.floatValue = joystick1.autofireFrequency
         devAutofireCease.isEnabled = devAutofire.state == .on
         devAutofireCeaseText.textColor = devAutofire.state == .on ? .controlTextColor : .disabledControlTextColor
         devAutofireBullets.isEnabled = devAutofire.state == .on
@@ -151,19 +151,19 @@ extension PreferencesController {
     
     @IBAction func devAutofireAction(_ sender: NSButton!) {
         
-        amigaProxy?.joystick1.setAutofire(sender.state == .on)
-        amigaProxy?.joystick2.setAutofire(sender.state == .on)
+        amigaProxy?.joystick1.autofire = (sender.state == .on)
+        amigaProxy?.joystick2.autofire = (sender.state == .on)
         
         refresh()
     }
     
     @IBAction func devAutofireCeaseAction(_ sender: NSButton!) {
         
-        if let bullets = amigaProxy?.joystick1.autofireBullets().magnitude {
+        if let bullets = amigaProxy?.joystick1.autofireBullets.magnitude {
         
             let sign = sender.state == .on ? 1 : -1
-            amigaProxy?.joystick1.setAutofireBullets(Int(bullets) * sign)
-            amigaProxy?.joystick2.setAutofireBullets(Int(bullets) * sign)
+            amigaProxy?.joystick1.autofireBullets = Int(bullets) * sign
+            amigaProxy?.joystick2.autofireBullets = Int(bullets) * sign
             
             refresh()
         }
@@ -173,8 +173,8 @@ extension PreferencesController {
         
         let value = sender.integerValue
         
-        amigaProxy?.joystick1.setAutofireBullets(value)
-        amigaProxy?.joystick2.setAutofireBullets(value)
+        amigaProxy?.joystick1.autofireBullets = value
+        amigaProxy?.joystick2.autofireBullets = value
         
         refresh()
     }
@@ -183,8 +183,8 @@ extension PreferencesController {
         
         let value = sender.floatValue
         
-        amigaProxy?.joystick1.setAutofireFrequency(value)
-        amigaProxy?.joystick2.setAutofireFrequency(value)
+        amigaProxy?.joystick1.autofireFrequency = value
+        amigaProxy?.joystick2.autofireFrequency = value
         
         refresh()
     }

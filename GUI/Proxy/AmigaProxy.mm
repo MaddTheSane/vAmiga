@@ -1089,9 +1089,17 @@ struct ADFFileWrapper { ADFFile *adf; };
 {
     return Snapshot::isSupportedSnapshot((uint8_t *)buffer, length);
 }
++ (BOOL)isSupportedSnapshotData:(NSData *)buffer
+{
+    return Snapshot::isSupportedSnapshot((uint8_t *)buffer.bytes, buffer.length);
+}
 + (BOOL) isUnsupportedSnapshot:(const void *)buffer length:(NSInteger)length
 {
     return Snapshot::isUnsupportedSnapshot((uint8_t *)buffer, length);
+}
++ (BOOL)isUnsupportedSnapshotData:(NSData *)buffer
+{
+    return Snapshot::isUnsupportedSnapshot((uint8_t *)buffer.bytes, buffer.length);
 }
 + (BOOL) isSupportedSnapshotFile:(NSString *)path
 {
@@ -1109,17 +1117,22 @@ struct ADFFileWrapper { ADFFile *adf; };
     }
     return [[self alloc] initWithFile:snapshot];
 }
-+ (instancetype) makeWithBuffer:(const void *)buffer length:(NSInteger)length
++ (instancetype)snapshotProxyWithData:(NSData *)buffer
+{
+    Snapshot *snapshot = Snapshot::makeWithBuffer((uint8_t *)buffer.bytes, buffer.length);
+    return [self make:snapshot];
+}
++ (instancetype) snapshotProxyWithBuffer:(const void *)buffer length:(NSInteger)length
 {
     Snapshot *snapshot = Snapshot::makeWithBuffer((uint8_t *)buffer, length);
     return [self make:snapshot];
 }
-+ (instancetype) makeWithFile:(NSString *)path
++ (instancetype) snapshotProxyWithFile:(NSString *)path
 {
     Snapshot *snapshot = Snapshot::makeWithFile([path UTF8String]);
     return [self make:snapshot];
 }
-+ (instancetype) makeWithAmiga:(AmigaProxy *)proxy
++ (instancetype) snapshotProxyWithAmiga:(AmigaProxy *)proxy
 {
     Amiga *amiga = [proxy wrapper]->amiga;
     amiga->suspend();
@@ -1146,22 +1159,27 @@ struct ADFFileWrapper { ADFFile *adf; };
     if (archive == NULL) return nil;
     return [[self alloc] initWithFile:archive];
 }
-+ (instancetype) makeWithBuffer:(const void *)buffer length:(NSInteger)length
++ (instancetype) fileProxyWithData:(NSData *)buffer
+{
+    ADFFile *archive = ADFFile::makeWithBuffer((const uint8_t *)buffer.bytes, buffer.length);
+    return [self make: archive];
+}
++ (instancetype) fileProxyWithBuffer:(const void *)buffer length:(NSInteger)length
 {
     ADFFile *archive = ADFFile::makeWithBuffer((const uint8_t *)buffer, length);
     return [self make: archive];
 }
-+ (instancetype) makeWithFile:(NSString *)path
++ (instancetype) fileProxyWithFile:(NSString *)path
 {
     ADFFile *archive = ADFFile::makeWithFile([path UTF8String]);
     return [self make: archive];
 }
-+ (instancetype) makeWithDiskType:(DiskType)type
++ (instancetype) fileProxyWithDiskType:(DiskType)type
 {
     ADFFile *archive = ADFFile::makeWithDiskType(type);
     return [self make: archive];
 }
-+ (instancetype) makeWithDrive:(DriveProxy *)drive
++ (instancetype) fileProxyWithDrive:(DriveProxy *)drive
 {
     Drive *d = [drive wrapper]->drive;
     ADFFile *archive = ADFFile::makeWithDisk(d->disk);

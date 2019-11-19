@@ -83,9 +83,7 @@ class MyDocument: NSDocument {
         }
         
         // Try to create ADF file proxy
-        let buffer = (data as NSData).bytes
-        let length = data.count
-        let proxy = ADFFileProxy.make(withBuffer: buffer, length: length)
+		let proxy = ADFFileProxy(data: data)
         
         if proxy != nil {
             myAppDelegate.noteNewRecentlyUsedURL(url)
@@ -135,7 +133,6 @@ class MyDocument: NSDocument {
             throw NSError(domain: "vAmiga", code: 0, userInfo: nil)
         }
         
-        let buffer = (data as NSData).bytes
         let length = data.count
         var openAsUntitled = true
         
@@ -145,14 +142,14 @@ class MyDocument: NSDocument {
             
         case "VAMIGA":
             // Check for outdated snapshot formats
-            if SnapshotProxy.isUnsupportedSnapshot(buffer, length: length) {
+            if SnapshotProxy.isUnsupportedSnapshotData(data) {
                 throw NSError.snapshotVersionError(filename: filename)
             }
-            amigaAttachment = SnapshotProxy.make(withBuffer: buffer, length: length)
+            amigaAttachment = SnapshotProxy(data: data)
             openAsUntitled = false
             
         case "ADF":
-            amigaAttachment = ADFFileProxy.make(withBuffer: buffer, length: length)
+			amigaAttachment = ADFFileProxy(data: data)
             
         default:
             throw NSError.unsupportedFormatError(filename: filename)
@@ -224,7 +221,7 @@ class MyDocument: NSDocument {
         if typeName == "vAmiga" {
             
             // Take snapshot
-            if let snapshot = SnapshotProxy.make(withAmiga: amiga) {
+            if let snapshot = SnapshotProxy(amiga: amiga) {
 
                 // Write to data buffer
                 if let data = NSMutableData.init(length: snapshot.sizeOnDisk()) {
@@ -249,7 +246,7 @@ class MyDocument: NSDocument {
         let drive = amiga.df(nr)
         
         // Convert disk to ADF format
-        guard let adf = ADFFileProxy.make(withDrive: drive) else {
+		guard let adf = ADFFileProxy(drive: drive) else {
             track("ADF conversion failed")
             return false
         }

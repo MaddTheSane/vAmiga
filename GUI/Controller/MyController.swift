@@ -103,24 +103,24 @@ class MyController: NSWindowController, MessageReceiver {
         }
     }
     var autofire: Bool {
-        get { return amiga.joystick1.autofire() }
+        get { return amiga.joystick1.autofire }
         set {
-            amiga.joystick1.setAutofire(newValue)
-            amiga.joystick2.setAutofire(newValue)
+            amiga.joystick1.autofire = newValue
+            amiga.joystick2.autofire = newValue
         }
     }
     var autofireBullets: Int {
-        get { return amiga.joystick1.autofireBullets() }
+        get { return amiga.joystick1.autofireBullets }
         set {
-            amiga.joystick1.setAutofireBullets(newValue)
-            amiga.joystick2.setAutofireBullets(newValue)
+            amiga.joystick1.autofireBullets = newValue
+            amiga.joystick2.autofireBullets = newValue
         }
     }
     var autofireFrequency: Float {
-        get { return amiga.joystick1.autofireFrequency() }
+        get { return amiga.joystick1.autofireFrequency }
         set {
-            amiga.joystick1.setAutofireFrequency(newValue)
-            amiga.joystick2.setAutofireFrequency(newValue)
+            amiga.joystick1.autofireFrequency = newValue
+            amiga.joystick2.autofireFrequency = newValue
         }
     }
     var keyMap0: [MacKey: UInt32]? {

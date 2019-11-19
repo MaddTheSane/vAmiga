@@ -407,12 +407,12 @@ extension MyController {
         defaults.decode(&gamePadManager.gamePads[0]!.keyMap, forKey: Keys.joyKeyMap1)
         defaults.decode(&gamePadManager.gamePads[1]!.keyMap, forKey: Keys.joyKeyMap2)
         keyboardcontroller.disconnectJoyKeys = defaults.bool(forKey: Keys.disconnectJoyKeys)
-        amiga.joystick1.setAutofire(defaults.bool(forKey: Keys.autofire))
-        amiga.joystick2.setAutofire(defaults.bool(forKey: Keys.autofire))
-        amiga.joystick1.setAutofireBullets(defaults.integer(forKey: Keys.autofireBullets))
-        amiga.joystick2.setAutofireBullets(defaults.integer(forKey: Keys.autofireBullets))
-        amiga.joystick1.setAutofireFrequency(defaults.float(forKey: Keys.autofireFrequency))
-        amiga.joystick2.setAutofireFrequency(defaults.float(forKey: Keys.autofireFrequency))
+        amiga.joystick1.autofire = defaults.bool(forKey: Keys.autofire)
+        amiga.joystick2.autofire = defaults.bool(forKey: Keys.autofire)
+        amiga.joystick1.autofireBullets = defaults.integer(forKey: Keys.autofireBullets)
+        amiga.joystick2.autofireBullets = defaults.integer(forKey: Keys.autofireBullets)
+        amiga.joystick1.autofireFrequency = defaults.float(forKey: Keys.autofireFrequency)
+        amiga.joystick2.autofireFrequency = defaults.float(forKey: Keys.autofireFrequency)
  
         // Mouse
         metal.retainMouseKeyComb    = defaults.integer(forKey: Keys.retainMouseKeyComb)
@@ -434,9 +434,9 @@ extension MyController {
         defaults.encode(gamePadManager.gamePads[0]!.keyMap, forKey: Keys.joyKeyMap1)
         defaults.encode(gamePadManager.gamePads[1]!.keyMap, forKey: Keys.joyKeyMap2)
         defaults.set(keyboardcontroller.disconnectJoyKeys, forKey: Keys.disconnectJoyKeys)
-        defaults.set(amiga.joystick1.autofire(), forKey: Keys.autofire)
-        defaults.set(amiga.joystick1.autofireBullets(), forKey: Keys.autofireBullets)
-        defaults.set(amiga.joystick1.autofireFrequency(), forKey: Keys.autofireFrequency)
+        defaults.set(amiga.joystick1.autofire, forKey: Keys.autofire)
+        defaults.set(amiga.joystick1.autofireBullets, forKey: Keys.autofireBullets)
+        defaults.set(amiga.joystick1.autofireFrequency, forKey: Keys.autofireFrequency)
         
         // Mouse
         defaults.set(metal.retainMouseKeyComb, forKey: Keys.retainMouseKeyComb)

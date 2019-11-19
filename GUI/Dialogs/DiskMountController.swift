@@ -27,9 +27,9 @@ class DiskMountController: DialogController {
     
     func setCylinder(_ newValue: Int) {
 
-        if newValue >= 0 && newValue < disk.numCylinders() {
+        if newValue >= 0 && newValue < disk.numCylinders {
             
-            let spt = disk.numSectorsPerTrack()
+            let spt = disk.numSectorsPerTrack
             
             _cylinder = newValue
             _track    = _cylinder * 2 + _head
@@ -39,9 +39,9 @@ class DiskMountController: DialogController {
     
     func setHead(_ newValue: Int) {
         
-        if newValue >= 0 && newValue < disk.numHeads() {
+        if newValue >= 0 && newValue < disk.numHeads {
             
-            let spt = disk.numSectorsPerTrack()
+            let spt = disk.numSectorsPerTrack
             
             _head     = newValue
             _track    = _cylinder * 2 + _head
@@ -51,9 +51,9 @@ class DiskMountController: DialogController {
     
     func setTrack(_ newValue: Int) {
         
-        if newValue >= 0 && newValue < disk.numTracks() {
+        if newValue >= 0 && newValue < disk.numTracks {
             
-            let spt = disk.numSectorsPerTrack()
+            let spt = disk.numSectorsPerTrack
             
             _track    = newValue
             _cylinder = _track / 2
@@ -64,9 +64,9 @@ class DiskMountController: DialogController {
 
     func setSector(_ newValue: Int) {
         
-        if newValue >= 0 && newValue < disk.numSectors() {
+        if newValue >= 0 && newValue < disk.numSectors {
             
-            let spt = disk.numSectorsPerTrack()
+            let spt = disk.numSectorsPerTrack
             
             _sector   = newValue
             _track    = _sector / spt
@@ -153,9 +153,9 @@ class DiskMountController: DialogController {
             DISK_35_HD_PC.rawValue: "3.5\"HD PC",
             DISK_525_SD.rawValue: "5.25\"SD PC"
         ]
-        let str = typeName[disk.diskType().rawValue]!
+        let str = typeName[disk.diskType.rawValue]!
         infoText.stringValue = "A byte-accurate image of \(str) diskette."
-        let compatible = disk.diskType() == DISK_35_DD
+        let compatible = disk.diskType == DISK_35_DD
             
         // Update the disclosure button state
         disclosureButton.state = shrinked ? .off : .on

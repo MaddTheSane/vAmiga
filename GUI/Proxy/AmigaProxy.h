@@ -395,8 +395,8 @@ struct AmigaFileWrapper;
 - (double) ringbufferDataR:(NSInteger)offset;
 // - (double) ringbufferData:(NSInteger)offset;
 - (double) fillLevel;
-- (NSInteger) bufferUnderflows;
-- (NSInteger) bufferOverflows;
+@property (readonly) NSInteger bufferUnderflows;
+@property (readonly) NSInteger bufferOverflows;
 
 - (void) readMonoSamples:(float *)target size:(NSInteger)n;
 - (void) readStereoSamples:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n;
@@ -471,12 +471,9 @@ struct AmigaFileWrapper;
 - (void) dump;
 
 - (void) trigger:(JoystickEvent)event;
-- (BOOL) autofire;
-- (void) setAutofire:(BOOL)value;
-- (NSInteger) autofireBullets;
-- (void) setAutofireBullets:(NSInteger)value;
-- (float) autofireFrequency;
-- (void) setAutofireFrequency:(float)value;
+@property BOOL autofire;
+@property NSInteger autofireBullets;
+@property float autofireFrequency;
 
 @end
 
@@ -592,12 +589,15 @@ struct AmigaFileWrapper;
 }
 
 + (BOOL)isSupportedSnapshot:(const void *)buffer length:(NSInteger)length;
++ (BOOL)isSupportedSnapshotData:(NSData *)buffer;
 + (BOOL)isUnsupportedSnapshot:(const void *)buffer length:(NSInteger)length;
++ (BOOL)isUnsupportedSnapshotData:(NSData *)buffer;
 + (BOOL)isSupportedSnapshotFile:(NSString *)path;
 + (BOOL)isUnsupportedSnapshotFile:(NSString *)path;
-+ (instancetype)makeWithBuffer:(const void *)buffer length:(NSInteger)length;
-+ (instancetype)makeWithFile:(NSString *)path;
-+ (instancetype)makeWithAmiga:(AmigaProxy *)amiga;
++ (instancetype)snapshotProxyWithData:(NSData *)buffer;
++ (instancetype)snapshotProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
++ (instancetype)snapshotProxyWithFile:(NSString *)path;
++ (instancetype)snapshotProxyWithAmiga:(AmigaProxy *)amiga;
 
 @end
 
@@ -610,17 +610,18 @@ struct AmigaFileWrapper;
 }
 
 + (BOOL)isADFFile:(NSString *)path;
-+ (instancetype)makeWithBuffer:(const void *)buffer length:(NSInteger)length;
-+ (instancetype)makeWithFile:(NSString *)path;
-+ (instancetype)makeWithDiskType:(DiskType)type;
-+ (instancetype)makeWithDrive:(DriveProxy *)drive;
++ (instancetype) fileProxyWithData:(NSData *)buffer;
++ (instancetype)fileProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
++ (instancetype)fileProxyWithFile:(NSString *)path;
++ (instancetype)fileProxyWithDiskType:(DiskType)type;
++ (instancetype)fileProxyWithDrive:(DriveProxy *)drive;
 
-- (DiskType)diskType;
-- (NSInteger)numCylinders;
-- (NSInteger)numHeads;
-- (NSInteger)numTracks;
-- (NSInteger)numSectors;
-- (NSInteger)numSectorsPerTrack;
+@property (readonly) DiskType diskType;
+@property (readonly) NSInteger numCylinders;
+@property (readonly) NSInteger numHeads;
+@property (readonly) NSInteger numTracks;
+@property (readonly) NSInteger numSectors;
+@property (readonly) NSInteger numSectorsPerTrack;
 - (void)formatDisk:(FileSystemType)fs;
 - (void)seekTrack:(NSInteger)nr;
 - (void)seekSector:(NSInteger)nr;

@@ -389,8 +389,8 @@ extension MyController: NSMenuItemValidation {
         
         // Create a blank disk
         switch model {
-        case DRIVE_35_DD:  adf = ADFFileProxy.make(with: DISK_35_DD)
-        case DRIVE_525_SD: adf = ADFFileProxy.make(with: DISK_525_SD)
+        case DRIVE_35_DD:  adf = ADFFileProxy(diskType: DISK_35_DD)
+        case DRIVE_525_SD: adf = ADFFileProxy(diskType: DISK_525_SD)
         default: fatalError()
         }
         
