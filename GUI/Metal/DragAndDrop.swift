@@ -90,11 +90,8 @@ public extension MetalView {
             // Check if we got another virtual machine dragged in
             let fileWrapper = pasteBoard.readFileWrapper()
             let fileData = fileWrapper?.regularFileContents
-            let length = fileData!.count
-            let nsData = fileData! as NSData
-            let rawPtr = nsData.bytes
             
-            guard let snapshot = SnapshotProxy(buffer: rawPtr, length: length) else {
+            guard let snapshot = SnapshotProxy(data: fileData!) else {
                 return false
             }
             if document.proceedWithUnexportedDisk() {

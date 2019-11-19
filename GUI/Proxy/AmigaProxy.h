@@ -592,6 +592,7 @@ struct AmigaFileWrapper;
 + (instancetype)snapshotProxyWithData:(NSData *)buffer;
 + (instancetype)snapshotProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
 + (instancetype)snapshotProxyWithFile:(NSString *)path;
++ (instancetype)snapshotProxyWithURL:(NSURL *)path;
 + (instancetype)snapshotProxyWithAmiga:(AmigaProxy *)amiga;
 
 @end
@@ -623,3 +624,10 @@ struct AmigaFileWrapper;
 
 @end
 
+// vAmiga Errors
+extern NSErrorDomain const vAmigaErrorDomain;
+typedef NS_ERROR_ENUM(vAmigaErrorDomain, vAmigaErrors) {
+	vAmigaErrorSnapshotVersion,
+	vAmigaErrorUnsupportedFormat,
+	vAmigaErrorCorruptedFile
+};

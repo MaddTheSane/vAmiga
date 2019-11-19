@@ -16,13 +16,13 @@ extension NSError {
     }
 
     static func unsupportedFormatError(filename: String) -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
+        return NSError(domain: "vAmiga", code: 1, userInfo:
             [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
                 NSLocalizedRecoverySuggestionErrorKey: "The format of this file is not supported."])
     }
 
     static func corruptedFileError(filename: String) -> NSError {        
-        return NSError(domain: "vAmiga", code: 0, userInfo:
+        return NSError(domain: "vAmiga", code: 2, userInfo:
             [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
                 NSLocalizedRecoverySuggestionErrorKey: "The file appears to be corrupt. It's contents does not match the purported format."])
     }

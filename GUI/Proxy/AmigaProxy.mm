@@ -247,7 +247,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 - (BOOL) isRom:(NSURL *)url
 {
-    return RomFile::isRomFile([[url path] UTF8String]);
+    return RomFile::isRomFile([url fileSystemRepresentation]);
 }
 - (BOOL) loadRomFromBuffer:(NSData *)data
 {
@@ -257,7 +257,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 - (BOOL) loadRomFromFile:(NSURL *)url
 {
-    return wrapper->mem->loadRomFromFile([[url path] UTF8String]);
+    return wrapper->mem->loadRomFromFile([url fileSystemRepresentation]);
 }
 - (uint64_t) romFingerprint
 {
@@ -292,7 +292,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 - (BOOL) isExt:(NSURL *)url
 {
-    return ExtFile::isExtFile([[url path] UTF8String]);
+    return ExtFile::isExtFile([url fileSystemRepresentation]);
 }
 - (BOOL) loadExtFromBuffer:(NSData *)data
 {
@@ -302,7 +302,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 - (BOOL) loadExtFromFile:(NSURL *)url
 {
-    return wrapper->mem->loadExtFromFile([[url path] UTF8String]);
+    return wrapper->mem->loadExtFromFile([url fileSystemRepresentation]);
 }
 - (uint64_t) extFingerprint
 {
@@ -1035,7 +1035,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 - (void)setPath:(NSString *)path
 {
     AmigaFile *file = (AmigaFile *)([self wrapper]->file);
-    file->setPath([path UTF8String]);
+    file->setPath([path fileSystemRepresentation]);
 }
 - (AmigaFileWrapper *)wrapper
 {
@@ -1103,11 +1103,11 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 + (BOOL) isSupportedSnapshotFile:(NSString *)path
 {
-    return Snapshot::isSupportedSnapshotFile([path UTF8String]);
+    return Snapshot::isSupportedSnapshotFile([path fileSystemRepresentation]);
 }
 + (BOOL) isUnsupportedSnapshotFile:(NSString *)path
 {
-    return Snapshot::isUnsupportedSnapshotFile([path UTF8String]);
+    return Snapshot::isUnsupportedSnapshotFile([path fileSystemRepresentation]);
 }
 
 + (instancetype) make:(Snapshot *)snapshot
@@ -1129,7 +1129,12 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 + (instancetype) snapshotProxyWithFile:(NSString *)path
 {
-    Snapshot *snapshot = Snapshot::makeWithFile([path UTF8String]);
+    Snapshot *snapshot = Snapshot::makeWithFile([path fileSystemRepresentation]);
+    return [self make:snapshot];
+}
++ (instancetype)snapshotProxyWithURL:(NSURL *)path
+{
+    Snapshot *snapshot = Snapshot::makeWithFile([path fileSystemRepresentation]);
     return [self make:snapshot];
 }
 + (instancetype) snapshotProxyWithAmiga:(AmigaProxy *)proxy
@@ -1152,7 +1157,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 
 + (BOOL)isADFFile:(NSString *)path
 {
-    return ADFFile::isADFFile([path UTF8String]);
+    return ADFFile::isADFFile([path fileSystemRepresentation]);
 }
 + (instancetype) make:(ADFFile *)archive
 {
@@ -1171,7 +1176,7 @@ struct ADFFileWrapper { ADFFile *adf; };
 }
 + (instancetype) fileProxyWithFile:(NSString *)path
 {
-    ADFFile *archive = ADFFile::makeWithFile([path UTF8String]);
+    ADFFile *archive = ADFFile::makeWithFile([path fileSystemRepresentation]);
     return [self make: archive];
 }
 + (instancetype) fileProxyWithDiskType:(DiskType)type
@@ -1554,3 +1559,4 @@ struct ADFFileWrapper { ADFFile *adf; };
 
 @end
 
+NSErrorDomain const vAmigaErrorDomain = @"vAmiga";
