@@ -272,6 +272,6 @@ uint32_t crc32forByte(uint32_t r); // Helper
 //
 
 // Returns true if we're running a release build.
-bool releaseBuild();
+bool releaseBuild(void);
 
 #endif
