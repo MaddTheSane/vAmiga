@@ -68,12 +68,12 @@ extension PreferencesController {
         
         // Which MacKey is assigned to this joystick action?
         var macKey: MacKey?
-        var macKeyCode: NSAttributedString = NSAttributedString.init()
+        var macKeyCode: NSAttributedString = NSAttributedString()
         var macKeyDesc: String = ""
         for (key, direction) in keyMap where direction == dir.rawValue {
             let attr = [NSAttributedString.Key.foregroundColor: NSColor.black]
             macKey = key
-            let myStr = NSString(format: "%02X", macKey!.keyCode) as String
+            let myStr = String(format: "%02X", macKey!.keyCode)
             macKeyCode = NSAttributedString(string: myStr, attributes: attr)
             macKeyDesc = macKey?.stringValue ?? ""
             break

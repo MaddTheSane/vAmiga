@@ -15,14 +15,6 @@ class WaveformView: NSView {
     // Modulo counter to trigger image rendering
     var delayCounter = 0
     
-    required init?(coder decoder: NSCoder) {
-        super.init(coder: decoder)
-    }
- 
-    required override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-    }
-  
     // Restarts the auto scaling mechanism
     func initAutoScaler() {
 

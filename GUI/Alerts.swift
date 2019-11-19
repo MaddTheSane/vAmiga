@@ -34,7 +34,7 @@ public extension MetalView {
         
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.icon = NSImage.init(named: "metal")
+        alert.icon = NSImage(named: "metal")
         alert.messageText = "No suitable GPU hardware found"
         alert.informativeText = "vAmiga can only run on machines supporting the Metal graphics technology (2012 models and above)."
         alert.addButton(withTitle: "Exit")
@@ -49,7 +49,7 @@ extension MyDocument {
        
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.icon = NSImage.init(named: "diskette")
+        alert.icon = NSImage(named: "diskette")
         alert.messageText = messageText
         alert.informativeText = "Your changes will be lost if you proceed."
         alert.addButton(withTitle: "Proceed")
@@ -100,7 +100,7 @@ extension MyDocument {
         let path = url.path
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.icon = NSImage.init(named: "diskette")
+        alert.icon = NSImage(named: "diskette")
         alert.messageText = "Failed to export disk to file"
         alert.informativeText = "\(path)."
         alert.addButton(withTitle: "OK")
@@ -124,7 +124,7 @@ extension MyDocument {
 
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.icon = NSImage.init(named: "pref_transparent")
+        alert.icon = NSImage(named: "pref_transparent")
         alert.messageText = "Configuration error"
         alert.informativeText = msg
         alert.addButton(withTitle: "OK")

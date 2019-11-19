@@ -224,7 +224,7 @@ extension SnapshotDialog {
         
         let pboardType = NSPasteboard.PasteboardType.fileContents
         pboard.declareTypes([pboardType], owner: self)
-        let fileWrapper = FileWrapper.init(regularFileWithContents: data)
+        let fileWrapper = FileWrapper(regularFileWithContents: data)
         fileWrapper.preferredFilename = "Snapshot.vam"
         pboard.write(fileWrapper)
 

@@ -204,26 +204,26 @@ public extension MetalView {
         let uc = UpscaledTexture.cutout
         
         // Build the mergefilter
-        mergeFilter = MergeFilter.init(device: device!, library: library, cutout: mc)
+        mergeFilter = MergeFilter(device: device!, library: library, cutout: mc)
         
         // Build low-res enhancers (first-pass, in-texture upscaling)
-        enhancerGallery[0] = BypassFilter.init(device: device!, library: library, cutout: mc)
-        enhancerGallery[1] = InPlaceEpxScaler.init(device: device!, library: library, cutout: mc)
-        enhancerGallery[2] = InPlaceXbrScaler.init(device: device!, library: library, cutout: mc)
+        enhancerGallery[0] = BypassFilter(device: device!, library: library, cutout: mc)
+        enhancerGallery[1] = InPlaceEpxScaler(device: device!, library: library, cutout: mc)
+        enhancerGallery[2] = InPlaceXbrScaler(device: device!, library: library, cutout: mc)
         
         // Build upscalers (second-pass upscaling)
-        upscalerGallery[0] = BypassUpscaler.init(device: device!, library: library, cutout: uc)
-        upscalerGallery[1] = EPXUpscaler.init(device: device!, library: library, cutout: uc)
-        upscalerGallery[2] = XBRUpscaler.init(device: device!, library: library, cutout: uc)
+        upscalerGallery[0] = BypassUpscaler(device: device!, library: library, cutout: uc)
+        upscalerGallery[1] = EPXUpscaler(device: device!, library: library, cutout: uc)
+        upscalerGallery[2] = XBRUpscaler(device: device!, library: library, cutout: uc)
         
         // Build bloom filters
-        bloomFilterGallery[0] = BypassFilter.init(device: device!, library: library, cutout: uc)
-        bloomFilterGallery[1] = SplitFilter.init(device: device!, library: library, cutout: uc)
+        bloomFilterGallery[0] = BypassFilter(device: device!, library: library, cutout: uc)
+        bloomFilterGallery[1] = SplitFilter(device: device!, library: library, cutout: uc)
 
         // Build scanline filters
-        scanlineFilterGallery[0] = BypassFilter.init(device: device!, library: library, cutout: uc)
+        scanlineFilterGallery[0] = BypassFilter(device: device!, library: library, cutout: uc)
         scanlineFilterGallery[1] = SimpleScanlines(device: device!, library: library, cutout: uc)
-        scanlineFilterGallery[2] = BypassFilter.init(device: device!, library: library, cutout: uc)
+        scanlineFilterGallery[2] = BypassFilter(device: device!, library: library, cutout: uc)
     }
     
     func buildDotMasks() {
@@ -233,19 +233,19 @@ public extension MetalView {
         let base = UInt8((1 - shaderOptions.dotMaskBrightness) * 85)
         let none = UInt8(30 + (1 - shaderOptions.dotMaskBrightness) * 55)
         
-        let R = UInt32.init(r: max, g: base, b: base)
-        let G = UInt32.init(r: base, g: max, b: base)
-        let B = UInt32.init(r: base, g: base, b: max)
-        let M = UInt32.init(r: max, g: base, b: max)
-        let W = UInt32.init(r: max, g: max, b: max)
-        let N = UInt32.init(r: none, g: none, b: none)
+        let R = UInt32(r: max, g: base, b: base)
+        let G = UInt32(r: base, g: max, b: base)
+        let B = UInt32(r: base, g: base, b: max)
+        let M = UInt32(r: max, g: base, b: max)
+        let W = UInt32(r: max, g: max, b: max)
+        let N = UInt32(r: none, g: none, b: none)
 
         let maskSize = [
-            CGSize.init(width: 1, height: 1),
-            CGSize.init(width: 3, height: 1),
-            CGSize.init(width: 4, height: 1),
-            CGSize.init(width: 3, height: 9),
-            CGSize.init(width: 4, height: 8)
+            CGSize(width: 1, height: 1),
+            CGSize(width: 3, height: 1),
+            CGSize(width: 4, height: 1),
+            CGSize(width: 3, height: 9),
+            CGSize(width: 4, height: 8)
             ]
         
         let maskData = [
@@ -501,13 +501,13 @@ public extension MetalView {
         assert(fragmentFunc != nil)
 
         // Create depth stencil state
-        let stencilDescriptor = MTLDepthStencilDescriptor.init()
+        let stencilDescriptor = MTLDepthStencilDescriptor()
         stencilDescriptor.depthCompareFunction = MTLCompareFunction.less
         stencilDescriptor.isDepthWriteEnabled = true
         depthState = device?.makeDepthStencilState(descriptor: stencilDescriptor)
         
         // Setup vertex descriptor
-        let vertexDescriptor = MTLVertexDescriptor.init()
+        let vertexDescriptor = MTLVertexDescriptor()
         
         // Positions
         vertexDescriptor.attributes[0].format = MTLVertexFormat.float4
@@ -525,7 +525,7 @@ public extension MetalView {
         vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunction.perVertex
     
         // Render pipeline
-        let pipelineDescriptor = MTLRenderPipelineDescriptor.init()
+        let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.label = "vAmiga Metal pipeline"
         pipelineDescriptor.depthAttachmentPixelFormat = MTLPixelFormat.depth32Float
         pipelineDescriptor.vertexFunction = vertexFunc

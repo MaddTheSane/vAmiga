@@ -62,7 +62,7 @@ class MyDocument: NSDocument {
         track()
         
         let nibName = NSNib.Name("MyDocument")
-        let controller = MyController.init(windowNibName: nibName)
+        let controller = MyController(windowNibName: nibName)
         controller.amiga = amiga
         self.addWindowController(controller)
     }
@@ -77,7 +77,7 @@ class MyDocument: NSDocument {
         track("Creating ADF proxy from URL \(url.lastPathComponent).")
         
         // Try to create a file wrapper
-        let fileWrapper = try FileWrapper.init(url: url)
+        let fileWrapper = try FileWrapper(url: url)
         guard let data = fileWrapper.regularFileContents else {
             throw NSError(domain: "vAmiga", code: 0, userInfo: nil)
         }
@@ -98,7 +98,7 @@ class MyDocument: NSDocument {
         track("Creating attachment from URL \(url.lastPathComponent).")
         
         // Try to create the attachment
-        let fileWrapper = try FileWrapper.init(url: url)
+        let fileWrapper = try FileWrapper(url: url)
         let pathExtension = url.pathExtension.uppercased()
         try createAmigaAttachment(from: fileWrapper, ofType: pathExtension)
         
@@ -197,7 +197,7 @@ class MyDocument: NSDocument {
     
     func runDiskMountDialog() {
         let nibName = NSNib.Name("DiskMountDialog")
-        let controller = DiskMountController.init(windowNibName: nibName)
+        let controller = DiskMountController(windowNibName: nibName)
         controller.showSheet()
     }
 
@@ -224,7 +224,7 @@ class MyDocument: NSDocument {
             if let snapshot = SnapshotProxy(amiga: amiga) {
 
                 // Write to data buffer
-                if let data = NSMutableData.init(length: snapshot.sizeOnDisk) {
+                if let data = NSMutableData(length: snapshot.sizeOnDisk) {
                     snapshot.write(toBuffer: data.mutableBytes)
                     return data as Data
                 }
@@ -252,7 +252,7 @@ class MyDocument: NSDocument {
         }
 
         // Serialize data
-        let data = NSMutableData.init(length: adf.sizeOnDisk)!
+        let data = NSMutableData(length: adf.sizeOnDisk)!
         adf.write(toBuffer: data.mutableBytes)
         
         // Write to file

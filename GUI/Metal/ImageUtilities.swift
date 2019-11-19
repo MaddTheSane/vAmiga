@@ -101,7 +101,7 @@ public extension CGImage {
          }
          */
         
-        return make(data: data, size: CGSize.init(width: w, height: h))
+        return make(data: data, size: CGSize(width: w, height: h))
     }
 }
 
@@ -151,7 +151,7 @@ public extension NSImage {
 
     func expand(toSize size: NSSize) -> NSImage? {
  
-        let newImage = NSImage.init(size: size)
+        let newImage = NSImage(size: size)
     
         NSGraphicsContext.saveGraphicsState()
         newImage.lockFocus()
@@ -161,8 +161,8 @@ public extension NSImage {
         t.scaleX(by: 1.0, yBy: -1.0)
         t.concat()
         
-        let inRect = NSRect.init(x: 0, y: 0, width: size.width, height: size.height)
-        let fromRect = NSRect.init(x: 0, y: 0, width: self.size.width, height: self.size.height)
+        let inRect = NSRect(x: 0, y: 0, width: size.width, height: size.height)
+        let fromRect = NSRect(x: 0, y: 0, width: self.size.width, height: self.size.height)
         let operation = NSCompositingOperation.copy
         self.draw(in: inRect, from: fromRect, operation: operation, fraction: 1.0)
         
@@ -173,7 +173,7 @@ public extension NSImage {
     }
     
     var cgImage: CGImage? {
-        var rect = CGRect.init(origin: .zero, size: self.size)
+        var rect = CGRect(origin: .zero, size: self.size)
         return self.cgImage(forProposedRect: &rect, context: nil, hints: nil)
     }
     
@@ -211,7 +211,7 @@ public extension NSImage {
         }
         
         // Call 'draw' to fill the data array
-        let rect = CGRect.init(x: 0, y: 0, width: width, height: height)
+        let rect = CGRect(x: 0, y: 0, width: width, height: height)
         bitmapContext?.draw(cgimage, in: rect)
         return data
     }

@@ -91,33 +91,33 @@ extension SpriteTableView: NSTableViewDelegate {
                 
             case 0, 1:
                 switch index {
-                case 1: color = NSColor.init(rgba: info.color.17)
-                case 2: color = NSColor.init(rgba: info.color.18)
-                case 3: color = NSColor.init(rgba: info.color.19)
+                case 1: color = NSColor(rgba: info.color.17)
+                case 2: color = NSColor(rgba: info.color.18)
+                case 3: color = NSColor(rgba: info.color.19)
                 default: break
                 }
                 
             case 2, 3:
                 switch index {
-                case 1: color = NSColor.init(rgba: info.color.21)
-                case 2: color = NSColor.init(rgba: info.color.22)
-                case 3: color = NSColor.init(rgba: info.color.23)
+                case 1: color = NSColor(rgba: info.color.21)
+                case 2: color = NSColor(rgba: info.color.22)
+                case 3: color = NSColor(rgba: info.color.23)
                 default: break
                 }
                 
             case 4, 5:
                 switch index {
-                case 1: color = NSColor.init(rgba: info.color.25)
-                case 2: color = NSColor.init(rgba: info.color.26)
-                case 3: color = NSColor.init(rgba: info.color.27)
+                case 1: color = NSColor(rgba: info.color.25)
+                case 2: color = NSColor(rgba: info.color.26)
+                case 3: color = NSColor(rgba: info.color.27)
                 default: break
                 }
                 
             default:
                 switch index {
-                case 1: color = NSColor.init(rgba: info.color.29)
-                case 2: color = NSColor.init(rgba: info.color.30)
-                case 3: color = NSColor.init(rgba: info.color.31)
+                case 1: color = NSColor(rgba: info.color.29)
+                case 2: color = NSColor(rgba: info.color.30)
+                case 3: color = NSColor(rgba: info.color.31)
                 default: break
                 }
             }

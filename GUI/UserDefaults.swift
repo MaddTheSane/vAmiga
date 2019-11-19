@@ -136,7 +136,7 @@ extension MyController {
         
         let dict = UserDefaults.standard.dictionaryRepresentation()
         let filteredDict = dict.filter { $0.0.hasPrefix("VAMIGA") }
-        let nsDict = NSDictionary.init(dictionary: filteredDict)
+        let nsDict = NSDictionary(dictionary: filteredDict)
         nsDict.write(to: url, atomically: true)
     }
 }
@@ -315,18 +315,18 @@ extension Defaults {
     
     // Joysticks
     static let joyKeyMap1 = [
-        MacKey.init(keyCode: kVK_LeftArrow): JOYSTICK_LEFT.rawValue,
-        MacKey.init(keyCode: kVK_RightArrow): JOYSTICK_RIGHT.rawValue,
-        MacKey.init(keyCode: kVK_UpArrow): JOYSTICK_UP.rawValue,
-        MacKey.init(keyCode: kVK_DownArrow): JOYSTICK_DOWN.rawValue,
-        MacKey.init(keyCode: kVK_Space): JOYSTICK_FIRE.rawValue
+        MacKey(keyCode: kVK_LeftArrow): JOYSTICK_LEFT.rawValue,
+        MacKey(keyCode: kVK_RightArrow): JOYSTICK_RIGHT.rawValue,
+        MacKey(keyCode: kVK_UpArrow): JOYSTICK_UP.rawValue,
+        MacKey(keyCode: kVK_DownArrow): JOYSTICK_DOWN.rawValue,
+        MacKey(keyCode: kVK_Space): JOYSTICK_FIRE.rawValue
     ]
     static let joyKeyMap2 = [
-        MacKey.init(keyCode: kVK_ANSI_S): JOYSTICK_LEFT.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_D): JOYSTICK_RIGHT.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_E): JOYSTICK_UP.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_X): JOYSTICK_DOWN.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_C): JOYSTICK_FIRE.rawValue
+        MacKey(keyCode: kVK_ANSI_S): JOYSTICK_LEFT.rawValue,
+        MacKey(keyCode: kVK_ANSI_D): JOYSTICK_RIGHT.rawValue,
+        MacKey(keyCode: kVK_ANSI_E): JOYSTICK_UP.rawValue,
+        MacKey(keyCode: kVK_ANSI_X): JOYSTICK_DOWN.rawValue,
+        MacKey(keyCode: kVK_ANSI_C): JOYSTICK_FIRE.rawValue
     ]
     
     static let disconnectJoyKeys = true
@@ -787,7 +787,7 @@ extension Defaults {
         let serialDevice: SerialPortDevice
     }
 
-    static let A500 = ModelDefaults.init(
+    static let A500 = ModelDefaults(
 
         agnusRevision: AGNUS_8372,
         deniseRevision: DENISE_8362R8,
@@ -799,7 +799,7 @@ extension Defaults {
         driveType: [DRIVE_35_DD, DRIVE_35_DD, DRIVE_35_DD, DRIVE_35_DD],
         serialDevice: SPD_NONE)
 
-    static let A1000 = ModelDefaults.init(
+    static let A1000 = ModelDefaults(
 
         agnusRevision: AGNUS_8367,
         deniseRevision: DENISE_8362R8,
@@ -811,7 +811,7 @@ extension Defaults {
         driveType: [DRIVE_35_DD, DRIVE_35_DD, DRIVE_35_DD, DRIVE_35_DD],
         serialDevice: SPD_NONE)
 
-    static let A2000 = ModelDefaults.init(
+    static let A2000 = ModelDefaults(
         
         agnusRevision: AGNUS_8375,
         deniseRevision: DENISE_8362R8,

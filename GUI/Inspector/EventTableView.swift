@@ -43,8 +43,8 @@ extension EventTableView: NSTableViewDataSource {
         
         switch tableColumn?.identifier.rawValue {
 
-        case "slot":    return String.init(cString: info.slotName)
-        case "event":   return String.init(cString: info.eventName)
+        case "slot":    return String(cString: info.slotName)
+        case "event":   return String(cString: info.eventName)
         case "trigger":
             if willTrigger {
                 return String(format: "%lld", info.trigger)

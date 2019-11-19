@@ -16,13 +16,12 @@ import Carbon.HIToolbox
 public func track(_ message: String = "",
                   path: String = #file, function: String = #function, line: Int = #line ) {
     
-    if let file = URL.init(string: path)?.deletingPathExtension().lastPathComponent {
-        if message == "" {
-            print("\(file).\(line)::\(function)")
-        } else {
-            print("\(file).\(line)::\(function): \(message)")
-        }
-    }
+	let file = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+	if message == "" {
+		print("\(file).\(line)::\(function)")
+	} else {
+		print("\(file).\(line)::\(function): \(message)")
+	}
 }
 
 //
@@ -74,7 +73,7 @@ extension URL {
         let path = self.deletingPathExtension().path
         let suffix = self.pathExtension
         
-        let date = Date.init()
+        let date = Date()
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
@@ -171,7 +170,7 @@ extension NSImage {
         let ctx = NSGraphicsContext.current
         ctx?.imageInterpolation = interpolation // NSImageInterpolation.none // .high
         self.draw(in: cutout,
-                  from: NSRect.init(x: 0, y: 0, width: size.width, height: size.height),
+				  from: NSRect(origin: .zero, size: size),
                   operation: .copy,
                   fraction: 1)
         img.unlockFocus()
@@ -181,14 +180,14 @@ extension NSImage {
     
     func resize(width: CGFloat, height: CGFloat) -> NSImage {
         
-        let cutout = NSRect.init(x: 0, y: 0, width: width, height: height)
+        let cutout = NSRect(x: 0, y: 0, width: width, height: height)
         return resizeImage(width: width, height: height,
                            cutout: cutout)
     }
 
     func resizeSharp(width: CGFloat, height: CGFloat) -> NSImage {
         
-        let cutout = NSRect.init(x: 0, y: 0, width: width, height: height)
+        let cutout = NSRect(x: 0, y: 0, width: width, height: height)
         return resizeImage(width: width, height: height,
                            cutout: cutout,
                            interpolation: .none)
@@ -196,7 +195,7 @@ extension NSImage {
     
     func roundCorners(withRadius radius: CGFloat) -> NSImage {
         
-        let rect = NSRect.init(origin: NSPoint.zero, size: size)
+        let rect = NSRect(origin: NSPoint.zero, size: size)
         if
             let cgImage = self.cgImage,
             let context = CGContext(data: nil,
@@ -236,7 +235,7 @@ extension NSImage {
     
     func tint(_ color: NSColor) {
         
-        let imageRect = NSRect.init(origin: .zero, size: size)
+        let imageRect = NSRect(origin: .zero, size: size)
         
         lockFocus()
         color.set()
@@ -246,18 +245,18 @@ extension NSImage {
     
     func darken() {
         
-        tint(NSColor.init(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.33))
+        tint(NSColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.33))
     }
 
     func pressed() {
         
-        tint(NSColor.init(red: 1.0, green: 0.0, blue: 0.0, alpha: 0.5))
-        // tint(NSColor.init(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.15))
+        tint(NSColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 0.5))
+        // tint(NSColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.15))
     }
 
     func red() {
         
-        tint(NSColor.init(red: 1.0, green: 0.0, blue: 0.0, alpha: 0.5))
+        tint(NSColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 0.5))
     }
 }
 

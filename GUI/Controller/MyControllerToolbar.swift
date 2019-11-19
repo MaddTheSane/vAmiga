@@ -120,7 +120,7 @@ extension MyController {
             
             track("Browse")
             let nibName = NSNib.Name("SnapshotDialog")
-            let controller = SnapshotDialog.init(windowNibName: nibName)
+            let controller = SnapshotDialog(windowNibName: nibName)
             controller.showSheet()
 
         default:
@@ -138,7 +138,7 @@ extension MyController {
     @IBAction func snapshotsAction(_ sender: Any!) {
         
         let nibName = NSNib.Name("SnapshotDialog")
-        let controller = SnapshotDialog.init(windowNibName: nibName)
+        let controller = SnapshotDialog(windowNibName: nibName)
         controller.showSheet()
     }
 
@@ -176,13 +176,13 @@ extension MyController {
         // Image view
         let paper = printInfo.paperSize
         let image = metal.screenshot()
-        let printRect = NSRect.init(x: 0, y: 0, width: paper.width, height: paper.height)
-        let imageView = NSImageView.init(frame: printRect)
+        let printRect = NSRect(x: 0, y: 0, width: paper.width, height: paper.height)
+        let imageView = NSImageView(frame: printRect)
         imageView.image = image
         imageView.imageScaling = .scaleAxesIndependently
     
         // Print image
-        let printOperation = NSPrintOperation.init(view: imageView, printInfo: printInfo)
+        let printOperation = NSPrintOperation(view: imageView, printInfo: printInfo)
         printOperation.runModal(for: window,
                                 delegate: nil,
                                 didRun: nil,

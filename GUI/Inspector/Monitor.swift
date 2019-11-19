@@ -38,7 +38,7 @@ class Monitor: NSWindowController {
     // Factory method
     static func make() -> Monitor? {
 
-        return Monitor.init(windowNibName: "Monitor")
+        return Monitor(windowNibName: "Monitor")
     }
 
     override func awakeFromNib() {
@@ -83,7 +83,7 @@ class Monitor: NSWindowController {
 
         if dmaDebugController == nil {
             let nibName = NSNib.Name("DMADebugDialog")
-            dmaDebugController = DMADebugController.init(windowNibName: nibName)
+            dmaDebugController = DMADebugController(windowNibName: nibName)
         }
         // dmaDebugController!.showSheet()
         window?.beginSheet(dmaDebugController!.window!, completionHandler: { result in

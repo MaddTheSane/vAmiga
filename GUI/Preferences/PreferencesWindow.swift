@@ -27,7 +27,7 @@ class PreferencesWindow: NSWindow {
         
         track()
         let controller = delegate as? PreferencesController
-        controller?.keyDown(with: MacKey.init(event: event))
+        controller?.keyDown(with: MacKey(event: event))
     }
 
     override func flagsChanged(with event: NSEvent) {

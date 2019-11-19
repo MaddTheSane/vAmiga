@@ -65,7 +65,7 @@ class MyController: NSWindowController, MessageReceiver {
     var statusBar = true
 
     // Small disk icon to be shown in NSMenuItems
-    var smallDisk = NSImage.init(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
+    var smallDisk = NSImage(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
     
     // Drive that receives drag and drop inputs
     var dragAndDropDrive: DriveProxy?
@@ -258,7 +258,7 @@ class MyController: NSWindowController, MessageReceiver {
     var driveBlankDiskFormat = Defaults.driveBlankDiskFormat
     var driveBlankDiskFormatIntValue: Int {
         get { return Int(driveBlankDiskFormat.rawValue) }
-        set { driveBlankDiskFormat = FileSystemType.init(newValue) }
+        set { driveBlankDiskFormat = FileSystemType(newValue) }
     }
     var screenshotSource = Defaults.screenshotSource
     var screenshotTarget = Defaults.screenshotTarget
@@ -309,11 +309,11 @@ class MyController: NSWindowController, MessageReceiver {
     var hourglassIcon: NSImage? {
         switch warpMode {
         case .auto:
-            return NSImage.init(named: amiga.warp ? "hourglass3Template" : "hourglass1Template")
+            return NSImage(named: amiga.warp ? "hourglass3Template" : "hourglass1Template")
         case .on:
-            return NSImage.init(named: "warpLockOnTemplate")
+            return NSImage(named: "warpLockOnTemplate")
         case .off:
-            return NSImage.init(named: "warpLockOffTemplate")
+            return NSImage(named: "warpLockOffTemplate")
         }
     }
 
@@ -400,7 +400,7 @@ extension MyController {
         track()
                 
         // Create audio engine
-        audioEngine = AudioEngine.init(withPaula: amiga.paula)
+        audioEngine = AudioEngine(withPaula: amiga.paula)
     }
 
     override open func windowDidLoad() {
@@ -613,13 +613,13 @@ extension MyController {
             refreshStatusBar()
             
         case MSG_POWER_LED_ON:
-            powerLED.image = NSImage.init(named: "powerLedOn")
+            powerLED.image = NSImage(named: "powerLedOn")
 
         case MSG_POWER_LED_DIM:
-            powerLED.image = NSImage.init(named: "powerLedDim")
+            powerLED.image = NSImage(named: "powerLedDim")
 
         case MSG_POWER_LED_OFF:
-            powerLED.image = NSImage.init(named: "powerLedOff")
+            powerLED.image = NSImage(named: "powerLedOff")
 
         case MSG_DMA_DEBUG_ON:
             metal.zoomTextureOut()
@@ -668,7 +668,7 @@ extension MyController {
             
         case MSG_DRIVE_LED_ON:
             
-            let image = NSImage.init(named: "driveLedOn")
+            let image = NSImage(named: "driveLedOn")
             switch msg.data {
             case 0: df0LED.image = image
             case 1: df1LED.image = image
@@ -679,7 +679,7 @@ extension MyController {
             
         case MSG_DRIVE_LED_OFF:
             
-            let image = NSImage.init(named: "driveLedOff")
+            let image = NSImage(named: "driveLedOff")
             switch msg.data {
             case 0: df0LED.image = image
             case 1: df1LED.image = image
@@ -710,7 +710,7 @@ extension MyController {
             serialIn += String(UnicodeScalar(msg.data & 0xFF)!)
 
         case MSG_SER_OUT:
-            serialOut += String(UnicodeScalar.init(msg.data & 0xFF)!)
+            serialOut += String(UnicodeScalar(msg.data & 0xFF)!)
 
         case MSG_AUTOSNAPSHOT_LOADED,
              MSG_USERSNAPSHOT_LOADED,
@@ -744,7 +744,7 @@ extension MyController {
         
         if preferencesController == nil {
             let nibName = NSNib.Name("Preferences")
-            preferencesController = PreferencesController.init(windowNibName: nibName)
+            preferencesController = PreferencesController(windowNibName: nibName)
         }
 
         preferencesController!.showSheet(tab: tab)
@@ -802,7 +802,7 @@ extension MyController {
     
     func playSound(name: String, volume: Float) {
         
-        if let s = NSSound.init(named: name) {
+        if let s = NSSound(named: name) {
             s.volume = volume
             s.play()
         } else {

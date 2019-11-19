@@ -7,10 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-let fmt8  = MyFormatter.init(radix: 16, min: 0, max: 0xFF)
-let fmt16 = MyFormatter.init(radix: 16, min: 0, max: 0xFFFF)
-let fmt24 = MyFormatter.init(radix: 16, min: 0, max: 0xFFFFFF)
-let fmt32 = MyFormatter.init(radix: 16, min: 0, max: 0xFFFFFFFF)
+let fmt8  = MyFormatter(radix: 16, min: 0, max: 0xFF)
+let fmt16 = MyFormatter(radix: 16, min: 0, max: 0xFFFF)
+let fmt24 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFF)
+let fmt32 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFFFF)
 
 class Inspector: NSWindowController {
 
@@ -415,7 +415,7 @@ class Inspector: NSWindowController {
     // Factory method
     static func make() -> Inspector? {
         
-        return Inspector.init(windowNibName: "Inspector")
+        return Inspector(windowNibName: "Inspector")
     }
     
     override func awakeFromNib() {
@@ -423,7 +423,7 @@ class Inspector: NSWindowController {
         track()
         
         // Create and assign binary number formatter
-        let bF = MyFormatter.init(radix: 2, min: 0, max: 255)
+        let bF = MyFormatter(radix: 2, min: 0, max: 255)
         ciaPRAbinary.formatter = bF
         ciaDDRAbinary.formatter = bF
         ciaPRBbinary.formatter = bF

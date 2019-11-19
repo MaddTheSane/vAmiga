@@ -64,14 +64,14 @@ class DMADebugController: DialogController {
         dmaDebugCopper.state = info.visualize.7 ? .on : .off
         dmaDebugBlitter.state = info.visualize.8 ? .on : .off
 
-        dmaDebugCpuCol.color = NSColor.init(r: rgb.1.0, g: rgb.1.1, b: rgb.1.2)
-        dmaDebugRefreshCol.color = NSColor.init(r: rgb.2.0, g: rgb.2.1, b: rgb.2.2)
-        dmaDebugDiskCol.color = NSColor.init(r: rgb.3.0, g: rgb.3.1, b: rgb.3.2)
-        dmaDebugAudioCol.color = NSColor.init(r: rgb.4.0, g: rgb.4.1, b: rgb.4.2)
-        dmaDebugBitplaneCol.color = NSColor.init(r: rgb.5.0, g: rgb.5.1, b: rgb.5.2)
-        dmaDebugSpritesCol.color = NSColor.init(r: rgb.6.0, g: rgb.6.1, b: rgb.6.2)
-        dmaDebugCopperCol.color = NSColor.init(r: rgb.7.0, g: rgb.7.1, b: rgb.7.2)
-        dmaDebugBlitterCol.color = NSColor.init(r: rgb.8.0, g: rgb.8.1, b: rgb.8.2)
+        dmaDebugCpuCol.color = NSColor(r: rgb.1.0, g: rgb.1.1, b: rgb.1.2)
+        dmaDebugRefreshCol.color = NSColor(r: rgb.2.0, g: rgb.2.1, b: rgb.2.2)
+        dmaDebugDiskCol.color = NSColor(r: rgb.3.0, g: rgb.3.1, b: rgb.3.2)
+        dmaDebugAudioCol.color = NSColor(r: rgb.4.0, g: rgb.4.1, b: rgb.4.2)
+        dmaDebugBitplaneCol.color = NSColor(r: rgb.5.0, g: rgb.5.1, b: rgb.5.2)
+        dmaDebugSpritesCol.color = NSColor(r: rgb.6.0, g: rgb.6.1, b: rgb.6.2)
+        dmaDebugCopperCol.color = NSColor(r: rgb.7.0, g: rgb.7.1, b: rgb.7.2)
+        dmaDebugBlitterCol.color = NSColor(r: rgb.8.0, g: rgb.8.1, b: rgb.8.2)
 
         dmaDebugOpacity.doubleValue = info.opacity * 100.0
         dmaDebugDisplayMode.selectItem(withTag: info.displayMode.rawValue)

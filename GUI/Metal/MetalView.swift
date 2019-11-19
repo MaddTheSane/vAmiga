@@ -12,8 +12,8 @@ import MetalKit
 import MetalPerformanceShaders
 
 struct C64Texture {
-    static let orig = NSSize.init(width: 1024, height: 512)
-    static let upscaled = NSSize.init(width: 2048, height: 2048)
+    static let orig = NSSize(width: 1024, height: 512)
+    static let upscaled = NSSize(width: 2048, height: 2048)
 }
 
 public class MetalView: MTKView {
@@ -57,8 +57,8 @@ public class MetalView: MTKView {
     var dxsign = CGFloat(1)
     var dxsum = CGFloat(0)
     var dxturns = 0
-    var lastTurn = DispatchTime.init(uptimeNanoseconds: 0)
-    var lastShake = DispatchTime.init(uptimeNanoseconds: 0)
+    var lastTurn = DispatchTime(uptimeNanoseconds: 0)
+    var lastShake = DispatchTime(uptimeNanoseconds: 0)
 
     //
     // Metal objects
@@ -224,10 +224,10 @@ public class MetalView: MTKView {
     var cutoutY2 = AnimatedFloat(cutoutY2default)
 
     // Texture cut-out (normalized)
-    var textureRect = CGRect.init(x: CGFloat(cutoutX1default),
-                                  y: CGFloat(cutoutY1default),
-                                  width: CGFloat(cutoutX2default - cutoutX1default),
-                                  height: CGFloat(cutoutY2default - cutoutY1default))
+    var textureRect = CGRect(x: CGFloat(cutoutX1default),
+							 y: CGFloat(cutoutY1default),
+							 width: CGFloat(cutoutX2default - cutoutX1default),
+							 height: CGFloat(cutoutY2default - cutoutY1default))
 
     // Use this for  debugging (displays the whole texture):
     // var textureRect = CGRect.init(x: 0.0, y: 0.0, width: 1.0, height: 1.0)
@@ -475,7 +475,7 @@ public class MetalView: MTKView {
                              options: &shaderOptions)
         
         // Create a render pass descriptor
-        let descriptor = MTLRenderPassDescriptor.init()
+        let descriptor = MTLRenderPassDescriptor()
         descriptor.colorAttachments[0].texture = drawable.texture
         descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.95, 0.95, 0.95, 1)
         descriptor.colorAttachments[0].loadAction = MTLLoadAction.clear

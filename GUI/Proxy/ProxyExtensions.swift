@@ -79,6 +79,6 @@ public extension DriveProxy {
             name = hasModifiedDisk() ? "diskUTemplate" : "diskTemplate"
         }
 
-        return NSImage.init(named: name)!
+        return NSImage(named: name)!
     }
 }

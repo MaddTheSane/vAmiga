@@ -121,10 +121,10 @@ extension MetalView {
             cont = cutoutX1.animates() || cutoutY1.animates() || cutoutX2.animates() || cutoutY2.animates()
 
             // Update texture cutout
-            textureRect = CGRect.init(x: CGFloat(cutoutX1.current),
-                                      y: CGFloat(cutoutY1.current),
-                                      width: CGFloat(cutoutX2.current - cutoutX1.current),
-                                      height: CGFloat(cutoutY2.current - cutoutY1.current))
+            textureRect = CGRect(x: CGFloat(cutoutX1.current),
+								 y: CGFloat(cutoutY1.current),
+								 width: CGFloat(cutoutX2.current - cutoutX1.current),
+								 height: CGFloat(cutoutY2.current - cutoutY1.current))
             buildVertexBuffer()
 
             // Check if animation has terminated

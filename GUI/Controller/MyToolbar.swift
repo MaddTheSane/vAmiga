@@ -31,10 +31,10 @@ class MyToolbar: NSToolbar {
 
         // Adjust the appearance of the Pause button
         if amiga.isRunning {
-            pause?.image = NSImage.init(named: "pauseTemplate")
+            pause?.image = NSImage(named: "pauseTemplate")
             pauseButton.label = "Pause"
         } else {
-            pause?.image = NSImage.init(named: "continueTemplate")
+            pause?.image = NSImage(named: "continueTemplate")
             pauseButton.label = "Run"
         }
 

@@ -28,11 +28,11 @@ extension PreferencesController {
         let hasDiagExt    = amiga.mem.isDiagRom(extRev)
         let hasOrigExt    = amiga.mem.isOrigRom(extRev)
 
-        let romMissing    = NSImage.init(named: "rom_light")
-        let romOrig       = NSImage.init(named: "rom_original")
-        let romAros       = NSImage.init(named: "rom_aros")
-        let romDiag       = NSImage.init(named: "rom_diag")
-        let romUnknown    = NSImage.init(named: "rom_unknown")
+        let romMissing    = NSImage(named: "rom_light")
+        let romOrig       = NSImage(named: "rom_original")
+        let romAros       = NSImage(named: "rom_aros")
+        let romDiag       = NSImage(named: "rom_diag")
+        let romUnknown    = NSImage(named: "rom_unknown")
         
         // Lock controls if emulator is powered on
         romDropView.isEnabled = poweredOff

@@ -63,23 +63,23 @@ class ActivityView: NSView {
 
         if darkMode {
 
-            color1 = NSColor.init(r: 102, g: 178, b: 255, a: 255)
-            alpha1a = NSColor.init(r: 102, g: 178, b: 255, a: 50)
-            alpha1b = NSColor.init(r: 102, g: 178, b: 255, a: 150)
+            color1 = NSColor(r: 102, g: 178, b: 255, a: 255)
+            alpha1a = NSColor(r: 102, g: 178, b: 255, a: 50)
+            alpha1b = NSColor(r: 102, g: 178, b: 255, a: 150)
 
-            color2 = NSColor.init(r: 255, g: 102, b: 178, a: 255)
-            alpha2a = NSColor.init(r: 255, g: 102, b: 178, a: 50)
-            alpha2b = NSColor.init(r: 255, g: 102, b: 178, a: 150)
+            color2 = NSColor(r: 255, g: 102, b: 178, a: 255)
+            alpha2a = NSColor(r: 255, g: 102, b: 178, a: 50)
+            alpha2b = NSColor(r: 255, g: 102, b: 178, a: 150)
 
         } else {
 
-            color1 = NSColor.init(r: 0, g: 102, b: 204, a: 255)
-            alpha1a = NSColor.init(r: 0, g: 102, b: 204, a: 50)
-            alpha1b = NSColor.init(r: 0, g: 102, b: 204, a: 150)
+            color1 = NSColor(r: 0, g: 102, b: 204, a: 255)
+            alpha1a = NSColor(r: 0, g: 102, b: 204, a: 50)
+            alpha1b = NSColor(r: 0, g: 102, b: 204, a: 150)
 
-            color2 = NSColor.init(r: 204, g: 0, b: 204, a: 255)
-            alpha2a = NSColor.init(r: 204, g: 0, b: 204, a: 50)
-            alpha2b = NSColor.init(r: 204, g: 0, b: 204, a: 150)
+            color2 = NSColor(r: 204, g: 0, b: 204, a: 255)
+            alpha2a = NSColor(r: 204, g: 0, b: 204, a: 50)
+            alpha2b = NSColor(r: 204, g: 0, b: 204, a: 150)
         }
     }
 
@@ -194,8 +194,8 @@ class ActivityView: NSView {
         var graph1, graph2, clip1, clip2: NSBezierPath?
 
         // Create gradient
-        let c2 = NSColor.init(r: 255, g: 255, b: 0, a: 128).cgColor
-        let c3 = NSColor.init(r: 255, g: 0, b: 0, a: 128).cgColor
+        let c2 = NSColor(r: 255, g: 255, b: 0, a: 128).cgColor
+        let c3 = NSColor(r: 255, g: 0, b: 0, a: 128).cgColor
         let grad1 = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
                                colors: [alpha1a.cgColor, alpha1b.cgColor, c2, c3] as CFArray,
                                locations: [0.0, 0.6, 0.8, 1.0] as [CGFloat])!

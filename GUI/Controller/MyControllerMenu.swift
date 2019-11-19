@@ -233,14 +233,13 @@ extension MyController: NSMenuItemValidation {
         
         // Assemble URL and save
         let paths = NSSearchPathForDirectoriesInDomains(.desktopDirectory, .userDomainMask, true)
-        let desktopUrl = NSURL.init(fileURLWithPath: paths[0])
-        if let url = desktopUrl.appendingPathComponent("Screenshot." + suffix) {
-            do {
-                try saveScreenshot(url: url.addTimeStamp().makeUnique())
-            } catch {
-                track("Cannot quicksave screenshot")
-            }
-        }
+        let desktopUrl = URL(fileURLWithPath: paths[0])
+		let url = desktopUrl.appendingPathComponent("Screenshot." + suffix)
+		do {
+			try saveScreenshot(url: url.addTimeStamp().makeUnique())
+		} catch {
+			track("Cannot quicksave screenshot")
+		}
     }
     
     func saveScreenshot(url: URL) throws {
@@ -517,7 +516,7 @@ extension MyController: NSMenuItemValidation {
     @IBAction func exportDiskAction(_ sender: NSMenuItem!) {
         
         let nibName = NSNib.Name("ExportDiskDialog")
-        let exportPanel = ExportDiskController.init(windowNibName: nibName)
+        let exportPanel = ExportDiskController(windowNibName: nibName)
         exportPanel.showSheet(forDrive: sender.tag)
     }
     

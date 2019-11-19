@@ -35,12 +35,12 @@ class KeyboardController: NSObject {
         // Setup symbolic key maps
         for keyCode: UInt16 in 0 ... 255 {
             
-            if let s = String.init(keyCode: keyCode, carbonFlags: 0), s.count == 1 {
+            if let s = String(keyCode: keyCode, carbonFlags: 0), s.count == 1 {
                 if let scalar = s.unicodeScalars.first {
                     symKeyMap[scalar] = keyCode
                 }
             }
-            if let s = String.init(keyCode: keyCode, carbonFlags: shiftKey), s.count == 1 {
+            if let s = String(keyCode: keyCode, carbonFlags: shiftKey), s.count == 1 {
                 if let scalar = s.unicodeScalars.first {
                     symKeyMapShifted[scalar] = keyCode
                 }
@@ -67,12 +67,12 @@ class KeyboardController: NSObject {
             return
         }
         
-        keyDown(with: MacKey.init(event: event))
+        keyDown(with: MacKey(event: event))
     }
     
     func keyUp(with event: NSEvent) {
         
-        keyUp(with: MacKey.init(event: event))
+        keyUp(with: MacKey(event: event))
     }
     
     func flagsChanged(with event: NSEvent) {
@@ -146,13 +146,13 @@ class KeyboardController: NSObject {
     
     func keyDown(with keyCode: UInt16) {
         
-        let macKey = MacKey.init(keyCode: keyCode)
+        let macKey = MacKey(keyCode: keyCode)
         myController?.amiga.keyboard.pressKey(macKey.amigaKeyCode)
     }
     
     func keyUp(with keyCode: UInt16) {
         
-        let macKey = MacKey.init(keyCode: keyCode)
+        let macKey = MacKey(keyCode: keyCode)
         myController?.amiga.keyboard.releaseKey(macKey.amigaKeyCode)
     }
     

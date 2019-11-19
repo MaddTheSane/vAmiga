@@ -143,7 +143,7 @@ class DiskMountController: DialogController {
         let hide = size.height < 300
         
         // Update disk icon
-        diskIcon.image = NSImage.init(named: writeProtect ? "adf_protected" : "adf")
+        diskIcon.image = NSImage(named: writeProtect ? "adf_protected" : "adf")
         
         // Update text fields
         let typeName = [
@@ -190,7 +190,7 @@ class DiskMountController: DialogController {
         // Compute size of preview table
         let w = size.width - 40
         let h = size.height - 224
-        previewScrollView.frame = NSRect.init(x: 20, y: 61, width: w, height: h)
+        previewScrollView.frame = NSRect(x: 20, y: 61, width: w, height: h)
    
         // Update all elements
         cylinderField.integerValue   = _cylinder
