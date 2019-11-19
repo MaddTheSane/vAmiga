@@ -11,7 +11,7 @@ class BreakTableView: NSTableView {
     
     @IBOutlet weak var inspector: Inspector!
     
-    var cpu = amigaProxy!.cpu!
+    var cpu = amigaProxy!.cpu
     
     override func awakeFromNib() {
         

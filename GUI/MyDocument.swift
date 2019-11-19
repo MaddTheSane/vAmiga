@@ -175,15 +175,15 @@ class MyDocument: NSDocument {
         
         switch amigaAttachment {
 
-        case _ as SnapshotProxy:
+        case let am_ as SnapshotProxy:
             
-            amiga.load(fromSnapshot: amigaAttachment as? SnapshotProxy)
+            amiga.load(fromSnapshot: am_)
             return true
        
-        case _ as ADFFileProxy:
+        case let am_ as ADFFileProxy:
             
             if let df = myController?.dragAndDropDrive?.nr {
-                amiga.diskController.insert(df, adf: amigaAttachment as? ADFFileProxy)
+                amiga.diskController.insert(df, adf: am_)
             } else {
                 runDiskMountDialog()
             }

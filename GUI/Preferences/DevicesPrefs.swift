@@ -14,11 +14,12 @@ extension PreferencesController {
         guard
             let controller = myController,
             let amiga      = amigaProxy,
-            let joystick1  = amiga.joystick1,
-            let joystick2  = amiga.joystick2,
             let metal      = controller.metal
             else { return }
        
+		let joystick1  = amiga.joystick1
+		let joystick2  = amiga.joystick2
+
         // Joystick emulation keys
         updateJoyKeyMap(0, dir: JOYSTICK_UP, button: devUp1button, txt: devUp1)
         updateJoyKeyMap(0, dir: JOYSTICK_DOWN, button: devDown1button, txt: devDown1)

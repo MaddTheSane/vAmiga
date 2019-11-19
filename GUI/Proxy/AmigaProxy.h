@@ -12,6 +12,8 @@
 
 #import "va_std.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 // Forward declarations
 @class CPUProxy;
 @class CIAProxy;
@@ -216,7 +218,7 @@ struct AmigaFileWrapper;
 - (BOOL) hasSyntaxError:(NSInteger)nr;
 - (uint32_t) breakpointAddr:(NSInteger)nr;
 - (BOOL) setBreakpointAddr:(NSInteger)nr addr:(uint32_t)addr;
-- (NSString *) breakpointCondition:(NSInteger)nr;
+- (nullable NSString *) breakpointCondition:(NSInteger)nr;
 - (BOOL) setBreakpointCondition:(NSInteger)nr cond:(NSString *)cond;
 
 @end
@@ -259,7 +261,7 @@ struct AmigaFileWrapper;
 @property (readonly) BOOL hasKickRom;
 - (void) deleteRom;
 - (BOOL) isRom:(NSURL *)url;
-- (BOOL) loadRomFromBuffer:(NSData *)buffer;
+- (BOOL) loadRomFromBuffer:(nullable NSData *)buffer;
 - (BOOL) loadRomFromFile:(NSURL *)url;
 @property (readonly) uint64_t romFingerprint;
 @property (readonly) RomRevision romRevision;
@@ -270,7 +272,7 @@ struct AmigaFileWrapper;
 @property (readonly) BOOL hasExt;
 - (void) deleteExt;
 - (BOOL) isExt:(NSURL *)url;
-- (BOOL) loadExtFromBuffer:(NSData *)buffer;
+- (BOOL) loadExtFromBuffer:(nullable NSData *)buffer;
 - (BOOL) loadExtFromFile:(NSURL *)url;
 @property (readonly) uint64_t extFingerprint;
 @property (readonly) RomRevision extRevision;
@@ -589,11 +591,11 @@ struct AmigaFileWrapper;
 + (BOOL)isUnsupportedSnapshotData:(NSData *)buffer;
 + (BOOL)isSupportedSnapshotFile:(NSString *)path;
 + (BOOL)isUnsupportedSnapshotFile:(NSString *)path;
-+ (instancetype)snapshotProxyWithData:(NSData *)buffer;
-+ (instancetype)snapshotProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
-+ (instancetype)snapshotProxyWithFile:(NSString *)path;
-+ (instancetype)snapshotProxyWithURL:(NSURL *)path;
-+ (instancetype)snapshotProxyWithAmiga:(AmigaProxy *)amiga;
++ (nullable instancetype)snapshotProxyWithData:(NSData *)buffer;
++ (nullable instancetype)snapshotProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
++ (nullable instancetype)snapshotProxyWithFile:(NSString *)path;
++ (nullable instancetype)snapshotProxyWithURL:(NSURL *)path;
++ (nullable instancetype)snapshotProxyWithAmiga:(AmigaProxy *)amiga;
 
 @end
 
@@ -606,11 +608,11 @@ struct AmigaFileWrapper;
 }
 
 + (BOOL)isADFFile:(NSString *)path;
-+ (instancetype)fileProxyWithData:(NSData *)buffer;
-+ (instancetype)fileProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
-+ (instancetype)fileProxyWithFile:(NSString *)path;
++ (nullable instancetype)fileProxyWithData:(NSData *)buffer;
++ (nullable instancetype)fileProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
++ (nullable instancetype)fileProxyWithFile:(NSString *)path;
 + (instancetype)fileProxyWithDiskType:(DiskType)type;
-+ (instancetype)fileProxyWithDrive:(DriveProxy *)drive;
++ (nullable instancetype)fileProxyWithDrive:(DriveProxy *)drive;
 
 @property (readonly) DiskType diskType;
 @property (readonly) NSInteger numCylinders;
@@ -631,3 +633,5 @@ typedef NS_ERROR_ENUM(vAmigaErrorDomain, vAmigaErrors) {
 	vAmigaErrorUnsupportedFormat,
 	vAmigaErrorCorruptedFile
 };
+
+NS_ASSUME_NONNULL_END

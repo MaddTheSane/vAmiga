@@ -543,7 +543,7 @@ public class MetalView: MTKView {
 
             // Update background texture
             let buffer = controller.amiga.denise.noise()
-            updateBgTexture(bytes: buffer!)
+            updateBgTexture(bytes: buffer)
 
             // Configure vertex shader
             // commandEncoder.setVertexBuffer(uniformBufferBg, offset: 0, index: 1)

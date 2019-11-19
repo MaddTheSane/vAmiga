@@ -55,13 +55,13 @@ extension PreferencesController {
             hasExt     ? romUnknown : romMissing
 
         // Titles and subtitles
-        romTitle.stringValue = amiga.mem.romTitle!
-        romSubtitle.stringValue = amiga.mem.romVersion!
-        romSubsubtitle.stringValue = amiga.mem.romReleased!
+        romTitle.stringValue = amiga.mem.romTitle
+        romSubtitle.stringValue = amiga.mem.romVersion
+        romSubsubtitle.stringValue = amiga.mem.romReleased
 
-        extTitle.stringValue = amiga.mem.extTitle!
-        extSubtitle.stringValue = amiga.mem.extVersion!
-        extSubsubtitle.stringValue = amiga.mem.extReleased!
+        extTitle.stringValue = amiga.mem.extTitle
+        extSubtitle.stringValue = amiga.mem.extVersion
+        extSubsubtitle.stringValue = amiga.mem.extReleased
 
         // Rom mapping addresses
         extMapAddr.selectItem(withTag: amiga.mem.extStart)

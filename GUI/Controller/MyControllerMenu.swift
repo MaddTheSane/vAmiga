@@ -425,7 +425,7 @@ extension MyController: NSMenuItemValidation {
                     do {
                         let adf = try self.mydocument?.createADF(from: url)
                         // self.amiga.df(sender).insertDisk(adf)
-                        self.amiga.diskController.insert(sender.tag, adf: adf)
+                        self.amiga.diskController.insert(sender.tag, adf: adf!)
                     } catch {
                         NSApp.presentError(error)
                     }
@@ -447,7 +447,7 @@ extension MyController: NSMenuItemValidation {
                 let adf = try self.mydocument?.createADF(from: url)
                 if proceedWithUnexportedDisk(drive: drive) {
                     // amiga.df(drive).insertDisk(adf)
-                    amiga.diskController.insert(sender.tag, adf: adf)
+                    amiga.diskController.insert(sender.tag, adf: adf!)
                 }
             } catch {
                 NSApp.presentError(error)
@@ -462,7 +462,7 @@ extension MyController: NSMenuItemValidation {
                 let adf = try self.mydocument?.createADF(from: url)
                 if proceedWithUnexportedDisk(drive: drive) {
                     // drive.insertDisk(adf)
-                    amiga.diskController.insert(drive.nr, adf: adf)
+                    amiga.diskController.insert(drive.nr, adf: adf!)
                 }
             } catch {
                 NSApp.presentError(error)
@@ -472,7 +472,7 @@ extension MyController: NSMenuItemValidation {
     
     @IBAction func writeProtectAction(_ sender: NSMenuItem!) {
         
-        let drive = sender.tag == 0 ? amiga.df0! : amiga.df1!
+        let drive = sender.tag == 0 ? amiga.df0 : amiga.df1
         drive.toggleWriteProtection()
     }
 
