@@ -194,7 +194,7 @@ extension VirtualKeyboardController {
     static var kbStyle: KBStyle {
 
         // Determine if an A1000 is emulated
-        let a1000 = amigaProxy?.mem.hasBootRom() ?? false
+        let a1000 = amigaProxy?.mem.hasBootRom ?? false
 
         // Use a narrow keyboard for the A1000 and a wide keyboard otherwise
         return a1000 ? .narrow : .wide

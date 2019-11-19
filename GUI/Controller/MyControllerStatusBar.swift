@@ -15,7 +15,7 @@ extension MyController {
 
         let dc = amiga.paula.getDiskControllerConfig()
 
-        let isRunning = amiga.isRunning()
+        let isRunning = amiga.isRunning
         let df0IsConnected = dc.connected.0
         let df1IsConnected = dc.connected.1
         let df2IsConnected = dc.connected.2

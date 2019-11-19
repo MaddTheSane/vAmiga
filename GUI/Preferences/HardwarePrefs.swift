@@ -17,7 +17,7 @@ extension PreferencesController {
 
         track()
         let config = amiga.config()
-        let poweredOff = amiga.isPoweredOff()
+        let poweredOff = amiga.isPoweredOff
 
         // Chipset
         hwAgnusRevisionPopup.selectItem(withTag: config.agnus.revision.rawValue)
@@ -84,7 +84,7 @@ extension PreferencesController {
     @IBAction func hwChipRamAction(_ sender: NSPopUpButton!) {
 
         let chipRamWanted = sender.selectedTag()
-        let chipRamLimit = amigaProxy?.agnus.chipRamLimit() ?? 0
+        let chipRamLimit = amigaProxy?.agnus.chipRamLimit ?? 0
 
         if chipRamWanted > chipRamLimit {
             myDocument?.showConfigurationAltert(MSG_CHIP_RAM_LIMIT.rawValue)

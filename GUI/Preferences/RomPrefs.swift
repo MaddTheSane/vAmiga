@@ -14,9 +14,9 @@ extension PreferencesController {
         // guard let controller = myController else { return }
         guard let amiga = amigaProxy else { return }
 
-        let poweredOff   = amiga.isPoweredOff()
-        let romRev       = amiga.mem.romRevision()
-        let extRev       = amiga.mem.extRevision()
+        let poweredOff   = amiga.isPoweredOff
+        let romRev       = amiga.mem.romRevision
+        let extRev       = amiga.mem.extRevision
 
         let hasRom        = romRev != ROM_MISSING
         let hasArosRom    = amiga.mem.isArosRom(romRev)
@@ -55,16 +55,16 @@ extension PreferencesController {
             hasExt     ? romUnknown : romMissing
 
         // Titles and subtitles
-        romTitle.stringValue = amiga.mem.romTitle()
-        romSubtitle.stringValue = amiga.mem.romVersion()
-        romSubsubtitle.stringValue = amiga.mem.romReleased()
+        romTitle.stringValue = amiga.mem.romTitle!
+        romSubtitle.stringValue = amiga.mem.romVersion!
+        romSubsubtitle.stringValue = amiga.mem.romReleased!
 
-        extTitle.stringValue = amiga.mem.extTitle()
-        extSubtitle.stringValue = amiga.mem.extVersion()
-        extSubsubtitle.stringValue = amiga.mem.extReleased()
+        extTitle.stringValue = amiga.mem.extTitle!
+        extSubtitle.stringValue = amiga.mem.extVersion!
+        extSubsubtitle.stringValue = amiga.mem.extReleased!
 
         // Rom mapping addresses
-        extMapAddr.selectItem(withTag: amiga.mem.extStart())
+        extMapAddr.selectItem(withTag: amiga.mem.extStart)
 
         // Hide some controls
         romDeleteButton.isHidden = !hasRom

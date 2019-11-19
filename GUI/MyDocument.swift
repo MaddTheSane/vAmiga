@@ -182,7 +182,7 @@ class MyDocument: NSDocument {
        
         case _ as ADFFileProxy:
             
-            if let df = myController?.dragAndDropDrive?.nr() {
+            if let df = myController?.dragAndDropDrive?.nr {
                 amiga.diskController.insert(df, adf: amigaAttachment as? ADFFileProxy)
             } else {
                 runDiskMountDialog()
@@ -224,7 +224,7 @@ class MyDocument: NSDocument {
             if let snapshot = SnapshotProxy(amiga: amiga) {
 
                 // Write to data buffer
-                if let data = NSMutableData.init(length: snapshot.sizeOnDisk()) {
+                if let data = NSMutableData.init(length: snapshot.sizeOnDisk) {
                     snapshot.write(toBuffer: data.mutableBytes)
                     return data as Data
                 }
@@ -252,7 +252,7 @@ class MyDocument: NSDocument {
         }
 
         // Serialize data
-        let data = NSMutableData.init(length: adf.sizeOnDisk())!
+        let data = NSMutableData.init(length: adf.sizeOnDisk)!
         adf.write(toBuffer: data.mutableBytes)
         
         // Write to file

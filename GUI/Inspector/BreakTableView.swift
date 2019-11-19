@@ -64,7 +64,7 @@ extension BreakTableView: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
         
-        return cpu.numberOfBreakpoints()
+        return cpu.numberOfBreakpoints
     }
     
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {

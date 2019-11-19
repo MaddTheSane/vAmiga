@@ -45,11 +45,11 @@ extension MyController: NSMenuItemValidation {
             //
             
         case #selector(MyController.stopAndGoAction(_:)):
-            item.title = amiga.isRunning() ? "Pause" : "Continue"
+            item.title = amiga.isRunning ? "Pause" : "Continue"
             return true
             
         case #selector(MyController.powerAction(_:)):
-            item.title = amiga.isPoweredOn() ? "Power Off" : "Power On"
+            item.title = amiga.isPoweredOn ? "Power Off" : "Power On"
             return true
             
             //
@@ -121,7 +121,7 @@ extension MyController: NSMenuItemValidation {
         case #selector(MyController.stepIntoAction(_:)),
              #selector(MyController.stepOverAction(_:)),
              #selector(MyController.stopAndGoAction(_:)):
-            return amiga.isPaused()
+            return amiga.isPaused
 
         case #selector(MyController.dumpStateAction(_:)):
             return !amiga.releaseBuild()
@@ -302,7 +302,7 @@ extension MyController: NSMenuItemValidation {
     
     @IBAction func powerAction(_ sender: Any!) {
         
-        amiga.isPoweredOn() ? amiga.powerOff() : amiga.run()
+        amiga.isPoweredOn ? amiga.powerOff() : amiga.run()
     }
 
     //
@@ -383,7 +383,7 @@ extension MyController: NSMenuItemValidation {
         track()
         
         let drive = amiga.df(sender)
-        let model = drive.type()
+        let model = drive.type
         
         var adf: ADFFileProxy
         
@@ -462,7 +462,7 @@ extension MyController: NSMenuItemValidation {
                 let adf = try self.mydocument?.createADF(from: url)
                 if proceedWithUnexportedDisk(drive: drive) {
                     // drive.insertDisk(adf)
-                    amiga.diskController.insert(drive.nr(), adf: adf)
+                    amiga.diskController.insert(drive.nr, adf: adf)
                 }
             } catch {
                 NSApp.presentError(error)

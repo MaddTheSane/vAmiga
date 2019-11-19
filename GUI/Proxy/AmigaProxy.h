@@ -120,10 +120,10 @@ struct AmigaFileWrapper;
 - (AmigaStats) getStats;
 
 // - (BOOL) readyToPowerUp;
-- (BOOL) isPoweredOn;
-- (BOOL) isPoweredOff;
-- (BOOL) isRunning;
-- (BOOL) isPaused;
+@property (readonly, getter=isPoweredOn) BOOL poweredOn;
+@property (readonly, getter=isPoweredOff) BOOL poweredOff;
+@property (readonly, getter=isRunning) BOOL running;
+@property (readonly, getter=isPaused) BOOL paused;
 - (void) run;
 - (void) pause;
 
@@ -145,17 +145,15 @@ struct AmigaFileWrapper;
 - (void) stepInto;
 - (void) stepOver;
 
-- (BOOL) warp;
+@property (readonly) BOOL warp;
 - (void) warpOn;
 - (void) warpOff;
 
 // Handling snapshots
-- (BOOL) takeAutoSnapshots;
-- (void) setTakeAutoSnapshots:(BOOL)b;
+@property BOOL takeAutoSnapshots;
 - (void) suspendAutoSnapshots;
 - (void) resumeAutoSnapshots;
-- (NSInteger) snapshotInterval;
-- (void) setSnapshotInterval:(NSInteger)value;
+@property NSInteger snapshotInterval;
  
 - (void) loadFromSnapshot:(SnapshotProxy *)proxy;
 
@@ -163,8 +161,8 @@ struct AmigaFileWrapper;
 - (BOOL) restoreUserSnapshot:(NSInteger)nr;
 - (BOOL) restoreLatestAutoSnapshot;
 - (BOOL) restoreLatestUserSnapshot;
-- (NSInteger) numAutoSnapshots;
-- (NSInteger) numUserSnapshots;
+@property (readonly) NSInteger numAutoSnapshots;
+@property (readonly) NSInteger numUserSnapshots;
 
 - (NSData *) autoSnapshotData:(NSInteger)nr;
 - (NSData *) userSnapshotData:(NSInteger)nr;
@@ -208,10 +206,10 @@ struct AmigaFileWrapper;
 - (void) enableBreakpointAt:(uint32_t)addr;
 - (void) disableBreakpointAt:(uint32_t)addr;
 
-- (NSInteger) traceBufferCapacity;
+@property (readonly) NSInteger traceBufferCapacity;
 - (void) truncateTraceBuffer:(NSInteger)count;
 
-- (NSInteger) numberOfBreakpoints;
+@property (readonly) NSInteger numberOfBreakpoints;
 - (void) deleteBreakpoint:(NSInteger)nr; 
 - (BOOL) isDisabled:(NSInteger)nr;
 - (BOOL) hasCondition:(NSInteger)nr;
@@ -256,30 +254,30 @@ struct AmigaFileWrapper;
 - (BOOL) isDiagRom:(RomRevision)rev;
 - (BOOL) isOrigRom:(RomRevision)rev;
 
-- (BOOL) hasRom;
-- (BOOL) hasBootRom;
-- (BOOL) hasKickRom;
+@property (readonly) BOOL hasRom;
+@property (readonly) BOOL hasBootRom;
+@property (readonly) BOOL hasKickRom;
 - (void) deleteRom;
 - (BOOL) isRom:(NSURL *)url;
 - (BOOL) loadRomFromBuffer:(NSData *)buffer;
 - (BOOL) loadRomFromFile:(NSURL *)url;
-- (uint64_t) romFingerprint;
-- (RomRevision) romRevision;
-- (NSString *) romTitle;
-- (NSString *) romVersion;
-- (NSString *) romReleased;
+@property (readonly) uint64_t romFingerprint;
+@property (readonly) RomRevision romRevision;
+@property (readonly, copy) NSString *romTitle;
+@property (readonly, copy) NSString *romVersion;
+@property (readonly, copy) NSString *romReleased;
 
-- (BOOL) hasExt;
+@property (readonly) BOOL hasExt;
 - (void) deleteExt;
 - (BOOL) isExt:(NSURL *)url;
 - (BOOL) loadExtFromBuffer:(NSData *)buffer;
 - (BOOL) loadExtFromFile:(NSURL *)url;
-- (uint64_t) extFingerprint;
-- (RomRevision) extRevision;
-- (NSString *) extTitle;
-- (NSString *) extVersion;
-- (NSString *) extReleased;
-- (NSInteger) extStart;
+@property (readonly) uint64_t extFingerprint;
+@property (readonly) RomRevision extRevision;
+@property (readonly, copy) NSString *extTitle;
+@property (readonly, copy) NSString *extVersion;
+@property (readonly, copy) NSString *extReleased;
+@property (readonly) NSInteger extStart;
 
 - (MemorySource *) getMemSrcTable; 
 - (MemorySource) memSrc:(NSInteger)addr;
@@ -301,7 +299,7 @@ struct AmigaFileWrapper;
     struct AgnusWrapper *wrapper;
 }
 
-- (NSInteger) chipRamLimit;
+@property (readonly) NSInteger chipRamLimit;
 
 - (void) dump;
 - (void) dumpEvents;
@@ -315,9 +313,9 @@ struct AmigaFileWrapper;
 - (CopperInfo) getCopperInfo;
 - (BlitterInfo) getBlitterInfo;
 
-- (BOOL) interlaceMode;
-- (BOOL) isLongFrame;
-- (BOOL) isShortFrame;
+@property (readonly) BOOL interlaceMode;
+@property (readonly, getter=isLongFrame) BOOL longFrame;
+@property (readonly, getter=isShortFrame) BOOL shortFrame;
 
 - (BOOL) isIllegalInstr:(NSInteger)addr;
 - (NSInteger) instrCount:(NSInteger)list;
@@ -352,12 +350,9 @@ struct AmigaFileWrapper;
 */
 - (double) palette;
 - (void) setPalette:(Palette)p;
-- (double) brightness;
-- (void) setBrightness:(double)value;
-- (double) saturation;
-- (void) setSaturation:(double)value;
-- (double) contrast;
-- (void) setContrast:(double)value;
+@property double brightness;
+@property double saturation;
+@property double contrast;
 
 - (void) setBPU:(NSInteger)count;
 - (void) setBPLCONx:(NSInteger)x value:(NSInteger)value;
@@ -390,11 +385,11 @@ struct AmigaFileWrapper;
 - (uint32_t) sampleRate;
 - (void) setSampleRate:(double)rate;
 
-- (NSInteger) ringbufferSize;
+@property (readonly) NSInteger ringbufferSize;
 - (double) ringbufferDataL:(NSInteger)offset;
 - (double) ringbufferDataR:(NSInteger)offset;
 // - (double) ringbufferData:(NSInteger)offset;
-- (double) fillLevel;
+@property (readonly) double fillLevel;
 @property (readonly) NSInteger bufferUnderflows;
 @property (readonly) NSInteger bufferOverflows;
 
@@ -534,8 +529,8 @@ struct AmigaFileWrapper;
 
 - (void) dump;
 
-- (NSInteger) nr;
-- (DriveType) type;
+@property (readonly) NSInteger nr;
+@property (readonly) DriveType type;
 
 - (BOOL) hasDisk;
 - (BOOL) hasWriteProtectedDisk;
@@ -568,9 +563,9 @@ struct AmigaFileWrapper;
 
 - (struct AmigaFileWrapper *)wrapper;
 
-- (AmigaFileType)type;
+@property (readonly) AmigaFileType type;
 - (void)setPath:(NSString *)path;
-- (NSInteger)sizeOnDisk;
+@property (readonly) NSInteger sizeOnDisk;
 
 - (void)seek:(NSInteger)offset;
 - (NSInteger)read;
@@ -610,7 +605,7 @@ struct AmigaFileWrapper;
 }
 
 + (BOOL)isADFFile:(NSString *)path;
-+ (instancetype) fileProxyWithData:(NSData *)buffer;
++ (instancetype)fileProxyWithData:(NSData *)buffer;
 + (instancetype)fileProxyWithBuffer:(const void *)buffer length:(NSInteger)length;
 + (instancetype)fileProxyWithFile:(NSString *)path;
 + (instancetype)fileProxyWithDiskType:(DiskType)type;

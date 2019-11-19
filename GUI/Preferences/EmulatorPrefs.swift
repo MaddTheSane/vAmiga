@@ -40,9 +40,9 @@ extension PreferencesController {
         
         // Miscellaneous
         emuPauseInBackground.state = controller.pauseInBackground ? .on : .off
-        emuAutoSnapshots.state = amiga.takeAutoSnapshots() ? .on : .off
-        emuSnapshotInterval.integerValue = amiga.snapshotInterval()
-        emuSnapshotInterval.isEnabled = amiga.takeAutoSnapshots()
+        emuAutoSnapshots.state = amiga.takeAutoSnapshots ? .on : .off
+        emuSnapshotInterval.integerValue = amiga.snapshotInterval
+        emuSnapshotInterval.isEnabled = amiga.takeAutoSnapshots
     }
 
     //
@@ -118,7 +118,7 @@ extension PreferencesController {
     @IBAction func emuCloseWithoutAskingAction(_ sender: NSButton!) {
         
         myController?.closeWithoutAsking = (sender.state == .on)
-        myController?.needsSaving = amigaProxy?.isRunning() ?? false
+        myController?.needsSaving = amigaProxy?.isRunning ?? false
         refresh()
     }
     
@@ -140,7 +140,7 @@ extension PreferencesController {
     
     @IBAction func emuAutoSnapshotAction(_ sender: NSButton!) {
         
-        amigaProxy?.setTakeAutoSnapshots(sender.state == .on)
+        amigaProxy?.takeAutoSnapshots = sender.state == .on
         refresh()
     }
     
@@ -148,7 +148,7 @@ extension PreferencesController {
         
         track("\(sender.integerValue)")
         if sender.integerValue > 0 {
-            amigaProxy?.setSnapshotInterval(sender.integerValue)
+            amigaProxy?.snapshotInterval = sender.integerValue
         } else {
             track("IGNORING")
         }

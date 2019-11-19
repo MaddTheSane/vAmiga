@@ -147,16 +147,16 @@ class MyController: NSWindowController, MessageReceiver {
         set { amiga.denise.setPalette(Palette(newValue)) }
     }
     var brightness: Double {
-        get { return amiga.denise.brightness() }
-        set { amiga.denise.setBrightness(newValue) }
+        get { return amiga.denise.brightness }
+        set { amiga.denise.brightness = newValue }
     }
     var contrast: Double {
-        get { return amiga.denise.contrast() }
-        set { amiga.denise.setContrast(newValue) }
+        get { return amiga.denise.contrast }
+        set { amiga.denise.contrast = newValue }
     }
     var saturation: Double {
-        get { return amiga.denise.saturation() }
-        set { amiga.denise.setSaturation(newValue) }
+        get { return amiga.denise.saturation }
+        set { amiga.denise.saturation = newValue }
     }
     var eyeX: Float = 0.0 {
         didSet { metal.buildMatrices3D() }
@@ -283,12 +283,12 @@ class MyController: NSWindowController, MessageReceiver {
     var pauseInBackgroundSavedState = false
     
     var takeAutoSnapshots: Bool {
-        get { return amiga.takeAutoSnapshots() }
-        set { amiga.setTakeAutoSnapshots(newValue) }
+        get { return amiga.takeAutoSnapshots }
+        set { amiga.takeAutoSnapshots = newValue }
     }
     var snapshotInterval: Int {
-        get { return amiga.snapshotInterval() }
-        set { amiga.setSnapshotInterval(newValue) }
+        get { return amiga.snapshotInterval }
+        set { amiga.snapshotInterval = newValue }
     }
   
     // Updates the warp status
@@ -309,7 +309,7 @@ class MyController: NSWindowController, MessageReceiver {
     var hourglassIcon: NSImage? {
         switch warpMode {
         case .auto:
-            return NSImage.init(named: amiga.warp() ? "hourglass3Template" : "hourglass1Template")
+            return NSImage.init(named: amiga.warp ? "hourglass3Template" : "hourglass1Template")
         case .on:
             return NSImage.init(named: "warpLockOnTemplate")
         case .off:

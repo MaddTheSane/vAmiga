@@ -442,7 +442,7 @@ class Inspector: NSWindowController {
         refresh(everything: true)
         
         timer = Timer.scheduledTimer(withTimeInterval: inspectionInterval, repeats: true) { _ in
-            if amigaProxy?.isRunning() == true {
+            if amigaProxy?.isRunning == true {
                 self.refresh(everything: false)
             }
         }

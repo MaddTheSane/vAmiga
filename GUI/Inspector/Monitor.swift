@@ -53,7 +53,7 @@ class Monitor: NSWindowController {
         refresh(everything: true)
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            if amigaProxy?.isRunning() == true {
+            if amigaProxy?.isRunning == true {
                 self.refresh(everything: false)
             }
         }
@@ -112,7 +112,7 @@ extension Monitor {
     func refreshWaveformView() {
 
         guard let paula = amigaProxy?.paula else { return }
-        let fillLevel = Int32(paula.fillLevel() * 100)
+        let fillLevel = Int32(paula.fillLevel * 100)
 
         audioBufferLevel.intValue = fillLevel
         audioBufferLevelText.stringValue = "\(fillLevel) %"

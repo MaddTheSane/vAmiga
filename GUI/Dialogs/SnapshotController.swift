@@ -88,7 +88,7 @@ class SnapshotDialog: DialogController {
             track()
             
             amiga.suspend()
-            numAutoSnapshots = amiga.numAutoSnapshots()
+            numAutoSnapshots = amiga.numAutoSnapshots
             for n in 0..<numAutoSnapshots {
                 let takenAt = TimeInterval(amiga.autoSnapshotTimestamp(n))
                 autoSnapshotImage[n] = amiga.autoSnapshotImage(n)
@@ -107,7 +107,7 @@ class SnapshotDialog: DialogController {
             track()
             
             amiga.suspend()
-            numUserSnapshots = amiga.numUserSnapshots()
+            numUserSnapshots = amiga.numUserSnapshots
             for n in 0..<numUserSnapshots {
                 let takenAt = TimeInterval(amiga.userSnapshotTimestamp(n))
                 userSnapshotImage[n] = amiga.userSnapshotImage(n)

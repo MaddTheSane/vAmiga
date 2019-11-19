@@ -709,8 +709,8 @@ extension MyController {
         ejectWithoutAsking = defaults.bool(forKey: Keys.ejectWithoutAsking)
 
         pauseInBackground = defaults.bool(forKey: Keys.pauseInBackground)
-        amiga.setTakeAutoSnapshots(defaults.bool(forKey: Keys.autoSnapshots))
-        amiga.setSnapshotInterval(defaults.integer(forKey: Keys.autoSnapshotInterval))
+        amiga.takeAutoSnapshots = defaults.bool(forKey: Keys.autoSnapshots)
+        amiga.snapshotInterval = defaults.integer(forKey: Keys.autoSnapshotInterval)
         
         amiga.resume()
     }
@@ -734,8 +734,8 @@ extension MyController {
         defaults.set(ejectWithoutAsking, forKey: Keys.ejectWithoutAsking)
         
         defaults.set(pauseInBackground, forKey: Keys.pauseInBackground)
-        defaults.set(amiga.takeAutoSnapshots(), forKey: Keys.autoSnapshots)
-        defaults.set(amiga.snapshotInterval(), forKey: Keys.autoSnapshotInterval)
+        defaults.set(amiga.takeAutoSnapshots, forKey: Keys.autoSnapshots)
+        defaults.set(amiga.snapshotInterval, forKey: Keys.autoSnapshotInterval)
     }
 }
 
