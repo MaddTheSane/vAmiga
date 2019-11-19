@@ -343,7 +343,7 @@ public class MetalView: MTKView {
 
         if requestLongFrame {
 
-            let buffer = controller.amiga.denise.stableLongFrame()
+            let buffer = controller.amiga.denise.stableLongFrame
             updateTexture(bytes: buffer.data, longFrame: true)
 
             // If interlace mode is on, the next frame will be a short frame
@@ -351,7 +351,7 @@ public class MetalView: MTKView {
 
         } else {
 
-            let buffer = controller.amiga.denise.stableShortFrame()
+            let buffer = controller.amiga.denise.stableShortFrame
             updateTexture(bytes: buffer.data, longFrame: false)
 
             // The next frame will be a long frame

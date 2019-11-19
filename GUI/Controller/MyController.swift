@@ -537,7 +537,7 @@ extension MyController {
         
         // Do 3 times a second ...
         if (animationCounter % 4) == 0 {
-            speedometer.updateWith(cycle: amiga.cpu.cycles(), frame: metal.frames)
+            speedometer.updateWith(cycle: amiga.cpu.cycles, frame: metal.frames)
             let mhz = speedometer.mhz
             let fps = speedometer.fps
             clockSpeed.stringValue = String(format: "%.2f MHz %.0f fps", mhz, fps)

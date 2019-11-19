@@ -105,9 +105,9 @@ struct AmigaFileWrapper;
 
 - (BOOL) releaseBuild;
 
-- (void) setInspectionTarget:(EventID)id;
+- (void) setInspectionTarget:(EventID)anId;
 - (void) clearInspectionTarget;
-- (BOOL) debugMode;
+@property (readonly) BOOL debugMode;
 - (void) enableDebugging;
 - (void) disableDebugging;
 - (void) setDebugLevel:(NSInteger)value;
@@ -197,8 +197,8 @@ struct AmigaFileWrapper;
 - (DisassembledInstruction) getInstrInfo:(NSInteger)index;
 - (DisassembledInstruction) getTracedInstrInfo:(NSInteger)index;
 
-- (int64_t) clock;
-- (int64_t) cycles;
+@property (readonly) int64_t clock;
+@property (readonly) int64_t cycles;
 
 - (BOOL) hasBreakpointAt:(uint32_t)addr;
 - (BOOL) hasDisabledBreakpointAt:(uint32_t)addr;
@@ -361,8 +361,8 @@ struct AmigaFileWrapper;
 - (void) setBPLCONx:(NSInteger)x bit:(NSInteger)bit value:(BOOL)value;
 - (void) setBPLCONx:(NSInteger)x nibble:(NSInteger)nibble value:(NSInteger)value;
 
-- (ScreenBuffer) stableLongFrame;
-- (ScreenBuffer) stableShortFrame;
+@property (readonly) ScreenBuffer stableLongFrame;
+@property (readonly) ScreenBuffer stableShortFrame;
 - (int32_t *) noise;
 
 @end
@@ -582,8 +582,7 @@ struct AmigaFileWrapper;
 // Snapshot proxy
 //
 
-@interface SnapshotProxy : AmigaFileProxy {
-}
+@interface SnapshotProxy : AmigaFileProxy
 
 + (BOOL)isSupportedSnapshot:(const void *)buffer length:(NSInteger)length;
 + (BOOL)isSupportedSnapshotData:(NSData *)buffer;
@@ -604,8 +603,7 @@ struct AmigaFileWrapper;
 // ADFFile proxy
 //
 
-@interface ADFFileProxy : AmigaFileProxy {
-}
+@interface ADFFileProxy : AmigaFileProxy
 
 + (BOOL)isADFFile:(NSString *)path;
 + (nullable instancetype)fileProxyWithData:(NSData *)buffer;
