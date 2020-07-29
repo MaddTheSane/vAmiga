@@ -23,13 +23,13 @@ extension UInt32 {
         self.init(bigEndian: r << 24 | g << 16 | b << 8 | a)
     }
 
-    init(rgba: (UInt8, UInt8, UInt8)) {
+    init(rgb: (UInt8, UInt8, UInt8)) {
         
-        self.init(rgba: (rgba.0, rgba.1, rgba.2, 0xFF))
+        self.init(rgba: (rgb.0, rgb.1, rgb.2, 0xFF))
      }
     
     init(r: UInt8, g: UInt8, b: UInt8, a: UInt8) { self.init(rgba: (r, g, b, a)) }
-    init(r: UInt8, g: UInt8, b: UInt8) { self.init(rgba: (r, g, b)) }
+    init(r: UInt8, g: UInt8, b: UInt8) { self.init(rgb: (r, g, b)) }
 }
 
 //

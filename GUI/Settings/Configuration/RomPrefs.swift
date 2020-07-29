@@ -27,12 +27,12 @@ extension ConfigurationController {
         let hasCommodoreExt = amiga.mem.isCommodoreRom(extIdentifier)
         let hasHyperionExt  = amiga.mem.isHyperionRom(extIdentifier)
 
-        let romMissing      = NSImage.init(named: "rom_missing")
-        let romOrig         = NSImage.init(named: "rom_original")
-        let romHyperion     = NSImage.init(named: "rom_hyp")
-        let romAros         = NSImage.init(named: "rom_aros")
-        let romDiag         = NSImage.init(named: "rom_diag")
-        let romUnknown      = NSImage.init(named: "rom_unknown")
+        let romMissing      = NSImage.init(named: "ROMs/missing")
+        let romOrig         = NSImage.init(named: "ROMs/original")
+        let romHyperion     = NSImage.init(named: "ROMs/hyp")
+        let romAros         = NSImage.init(named: "ROMs/aros")
+        let romDiag         = NSImage.init(named: "ROMs/diag")
+        let romUnknown      = NSImage.init(named: "ROMs/unknown")
         
         // Lock controls if emulator is powered on
         romDropView.isEnabled = poweredOff

@@ -141,7 +141,7 @@ extension MyDocument {
        
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.icon = NSImage.init(named: "rom_alert")
+        alert.icon = NSImage.init(named: "ROMs/alert")
         alert.messageText = "Failed to decrypt Rom image"
         alert.addButton(withTitle: "OK")
         
