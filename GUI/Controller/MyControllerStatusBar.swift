@@ -42,7 +42,7 @@ extension MyController {
 
         let running = amiga.isRunning
         let debug = amiga.debugMode
-        let halted = amiga.cpu.halted
+        let halted = amiga.cpu.isHalted
         let warp = amiga.warp
 
         // Cylinders

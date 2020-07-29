@@ -190,7 +190,7 @@ class WatchTableView: PointTableView {
 
     override func cache() {
 
-        numRows = amiga.cpu.numberOfWatchpoints()
+        numRows = amiga.cpu.numberOfWatchpoints
 
         for i in 0 ..< numRows {
             disabledCache[i] = amiga.cpu.watchpointIsDisabled(i)

@@ -188,7 +188,7 @@ struct SerialPortWrapper;
 
 @property (readonly) i64 clock;
 @property (readonly) i64 cycles;
-@property (readonly, getter=isHalted) bool halted;
+@property (readonly, getter=isHalted) BOOL halted;
 
 @property (readonly) NSInteger numberOfBreakpoints;
 - (u32) breakpointAddr:(NSInteger)nr;
@@ -205,7 +205,7 @@ struct SerialPortWrapper;
 - (void) addBreakpointAt:(u32)addr;
 - (void) removeBreakpointAt:(u32)addr;
 
-- (NSInteger) numberOfWatchpoints;
+@property (readonly) NSInteger numberOfWatchpoints;
 - (u32) watchpointAddr:(NSInteger)nr;
 - (BOOL) watchpointIsEnabled:(NSInteger)nr;
 - (BOOL) watchpointIsDisabled:(NSInteger)nr;
