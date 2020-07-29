@@ -69,7 +69,7 @@ struct SerialPortWrapper { SerialPort *port; };
 {
     return wrapper->cpu->getCpuClock();
 }
-- (bool) isHalted
+- (BOOL) isHalted
 {
     return wrapper->cpu->isHalted();
 }
