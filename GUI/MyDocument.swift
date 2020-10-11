@@ -133,16 +133,16 @@ class MyDocument: NSDocument {
             if SnapshotProxy.isUnsupportedSnapshot(buffer, length: length) {
                 throw NSError.snapshotVersionError(filename: name)
             }
-            result = SnapshotProxy.make(withBuffer: buffer, length: length)
+            result = SnapshotProxy.make(with: data)
             
         case .FILETYPE_ADF:
-            result = ADFFileProxy.make(withBuffer: buffer, length: length)
+            result = ADFFileProxy.make(with: data)
             
         case .FILETYPE_DMS:
-            result = DMSFileProxy.make(withBuffer: buffer, length: length)
+            result = DMSFileProxy.make(with: data)
 
         case .FILETYPE_IMG:
-            result = IMGFileProxy.make(withBuffer: buffer, length: length)
+            result = IMGFileProxy.make(with: data)
 
         default:
             fatalError()

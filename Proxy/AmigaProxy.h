@@ -664,6 +664,9 @@ struct SerialPortWrapper;
 - (void)readFromBuffer:(const void *)buffer length:(NSInteger)length;
 - (NSInteger)writeToBuffer:(void *)buffer;
 
++ (instancetype)makeWithBuffer:(const void *)buffer length:(NSInteger)length;
++ (instancetype)makeWithData:(NSData *)buffer;
+
 @end
 
 //

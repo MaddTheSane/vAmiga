@@ -1273,6 +1273,17 @@ struct SerialPortWrapper { SerialPort *port; };
     return wrapper->file->writeToBuffer((u8 *)buffer);
 }
 
++ (instancetype)makeWithBuffer:(const void *)buffer length:(NSInteger)length
+{
+    [self doesNotRecognizeSelector:_cmd];
+    return nil;
+}
+
++ (instancetype)makeWithData:(NSData *)buffer
+{
+    return [self makeWithBuffer:buffer.bytes length:buffer.length];
+}
+
 - (void) dealloc
 {
     if (wrapper) {
@@ -1322,7 +1333,7 @@ struct SerialPortWrapper { SerialPort *port; };
 }
 + (instancetype) makeWithFile:(NSString *)path
 {
-    Snapshot *snapshot = Snapshot::makeWithFile([path UTF8String]);
+    Snapshot *snapshot = Snapshot::makeWithFile([path fileSystemRepresentation]);
     return [self make:snapshot];
 }
 + (instancetype) makeWithAmiga:(AmigaProxy *)proxy

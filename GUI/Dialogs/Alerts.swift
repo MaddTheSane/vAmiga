@@ -12,29 +12,33 @@ extension NSError {
     static func snapshotVersionError(filename: String) -> NSError {
         return NSError(domain: "vAmiga", code: 0, userInfo:
             [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The snapshot was created with a different version of vAmiga."])
+                NSLocalizedRecoverySuggestionErrorKey: "The snapshot was created with a different version of vAmiga.",
+                NSFilePathErrorKey: filename])
     }
 
     static func unsupportedFormatError(filename: String) -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
+        return NSError(domain: "vAmiga", code: 1, userInfo:
             [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The format of this file is not supported."])
+                NSLocalizedRecoverySuggestionErrorKey: "The format of this file is not supported.",
+        NSFilePathErrorKey: filename])
     }
 
     static func corruptedFileError(filename: String) -> NSError {        
-        return NSError(domain: "vAmiga", code: 0, userInfo:
+        return NSError(domain: "vAmiga", code: 2, userInfo:
             [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The file appears to be corrupt. It's contents does not match the purported format."])
+                NSLocalizedRecoverySuggestionErrorKey: "The file appears to be corrupt. It's contents does not match the purported format.",
+        NSFilePathErrorKey: filename])
     }
 
     static func fileAccessError(filename: String) -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
+        return NSError(domain: "vAmiga", code: 3, userInfo:
             [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "Unable to access file."])
+                NSLocalizedRecoverySuggestionErrorKey: "Unable to access file.",
+        NSFilePathErrorKey: filename])
     }
 
     static func fileAccessError() -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
+        return NSError(domain: "vAmiga", code: 4, userInfo:
             [NSLocalizedDescriptionKey: "The document could not be opened.",
                 NSLocalizedRecoverySuggestionErrorKey: "Unable to access file."])
     }
