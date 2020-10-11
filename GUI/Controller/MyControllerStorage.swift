@@ -10,7 +10,7 @@
 extension MyController {
     
     //
-    // Snapshots
+    // MARK: - Snapshots
     //
     
     func load(snapshot: SnapshotProxy?) {
@@ -64,7 +64,7 @@ extension MyController {
     }
     
     //
-    // Screenshots
+    // MARK: - Screenshots
     //
     
     func takeScreenshot(auto: Bool) {

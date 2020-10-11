@@ -17,10 +17,10 @@ public class MacAudio: NSObject {
 
     var prefs: Preferences { return parent.pref }
     
-    // Indicates if the this emulator instance owns the audio unit
+    /// Indicates if the this emulator instance owns the audio unit
     var isRunning = false
     
-    // Cached audio players
+    /// Cached audio players
     var audioPlayers: [String: [AVAudioPlayer]] = [:]
     
     override init() {
@@ -129,7 +129,7 @@ public class MacAudio: NSObject {
         paula.readStereoSamples(ptr1, buffer2: ptr2, size: Int(frameCount))
     }
     
-    // Connects Paula to the audio backend
+    /// Connects Paula to the audio backend
     @discardableResult
     func startPlayback() -> Bool {
 
@@ -144,7 +144,7 @@ public class MacAudio: NSObject {
         return true
     }
     
-    // Disconnects Paula from the audio backend
+    /// Disconnects Paula from the audio backend
     func stopPlayback() {
 
         if isRunning {
@@ -153,7 +153,7 @@ public class MacAudio: NSObject {
         }
     }
     
-    // Plays a sound file
+    /// Plays a sound file
     func playSound(name: String, volume: Float = 1.0) {
         
         // Check for cached players for this sound file

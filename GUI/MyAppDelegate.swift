@@ -17,7 +17,8 @@ import Cocoa
     @IBOutlet weak var df2Menu: NSMenuItem!
     @IBOutlet weak var df3Menu: NSMenuItem!
     
-    /* An event tap for interception CGEvents
+    /**
+     * An event tap for interception CGEvents
      * CGEvents are intercepted to establish a direct mapping of the Command keys
      * to the Amiga keys. To make such a mapping work, we have to disable all
      * keyboard shortcuts, even the system-wide ones.
@@ -28,7 +29,7 @@ import Cocoa
     var pref: Preferences!
     var prefController: PreferencesController?
     
-    // The list of recently inserted disk URLs.
+    /// The list of recently inserted disk URLs.
     var recentlyInsertedDiskURLs: [URL] = [] {
         didSet { track() }
     }
@@ -60,10 +61,9 @@ import Cocoa
         track()
     }
     
-    //
-    // Handling the lists of recently used URLs
-    //
-    
+    ///
+    /// Handling the lists of recently used URLs
+    ///
     func noteRecentlyUsedURL(_ url: URL, to list: inout [URL], size: Int) {
         if !list.contains(url) {
             track()
@@ -135,10 +135,9 @@ import Cocoa
     }
 }
 
-//
-// Personal delegation methods
-//
-
+///
+/// Personal delegation methods
+///
 extension MyAppDelegate {
     
     var documents: [MyDocument] {
@@ -183,7 +182,7 @@ extension MyAppDelegate {
         }
     }
     
-    // Use this variable to switch direct mapping of the Command keys on or off
+    /// Use this variable to switch direct mapping of the Command keys on or off
     var mapCommandKeys: Bool {
         
         get {
@@ -251,12 +250,14 @@ extension MyAppDelegate {
     }
 }
 
-/* To establish a direct mapping of the Command keys to the Amiga keys, this
+/**
+ * To establish a direct mapping of the Command keys to the Amiga keys, this
  * callback is registered. It intercepts keyDown and keyUp events and filters
  * out the Command key modifier flag. As a result, all keyboard shortcuts are
  * disabled and all keys that are pressed in combination with the Command key
  * will trigger a standard Cocoa key event.
  */
+private
 func cgEventCallback(proxy: CGEventTapProxy,
                      type: CGEventType,
                      event: CGEvent,

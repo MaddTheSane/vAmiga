@@ -25,29 +25,29 @@ class MyController: NSWindowController, MessageReceiver {
     var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }
     var pref: Preferences { return myAppDelegate.pref }
 
-    // Reference to the connected document
+    /// Reference to the connected document
     var mydocument: MyDocument!
     
-    // Amiga proxy (bridge between the Swift frontend and the C++ backend)
+    /// Amiga proxy (bridge between the Swift frontend and the C++ backend)
     var amiga: AmigaProxy!
 
-    // Inspector panel of this emulator instance
+    /// Inspector panel of this emulator instance
     var inspector: Inspector?
 
-    // Monitor panel of this emulator instance
+    /// Monitor panel of this emulator instance
     var monitor: Monitor?
 
-    // Configuration panel of this emulator instance
+    /// Configuration panel of this emulator instance
     var configurator: ConfigurationController?
     
-    // Snapshot and screenshot browsers
+    /// Snapshot and screenshot browsers
     var snapshotBrowser: SnapshotDialog?
     var screenshotBrowser: ScreenshotDialog?
 
-    // The current emulator configuration
+    /// The current emulator configuration
     var config: Configuration!
     
-    // Audio Engine
+    /// Audio Engine
     var macAudio: MacAudio!
      
     // Game pad manager
@@ -55,49 +55,49 @@ class MyController: NSWindowController, MessageReceiver {
     var gamePad1: GamePad? { return gamePadManager.gamePads[config.gameDevice1] }
     var gamePad2: GamePad? { return gamePadManager.gamePads[config.gameDevice2] }
     
-    // Keyboard controller
+    /// Keyboard controller
     var keyboard: KeyboardController!
 
-    // Virtual keyboard
+    /// Virtual keyboard
     var virtualKeyboard: VirtualKeyboardController?
     
-    // Loop timer for scheduling periodic updates
+    /// Loop timer for scheduling periodic updates
     var timer: Timer?
     
-    // Timer lock
+    /// Timer lock
     var timerLock: NSLock!
 
-    // Screenshot and snapshot timers
+    /// Screenshot and snapshot timers
     var snapshotTimer: Timer?
     var screenshotTimer: Timer? // DEPRECATED
     
-    // Speedometer to measure clock frequence and frames per second
+    /// Speedometer to measure clock frequence and frames per second
     var speedometer: Speedometer!
     
-    // Used inside the timer function to fine tune timed events
+    /// Used inside the timer function to fine tune timed events
     var animationCounter = 0
         
-    // Remembers if audio is muted (master volume of both channels is 0)
+    /// Remembers if audio is muted (master volume of both channels is 0)
     var muted = false
     
-    // Indicates if a status bar is shown
+    /// Indicates if a status bar is shown
     var statusBar = true
 
-    // Small disk icon to be shown in NSMenuItems
+    /// Small disk icon to be shown in NSMenuItems
     var smallDisk = NSImage.init(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
     
-    // Drive that receives drag and drop inputs
+    /// Drive that receives drag and drop inputs
     var dragAndDropDrive: DriveProxy?
 
-    // Serial input and output
+    /// Serial input and output
     var serialIn = ""
     var serialOut = ""
     
-    // Remembers the running state for the pauseInBackground feature
+    /// Remembers the running state for the pauseInBackground feature
     var pauseInBackgroundSavedState = false
          
     //
-    // Timers
+    // MARK: - Timers
     //
         
     func startSnapshotTimer() {
@@ -154,7 +154,7 @@ class MyController: NSWindowController, MessageReceiver {
     }
 
     //
-    // Outlets
+    // MARK: - Outlets
     //
     
     // Main screen
@@ -196,10 +196,10 @@ class MyController: NSWindowController, MessageReceiver {
 
 extension MyController {
 
-    // Provides the undo manager
+    /// Provides the undo manager
     override open var undoManager: UndoManager? { return metal.undoManager }
      
-    // Indicates if the emulator needs saving
+    /// Indicates if the emulator needs saving
     var needsSaving: Bool {
         get {
             return document?.changeCount != 0
@@ -214,7 +214,7 @@ extension MyController {
     }
 
     //
-    // Initializing
+    // MARK: - Initializing
     //
     
     override open func awakeFromNib() {
@@ -333,7 +333,7 @@ extension MyController {
     }
 
     //
-    // Timer and message processing
+    // MARK: - Timer and message processing
     //
     
     @objc func timerFunc() {
@@ -620,7 +620,7 @@ extension MyController {
     }
 
     //
-    // Action methods (status bar)
+    // MARK: - Action methods (status bar)
     //
     
     @IBAction func warpAction(_ sender: Any!) {

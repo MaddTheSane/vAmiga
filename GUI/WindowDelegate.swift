@@ -116,7 +116,7 @@ extension MyController: NSWindowDelegate {
         return proposedSize
     }
     
-    // Fixes a NSSize to match our desired aspect ration
+    /// Fixes a `NSSize` to match our desired aspect ration
     func fixSize(window: NSWindow, size: NSSize) -> NSSize {
         
         // Get some basic parameters
@@ -136,7 +136,7 @@ extension MyController: NSWindowDelegate {
         return NSSize.init(width: size.width + dx, height: size.height)
     }
 
-    // Fixes a NSRect to match our desired aspect ration
+    /// Fixes a `NSRect` to match our desired aspect ration
     func fixRect(window: NSWindow, rect: NSRect) -> NSRect {
         
         let newSize = fixSize(window: window, size: rect.size)

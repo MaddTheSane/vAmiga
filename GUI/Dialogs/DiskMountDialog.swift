@@ -174,7 +174,7 @@ class DiskMountDialog: DialogController {
     }
 
     //
-    // Action methods
+    // MARK: Action methods
     //
     
     @IBAction func writeProtectAction(_ sender: NSButton!) {

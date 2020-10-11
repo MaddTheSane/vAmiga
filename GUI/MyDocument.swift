@@ -9,19 +9,21 @@
 
 class MyDocument: NSDocument {
 
-    // The window controller for this document
+    /// The window controller for this document
     var parent: MyController { return windowControllers.first as! MyController }
 
-    // The application delegate
+    /// The application delegate
     var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }
     
-    /* Emulator proxy. This object is an Objective-C bridge between the Swift
+    /**
+     * Emulator proxy. This object is an Objective-C bridge between the Swift
      * GUI an the core emulator which is written in C++.
      */
     var amiga: AmigaProxy!
 
-    /* An otional media object attached to this document. This variable is
-     * checked in mountAttachment() which is called in windowDidLoad(). If an
+    /**
+     * An otional media object attached to this document. This variable is
+     * checked in `mountAttachment()` which is called in `windowDidLoad()`. If an
      * attachment is present, e.g., an ADF archive, it is automatically
      * attached to the emulator.
      */
@@ -35,11 +37,11 @@ class MyDocument: NSDocument {
     private(set) var autoScreenshots = ManagedArray<Screenshot>.init(capacity: 32)
     private(set) var userScreenshots = ManagedArray<Screenshot>.init(capacity: Int.max)
 
-    // Fingerprint of the first disk inserted into df0 after reset
+    /// Fingerprint of the first disk inserted into df0 after reset
     private var bootDiskID = UInt64(0)
         
     //
-    // Initialization
+    // MARK: - Initialization
     //
     
     override init() {
@@ -78,7 +80,7 @@ class MyDocument: NSDocument {
     }
 
     //
-    // Creating attachments
+    // MARK: - Creating attachments
     //
     
     func fileType(url: URL) -> AmigaFileType {
@@ -186,7 +188,7 @@ class MyDocument: NSDocument {
     }
 
     //
-    // Processing attachments
+    // MARK: - Processing attachments
     //
     
     @discardableResult
@@ -236,7 +238,7 @@ class MyDocument: NSDocument {
     }
 
     //
-    // Loading
+    // MARK: - Loading
     //
     
     override open func read(from url: URL, ofType typeName: String) throws {
@@ -245,7 +247,7 @@ class MyDocument: NSDocument {
     }
 
     //
-    // Saving
+    // MARK: - Saving
     //
     
     override open func data(ofType typeName: String) throws -> Data {
@@ -269,7 +271,7 @@ class MyDocument: NSDocument {
     }
     
     //
-    // Exporting disks
+    // MARK: - Exporting disks
     //
     
     @discardableResult
@@ -319,7 +321,7 @@ class MyDocument: NSDocument {
     }
     
     //
-    // Snapshots
+    // MARK: - Snapshots
     //
         
     private func thinOut(numItems: Int, counter: inout Int) -> Int? {
@@ -341,7 +343,7 @@ class MyDocument: NSDocument {
     }
     
     //
-    // Screenshots
+    // MARK: - Screenshots
     //
     
     func deleteBootDiskID() {
@@ -360,7 +362,7 @@ class MyDocument: NSDocument {
         return false
     }
     
-    // Writes screenshots back to disk if needed
+    /// Writes screenshots back to disk if needed
     func persistScreenshots() throws {
 
         if userScreenshots.modified { try saveScreenshots() }

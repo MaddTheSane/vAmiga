@@ -10,12 +10,12 @@
 import Carbon.HIToolbox
 
 //
-// Convenience extensions to UserDefaults
+// MARK: - Convenience extensions to UserDefaults
 //
 
 extension UserDefaults {
     
-    // Registers an item of generic type 'Encodable'
+    /// Registers an item of generic type 'Encodable'
     func register<T: Encodable>(encodableItem item: T, forKey key: String) {
         
         if let data = try? PropertyListEncoder().encode(item) {
@@ -23,7 +23,7 @@ extension UserDefaults {
         }
     }
 
-    // Encodes an item of generic type 'Encodable'
+    /// Encodes an item of generic type 'Encodable'
     func encode<T: Encodable>(_ item: T, forKey key: String) {
         
         if let encoded = try? PropertyListEncoder().encode(item) {
@@ -33,7 +33,7 @@ extension UserDefaults {
         }
     }
     
-    // Decodes an item of generic type 'Decodable'
+    /// Decodes an item of generic type 'Decodable'
     func decode<T: Decodable>(_ item: inout T, forKey key: String) {
         
         if let data = data(forKey: key) {
@@ -47,7 +47,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (all)
+// MARK: - User defaults (all)
 //
 
 extension UserDefaults {
@@ -118,7 +118,7 @@ extension MyController {
 }
 
 //
-// User defaults (General)
+// MARK: - User defaults (General)
 //
 
 struct Keys {
@@ -137,13 +137,13 @@ struct Keys {
     static let keepAspectRatio        = "VAMIGA_GEN_FullscreenKeepAspectRatio"
     static let exitOnEsc              = "VAMIGA_GEN_FullscreenExitOnEsc"
 
-    // User dialogs
+    /// User dialogs
     static let closeWithoutAsking     = "VAMIGA_GEN_CloseWithoutAsking"
     
-    // Warp mode
+    /// Warp mode
     static let warpMode               = "VAMIGA_GEN_WarpMode"
 
-    // Miscellaneous
+    /// Miscellaneous
     static let pauseInBackground      = "VAMIGA_GEN_PauseInBackground"
 }
 
@@ -252,7 +252,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Devices)
+// MARK: - User defaults (Devices)
 //
 
 extension Keys {
@@ -398,7 +398,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Captures)
+// MARK: - User defaults (Captures)
 //
 
 extension Keys {
@@ -439,7 +439,7 @@ struct CaptureDefaults {
     let aspectY: Int
     
     //
-    // Schemes
+    // MARK: Schemes
     //
     
     static let std = CaptureDefaults.init(
@@ -508,7 +508,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Roms)
+// MARK: - User defaults (Roms)
 //
 
 /*
@@ -589,7 +589,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Hardware)
+// MARK: - User defaults (Hardware)
 //
 
 extension Keys {
@@ -638,7 +638,7 @@ struct HardwareDefaults {
     var serialDevice: SerialPortDevice
     
     //
-    // Schemes
+    // MARK: Schemes
     //
     
     static let A500 = HardwareDefaults.init(
@@ -760,7 +760,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Memory)
+// MARK: - User defaults (Memory)
 //
 
 extension Keys {
@@ -858,7 +858,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Compatibility)
+// MARK: - User defaults (Compatibility)
 //
 
 extension Keys {
@@ -909,7 +909,7 @@ struct CompatibilityDefaults {
     let accurateKeyboard: Bool
 
     //
-    // Schemes
+    // MARK: Schemes
     //
     
     static let std = CompatibilityDefaults.init(
@@ -1015,7 +1015,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Audio)
+// MARK: -  User defaults (Audio)
 //
 
 extension Keys {
@@ -1058,7 +1058,7 @@ struct AudioDefaults {
     let filterAlwaysOn: Bool
     
     //
-    // Schemes
+    // MARK: Schemes
     //
     
     static let std = AudioDefaults.init(
@@ -1167,7 +1167,7 @@ extension UserDefaults {
 }
 
 //
-// User defaults (Video)
+// MARK: - User defaults (Video)
 //
 
 extension Keys {
@@ -1244,10 +1244,10 @@ struct VideoDefaults {
     let disalignmentV: Float
     
     //
-    // Schemes
+    // MARK: Schemes
     //
     
-    // TFT monitor appearance with a texture cutout similar to UAE
+    /// TFT monitor appearance with a texture cutout similar to UAE
     static let tft = VideoDefaults.init(
         
         palette: Palette.COLOR_PALETTE,
@@ -1281,7 +1281,7 @@ struct VideoDefaults {
         disalignmentV: 0.001
     )
     
-    // CRT monitor appearance with a texture-cutout closer to the center
+    /// CRT monitor appearance with a texture-cutout closer to the center
     static let crt = VideoDefaults.init(
         
         palette: Palette.COLOR_PALETTE,

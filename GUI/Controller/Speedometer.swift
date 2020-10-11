@@ -17,24 +17,24 @@ extension Double {
 
 class Speedometer {
     
-    // Current emulation speed in MHz
+    /// Current emulation speed in MHz
     private var _mhz = 0.0
     var mhz: Double { return truncate(_mhz, digits: 2); }
     
-    // Current GPU performance in frames per second
+    /// Current GPU performance in frames per second
     private var _fps = 0.0
     var fps: Double { return truncate(_fps, digits: 0); }
     
-    // Smoothing factor
+    /// Smoothing factor
     private let alpha = 0.5
 
-    // Time of the previous update
+    /// Time of the previous update
     private var latchedTimestamp: Double
     
-    // Value of the master clock in the previous update
+    /// Value of the master clock in the previous update
     private var latchedCycle: Int64 = Int64.max
     
-    // Frame count in the previous update
+    /// Frame count in the previous update
     private var latchedFrame: Int64 = Int64.max
     
     init() {
@@ -47,11 +47,12 @@ class Speedometer {
         return (value * factor).rounded() / factor
     }
     
-    /* Updates speed, frame and jitter information.
+    /**
+     * Updates speed, frame and jitter information.
      * This function needs to be invoked periodically to get meaningful
      * results.
-     *   - cycles  Elapsed CPU cycles since power up
-     *   - frames  Drawn frames since power up
+     *   - parameter cycle:  Elapsed CPU cycles since power up
+     *   - parameter frame:  Drawn frames since power up
      */
     func updateWith(cycle: Int64, frame: Int64) {
         

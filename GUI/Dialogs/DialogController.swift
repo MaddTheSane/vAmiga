@@ -9,7 +9,7 @@
 
 class DialogWindow: NSWindow {
 
-    // Delegation method for ESC and Cmd+.
+    /// Delegation method for ESC and Cmd+.
     override func cancelOperation(_ sender: Any?) {
               
         track()
@@ -20,8 +20,9 @@ class DialogWindow: NSWindow {
     }
 }
 
-/* Base class for all auxiliary windows.
- * The class extends NSWindowController by a reference to the controller
+/**
+ * Base class for all auxiliary windows.
+ * The class extends `NSWindowController` by a reference to the controller
  * of the connected emulator window (parent) and a reference to the parents
  * proxy object. It also provides some wrappers around showing and hiding the
  * window.
@@ -43,7 +44,7 @@ class DialogController: NSWindowController, DialogControllerDelegate {
     var parent: MyController!
     var amiga: AmigaProxy!
 
-    // Remembers whether awakeFromNib has been called
+    /// Remembers whether `awakeFromNib` has been called
     var awake = false
     
     static func make(parent: MyController, nibName: NSNib.Name) -> Self? {
@@ -105,14 +106,14 @@ class DialogController: NSWindowController, DialogControllerDelegate {
         }
     }
     
-    // Default action method for the OK button
+    /// Default action method for the OK button
     @IBAction func okAction(_ sender: Any!) {
         
         track()
         hideSheet()
     }
     
-    // Default action method for the Cancel button
+    /// Default action method for the Cancel button
     @IBAction func cancelAction(_ sender: Any!) {
         
         track()

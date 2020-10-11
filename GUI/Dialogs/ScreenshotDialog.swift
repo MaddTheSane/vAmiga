@@ -22,7 +22,7 @@ class ScreenshotDialog: DialogController {
     @IBOutlet weak var text1: NSTextField!
     @IBOutlet weak var text2: NSTextField!
 
-    // Fingerprint of disk in df0
+    /// Fingerprint of disk in df0
     var checksum = UInt64(0)
     
     var latestIndex = 0
@@ -222,7 +222,7 @@ class ScreenshotDialog: DialogController {
 }
 
 //
-// iCarousel data source and delegate
+// MARK: - iCarousel data source and delegate
 //
 
 extension ScreenshotDialog: iCarouselDataSource, iCarouselDelegate {
