@@ -36,17 +36,17 @@
 
 typedef VA_ENUM(long, ConfigOption)
 {
-    // Agnus
+    //! Agnus
     OPT_AGNUS_REVISION,
     OPT_SLOW_RAM_MIRROR,
     
-    // Denise
+    //! Denise
     OPT_DENISE_REVISION,
     
-    // Real-time clock
+    //! Real-time clock
     OPT_RTC_MODEL,
 
-    // Memory
+    //! Memory
     OPT_CHIP_RAM,
     OPT_SLOW_RAM,
     OPT_FAST_RAM,
@@ -59,21 +59,21 @@ typedef VA_ENUM(long, ConfigOption)
     OPT_UNMAPPING_TYPE,
     OPT_RAM_INIT_PATTERN,
     
-    // Disk controller
+    //! Disk controller
     OPT_DRIVE_CONNECT,
     OPT_DRIVE_SPEED,
     OPT_ASYNC_FIFO,
     OPT_LOCK_DSKSYNC,
     OPT_AUTO_DSKSYNC,
 
-    // Drives
+    //! Drives
     OPT_DRIVE_TYPE,
     OPT_EMULATE_MECHANICS,
     
-    // Ports
+    //! Ports
     OPT_SERIAL_DEVICE,
 
-    // Compatibility
+    //! Compatibility
     OPT_HIDDEN_SPRITES,
     OPT_HIDDEN_LAYERS,
     OPT_HIDDEN_LAYER_ALPHA,
@@ -81,15 +81,15 @@ typedef VA_ENUM(long, ConfigOption)
     OPT_CLX_SPR_PLF,
     OPT_CLX_PLF_PLF,
         
-    // Blitter
+    //! Blitter
     OPT_BLITTER_ACCURACY,
     
-    // CIAs
+    //! CIAs
     OPT_TODBUG,
     OPT_ECLOCK_SYNCING,
     OPT_ACCURATE_KEYBOARD,
     
-    // Paula audio
+    //! Paula audio
     OPT_SAMPLING_METHOD,
     OPT_FILTER_TYPE,
     OPT_FILTER_ALWAYS_ON,
@@ -121,7 +121,7 @@ inline bool isEmulatorState(long value) {
     return value >= STATE_OFF && value <= STATE_RUNNING;
 }
 
-typedef VA_ENUM(u32, RunLoopControlFlag)
+typedef VA_OPTIONS(u32, RunLoopControlFlag)
 {
     RL_STOP               = 0b000001,
     RL_INSPECT            = 0b000010,

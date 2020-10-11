@@ -16,6 +16,16 @@
 enum __attribute__((enum_extensibility(open))) _name : _type _name; \
 enum _name : _type
 
+#if (__cplusplus)
+#define VA_OPTIONS(_type, _name) \
+_type _name; \
+enum __attribute__((flag_enum,enum_extensibility(open))) : _type
+#else
+#define VA_OPTIONS(_type, _name) \
+enum __attribute__((flag_enum,enum_extensibility(open))) _name : _type _name; \
+enum _name : _type
+#endif
+
 #endif
 
 

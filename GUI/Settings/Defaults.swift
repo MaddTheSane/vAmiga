@@ -1015,7 +1015,7 @@ extension UserDefaults {
 }
 
 //
-// MARK: -  User defaults (Audio)
+// MARK: - User defaults (Audio)
 //
 
 extension Keys {

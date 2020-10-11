@@ -126,7 +126,7 @@ private:
      * flags are set. These flags are flags processed and the loop either
      * repeats or terminates depending on the provided flags.
      */
-    u32 runLoopCtrl = 0;
+    RunLoopControlFlag runLoopCtrl = 0;
     
     // The invocation counter for implementing suspend() / resume()
     unsigned suspendCounter = 0;
