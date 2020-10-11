@@ -9,13 +9,15 @@
 
 // swiftlint:disable colon
 
-/* List of Amiga key codes that are common to all keyboards
+/**
+ * List of Amiga key codes that are common to all keyboards
  */
 struct AmigaKeycode {
 
     // Amiga keycodes 0x00 - 0x3F (Positional keys)
     
-    /* "These are key codes assigned to specific positions on the main
+    /**
+     * "These are key codes assigned to specific positions on the main
      *  body of the keyboard. The letters on the tops of these keys are
      *  different for each country; not all countries use the QWERTY key
      *  layout. These keycodes are best described positionally [...]. The
@@ -92,13 +94,13 @@ struct AmigaKeycode {
         static let keypad9       = 0x3F
     }
     
-   // Extra keys on international Amigas (ISO style)
+   /// Extra keys on international Amigas (ISO style)
    struct Iso {
         static let hashtag       = 0x2B
         static let laceBrace     = 0x30
     }
     
-    // Amiga keycodes 0x40 - 0x5F (Codes common to all keyboards)
+    /// Amiga keycodes 0x40 - 0x5F (Codes common to all keyboards)
     static let space             = 0x40
     static let backspace         = 0x41
     static let tab               = 0x42
@@ -128,7 +130,7 @@ struct AmigaKeycode {
     static let keypadPlus        = 0x5E
     static let help              = 0x5F
     
-    // 0x60 - 0x67 (Key codes for qualifier keys)
+    /// 0x60 - 0x67 (Key codes for qualifier keys)
     static let leftShift         = 0x60
     static let rightShift        = 0x61
     static let capsLock          = 0x62
@@ -139,7 +141,7 @@ struct AmigaKeycode {
     static let rightAmiga        = 0x67
 }
 
-// Country specific keycaps
+/// Country specific keycaps
 let keycaps: [Int: [KBLayout: String]] = [
     
     AmigaKeycode.Ansi.grave:        [.generic: "~ `"],
@@ -250,17 +252,18 @@ let keycaps: [Int: [KBLayout: String]] = [
     AmigaKeycode.rightAmiga:        [.generic: ""]
 ]
 
-/* This structure represents a physical keys on the Amiga keyboard.
+/**
+ * This structure represents a physical keys on the Amiga keyboard.
  */
 struct AmigaKey: Codable {
     
-    // The unique identifier of this Amiga key
+    /// The unique identifier of this Amiga key
     var keyCode: Int = 0
     
-    // The keycap label (country specific)
+    /// The keycap label (country specific)
     var label: [KBLayout: String] = [:]
     
-    // Initializers
+    /// Initializers
     init(keyCode: Int) {
         
         self.keyCode = keyCode
@@ -276,7 +279,7 @@ extension AmigaKey: Equatable, Hashable {
 }
 
 //
-// Image factory
+// MARK: - Image factory
 //
 
 extension NSImage {
@@ -307,7 +310,7 @@ extension NSImage {
             
 extension AmigaKey {
     
-    // Special keys (commons)
+    /// Special keys (commons)
     private static let specialKeys: [Int: (String, String)] = [
         
         AmigaKeycode.Ansi.keypad0:   ("200x100", "white"),
@@ -324,7 +327,7 @@ extension AmigaKey {
         AmigaKeycode.f10:            ("125x100", "dark")
     ]
     
-    // Special keys (A1000 commons)
+    /// Special keys (A1000 commons)
     private static let a1000commons: [Int : (String, String)] = [
         
         AmigaKeycode.Ansi.grave:     ("125x100", "white"),
@@ -340,21 +343,21 @@ extension AmigaKey {
         AmigaKeycode.rightAmiga:     ("125x100A", "white")
     ]
     
-    // Special keys (A1000 ANSI like)
+    /// Special keys (A1000 ANSI like)
     private static let a1000ansi: [Int: (String, String)] = [
         
         AmigaKeycode.enter:          ("200x200", "white"),
         AmigaKeycode.leftShift:      ("250x100", "white")
     ]
     
-    // Special keys (A1000 ISO like)
+    /// Special keys (A1000 ISO like)
     private static let a1000iso: [Int: (String, String)] = [
         
         AmigaKeycode.enter:          ("200x200", "white"),
         AmigaKeycode.leftShift:      ("150x100", "white")
     ]
     
-    // Special keys (A500 commons)
+    /// Special keys (A500 commons)
     private static let a500commons: [Int: (String, String)] = [
         
         AmigaKeycode.Ansi.grave:     ("150x100", "dark"),
@@ -378,21 +381,21 @@ extension AmigaKey {
         AmigaKeycode.rightAmiga:     ("125x100A", "dark")
     ]
     
-    // Special keys (A500 ANSI like)
+    /// Special keys (A500 ANSI like)
     private static let a500ansi: [Int: (String, String)] = [
         
         AmigaKeycode.enter:          ("225x200", "dark"),
         AmigaKeycode.leftShift:      ("275x100", "dark")
     ]
     
-    // Special keys (A500 ISO like)
+    /// Special keys (A500 ISO like)
     private static let a500iso: [Int: (String, String)] = [
         
         AmigaKeycode.enter:          ("150x200", "dark"),
         AmigaKeycode.leftShift:      ("175x100", "dark")
     ]
     
-    // Returns an unlabeled background image of the right shape
+    /// Returns an unlabeled background image of the right shape
     private func bgImage(style: KBStyle, layout: KBLayout) -> NSImage? {
         
         var (shape, tint) = ("100x100", "white")

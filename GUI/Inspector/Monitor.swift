@@ -9,7 +9,7 @@
 
 class Monitor: DialogController {
 
-    // Display colors
+    /// Display colors
     @IBOutlet weak var colCopper: NSColorWell!
     @IBOutlet weak var colBlitter: NSColorWell!
     @IBOutlet weak var colDisk: NSColorWell!
@@ -19,7 +19,7 @@ class Monitor: DialogController {
     @IBOutlet weak var colCPU: NSColorWell!
     @IBOutlet weak var colRefresh: NSColorWell!
     
-    // Bus debugger
+    /// Bus debugger
     @IBOutlet weak var busEnable: NSButton!
     
     @IBOutlet weak var busCopper: NSButton!
@@ -34,7 +34,7 @@ class Monitor: DialogController {
     @IBOutlet weak var busOpacity: NSSlider!
     @IBOutlet weak var busDisplayMode: NSPopUpButton!
     
-    // Activity monitors
+    /// Activity monitors
     @IBOutlet weak var monEnable: NSButton!
     
     @IBOutlet weak var monCopper: NSButton!
@@ -56,7 +56,7 @@ class Monitor: DialogController {
     @IBOutlet weak var monLayout: NSPopUpButton!
     @IBOutlet weak var monSlider: NSSlider!
 
-    // Stencils
+    /// Stencils
     @IBOutlet weak var synEnable: NSButton!
     @IBOutlet weak var synSprite0: NSButton!
     @IBOutlet weak var synSprite1: NSButton!
@@ -209,7 +209,7 @@ class Monitor: DialogController {
     }
     
     //
-    // Action methods
+    // MARK: - Action methods
     //
     
     @IBAction func colorAction(_ sender: NSColorWell!) {

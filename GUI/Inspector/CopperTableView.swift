@@ -13,10 +13,10 @@ class CopperTableView: NSTableView {
     
     var amiga: AmigaProxy { return inspector.amiga }
 
-    // Copper list (1 or 2)
+    /// Copper list (1 or 2)
     var nr = 1
 
-    // Data caches
+    /// Data caches
     var copperInfo: CopperInfo!
     var addrInRow: [Int: Int] = [:]
     var data1InRow: [Int: Int] = [:]

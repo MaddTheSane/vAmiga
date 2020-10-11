@@ -9,7 +9,7 @@
 
 import Carbon.HIToolbox
 
-// Keyboard event handler
+/// Keyboard event handler
 class KeyboardController: NSObject {
 
     var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }
@@ -19,13 +19,13 @@ class KeyboardController: NSObject {
     var renderer: Renderer { return parent.renderer }
     var pref: Preferences { return parent.pref }
         
-    // Remembers the state of some keys (true = currently pressed)
+    /// Remembers the state of some keys (true = currently pressed)
     var leftShift   = false, rightShift   = false
     var leftControl = false, rightControl = false
     var leftOption  = false, rightOption  = false
     var leftCommand = false, rightCommand = false
     
-    // Mapping from Unicode scalars to keycodes (used for auto-typing)
+    /// Mapping from Unicode scalars to keycodes (used for auto-typing)
     var symKeyMap: [UnicodeScalar: UInt16] = [:]
     var symKeyMapShifted: [UnicodeScalar: UInt16] = [:]
 

@@ -20,7 +20,7 @@ extension Renderer {
                            height: rect.height / texH)
     }
 
-    // Returns the used texture area (including HBLANK and VBLANK)
+    /// Returns the used texture area (including HBLANK and VBLANK)
     var entire: CGRect {
         
         return CGRect.init(x: 0, y: 0, width: 4 * Int(HPOS_CNT), height: Int(VPOS_CNT))
@@ -31,7 +31,7 @@ extension Renderer {
         return normalized(entire)
     }
     
-    // Returns the largest visibile texture area (excluding HBLANK and VBLANK)
+    /// Returns the largest visibile texture area (excluding HBLANK and VBLANK)
     var largestVisible: CGRect {
         
         let x1 = Int(HBLANK_CNT) * 4
@@ -47,7 +47,7 @@ extension Renderer {
         return normalized(largestVisible)
     }
     
-    // Returns the visible texture area based on the zoom and center parameters
+    /// Returns the visible texture area based on the zoom and center parameters
     var visible: CGRect {
         
         /*

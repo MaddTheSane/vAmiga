@@ -7,28 +7,29 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-/* Holds and manages an array of GamePad objects.
+/**
+ * Holds and manages an array of GamePad objects.
  * Up to five gamepads are managed. The first three gamepads are initialized
  * by default and represent a mouse and two keyboard emulated joysticks.
  * All remaining gamepads are added dynamically when HID devices are connected.
  */
 class GamePadManager {
 
-    // Reference to the the controller
+    /// Reference to the the controller
     var parent: MyController!
     
-    // Reference to the HID manager
+    /// Reference to the HID manager
     var hidManager: IOHIDManager
 
     // private let inputLock = NSLock()
     // Such a thing is used here: TODO: Check if we need this
     // https://github.com/joekarl/swift_handmade_hero/blob/master/Handmade%20Hero%20OSX/Handmade%20Hero%20OSX/InputManager.swift
     
-    // Gamepad storage
+    /// Gamepad storage
     var gamePads: [Int: GamePad] = [:]
     
     //
-    // Initialization
+    // MARK: - Initialization
     //
     
     init(parent: MyController) {
@@ -117,14 +118,14 @@ class GamePadManager {
     }
         
     //
-    // Managing slots
+    // MARK: - Managing slots
     //
     
-    // Returns true iff the specified game pad slot is used or free
+    /// Returns true iff the specified game pad slot is used or free
     func isUsed(slot: Int) -> Bool { return gamePads[slot] != nil }
     func isEmpty(slot: Int) -> Bool { return gamePads[slot] == nil }
     
-    // Returns the lowest free slot number or nil if all slots are occupied
+    /// Returns the lowest free slot number or nil if all slots are occupied
     func findFreeSlot() -> Int? {
         
         var nr = 0
@@ -183,7 +184,7 @@ class GamePadManager {
     }
         
     //
-    // HID stuff
+    // MARK: - HID stuff
     //
     
     func isBuiltIn(device: IOHIDDevice) -> Bool {
@@ -197,8 +198,8 @@ class GamePadManager {
         }
     }
 
-    // Device matching callback
-    // This method is invoked when a matching HID device is plugged in.
+    /// Device matching callback
+    /// This method is invoked when a matching HID device is plugged in.
     func hidDeviceAdded(context: UnsafeMutableRawPointer?,
                         result: IOReturn,
                         sender: UnsafeMutableRawPointer?,

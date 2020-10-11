@@ -7,7 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-/* Emulated keyboard model. This variable controls the overall appearance of the
+/**
+ * Emulated keyboard model. This variable controls the overall appearance of the
  * virtual keyboard. The keyboard can be drawn in a narrow style (Amiga 1000
  * keyboard) and a wide style (Amiga 500 keyboard).
  */
@@ -17,13 +18,16 @@ enum KBStyle: Int, Codable {
     case wide
 }
 
-/* Language of the emulated keyboard. The keyboard layout defines the number of
+/**
+ * Language of the emulated keyboard. The keyboard layout defines the number of
  * keys on the keyboard, the visua appearance of their key caps and their
  * physical shape.
  */
 enum KBLayout: Int, Codable {
 
-    case generic // Used as a fallback if no matching layout is found
+    /// Used as a fallback if no matching layout is found
+    case generic
+    
     case us
     case german
     case italian
@@ -35,16 +39,17 @@ class VirtualKeyboardWindow: DialogWindow {
 
 class VirtualKeyboardController: DialogController, NSWindowDelegate {
 
-    // Array holding a reference to the view of each key
+    /// Array holding a reference to the view of each key
     var keyView = Array(repeating: nil as NSButton?, count: 128)
 
-    // Image cache
+    /// Image cache
     var keyImage = Array(repeating: nil as NSImage?, count: 128)
 
-    // Image cache for keys that are currently pressed
+    /// Image cache for keys that are currently pressed
     var pressedKeyImage = Array(repeating: nil as NSImage?, count: 128)
 
-    /* Indicates if the window should close when a key is pressed. If the
+    /**
+     * Indicates if the window should close when a key is pressed. If the
      * virtual keyboard is opened as a sheet, this variable is set to true. If
      * it is opened as a seperate window, it is set to false.
      */
@@ -178,7 +183,8 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
     }
 }
 
-/* Subclass of NSButton for the keys in the virtual keyboard.
+/**
+ * Subclass of `NSButton` for the keys in the virtual keyboard.
  */
 class Keycap: NSButton {
     

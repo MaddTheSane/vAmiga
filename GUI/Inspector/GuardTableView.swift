@@ -14,7 +14,7 @@ class GuardTableView: NSTableView {
     var breakpoints: GuardsProxy { return amiga.breakpoints }
     var watchpoints: GuardsProxy { return amiga.watchpoints }
 
-    // Data caches
+    /// Data caches
     var disabledCache: [Int: Bool] = [:]
     var addrCache: [Int: Int] = [:]
     var numRows = 0

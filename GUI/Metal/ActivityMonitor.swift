@@ -7,8 +7,6 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-// Base class for all activity monitors
-
 enum Side {
     case lower
     case upper
@@ -16,9 +14,10 @@ enum Side {
     case right
 }
 
+/// Base class for all activity monitors
 class ActivityMonitor {
     
-    // Dimensions in normalized rectangle (0,0) - (1,1)
+    /// Dimensions in normalized rectangle (0,0) - (1,1)
     let leftBorder  = Float(0.1)
     let rightBorder = Float(0.1)
     let upperBorder = Float(0.275)
@@ -28,22 +27,22 @@ class ActivityMonitor {
     var borderHeight: Float { return upperBorder + lowerBorder }
     var innerHeight: Float { return 1.0 - borderHeight }
     
-    // Reference to the owning MTLDevice
+    /// Reference to the owning MTLDevice
     let device: MTLDevice
     
-    // Set to true to hide the view
+    /// Set to true to hide the view
     var isHidden = false
     
-    // Canvas dimensions on the xy plane
+    /// Canvas dimensions on the xy plane
     var position = NSRect.init() { didSet { updateMatrix() } }
     
-    // Rotation angle of the canvas
+    /// Rotation angle of the canvas
     var angle = Float(0.0) { didSet { updateMatrix() } }
     
-    // Side of the canvas where the rotations is carried out
+    /// Side of the canvas where the rotations is carried out
     var rotationSide = Side.lower { didSet { updateMatrix() } }
     
-    // Transformation matrix computed out of the above parameters
+    /// Transformation matrix computed out of the above parameters
     var matrix = matrix_identity_float4x4
     
     init (device: MTLDevice) {
@@ -99,36 +98,36 @@ class ActivityMonitor {
 
 class BarChart: ActivityMonitor {
     
-    // Number of stored values (number of displayed bars)
+    /// Number of stored values (number of displayed bars)
     let capacity = 20
 
-    // Dimensions in normalized rectangle (0,0) - (1,1)
+    /// Dimensions in normalized rectangle (0,0) - (1,1)
     let thickness = Float(0.03)
     let barHeight = Float(0.625)
     var barWidth: Float { innerWidth / Float(capacity + 1) }
             
-    //  Number of scroll steps until a new bar shows up
+    ///  Number of scroll steps until a new bar shows up
     let microSteps = 20
     
-    // Current scroll step
+    /// Current scroll step
     var microStep = Int.random(in: 0 ... 19)
     var xOffset: Float { return -barWidth * (Float(microStep) / Float(microSteps)) }
     
-    // Name of this monitor
+    /// Name of this monitor
     var name = "Lorem ipsum" { didSet { updateTextures() } }
     
-    // Colors
+    /// Colors
     var upperColor = NSColor.blue { didSet { updateTextures() } }
     var lowerColor = NSColor.red { didSet { updateTextures() } }
 
-    // Scaling method on y axis
+    /// Scaling method on y axis
     var logScale = false { didSet { updateTextures() } }
     
-    // If set to false, only the upper values are drawn
+    /// If set to false, only the upper values are drawn
     var splitView = false
     
     //
-    // Data
+    // MARK: - Data
     //
     
     var upperValues: [Float] = []
@@ -136,19 +135,19 @@ class BarChart: ActivityMonitor {
     var upperBars: [Node] = []
     var lowerBars: [Node] = []
     
-    // Variables needed inside addValue()
+    /// Variables needed inside addValue()
     var upperSum = Float(0)
     var lowerSum = Float(0)
     var upperSumCnt = 0
     var lowerSumCnt = 0
 
-    // Background
+    /// Background
     let bgSize = MTLSizeMake(300, 240, 0)
     var bgBuffer: UnsafeMutablePointer<UInt32>!
     var bgTexture: MTLTexture?
     var bgRect: Node!
     
-    // Foreground
+    /// Foreground
     let fgSize = MTLSizeMake(128, 128, 0)
     let upperBuffer: UnsafeMutablePointer<UInt32>!
     let lowerBuffer: UnsafeMutablePointer<UInt32>!
@@ -382,34 +381,34 @@ class BarChart: ActivityMonitor {
 
 class WaveformMonitor: ActivityMonitor {
 
-    // Reference to Paula
+    /// Reference to Paula
     var paula: PaulaProxy!
     
-    // Left or right audio channel
+    /// Left or right audio channel
     var leftChannel: Bool!
     
-    // Name of this monitor
+    /// Name of this monitor
     var name: String { return leftChannel ? "Left channel" : "Right channel" }
 
-    // Update counter
+    /// Update counter
     var count = 0
     
-    // Factors used for auto-scaling
+    /// Factors used for auto-scaling
     var scale = Float(0.001)
 
-    // Texture size
+    /// Texture size
     var size: MTLSize!
     var wordCount: Int { return size.width * size.height }
     
-    // ABGR value for drawing the waveform
+    /// ABGR value for drawing the waveform
     var color = UInt32(0xFFFFFFFF)
     
-    // Background layer
+    /// Background layer
     var bgBuffer: UnsafeMutablePointer<UInt32>!
     var bgTexture: MTLTexture!
     var bgRect: Node!
     
-    // Waveform layer
+    /// Waveform layer
     var fgBuffer: UnsafeMutablePointer<UInt32>!
     var fgTexture: MTLTexture!
     var fgRect: Node!

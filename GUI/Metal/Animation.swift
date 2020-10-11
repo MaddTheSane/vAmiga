@@ -9,12 +9,18 @@
 
 import simd
 
-struct AnimationType {
+struct AnimationType: OptionSet {
+    init(rawValue: RawValue) {
+        self.rawValue = rawValue
+    }
     
-    static let geometry = 1
-    static let alpha = 2
-    static let texture = 4
-    static let monitors = 8
+    typealias RawValue = UInt32
+    var rawValue: RawValue
+    
+    static let geometry = AnimationType(rawValue: 1)
+    static let alpha = AnimationType(rawValue: 2)
+    static let texture = AnimationType(rawValue: 4)
+    static let monitors = AnimationType(rawValue: 8)
 }
 
 class AnimatedFloat {
@@ -60,12 +66,12 @@ extension Renderer {
 
     func performAnimationStep() {
 
-        assert(animates != 0)
+        assert(!animates.isEmpty)
 
         var cont: Bool
 
         // Check for geometry animation
-        if (animates & AnimationType.geometry) != 0 {
+        if animates.contains(.geometry) {
 
             angleX.move()
             angleY.move()
@@ -79,7 +85,7 @@ extension Renderer {
 
             // Check if animation has terminated
             if !cont {
-                animates -= AnimationType.geometry
+                animates.remove(.geometry)
                 angleX.set(0)
                 angleY.set(0)
                 angleZ.set(0)
@@ -89,7 +95,7 @@ extension Renderer {
         }
 
         // Check for alpha channel animation
-        if (animates & AnimationType.alpha) != 0 {
+        if animates.contains(.alpha) {
 
             alpha.move()
             noise.move()
@@ -97,12 +103,12 @@ extension Renderer {
 
             // Check if animation has terminated
             if !cont {
-                animates -= AnimationType.alpha
+                animates.remove(.alpha)
             }
         }
 
         // Check for texture animation
-        if (animates & AnimationType.texture) != 0 {
+        if animates.contains(.texture) {
 
             cutoutX1.move()
             cutoutY1.move()
@@ -120,12 +126,12 @@ extension Renderer {
 
             // Check if animation has terminated
             if !cont {
-                animates -= AnimationType.texture
+                animates.remove(.texture)
             }
         }
         
         // Check for activity monitor animation
-        if (animates & AnimationType.monitors) != 0 {
+        if animates.contains(.monitors) {
             
             cont = false
             for i in 0 ..< monitorAlpha.count {
@@ -135,13 +141,13 @@ extension Renderer {
 
             // Check if animation has terminated
             if !cont {
-                animates -= AnimationType.monitors
+                animates.remove(.monitors)
             }
         }
     }
 
     //
-    // Texture animations
+    // MARK: - Texture animations
     //
 
     func zoomTextureIn(steps: Int = 30) {
@@ -160,7 +166,7 @@ extension Renderer {
         cutoutX2.steps = steps
         cutoutY2.steps = steps
 
-        animates |= AnimationType.texture
+        animates.insert(.texture)
     }
 
     func zoomTextureOut(steps: Int = 30) {
@@ -185,11 +191,11 @@ extension Renderer {
         cutoutX2.steps = steps
         cutoutY2.steps = steps
 
-        animates |= AnimationType.texture
+        animates.insert(.texture)
     }
 
     //
-    // Geometry animations
+    // MARK: - Geometry animations
     //
 
     func zoomIn(steps: Int = 60) {
@@ -213,7 +219,7 @@ extension Renderer {
         alpha.steps = steps
         noise.steps = steps
 
-        animates |= AnimationType.geometry + AnimationType.alpha
+        animates.insert([.geometry, .alpha])
     }
 
     func zoomOut(steps: Int = 40) {
@@ -234,7 +240,7 @@ extension Renderer {
         alpha.steps = steps
         noise.steps = steps
 
-        animates |= AnimationType.geometry + AnimationType.alpha
+        animates.insert([.geometry, .alpha])
     }
 
     func rotate(x: Float = 0.0, y: Float = 0.0, z: Float = 0.0) {
@@ -250,7 +256,7 @@ extension Renderer {
         angleY.steps = steps
         angleZ.steps = steps
 
-        animates |= AnimationType.geometry
+        animates.insert(.geometry)
     }
 
     func rotateRight() { rotate(y: -90) }
@@ -275,7 +281,7 @@ extension Renderer {
         angleZ.steps = steps
         alpha.steps = 1
 
-        animates |= AnimationType.geometry + AnimationType.alpha
+        animates.insert([.geometry, .alpha])
     }
 
     func snapToFront() {
@@ -286,7 +292,7 @@ extension Renderer {
         shiftZ.target = 0
         shiftZ.steps = 10
 
-        animates |= AnimationType.geometry
+        animates.insert(.geometry)
     }
 
     //
@@ -308,7 +314,7 @@ extension Renderer {
         angleZ.steps = steps
         alpha.steps = steps
 
-        animates |= AnimationType.alpha
+        animates.insert(.alpha)
     }
 
     func blendIn(steps: Int = 40) {

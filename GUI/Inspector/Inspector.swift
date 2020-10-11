@@ -16,10 +16,10 @@ let fmt8b = MyFormatter.init(radix: 2, min: 0, max: 255)
 
 class Inspector: DialogController {
 
-    // Commons
+    /// Commons
     @IBOutlet weak var panel: NSTabView!
 
-    // CPU panel
+    /// CPU panel
     @IBOutlet weak var cpuInstrView: InstrTableView!
     @IBOutlet weak var cpuTraceView: TraceTableView!
     @IBOutlet weak var cpuBreakView: BreakTableView!
@@ -63,7 +63,7 @@ class Inspector: DialogController {
     @IBOutlet weak var cpuTraceStepOverButton: NSButton!
     @IBOutlet weak var cpuTraceClearButton: NSButton!
 
-    // Memory panel
+    /// Memory panel
     @IBOutlet weak var memBankMap: NSPopUpButton!
     @IBOutlet weak var memSearchField: NSSearchField!
     @IBOutlet weak var memBankTableView: BankTableView!
@@ -91,7 +91,7 @@ class Inspector: DialogController {
     var displayedBankType = MemorySource.MEM_CHIP
     var searchAddress = -1
 
-    // CIA panel
+    /// CIA panel
     @IBOutlet weak var ciaSelector: NSSegmentedControl!
     
     @IBOutlet weak var ciaPRA: NSTextField!
@@ -233,7 +233,7 @@ class Inspector: DialogController {
     @IBOutlet weak var dmaDSKPT: NSTextField!
     @IBOutlet weak var dmaDSKEnable: NSButton!
 
-    // Copper and Blitter panel
+    /// Copper and Blitter panel
     @IBOutlet weak var copSelector: NSSegmentedControl!
     @IBOutlet weak var copList: CopperTableView!
     @IBOutlet weak var copActive1: NSButton!
@@ -285,7 +285,7 @@ class Inspector: DialogController {
     @IBOutlet weak var bltFirstWord: NSButton!
     @IBOutlet weak var bltLastWord: NSButton!
 
-    // Blitter panel
+    /// Blitter panel
     @IBOutlet weak var bltAFWM: NSTextField!
     @IBOutlet weak var bltALWM: NSTextField!
     @IBOutlet weak var bltAShift: NSTextField!
@@ -300,7 +300,7 @@ class Inspector: DialogController {
     @IBOutlet weak var bltFillEnable: NSButton!
     @IBOutlet weak var bltStoreToDest: NSButton!
 
-    // Denise panel
+    /// Denise panel
     @IBOutlet weak var deniseBPLCON0: NSTextField!
     @IBOutlet weak var deniseHIRES: NSButton!
     @IBOutlet weak var deniseBPU: NSTextField!
@@ -376,7 +376,7 @@ class Inspector: DialogController {
     @IBOutlet weak var sprAttach: NSButton!
     @IBOutlet weak var sprTableView: SpriteTableView!
 
-    // Paula panel
+    /// Paula panel
     @IBOutlet weak var paulaIntena: NSTextField!
     @IBOutlet weak var paulaIntreq: NSTextField!
     @IBOutlet weak var paulaEna14: NSButton!
@@ -460,13 +460,13 @@ class Inspector: DialogController {
     @IBOutlet weak var dskFifo4: NSTextField!
     @IBOutlet weak var dskFifo5: NSTextField!
 
-    // State to display in the state machine images (Paula panel)
+    /// State to display in the state machine images (Paula panel)
     var displayState0 = 0
     var displayState1 = 0
     var displayState2 = 0
     var displayState3 = 0
 
-    // Ports panel
+    /// Ports panel
     @IBOutlet weak var po0JOYDAT: NSTextField!
     @IBOutlet weak var po0M0V: NSButton!
     @IBOutlet weak var po0M0H: NSButton!
@@ -512,7 +512,7 @@ class Inspector: DialogController {
     @IBOutlet weak var poSerialIn: NSTextView!
     @IBOutlet weak var poSerialOut: NSTextView!
 
-    // Events panel
+    /// Events panel
     @IBOutlet weak var evCpuProgress: NSTextField!
     @IBOutlet weak var evCpuProgress2: NSTextField!
     @IBOutlet weak var evDmaProgress: NSTextField!
@@ -524,7 +524,7 @@ class Inspector: DialogController {
 
     @IBOutlet weak var evTableView: EventTableView!
 
-    // Cached state of all Amiga components
+    /// Cached state of all Amiga components
     var cpuInfo: CPUInfo!
     var ciaInfo: CIAInfo!
     var agnusInfo: AgnusInfo!
@@ -542,10 +542,10 @@ class Inspector: DialogController {
     var eventInfo: EventInfo!
     var isRunning = true
 
-    // Returns the number of the currently inspected sprite
+    /// Returns the number of the currently inspected sprite
     var selectedSprite: Int { return sprSelector.indexOfSelectedItem }
 
-    // Used to determine the items to be refreshed
+    /// Used to determine the items to be refreshed
     private var refreshCnt = 0
 
     override func showWindow(_ sender: Any?) {
@@ -561,7 +561,7 @@ class Inspector: DialogController {
         track()
     }
     
-    // Assigns a number formatter to a control
+    /// Assigns a number formatter to a control
     func assignFormatter(_ formatter: Formatter, _ control: NSControl) {
         
         control.abortEditing()

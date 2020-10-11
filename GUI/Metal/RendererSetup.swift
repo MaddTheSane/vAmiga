@@ -524,7 +524,7 @@ extension Renderer {
     }
     
     //
-    // Matrix utilities
+    // MARK: - Matrix utilities
     //
     
     static func perspectiveMatrix(fovY: Float,
@@ -533,7 +533,7 @@ extension Renderer {
                                   farZ: Float) -> matrix_float4x4 {
         
         // Variant 1: Keeps correct aspect ratio independent of window size
-        let yscale = 1.0 / tanf(fovY * 0.5) // 1 / tan == cot
+        let yscale = 1.0 / tan(fovY * 0.5) // 1 / tan == cot
         let xscale = yscale / aspect
         let q = farZ / (farZ - nearZ)
         

@@ -9,7 +9,8 @@
 
 struct Vertex {
     
-    var x, y, z, tx, ty: Float // Position and texture data
+    /// Position and texture data
+    var x, y, z, tx, ty: Float
     
     init(x: Float, y: Float, z: Float, t: NSPoint) {
         self.x = x

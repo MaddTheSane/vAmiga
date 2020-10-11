@@ -12,7 +12,7 @@ import MetalKit
 import MetalPerformanceShaders
 
 //
-// Additional uniforms needed by the vertex shader
+// MARK: - Additional uniforms needed by the vertex shader
 //
 
 struct VertexUniforms {
@@ -21,7 +21,7 @@ struct VertexUniforms {
 }
 
 //
-// Uniforms passed to all compute shaders and the fragment shader
+// MARK: - Uniforms passed to all compute shaders and the fragment shader
 //
     
 struct ShaderOptions: Codable {
@@ -50,7 +50,7 @@ struct ShaderOptions: Codable {
 }
 
 //
-// Uniforms passed to the merge shader
+// MARK: - Uniforms passed to the merge shader
 //
 
 struct MergeUniforms {
@@ -60,7 +60,7 @@ struct MergeUniforms {
 }
 
 //
-// Additional uniforms needed by the fragment shader
+// MARK: - Additional uniforms needed by the fragment shader
 //
 
 struct FragmentUniforms {
@@ -72,7 +72,7 @@ struct FragmentUniforms {
 }
 
 //
-// Base class for all compute kernels
+// MARK: - Base class for all compute kernels
 //
 
 class ComputeKernel: NSObject {
@@ -159,7 +159,7 @@ class ComputeKernel: NSObject {
 }
 
 //
-// Bypass filter
+// MARK: - Bypass filter
 //
 
 class BypassFilter: ComputeKernel {
@@ -171,7 +171,7 @@ class BypassFilter: ComputeKernel {
 }
 
 //
-// Mergers
+// MARK: - Mergers
 //
 
 class MergeFilter: ComputeKernel {
@@ -191,7 +191,7 @@ class MergeBypassFilter: ComputeKernel {
 }
 
 //
-// Upscalers
+// MARK: - Upscalers
 //
 
 class BypassUpscaler: ComputeKernel {
@@ -234,7 +234,7 @@ class XBRUpscaler: ComputeKernel {
 }
 
 //
-// Split filter
+// MARK: - Split filter
 //
 
 class SplitFilter: ComputeKernel {
@@ -246,7 +246,7 @@ class SplitFilter: ComputeKernel {
 }
 
 //
-// Scanline filter
+// MARK: - Scanline filter
 //
 
 class SimpleScanlines: ComputeKernel {

@@ -20,12 +20,14 @@ class Renderer: NSObject, MTKViewDelegate {
     var prefs: Preferences { return parent.pref }
     var config: Configuration { return parent.config }
     
-    /* Number of drawn frames since power up. This value is used to determine
+    /**
+     * Number of drawn frames since power up. This value is used to determine
      * the fps value shown in the emulator's bottom bar.
      */
     var frames: Int64 = 0
     
-    /* Synchronization semaphore. The semaphore is locked in function draw()
+    /**
+     * Synchronization semaphore. The semaphore is locked in function draw()
      * and released in function endFrame(). It's puprpose is to prevent a new
      * frame from being drawn if the previous isn't finished yet. Not sure if
      * we really need it.
@@ -33,7 +35,7 @@ class Renderer: NSObject, MTKViewDelegate {
     var semaphore = DispatchSemaphore(value: 1)
 
     //
-    // Metal objects
+    // MARK: - Metal objects
     //
     
     var library: MTLLibrary! = nil
@@ -45,12 +47,12 @@ class Renderer: NSObject, MTKViewDelegate {
     var drawable: CAMetalDrawable! = nil
     
     //
-    // Metal layers
+    // MARK: - Metal layers
     //
     
     var metalLayer: CAMetalLayer! = nil
 
-    // Current canvas size
+    /// Current canvas size
     var size: CGSize {
 
         let frameSize = mtkView.frame.size
@@ -61,7 +63,7 @@ class Renderer: NSObject, MTKViewDelegate {
     }
 
     //
-    // Buffers and uniforms
+    // MARK: - Buffers and uniforms
     //
     
     var bgRect: Node?
@@ -81,7 +83,7 @@ class Renderer: NSObject, MTKViewDelegate {
                                       shortFrameScale: 1.0)
 
     //
-    // Activity monitors
+    // MARK: - Activity monitors
     //
 
     struct Monitor {
@@ -104,43 +106,46 @@ class Renderer: NSObject, MTKViewDelegate {
 
     var monitors: [ActivityMonitor] = []
 
-    // Global enable switch for all activity monitors
+    /// Global enable switch for all activity monitors
     var drawActivityMonitors = false { didSet { updateMonitorAlphas() } }
 
-    // Individual enable switch for each activity monitor
+    /// Individual enable switch for each activity monitor
     var monitorEnabled: [Bool] = [] { didSet { updateMonitorAlphas() } }
     
-    // Global alpha value of activity monitors
+    /// Global alpha value of activity monitors
     var monitorGlobalAlpha = Float(0.5)
     
-    // Layout scheme used for positioning the monitors
+    /// Layout scheme used for positioning the monitors
     var monitorLayout = 0 { didSet { updateMonitorPositions() } }
     
     //
-    // Textures
+    // MARK: - Textures
     //
 
-    // Background textures
+    /// Background textures
     var bgTexture: MTLTexture! = nil
     var bgFullscreenTexture: MTLTexture! = nil
 
-    // Texture to hold the pixel depth information
+    /// Texture to hold the pixel depth information
     var depthTexture: MTLTexture! = nil
     
-    /* Long and short frame textures (raw data from emulator, 1024 x 512)
+    /**
+     * Long and short frame textures (raw data from emulator, 1024 x 512)
      * This texture is filled with the screen buffer data from the emulator.
-     * The texture is updated in function updateTexture() which is called
-     * periodically in drawRect().
+     * The texture is updated in function `updateTexture()` which is called
+     * periodically in `drawRect()`.
      */
     var longFrameTexture: MTLTexture! = nil
     var shortFrameTexture: MTLTexture! = nil
     
-    /* Merge texture (1024 x 1024)
+    /**
+     * Merge texture (1024 x 1024)
      * The long frame and short frame textures are merged into this one.
      */
     var mergeTexture: MTLTexture! = nil
     
-    /* Bloom textures to emulate blooming (512 x 512)
+    /**
+     * Bloom textures to emulate blooming (512 x 512)
      * To emulate a bloom effect, the C64 texture is first split into it's
      * R, G, and B parts. Each texture is then run through a Gaussian blur
      * filter with a large radius. These blurred textures are passed into
@@ -151,12 +156,14 @@ class Renderer: NSObject, MTKViewDelegate {
     var bloomTextureG: MTLTexture! = nil
     var bloomTextureB: MTLTexture! = nil
     
-    /* Lowres enhancement texture (experimental)
+    /**
+     * Lowres enhancement texture (experimental)
      * Trying to use in-texture upscaling to enhance lowres mode
      */
     var lowresEnhancedTexture: MTLTexture! = nil
     
-    /* Upscaled emulator texture (2048 x 2048)
+    /**
+     * Upscaled emulator texture (2048 x 2048)
      * In the first texture processing stage, the emulator texture is bumped up
      * by a factor of 4. The user can choose between bypass upscaling which
      * simply replaces each pixel by a 4x4 quad or more sophisticated upscaling
@@ -164,60 +171,62 @@ class Renderer: NSObject, MTKViewDelegate {
      */
     var upscaledTexture: MTLTexture! = nil
     
-    /* Upscaled texture with scanlines (2048 x 2048)
+    /**
+     * Upscaled texture with scanlines (2048 x 2048)
      * In the second texture processing stage, a scanline effect is applied to
      * the upscaled texture.
      */
     var scanlineTexture: MTLTexture! = nil
     
-    /* Dotmask texture (variable size)
+    /**
+     * Dotmask texture (variable size)
      * This texture is used by the fragment shader to emulate a dotmask
      * effect.
      */
     var dotMaskTexture: MTLTexture! = nil
         
-    // An instance of the merge filter and the merge bypass filter
+    /// An instance of the merge filter and the merge bypass filter
     var mergeFilter: MergeFilter! = nil
     var mergeBypassFilter: MergeBypassFilter! = nil
 
-    // Array holding all available lowres enhancers
+    /// Array holding all available lowres enhancers
     var enhancerGallery = [ComputeKernel?](repeating: nil, count: 3)
     
-    // The currently selected enhancer
+    /// The currently selected enhancer
     var enhancer: ComputeKernel!
 
-    // Array holding all available upscalers
+    /// Array holding all available upscalers
     var upscalerGallery = [ComputeKernel?](repeating: nil, count: 3)
 
-    // The currently selected enhancer
+    /// The currently selected enhancer
     var upscaler: ComputeKernel!
 
-    // Array holding all available bloom filters
+    /// Array holding all available bloom filters
     var bloomFilterGallery = [ComputeKernel?](repeating: nil, count: 2)
     
-    // Array holding all available scanline filters
+    /// Array holding all available scanline filters
     var scanlineFilterGallery = [ComputeKernel?](repeating: nil, count: 3)
     
-    // Array holding dotmask preview images
+    /// Array holding dotmask preview images
     var dotmaskImages = [NSImage?](repeating: nil, count: 5)
     
     //
-    // Texture samplers
+    // MARK: - Texture samplers
     //
     
-    // Nearest neighbor sampler
+    /// Nearest neighbor sampler
     var samplerNearest: MTLSamplerState!
     
-    // Linear interpolation sampler
+    /// Linear interpolation sampler
     var samplerLinear: MTLSamplerState!
     
-    // Shader options
+    /// Shader options
     var shaderOptions: ShaderOptions!
     
-    // Indicates if an animation is currently performed
-    var animates = 0
+    /// Indicates if an animation is currently performed
+    var animates = AnimationType()
     
-    // Animation parameters
+    /// Animation parameters
     var angleX = AnimatedFloat(0.0)
     var angleY = AnimatedFloat(0.0)
     var angleZ = AnimatedFloat(0.0)
@@ -231,30 +240,30 @@ class Renderer: NSObject, MTKViewDelegate {
     
     var monitorAlpha: [AnimatedFloat] = []
     
-    // Animation variables for smooth texture zooming
+    /// Animation variables for smooth texture zooming
     var cutoutX1 = AnimatedFloat.init()
     var cutoutY1 = AnimatedFloat.init()
     var cutoutX2 = AnimatedFloat.init()
     var cutoutY2 = AnimatedFloat.init()
 
-    // Part of the texture that is currently visible
+    /// Part of the texture that is currently visible
     var textureRect = CGRect.init() { didSet { buildVertexBuffer() } }
 
-    // Indicates whether the recently drawn frames were long or short frames
+    /// Indicates whether the recently drawn frames were long or short frames
     var currLOF = true
     var prevLOF = true
 
-    // Used to determine if the GPU texture needs to be updated
+    /// Used to determine if the GPU texture needs to be updated
     var prevBuffer: ScreenBuffer?
     
-    // Variable used to emulate interlace flickering
+    /// Variable used to emulate interlace flickering
     var flickerCnt = 0
         
-    // Is set to true when fullscreen mode is entered
+    /// Is set to true when fullscreen mode is entered
     var fullscreen = false
     
     //
-    // Initializing
+    // MARK: - Initializing
     //
 
     init(view: MTKView, device: MTLDevice, controller: MyController) {
@@ -271,7 +280,7 @@ class Renderer: NSObject, MTKViewDelegate {
     }
 
     //
-    // Managing textures
+    // MARK: - Managing textures
     //
 
     func clearBgTexture() {
@@ -333,10 +342,10 @@ class Renderer: NSObject, MTKViewDelegate {
     }
         
     //
-    // Managing kernels
+    // MARK: - Managing kernels
     //
 
-    // Tries to select a new enhancer
+    /// Tries to select a new enhancer
     func selectEnhancer(_ nr: Int) -> Bool {
         
         if nr < enhancerGallery.count && enhancerGallery[nr] != nil {
@@ -346,7 +355,7 @@ class Renderer: NSObject, MTKViewDelegate {
         return false
     }
   
-    // Tries to select a new upscaler
+    /// Tries to select a new upscaler
     func selectUpscaler(_ nr: Int) -> Bool {
         
         if nr < upscalerGallery.count && upscalerGallery[nr] != nil {
@@ -356,7 +365,7 @@ class Renderer: NSObject, MTKViewDelegate {
         return false
     }
     
-    // Returns the compute kernel of the currently selected bloom filter
+    /// Returns the compute kernel of the currently selected bloom filter
     func currentBloomFilter() -> ComputeKernel {
 
         var nr = Int(shaderOptions.bloom)
@@ -364,7 +373,7 @@ class Renderer: NSObject, MTKViewDelegate {
         return bloomFilterGallery[nr]!
     }
 
-    // Returns the compute kernel of the currently selected scanline filter
+    /// Returns the compute kernel of the currently selected scanline filter
     func currentScanlineFilter() -> ComputeKernel {
 
         var nr = Int(shaderOptions.scanlines)
@@ -373,7 +382,7 @@ class Renderer: NSObject, MTKViewDelegate {
     }
 
     //
-    // Managing activity monitors
+    // MARK: - Managing activity monitors
     //
 
     func fadeIn(monitor nr: Int, steps: Int = 40) {
@@ -382,7 +391,7 @@ class Renderer: NSObject, MTKViewDelegate {
         
         monitorAlpha[nr].target = 1.0
         monitorAlpha[nr].steps = steps
-        animates |= AnimationType.monitors
+        animates.insert(.monitors)
     }
         
     func fadeOut(monitor nr: Int, steps: Int = 40) {
@@ -391,7 +400,7 @@ class Renderer: NSObject, MTKViewDelegate {
         
         monitorAlpha[nr].target = 0.0
         monitorAlpha[nr].steps = steps
-        animates |= AnimationType.monitors
+        animates.insert(.monitors)
     }
 
     func fadeOutMonitors() {
@@ -411,7 +420,7 @@ class Renderer: NSObject, MTKViewDelegate {
     }
     
     //
-    //  Drawing
+    // MARK: - Drawing
     //
 
     func startFrame() {
@@ -567,7 +576,7 @@ class Renderer: NSObject, MTKViewDelegate {
         let renderForeground = alpha.current > 0.0
 
         // Perform a single animation step
-        if animates != 0 { performAnimationStep() }
+        if !animates.isEmpty { performAnimationStep() }
 
         startFrame()
 
@@ -620,7 +629,7 @@ class Renderer: NSObject, MTKViewDelegate {
                                             index: 1)
 
             // Draw (part of) cube
-            quad3D!.draw(commandEncoder, allSides: animates != 0)
+            quad3D!.draw(commandEncoder, allSides: !animates.isEmpty)
             
             // Draw activity monitors
             if drawActivityMonitors {
@@ -656,7 +665,7 @@ class Renderer: NSObject, MTKViewDelegate {
     }
 
     //
-    // Managing layout
+    // MARK: - Managing layout
     //
 
     func reshape() {
@@ -676,7 +685,7 @@ class Renderer: NSObject, MTKViewDelegate {
     }
     
     //
-    // Methods from MTKViewDelegate
+    // MARK: - Methods from MTKViewDelegate
     //
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {

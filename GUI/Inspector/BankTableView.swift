@@ -13,10 +13,10 @@ class BankTableView: NSTableView {
     
     var amiga: AmigaProxy { return inspector.parent.amiga }
 
-    // Displayed memory bank
+    /// Displayed memory bank
     var bank = 0
 
-    // Data caches
+    /// Data caches
     var bankCache: [Int: MemorySource] = [:]
 
     override func awakeFromNib() {

@@ -11,7 +11,8 @@
 
 import Carbon.HIToolbox
 
-/* Mapping from Mac key codes to Amiga key codes.
+/**
+ * Mapping from Mac key codes to Amiga key codes.
  * Mac keycodes are based on the Apple Extended Keyboard II layout (ISO).
  */
 let isomac2amiga: [Int: Int] = [
@@ -124,7 +125,8 @@ let isomac2amiga: [Int: Int] = [
     kVK_RightCommand:        AmigaKeycode.rightAmiga
 ]
 
-/* Mapping from Mac key codes to textual representations.
+/**
+ * Mapping from Mac key codes to textual representations.
  * The mapping only covers keys with an empty standard representation.
  */
 let mac2string: [Int: String] = [
@@ -178,14 +180,15 @@ let mac2string: [Int: String] = [
     kVK_DownArrow:        "\u{2193}"   // ↓
 ]
 
-/* This structure represents a physical key of the Mac keyboard.
+/**
+ * This structure represents a physical key of the Mac keyboard.
  */
 struct MacKey: Codable {
     
-    // The unique identifier of this Mac key
+    /// The unique identifier of this Mac key
     var keyCode: Int = 0
     
-    // Modifier flags at the time the key was pressed
+    /// Modifier flags at the time the key was pressed
     var carbonFlags: Int = 0
 
     init(keyCode: Int, flags: NSEvent.ModifierFlags = []) {
@@ -208,7 +211,7 @@ struct MacKey: Codable {
         self.init(keyCode: event.keyCode, flags: event.modifierFlags)
     }
    
-    // Returns the modifier flags of this key
+    /// Returns the modifier flags of this key
     var modifierFlags: NSEvent.ModifierFlags {
 
         var cocoaFlags: NSEvent.ModifierFlags = []
@@ -221,7 +224,7 @@ struct MacKey: Codable {
         return cocoaFlags
     }
     
-    // Returns the Amiga key code for this key
+    /// Returns the Amiga key code for this key
     var amigaKeyCode: Int? {
 
         // Catch key 0x32 manually, because it has a different physical
@@ -232,7 +235,7 @@ struct MacKey: Codable {
         return isomac2amiga[keyCode]
     }
     
-    // Returns a string representation for this key
+    /// Returns a string representation for this key
     var stringValue: String {
 
         // Check if this key has a custom representation

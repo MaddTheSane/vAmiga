@@ -13,10 +13,10 @@ class MemTableView: NSTableView {
 
     var amiga: AmigaProxy { return inspector.amiga}
 
-    // Displayed memory bank
+    /// Displayed memory bank
     var bank = 0
 
-    // Data caches
+    /// Data caches
     var addrInRow: [Int: Int] = [:]
     var asciiInRow: [Int: String] = [:]
     var dataInAddr: [Int: Int] = [:]

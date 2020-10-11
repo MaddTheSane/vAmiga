@@ -13,24 +13,25 @@ public class MetalView: MTKView {
     
     var prefs: Preferences { return parent.pref }
     
-    /* Tracking area for trapping the mouse. The tracking area is utilized to
+    /**
+     * Tracking area for trapping the mouse. The tracking area is utilized to
      * determine when the mouse is moved into or out of the emulator window.
      */
     var trackingArea: NSTrackingArea?
     
-    // Indicates whether the mouse is currently within the tracking area
+    /// Indicates whether the mouse is currently within the tracking area
     var insideTrackingArea = false
     
-    // Shows whether the Amiga is currently in control of the mouse
+    /// Shows whether the Amiga is currently in control of the mouse
     var gotMouse = false
     
-    // Reference to the first mouse (internal, always connected)
+    /// Reference to the first mouse (internal, always connected)
     var mouse1: GamePad?
 
-    // Reference to the second mouse (USB, usually unconnected)
+    /// Reference to the second mouse (USB, usually unconnected)
     var mouse2: GamePad?
 
-    // Variables needed to detect a shaking mouse
+    /// Variables needed to detect a shaking mouse
     var dxsign = CGFloat(1)
     var dxsum = CGFloat(0)
     var dxturns = 0
@@ -55,7 +56,7 @@ public class MetalView: MTKView {
     
     override public var acceptsFirstResponder: Bool { return true }
     
-    // Adjusts view height by a certain number of pixels
+    /// Adjusts view height by a certain number of pixels
     func adjustHeight(_ height: CGFloat) {
     
         var newFrame = frame
@@ -64,9 +65,9 @@ public class MetalView: MTKView {
         frame = newFrame
     }
     
-    // Shrinks view vertically by the height of the status bar
+    /// Shrinks view vertically by the height of the status bar
     public func shrink() { adjustHeight(-24.0) }
     
-    // Expand view vertically by the height of the status bar
+    /// Expand view vertically by the height of the status bar
     public func expand() { adjustHeight(24.0) }
 }

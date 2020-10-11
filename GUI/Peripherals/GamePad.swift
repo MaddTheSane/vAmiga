@@ -9,65 +9,65 @@
 
 import IOKit.hid
 
-// An object representing an input device connected to the Game Port. The object
-// can either represent a connected HID device or a keyboard emulated device.
-// In the first case, the object serves as a callback handler for HID events.
-// In the latter case, it translates keyboard events to GamePadAction events by
-// utilizing a key map.
-
+/// An object representing an input device connected to the Game Port. The object
+/// can either represent a connected HID device or a keyboard emulated device.
+/// In the first case, the object serves as a callback handler for HID events.
+/// In the latter case, it translates keyboard events to GamePadAction events by
+/// utilizing a key map.
 class GamePad {
 
-    // Reference to the game pad manager
+    /// Reference to the game pad manager
     var manager: GamePadManager
     var prefs: Preferences { return manager.parent.pref }
 
-    // The Amiga port this device is connected to (0 = unconnected)
+    /// The Amiga port this device is connected to (0 = unconnected)
     var port = 0
 
-    // Reference to the device object
+    /// Reference to the device object
     var device: IOHIDDevice?
     
-    // Vendor ID of the managed device (only set for HID devices)
+    /// Vendor ID of the managed device (only set for HID devices)
     var vendorID: Int
 
-    // Product ID of the managed device (only set for HID devices)
+    /// Product ID of the managed device (only set for HID devices)
     var productID: Int
 
-    // Location ID of the managed device (only set for HID devices)
+    /// Location ID of the managed device (only set for HID devices)
     var locationID: Int
 
-    // Type of the managed device (joystick or mouse)
+    /// Type of the managed device (joystick or mouse)
     var type: ControlPortDevice
     var isMouse: Bool { return type == .CPD_MOUSE }
     var isJoystick: Bool { return type == .CPD_JOYSTICK }
 
-    // Name of the managed device
+    /// Name of the managed device
     var name: String?
 
-    // Icon of this device
+    /// Icon of this device
     var icon: NSImage?
             
-    // Keymap of the managed device (only set for keyboard emulated devices)
+    /// Keymap of the managed device (only set for keyboard emulated devices)
     var keyMap: Int?
     
-    // Indicates if a joystick emulation key is currently pressed
+    /// Indicates if a joystick emulation key is currently pressed
     var keyUp = false, keyDown = false, keyLeft = false, keyRight = false
     
-    // Minimum and maximum value of analog axis event
+    /// Minimum and maximum value of analog axis event
     var min: Int?, max: Int?
     
-    // Cotroller specific usage IDs for left and right gamepad joysticks
+    /// Cotroller specific usage IDs for left and right gamepad joysticks
     var lThumbXUsageID = kHIDUsage_GD_X
     var lThumbYUsageID = kHIDUsage_GD_Y
     var rThumbXUsageID = kHIDUsage_GD_Rz
     var rThumbYUsageID = kHIDUsage_GD_Z
 
-    /* Rescued information from the latest invocation of the action function.
+    /**
+     * Rescued information from the latest invocation of the action function.
      * It is needed to determine whether a joystick event has to be triggered.
      */
     var oldEvents: [Int: [GamePadAction]] = [:]
     
-    // Receivers for HID events
+    /// Receivers for HID events
     let inputValueCallback: IOHIDValueCallback = {
         inContext, inResult, inSender, value in
         let this: GamePad = unsafeBitCast(inContext, to: GamePad.self)
@@ -160,12 +160,12 @@ class GamePad {
 }
 
 //
-// Keyboard emulation
+// MARK: - Keyboard emulation
 //
 
 extension GamePad {
 
-    // Binds a key to a gamepad action
+    /// Binds a key to a gamepad action
     func bind(key: MacKey, action: GamePadAction) {
 
         guard let n = keyMap else { return }
@@ -176,7 +176,7 @@ extension GamePad {
         prefs.keyMaps[n][key] = action.rawValue
     }
 
-    // Removes a key binding to the specified gampad action (if any)
+    /// Removes a key binding to the specified gampad action (if any)
     func unbind(action: GamePadAction) {
         
         guard let n = keyMap else { return }
@@ -186,7 +186,7 @@ extension GamePad {
         }
      }
 
-    // Translates a key press event to a list of gamepad actions
+    /// Translates a key press event to a list of gamepad actions
     func keyDownEvents(_ macKey: MacKey) -> [GamePadAction] {
         
         guard let n = keyMap, let direction = prefs.keyMaps[n][macKey] else { return [] }
@@ -223,7 +223,7 @@ extension GamePad {
         }
     }
         
-    // Handles a key release event
+    /// Handles a key release event
     func keyUpEvents(_ macKey: MacKey) -> [GamePadAction] {
         
         guard let n = keyMap, let direction = prefs.keyMaps[n][macKey] else { return [] }
@@ -262,7 +262,7 @@ extension GamePad {
 }
 
 //
-// Event handling
+// MARK: - Event handling
 //
 
 extension GamePad {
@@ -362,7 +362,7 @@ extension GamePad {
 }
 
 //
-// Emulate events on the Amiga side
+// MARK: - Emulate events on the Amiga side
 //
 
 extension GamePad {

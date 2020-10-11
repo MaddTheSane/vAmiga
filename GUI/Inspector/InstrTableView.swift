@@ -21,10 +21,10 @@ class InstrTableView: NSTableView {
         case disabled
     }
 
-    // The first address to disassemble
+    /// The first address to disassemble
     var addrInFirstRow: Int = 0
 
-    // Data caches
+    /// Data caches
     var numRows = 0
     var bpInRow: [Int: BreakpointType] = [:]
     var addrInRow: [Int: Int] = [:]
