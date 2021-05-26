@@ -69,7 +69,7 @@ struct DDFStateEnum : util::Reflection<DDFStateEnum, DDFState> {
     }
 
     static const char *prefix() { return "DDF"; }
-    static const char *key(AgnusRevision value)
+    static const char *key(DDFState value)
     {
         switch (value) {
                 
