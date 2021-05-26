@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="17156" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="18122" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="17156"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="18122"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -21,54 +21,61 @@
             <windowStyleMask key="styleMask" titled="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="196" y="240" width="354" height="177"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="1536" height="937"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="1440" height="875"/>
             <view key="contentView" wantsLayer="YES" id="EiT-Mj-1SZ">
                 <rect key="frame" x="0.0" y="0.0" width="354" height="177"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="eln-L4-NQw">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="eln-L4-NQw">
                         <rect key="frame" x="160" y="97" width="75" height="14"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="71" id="vtS-Y1-BO9"/>
+                        </constraints>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Powered by" id="JbO-6M-mqz">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Wdd-3j-sIc">
+                    <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="Wdd-3j-sIc">
                         <rect key="frame" x="162" y="76" width="66" height="21"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="66" id="6Zs-bK-jDd"/>
+                            <constraint firstAttribute="height" constant="21" id="kHJ-r4-ywB"/>
+                        </constraints>
                         <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="ffmpegLogoTemplate" id="bax-hU-dsC"/>
                     </imageView>
-                    <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="fk0-N5-r5s">
+                    <button translatesAutoresizingMaskIntoConstraints="NO" id="fk0-N5-r5s">
                         <rect key="frame" x="121" y="73" width="36" height="43"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="36" id="BAe-Wx-W2E"/>
+                        </constraints>
                         <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="FFmpegIcon" imagePosition="only" alignment="center" imageScaling="proportionallyUpOrDown" inset="2" id="2dR-ed-HEe">
                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                             <font key="font" metaFont="system"/>
                         </buttonCell>
                     </button>
-                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="CFI-9h-upK">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="CFI-9h-upK">
                         <rect key="frame" x="118" y="141" width="119" height="16"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Exporting video to" id="BHd-uI-ip4">
                             <font key="font" usesAppearanceFont="YES"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="M6P-7x-Oqt">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="M6P-7x-Oqt">
                         <rect key="frame" x="18" y="124" width="318" height="14"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" alignment="center" title="ipsum/lorem" id="Bfx-br-scI">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="314-nw-wor">
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="314-nw-wor">
                         <rect key="frame" x="148" y="13" width="59" height="32"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="45" id="XLx-eU-Gy4"/>
+                        </constraints>
                         <buttonCell key="cell" type="push" title="OK" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="tA4-fA-op5">
                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                             <font key="font" metaFont="system"/>
@@ -80,11 +87,32 @@ DQ
                             <action selector="okAction:" target="-2" id="aZZ-DX-9iG"/>
                         </connections>
                     </button>
-                    <progressIndicator wantsLayer="YES" fixedFrame="YES" maxValue="100" indeterminate="YES" controlSize="small" style="spinning" translatesAutoresizingMaskIntoConstraints="NO" id="Swg-TF-jpX">
+                    <progressIndicator wantsLayer="YES" maxValue="100" indeterminate="YES" controlSize="small" style="spinning" translatesAutoresizingMaskIntoConstraints="NO" id="Swg-TF-jpX">
                         <rect key="frame" x="169" y="52" width="16" height="16"/>
-                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="16" id="Lfu-wc-ot6"/>
+                        </constraints>
                     </progressIndicator>
                 </subviews>
+                <constraints>
+                    <constraint firstItem="M6P-7x-Oqt" firstAttribute="centerX" secondItem="Swg-TF-jpX" secondAttribute="centerX" id="0zO-wz-RT3"/>
+                    <constraint firstItem="Wdd-3j-sIc" firstAttribute="top" secondItem="eln-L4-NQw" secondAttribute="bottom" id="2Km-ye-T6w"/>
+                    <constraint firstAttribute="trailing" secondItem="M6P-7x-Oqt" secondAttribute="trailing" constant="20" symbolic="YES" id="6Rm-tO-BFq"/>
+                    <constraint firstAttribute="bottom" secondItem="fk0-N5-r5s" secondAttribute="bottom" constant="73" id="8cX-dL-7Me"/>
+                    <constraint firstItem="M6P-7x-Oqt" firstAttribute="leading" secondItem="EiT-Mj-1SZ" secondAttribute="leading" constant="20" symbolic="YES" id="BRu-mU-b54"/>
+                    <constraint firstItem="Swg-TF-jpX" firstAttribute="top" secondItem="Wdd-3j-sIc" secondAttribute="bottom" constant="8" symbolic="YES" id="Bnk-Ji-Ems"/>
+                    <constraint firstItem="M6P-7x-Oqt" firstAttribute="top" secondItem="CFI-9h-upK" secondAttribute="bottom" constant="3" id="Brc-Sq-Ds3"/>
+                    <constraint firstItem="eln-L4-NQw" firstAttribute="leading" secondItem="Wdd-3j-sIc" secondAttribute="leading" id="CKE-Vx-47t"/>
+                    <constraint firstItem="fk0-N5-r5s" firstAttribute="leading" secondItem="EiT-Mj-1SZ" secondAttribute="leading" constant="121" id="EVT-Ll-Vmi"/>
+                    <constraint firstItem="eln-L4-NQw" firstAttribute="top" secondItem="M6P-7x-Oqt" secondAttribute="bottom" constant="13" id="Mku-7g-XwB"/>
+                    <constraint firstItem="Swg-TF-jpX" firstAttribute="centerX" secondItem="314-nw-wor" secondAttribute="centerX" id="VBS-dq-1FJ"/>
+                    <constraint firstItem="CFI-9h-upK" firstAttribute="centerX" secondItem="M6P-7x-Oqt" secondAttribute="centerX" id="Xxk-yp-x7x"/>
+                    <constraint firstItem="CFI-9h-upK" firstAttribute="top" secondItem="EiT-Mj-1SZ" secondAttribute="top" constant="20" symbolic="YES" id="iP3-EC-xNK"/>
+                    <constraint firstAttribute="bottom" secondItem="314-nw-wor" secondAttribute="bottom" constant="20" symbolic="YES" id="spy-zj-h64"/>
+                    <constraint firstItem="fk0-N5-r5s" firstAttribute="top" secondItem="M6P-7x-Oqt" secondAttribute="bottom" constant="8" symbolic="YES" id="ueA-bk-o7p"/>
+                    <constraint firstItem="314-nw-wor" firstAttribute="top" secondItem="Swg-TF-jpX" secondAttribute="bottom" constant="12" id="wDM-bJ-IYN"/>
+                    <constraint firstItem="eln-L4-NQw" firstAttribute="leading" secondItem="fk0-N5-r5s" secondAttribute="trailing" constant="5" id="xf1-vA-Tej"/>
+                </constraints>
             </view>
             <connections>
                 <outlet property="delegate" destination="-2" id="8G9-rt-inh"/>
