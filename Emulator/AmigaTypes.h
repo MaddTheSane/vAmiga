@@ -16,7 +16,7 @@
 // Enumerations
 //
 
-enum_u32(RunLoopControlFlag)
+enum_options_u32(RunLoopControlFlag)
 {
     RL_STOP               = 0b000000001,
     RL_INSPECT            = 0b000000010,

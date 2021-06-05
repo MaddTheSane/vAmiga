@@ -167,7 +167,6 @@
 @property (readonly, strong) RecorderProxy *recorder;
 @property (readonly, strong) SerialPortProxy *serialPort;
 
-- (void)dealloc;
 - (void)kill;
 
 @property (readonly) BOOL isReleaseBuild;

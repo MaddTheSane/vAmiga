@@ -88,17 +88,19 @@ class GamePadManager {
                 
         // Declare bridging closures (bridge between Swift methods and C callbacks)
         let matchingCallback: IOHIDDeviceCallback = { inContext, inResult, inSender, device in
-            let this: GamePadManager = unsafeBitCast(inContext, to: GamePadManager.self)
+            guard let context = inContext else { return }
+            let this = Unmanaged<GamePadManager>.fromOpaque(context).takeUnretainedValue()
             this.hidDeviceAdded(context: inContext, result: inResult, sender: inSender, device: device)
         }
         
         let removalCallback: IOHIDDeviceCallback = { inContext, inResult, inSender, device in
-            let this: GamePadManager = unsafeBitCast(inContext, to: GamePadManager.self)
+            guard let context = inContext else { return }
+            let this = Unmanaged<GamePadManager>.fromOpaque(context).takeUnretainedValue()
             this.hidDeviceRemoved(context: inContext, result: inResult, sender: inSender, device: device)
         }
         
         // Configure the HID manager
-        let hidContext = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
+        let hidContext = Unmanaged.passUnretained(self).toOpaque()
         IOHIDManagerSetDeviceMatchingMultiple(hidManager, deviceCriteria as CFArray)
         IOHIDManagerRegisterDeviceMatchingCallback(hidManager, matchingCallback, hidContext)
         IOHIDManagerRegisterDeviceRemovalCallback(hidManager, removalCallback, hidContext)

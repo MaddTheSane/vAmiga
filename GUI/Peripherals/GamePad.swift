@@ -9,15 +9,14 @@
 
 import IOKit.hid
 
-/* An object of this class represents an input device connected to the Game
- * Port. The object can either represent a connected HID device or a keyboard
- * emulated device. In the first case, the object serves as a callback handler
- * for HID events. In the latter case, it translates keyboard events to
- * GamePadAction events by utilizing a key map.
- */
+/// An object of this class represents an input device connected to the Game
+/// Port. The object can either represent a connected HID device or a keyboard
+/// emulated device. In the first case, the object serves as a callback handler
+/// for HID events. In the latter case, it translates keyboard events to
+/// `GamePadAction` events by utilizing a key map.
 class GamePad {
 
-    // Mapping schemes
+    /// Mapping schemes
     enum Schemes {
 
         // Left stick
@@ -43,7 +42,7 @@ class GamePad {
     var prefs: Preferences { return manager.parent.pref }
     var db: DeviceDatabase { return myAppDelegate.database }
     
-    // The Amiga port this device is connected to (1, 2, or nil)
+    /// The Amiga port this device is connected to (1, 2, or nil)
     var port: Int?
 
     // Reference to the HID device
@@ -60,19 +59,19 @@ class GamePad {
     // Name of the managed device
     var name = ""
 
-    // Icon of this device
+    /// Icon of this device
     var icon: NSImage?
             
-    // Indicates if this device is officially supported
+    /// Indicates if this device is officially supported
     var isKnown: Bool { return db.isKnown(vendorID: vendorID, productID: productID) }
     
-    // Keymap of the managed device (only set for keyboard emulated devices)
+    /// Keymap of the managed device (only set for keyboard emulated devices)
     var keyMap: Int?
     
-    // Indicates if a joystick emulation key is currently pressed
+    /// Indicates if a joystick emulation key is currently pressed
     var keyUp = false, keyDown = false, keyLeft = false, keyRight = false
     
-    // Indicates if other components should be notified when the device is used
+    /// Indicates if other components should be notified when the device is used
     var notify = false
         
     // Controller specific mapping schemes for the two sticks and the hat switch
@@ -100,7 +99,8 @@ class GamePad {
     // Receivers for HID events
     let inputValueCallback: IOHIDValueCallback = {
         inContext, inResult, inSender, value in
-        let this: GamePad = unsafeBitCast(inContext, to: GamePad.self)
+        guard let context = inContext else { return }
+        let this = Unmanaged<GamePad>.fromOpaque(context).takeUnretainedValue()
         this.hidInputValueAction(context: inContext,
                                  result: inResult,
                                  sender: inSender,
@@ -175,7 +175,7 @@ class GamePad {
         
     func setIcon(name: String) {
         
-        icon = NSImage.init(named: name)
+        icon = NSImage(named: name)
     }
     
     func property(key: String) -> String? {
@@ -495,7 +495,7 @@ class GamePad {
         // Notify other components (if requested)
         if notify { myAppDelegate.devicePulled(events: events) }
 
-        return events != []
+        return !events.isEmpty
     }
     
     @discardableResult
@@ -506,7 +506,7 @@ class GamePad {
         if port == 1 { for e in events { amiga.controlPort1.mouse.trigger(e) } }
         if port == 2 { for e in events { amiga.controlPort2.mouse.trigger(e) } }
         
-        return events != []
+        return !events.isEmpty
     }
     
     func processMouseEvents(delta: NSPoint) {
@@ -541,7 +541,7 @@ class GamePad {
         
         // Only proceed if this key is used for emulation
         let events = keyUpEvents(macKey)
-        if events.isEmpty { return false }
+        guard !events.isEmpty else { return false }
         
         // Process the events
         processKeyboardEvent(events: events)
