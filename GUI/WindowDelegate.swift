@@ -7,6 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+import CoreGraphics
+
 extension MyController: NSWindowDelegate {
         
     public func windowDidBecomeMain(_ notification: Notification) {
@@ -40,76 +42,74 @@ extension MyController: NSWindowDelegate {
     
     public func windowWillClose(_ notification: Notification) {
         
-        track()
+        log()
         
-        // Stop timers
-        timerLock.lock()
-        timer?.invalidate()
-        timer = nil
-        timerLock.unlock()
+        log("Stopping renderer...", level: 2)
+        renderer.halt()
+        
+        log("Stopping timers...", level: 2)
         snapshotTimer?.invalidate()
         snapshotTimer = nil
 
-        // Disconnect and close auxiliary windows
+        log("Closing auxiliary windows...", level: 2)
         inspector?.amiga = nil
         inspector?.close()
         monitor?.amiga = nil
         monitor?.close()
         
-        // Disconnect the audio engine
+        log("Shutting down the audio backend...", level: 2)
         macAudio.shutDown()
 
-        // Disconnect all game pads
+        log("Disconnecting gaming devices...", level: 2)
         gamePadManager.shutDown()
         
-        // Power off the emulator
-        amiga.pause()
-        amiga.powerOff()
-        
-        // Ask the emulator to shutdown and to send the MSG_SHUTDOWN message
-        amiga.shutdown()
+        log("Shutting down the emulator...", level: 2)
+        amiga.halt()
+
+        log("Exiting", level: 2)
     }
     
     func shutDown() {
                 
-        track("Shutting down the emulator")
+        log("Removing proxy...", level: 2)
+        
         amiga.kill()
         amiga = nil
+        
+        log("Exiting", level: 2)
     }
     
     public func windowWillEnterFullScreen(_ notification: Notification) {
 
-        track()
+        log()
         renderer.fullscreen = true
-        // renderer.clearBgTexture()
         showStatusBar(false)
     }
     
     public func windowDidEnterFullScreen(_ notification: Notification) {
 
+        log()
         renderer.monitors.updateMonitorPositions()
-        track()
     }
     
     public func windowWillExitFullScreen(_ notification: Notification) {
 
-        track()
+        log()
         renderer.fullscreen = false
         showStatusBar(true)
     }
     
     public func windowDidExitFullScreen(_ notification: Notification) {
 
+        log()
         renderer.monitors.updateMonitorPositions()
-        // for m in renderer.monitors { m.isHidden = false }
-        track()
     }
     
     public func window(_ window: NSWindow, willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []) -> NSApplication.PresentationOptions {
         
-        track()
+        log()
         let autoHideToolbar = NSApplication.PresentationOptions.autoHideToolbar
-        var options = NSApplication.PresentationOptions.init(rawValue: autoHideToolbar.rawValue)
+        var options = NSApplication.PresentationOptions(rawValue: autoHideToolbar.rawValue)
         options.insert(proposedOptions)
         return options
     }
@@ -138,7 +138,7 @@ extension MyController: NSWindowDelegate {
         let newMetalX  = metalY * (4.0 / 3.0)
         let dx = newMetalX - metalX
         
-        return NSSize.init(width: size.width + dx, height: size.height)
+        return NSSize(width: size.width + dx, height: size.height)
     }
 
     // Fixes a NSRect to match our desired aspect ration
@@ -147,7 +147,7 @@ extension MyController: NSWindowDelegate {
         let newSize = fixSize(window: window, size: rect.size)
         let newOriginX = (rect.width - newSize.width) / 2.0
         
-        return NSRect.init(x: newOriginX, y: 0, width: newSize.width, height: newSize.height)
+        return NSRect(x: newOriginX, y: 0, width: newSize.width, height: newSize.height)
     }
     
     public func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
@@ -169,7 +169,7 @@ extension MyController: NSWindowDelegate {
 
 extension MyController {
     
-    func adjustWindowSize() {
+    func adjustWindowSize(_ dv: CGFloat = 0.0) {
                 
         // Only proceed in window mode
         if renderer?.fullscreen == true { return }
@@ -177,15 +177,18 @@ extension MyController {
         // Get window frame
         guard var frame = window?.frame else { return }
         
-        // Compute size correction
+        // Modify the frame height
+        frame.origin.y -= dv
+        frame.size.height += dv
+
+        // Compute the size correction
         let newsize = windowWillResize(window!, to: frame.size)
         let correction = newsize.height - frame.size.height
         
         // Adjust frame
         frame.origin.y -= correction
         frame.size = newsize
-        window!.setFrame(frame, display: true)
         
-        track("New window size is \(frame.size)")
+        window!.setFrame(frame, display: true)        
     }
 }

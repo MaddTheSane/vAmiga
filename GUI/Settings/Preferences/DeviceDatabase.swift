@@ -67,12 +67,10 @@ class DeviceDatabase {
     
     func save() {
         
-        track()
-        
         let defaults = UserDefaults.standard
         defaults.set(custom, forKey: Keys.Dev.schemes)
         
-        track("\(custom)")
+        // track("\(custom)")
     }
     
     //
@@ -114,7 +112,7 @@ class DeviceDatabase {
     func left(vendorID: String, productID: String) -> Int {
     
         if let value = query(vendorID, productID, "L") {
-            return Int.init(value) ?? 0
+            return Int(value) ?? 0
         }
         return 0
     }
@@ -122,7 +120,7 @@ class DeviceDatabase {
     func right(vendorID: String, productID: String) -> Int {
     
         if let value = query(vendorID, productID, "R") {
-            return Int.init(value) ?? 0
+            return Int(value) ?? 0
         }
         return 0
     }
@@ -130,7 +128,7 @@ class DeviceDatabase {
     func hatSwitch(vendorID: String, productID: String) -> Int {
     
         if let value = query(vendorID, productID, "H") {
-            return Int.init(value) ?? 0
+            return Int(value) ?? 0
         }
         return 0
     }

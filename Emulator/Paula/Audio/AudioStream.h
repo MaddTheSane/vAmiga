@@ -16,13 +16,13 @@
 /* About the AudioStream
  *
  * The audio stream is the last element in the audio pipeline. It is a temporary
- * stores for the final audio samples, waiting to be handed over to the audio
+ * storage for the final audio samples, waiting to be handed over to the audio
  * unit of the host machine.
  *
  * The audio stream is designes as a ring buffer, because samples are written
  * and read asynchroneously. Since reading and writing is carried out in
- * different threads, accesses to the audio stream need to a preceded by a call
- * lock() and followed by a call to unlock().
+ * different threads, accesses to the audio stream need to be preceded by a call
+ * to lock() and followed by a call to unlock().
  *
  * The audio stream is designed to hold elements of a generic type to make
  * vAmiga compilable on different target platforms. E.g., the Mac version holds
@@ -42,10 +42,10 @@ struct U16Mono
 {
     i16 lr;
     
-    U16Mono() { lr = 0; }
-    U16Mono(float l, float r) { this->lr = (i16)(l + r); }
+    U16Mono() : lr(0) { }
+    U16Mono(float l, float r) : lr ((i16)(l + r)) { }
     
-    float magnitude(bool left) { return abs(lr); }
+    float magnitude(bool left) { return (float)abs(lr); }
     
     void modulate(float vol) { lr = (i16)(lr * vol); }
     
@@ -65,10 +65,10 @@ struct U16Stereo
     i16 l;
     i16 r;
     
-    U16Stereo() { l = 0; r = 0; }
-    U16Stereo(float l, float r) { this->l = (i16)l; this->r = (i16)r; }
+    U16Stereo() : l(0), r(0) { }
+    U16Stereo(float l, float r) : l((i16)l), r((i16)r) { }
     
-    float magnitude(bool left) { return left ? abs(l) : abs(r); }
+    float magnitude(bool left) { return left ? (float)abs(l) : (float)abs(r); }
     
     void modulate(float vol) { l = (i16)(l * vol); r = (i16)(r * vol); }
     
@@ -88,8 +88,8 @@ struct FloatStereo
     float l;
     float r;
     
-    FloatStereo() { l = 0; r = 0; }
-    FloatStereo(float l, float r) { this->l = l * 0.000005; this->r = r * 0.000005; }
+    FloatStereo() : l(0.0f), r(0.0f) { }
+    FloatStereo(float l, float r) : l(l * 0.00001f), r(r * 0.00001f) { }
     
     float magnitude(bool left) { return left ? abs(l) : abs(r); }
     
@@ -111,9 +111,6 @@ struct FloatStereo
 //
 
 struct Volume {
-
-    // Maximum volume
-    // constexpr const static float maxVolume = 1.0;
 
     // Current volume (will eventually reach the target volume)
     float current = 1.0;
@@ -139,16 +136,16 @@ struct Volume {
 template <class T> class AudioStream : public util::RingBuffer <T, 16384> {
 
     // Mutex for synchronizing read / write accesses
-    util::Mutex mutex;
+    util::ReentrantMutex mutex;
 
 public:
     
-    // Locks or unlocks the synchronization mutex
+    // Locks or unlocks the mutex
     void lock() { mutex.lock(); }
     void unlock() { mutex.unlock(); }
 
     // Initializes the ring buffer with zeroes
-    void wipeOut() { this->clear(T(0,0)); }
+    void wipeOut();
     
     // Adds a sample to the ring buffer
     void add(float l, float r) { this->write(T(l,r)); }
@@ -181,5 +178,5 @@ public:
      * to this function.
      */
     float draw(u32 *buffer, isize width, isize height,
-               bool left, float highestAmplitude, u32 color);
+               bool left, float highestAmplitude, u32 color) const;
 };

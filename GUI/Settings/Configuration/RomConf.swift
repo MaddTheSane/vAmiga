@@ -19,6 +19,7 @@ extension ConfigurationController {
         let hasDiagRom      = amiga.mem.isDiagRom(romIdentifier)
         let hasCommodoreRom = amiga.mem.isCommodoreRom(romIdentifier)
         let hasHyperionRom  = amiga.mem.isHyperionRom(romIdentifier)
+        let hasPatchedRom   = amiga.mem.isPatchedRom(romIdentifier)
 
         let extIdentifier   = amiga.mem.extIdentifier
         let hasExt          = extIdentifier != .MISSING
@@ -26,13 +27,15 @@ extension ConfigurationController {
         let hasDiagExt      = amiga.mem.isDiagRom(extIdentifier)
         let hasCommodoreExt = amiga.mem.isCommodoreRom(extIdentifier)
         let hasHyperionExt  = amiga.mem.isHyperionRom(extIdentifier)
+        let hasPatchedExt   = amiga.mem.isPatchedRom(extIdentifier)
 
-        let romMissing      = NSImage.init(named: "rom_missing")
-        let romOrig         = NSImage.init(named: "rom_original")
-        let romHyperion     = NSImage.init(named: "rom_hyp")
-        let romAros         = NSImage.init(named: "rom_aros")
-        let romDiag         = NSImage.init(named: "rom_diag")
-        let romUnknown      = NSImage.init(named: "rom_unknown")
+        let romMissing      = NSImage(named: "rom_missing")
+        let romOrig         = NSImage(named: "rom_original")
+        let romHyperion     = NSImage(named: "rom_hyp")
+        let romAros         = NSImage(named: "rom_aros")
+        let romDiag         = NSImage(named: "rom_diag")
+        let romPatched      = NSImage(named: "rom_patched")
+        let romUnknown      = NSImage(named: "rom_unknown")
         
         // Lock controls if emulator is powered on
         romDropView.isEnabled = poweredOff
@@ -47,6 +50,7 @@ extension ConfigurationController {
             hasArosRom      ? romAros :
             hasDiagRom      ? romDiag :
             hasCommodoreRom ? romOrig :
+            hasPatchedRom   ? romPatched :
             hasRom          ? romUnknown : romMissing
 
         extDropView.image =
@@ -54,17 +58,20 @@ extension ConfigurationController {
             hasArosExt      ? romAros :
             hasDiagExt      ? romDiag :
             hasCommodoreExt ? romOrig :
+            hasPatchedExt   ? romPatched :
             hasExt          ? romUnknown : romMissing
 
         // Titles and subtitles
         romTitle.stringValue = amiga.mem.romTitle
         romSubtitle.stringValue = amiga.mem.romVersion
         romSubsubtitle.stringValue = amiga.mem.romReleased
-
+        romModel.stringValue = amiga.mem.romModel
+        
         extTitle.stringValue = amiga.mem.extTitle
         extSubtitle.stringValue = amiga.mem.extVersion
         extSubsubtitle.stringValue = amiga.mem.extReleased
         extMapAddr.selectItem(withTag: amiga.mem.extStart)
+        extModel.stringValue = amiga.mem.extModel
 
         // Hide some controls
         romDeleteButton.isHidden = !hasRom
@@ -72,16 +79,15 @@ extension ConfigurationController {
         extMapText.isHidden = !hasExt
         extMapAddr.isHidden = !hasExt
 
-        // Lock symbol and explanation
-        if poweredOff {
-            romLockImage.image = NSImage.init(named: "NSInfo")
-            romLockText.stringValue = "To add a Rom, drag a Rom image file onto one of the chip icons."
-            romLockSubText.stringValue = "Original Roms are protected by copyright. Please obey legal regulations."
-        } else {
-            romLockImage.image = NSImage.init(named: "Lock")
-            romLockText.stringValue = "The settings are locked because the emulator is running."
-            romLockSubText.stringValue = "Click the lock to power down the emulator."
-        }
+        // Explanation
+        romExpImage.isHidden = !poweredOff
+        romExpInfo1.isHidden = !poweredOff
+        romExpInfo2.isHidden = !poweredOff
+
+        // Lock
+        romLockImage.isHidden = poweredOff
+        romLockInfo1.isHidden = poweredOff
+        romLockInfo2.isHidden = poweredOff
 
         // Buttons
         romPowerButton.isHidden = !bootable
@@ -111,6 +117,16 @@ extension ConfigurationController {
 
     @IBAction func installArosAction(_ sender: NSButton!) {
 
+        installAros()
+    }
+    
+    @IBAction func romDefaultsAction(_ sender: NSButton!) {
+        
+        config.saveRomUserDefaults()
+    }
+
+    func installAros() {
+        
         let arosRom = NSDataAsset(name: "aros-amiga-m68k-rom")!.data
         let arosExt = NSDataAsset(name: "aros-amiga-m68k-ext")!.data
 
@@ -126,10 +142,5 @@ extension ConfigurationController {
         if chip + slow + fast < 1024*1024 { config.slowRam = 512 }
         
         refresh()
-    }
-    
-    @IBAction func romDefaultsAction(_ sender: NSButton!) {
-        
-        config.saveRomUserDefaults()
     }
 }

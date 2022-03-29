@@ -7,9 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-/* Configuration
- *
- * This class stores all items that are specific to an individual emulator
+/* This class stores all items that are specific to an individual emulator
  * instance. Each instance keeps its own object of this class inside the
  * document controller.
  *
@@ -106,6 +104,23 @@ class Configuration {
         precondition(0 <= n && n <= 3)
         amiga.configure(.DRIVE_TYPE, drive: n, value: type)
     }
+    func hdnConnected(_ n: Int) -> Bool {
+        precondition(0 <= n && n <= 3)
+        return amiga.getConfig(.HDR_CONNECT, drive: n) != 0
+    }
+    func setHdnConnected(_ n: Int, connect: Bool) {
+        precondition(0 <= n && n <= 3)
+        amiga.configure(.HDR_CONNECT, drive: n, enable: connect)
+    }
+    func hdnType(_ n: Int) -> Int {
+        precondition(0 <= n && n <= 3)
+        return amiga.getConfig(.HDR_TYPE, drive: n)
+    }
+    func setHdnType(_ n: Int, type: Int) {
+        precondition(0 <= n && n <= 3)
+        amiga.configure(.HDR_TYPE, drive: n, value: type)
+    }
+
     var df0Connected: Bool {
         get { return dfnConnected(0) }
         set { setDfnConnected(0, connect: newValue) }
@@ -138,14 +153,39 @@ class Configuration {
         get { return dfnType(3) }
         set { setDfnType(3, type: newValue) }
     }
-    var blankDiskFormat: Int {
-        get { return amiga.getConfig(.DEFAULT_FILESYSTEM, drive: 0) }
-        set { amiga.configure(.DEFAULT_FILESYSTEM, value: newValue) }
+    var hd0Connected: Bool {
+        get { return hdnConnected(0) }
+        set { setHdnConnected(0, connect: newValue) }
     }
-    var bootBlock: Int {
-        get { return amiga.getConfig(.DEFAULT_BOOTBLOCK, drive: 0) }
-        set { amiga.configure(.DEFAULT_BOOTBLOCK, value: newValue) }
-    }    
+    var hd0Type: Int {
+        get { return hdnType(0) }
+        set { setHdnType(0, type: newValue) }
+    }
+    var hd1Connected: Bool {
+        get { return hdnConnected(1) }
+        set { setHdnConnected(1, connect: newValue) }
+    }
+    var hd1Type: Int {
+        get { return hdnType(1) }
+        set { setHdnType(1, type: newValue) }
+    }
+    var hd2Connected: Bool {
+        get { return hdnConnected(2) }
+        set { setHdnConnected(2, connect: newValue) }
+    }
+    var hd2Type: Int {
+        get { return hdnType(2) }
+        set { setHdnType(2, type: newValue) }
+    }
+    var hd3Connected: Bool {
+        get { return hdnConnected(3) }
+        set { setHdnConnected(3, connect: newValue) }
+    }
+    var hd3Type: Int {
+        get { return hdnType(3) }
+        set { setHdnType(3, type: newValue) }
+    }
+
     var gameDevice1 = PeripheralsDefaults.std.gameDevice1 {
         didSet {
                          
@@ -177,6 +217,10 @@ class Configuration {
     var serialDevice: Int {
         get { return amiga.getConfig(.SERIAL_DEVICE) }
         set { amiga.configure(.SERIAL_DEVICE, value: newValue) }
+    }
+    var serialDevicePort: Int {
+        get { return amiga.getConfig(.SRV_PORT, id: ServerType.SER.rawValue) }
+        set { amiga.configure(.SRV_PORT, id: ServerType.SER.rawValue, value: newValue) }
     }
 
     //
@@ -305,9 +349,27 @@ class Configuration {
         get { return amiga.getConfig(.DRIVE_PAN, drive: 3) }
         set { amiga.configure(.DRIVE_PAN, id: 3, value: newValue) }
     }
+    var hd0Pan: Int {
+        get { return amiga.getConfig(.HDR_PAN, drive: 0) }
+        set { amiga.configure(.HDR_PAN, id: 0, value: newValue) }
+    }
+    var hd1Pan: Int {
+        get { return amiga.getConfig(.HDR_PAN, drive: 1) }
+        set { amiga.configure(.HDR_PAN, id: 1, value: newValue) }
+    }
+    var hd2Pan: Int {
+        get { return amiga.getConfig(.HDR_PAN, drive: 2) }
+        set { amiga.configure(.HDR_PAN, id: 2, value: newValue) }
+    }
+    var hd3Pan: Int {
+        get { return amiga.getConfig(.HDR_PAN, drive: 3) }
+        set { amiga.configure(.HDR_PAN, id: 3, value: newValue) }
+    }
     var stepVolume: Int {
         get { return amiga.getConfig(.STEP_VOLUME, drive: 0) }
-        set { amiga.configure(.STEP_VOLUME, value: newValue) }
+        set { amiga.configure(.STEP_VOLUME, value: newValue)
+            amiga.configure(.HDR_STEP_VOLUME, value: newValue)
+        }
     }
     var pollVolume: Int {
         get { return amiga.getConfig(.POLL_VOLUME, drive: 0) }
@@ -321,7 +383,7 @@ class Configuration {
         get { return amiga.getConfig(.EJECT_VOLUME, drive: 0) }
         set { amiga.configure(.EJECT_VOLUME, value: newValue) }
     }
-    
+
     //
     // Video settings
     //
@@ -342,16 +404,18 @@ class Configuration {
         get { return amiga.getConfig(.SATURATION) }
         set { amiga.configure(.SATURATION, value: newValue) }
     }
-    var hCenter = VideoDefaults.tft.hCenter {
+    var hAutoCenter = false
+    var hCenter = GeometryDefaults.wide.hCenter {
         didSet { renderer.canvas.updateTextureRect() }
     }
-    var vCenter = VideoDefaults.tft.vCenter {
+    var vAutoCenter = false
+    var vCenter = GeometryDefaults.wide.vCenter {
         didSet { renderer.canvas.updateTextureRect() }
     }
-    var hZoom = VideoDefaults.tft.hZoom {
+    var hZoom = GeometryDefaults.wide.hZoom {
         didSet { renderer.canvas.updateTextureRect() }
     }
-    var vZoom = VideoDefaults.tft.vZoom {
+    var vZoom = GeometryDefaults.wide.vZoom {
         didSet { renderer.canvas.updateTextureRect() }
     }
     var enhancer = VideoDefaults.tft.enhancer {
@@ -434,6 +498,7 @@ class Configuration {
     
     func loadRomUserDefaults() {
 
+        log(level: 2)
         let defaults = UserDefaults.standard
 
         amiga.suspend()
@@ -455,6 +520,8 @@ class Configuration {
     
     func saveRomUserDefaults() {
                 
+        log(level: 2)
+        
         let fm = FileManager.default
         let defaults = UserDefaults.standard
         var url: URL?
@@ -464,30 +531,30 @@ class Configuration {
         defaults.set(extStart, forKey: Keys.Rom.extStart)
         
         do {
-            track("Saving Wom")
             url = UserDefaults.womUrl
             if url == nil { throw VAError(.FILE_CANT_WRITE) }
             try? fm.removeItem(at: url!)
             try amiga.mem.saveWom(url!)
             
-            track("Saving Rom")
             url = UserDefaults.romUrl
             if url == nil { throw VAError(.FILE_CANT_WRITE) }
             try? fm.removeItem(at: url!)
             try amiga.mem.saveRom(url!)
 
-            track("Saving Ext")
             url = UserDefaults.extUrl
             if url == nil { throw VAError(.FILE_CANT_WRITE) }
             try? fm.removeItem(at: url!)
             try amiga.mem.saveExt(url!)
             
         } catch {
+            
             if error is VAError && url != nil {
+                
                 VAError.warning("Failed to save Roms",
                                 "Can't write to file \(url!.path)")
             }
             if error is VAError && url == nil {
+                
                 VAError.warning("Failed to save Roms",
                                 "Unable to access the application defaults folder")
             }
@@ -497,34 +564,25 @@ class Configuration {
     }
 
     //
-    // Hardware
+    // Chipset
     //
     
-    func loadHardwareDefaults(_ defaults: HardwareDefaults) {
+    func loadChipsetDefaults(_ defaults: HardwareDefaults) {
         
+        log(level: 2)
         amiga.suspend()
         
         agnusRev = defaults.agnusRev.rawValue
         deniseRev = defaults.deniseRev.rawValue
         ciaRev = defaults.ciaRev.rawValue
         rtClock = defaults.realTimeClock.rawValue
-
-        filterType = defaults.filterType.rawValue
-        filterAlwaysOn = defaults.filterAlwaysOn
-
-        chipRam = defaults.chipRam
-        slowRam = defaults.slowRam
-        fastRam = defaults.fastRam
-        ramInitPattern = defaults.ramInitPattern.rawValue
-
-        bankMap = defaults.bankMap.rawValue
-        unmappingType = defaults.unmappingType.rawValue
         
         amiga.resume()
     }
     
-    func loadHardwareUserDefaults() {
+    func loadChipsetUserDefaults() {
         
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         amiga.suspend()
@@ -534,49 +592,88 @@ class Configuration {
         ciaRev = defaults.integer(forKey: Keys.Hrw.ciaRev)
         rtClock = defaults.integer(forKey: Keys.Hrw.realTimeClock)
 
-        filterType = defaults.integer(forKey: Keys.Hrw.filterType)
-        filterAlwaysOn = defaults.bool(forKey: Keys.Hrw.filterAlwaysOn)
-
-        chipRam = defaults.integer(forKey: Keys.Hrw.chipRam)
-        slowRam = defaults.integer(forKey: Keys.Hrw.slowRam)
-        fastRam = defaults.integer(forKey: Keys.Hrw.fastRam)
-        ramInitPattern = defaults.integer(forKey: Keys.Hrw.ramInitPattern)
-
-        bankMap = defaults.integer(forKey: Keys.Hrw.bankMap)
-        unmappingType = defaults.integer(forKey: Keys.Hrw.unmappingType)
-
         amiga.resume()
     }
     
-    func saveHardwareUserDefaults() {
+    func saveChipsetUserDefaults() {
         
-        track()
-        
+        log(level: 2)
         let defaults = UserDefaults.standard
 
         defaults.set(agnusRev, forKey: Keys.Hrw.agnusRev)
         defaults.set(deniseRev, forKey: Keys.Hrw.deniseRev)
         defaults.set(ciaRev, forKey: Keys.Hrw.ciaRev)
         defaults.set(rtClock, forKey: Keys.Hrw.realTimeClock)
-
-        defaults.set(filterType, forKey: Keys.Hrw.filterType)
-        defaults.set(filterAlwaysOn, forKey: Keys.Hrw.filterAlwaysOn)
-
-        defaults.set(chipRam, forKey: Keys.Hrw.chipRam)
-        defaults.set(slowRam, forKey: Keys.Hrw.slowRam)
-        defaults.set(fastRam, forKey: Keys.Hrw.fastRam)
-        defaults.set(ramInitPattern, forKey: Keys.Hrw.ramInitPattern)
-
-        defaults.set(bankMap, forKey: Keys.Hrw.bankMap)
-        defaults.set(unmappingType, forKey: Keys.Hrw.unmappingType)
     }
 
+    //
+    // Memory
+    //
+    
+    func loadMemoryDefaults(_ defaults: MemoryDefaults) {
+        
+        log(level: 2)
+        amiga.suspend()
+        
+        chipRam = defaults.chipRam
+        slowRam = defaults.slowRam
+        fastRam = defaults.fastRam
+        ramInitPattern = defaults.ramInitPattern.rawValue
+
+        bankMap = defaults.bankMap.rawValue
+        unmappingType = defaults.unmappingType.rawValue
+        
+        slowRamDelay = defaults.slowRamDelay
+        slowRamMirror = defaults.slowRamMirror
+
+        amiga.resume()
+    }
+    
+    func loadMemoryUserDefaults() {
+        
+        log(level: 2)
+        let defaults = UserDefaults.standard
+        
+        amiga.suspend()
+        
+        chipRam = defaults.integer(forKey: Keys.Mem.chipRam)
+        slowRam = defaults.integer(forKey: Keys.Mem.slowRam)
+        fastRam = defaults.integer(forKey: Keys.Mem.fastRam)
+        ramInitPattern = defaults.integer(forKey: Keys.Mem.ramInitPattern)
+
+        bankMap = defaults.integer(forKey: Keys.Mem.bankMap)
+        unmappingType = defaults.integer(forKey: Keys.Mem.unmappingType)
+
+        slowRamDelay = defaults.bool(forKey: Keys.Mem.slowRamDelay)
+        slowRamMirror = defaults.bool(forKey: Keys.Mem.slowRamMirror)
+        
+        amiga.resume()
+    }
+    
+    func saveMemoryUserDefaults() {
+        
+        log(level: 2)
+        let defaults = UserDefaults.standard
+
+        defaults.set(chipRam, forKey: Keys.Mem.chipRam)
+        defaults.set(slowRam, forKey: Keys.Mem.slowRam)
+        defaults.set(fastRam, forKey: Keys.Mem.fastRam)
+        defaults.set(ramInitPattern, forKey: Keys.Mem.ramInitPattern)
+
+        defaults.set(bankMap, forKey: Keys.Mem.bankMap)
+        defaults.set(unmappingType, forKey: Keys.Mem.unmappingType)
+        
+        defaults.set(slowRamDelay, forKey: Keys.Mem.slowRamDelay)
+        defaults.set(slowRamMirror, forKey: Keys.Mem.slowRamMirror)
+    }
+    
     //
     // Peripherals
     //
     
     func loadPeripheralsDefaults(_ defaults: PeripheralsDefaults) {
         
+        log(level: 2)
         amiga.suspend()
         
         df0Connected = defaults.driveConnect[0]
@@ -587,19 +684,27 @@ class Configuration {
         df1Type = defaults.driveType[1].rawValue
         df2Type = defaults.driveType[2].rawValue
         df3Type = defaults.driveType[3].rawValue
+ 
+        hd0Connected = defaults.hardDriveConnect[0]
+        hd1Connected = defaults.hardDriveConnect[1]
+        hd2Connected = defaults.hardDriveConnect[2]
+        hd3Connected = defaults.hardDriveConnect[3]
+        hd0Type = defaults.hardDriveType[0].rawValue
+        hd1Type = defaults.hardDriveType[1].rawValue
+        hd2Type = defaults.hardDriveType[2].rawValue
+        hd3Type = defaults.hardDriveType[3].rawValue
         
-        blankDiskFormat = defaults.blankDiskFormat.rawValue
-        bootBlock = defaults.bootBlock
-
         gameDevice1 = defaults.gameDevice1
         gameDevice2 = defaults.gameDevice2
         serialDevice = defaults.serialDevice.rawValue
+        serialDevicePort = defaults.serialDevicePort
         
         amiga.resume()
     }
     
     func loadPeripheralsUserDefaults() {
         
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         amiga.suspend()
@@ -612,21 +717,26 @@ class Configuration {
         df1Type = defaults.integer(forKey: Keys.Per.df1Type)
         df2Type = defaults.integer(forKey: Keys.Per.df2Type)
         df3Type = defaults.integer(forKey: Keys.Per.df3Type)
-        
-        blankDiskFormat = defaults.integer(forKey: Keys.Per.blankDiskFormat)
-        bootBlock = defaults.integer(forKey: Keys.Per.bootBlock)
+
+        hd0Connected = defaults.bool(forKey: Keys.Per.hd0Connect)
+        hd1Connected = defaults.bool(forKey: Keys.Per.hd1Connect)
+        hd2Connected = defaults.bool(forKey: Keys.Per.hd2Connect)
+        hd3Connected = defaults.bool(forKey: Keys.Per.hd3Connect)
+        hd0Type = defaults.integer(forKey: Keys.Per.hd0Type)
+        hd1Type = defaults.integer(forKey: Keys.Per.hd1Type)
+        hd2Type = defaults.integer(forKey: Keys.Per.hd2Type)
+        hd3Type = defaults.integer(forKey: Keys.Per.hd3Type)
 
         gameDevice1 = defaults.integer(forKey: Keys.Per.gameDevice1)
         gameDevice2 = defaults.integer(forKey: Keys.Per.gameDevice2)
         serialDevice = defaults.integer(forKey: Keys.Per.serialDevice)
-        
+        serialDevicePort = defaults.integer(forKey: Keys.Per.serialDevicePort)
         amiga.resume()
     }
     
     func savePeripheralsUserDefaults() {
         
-        track()
-        
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         defaults.set(df0Connected, forKey: Keys.Per.df0Connect)
@@ -637,13 +747,20 @@ class Configuration {
         defaults.set(df1Type, forKey: Keys.Per.df1Type)
         defaults.set(df2Type, forKey: Keys.Per.df2Type)
         defaults.set(df3Type, forKey: Keys.Per.df3Type)
-        
-        defaults.set(blankDiskFormat, forKey: Keys.Per.blankDiskFormat)
-        defaults.set(bootBlock, forKey: Keys.Per.bootBlock)
-        
+
+        defaults.set(hd0Connected, forKey: Keys.Per.hd0Connect)
+        defaults.set(hd1Connected, forKey: Keys.Per.hd1Connect)
+        defaults.set(hd2Connected, forKey: Keys.Per.hd2Connect)
+        defaults.set(hd3Connected, forKey: Keys.Per.hd3Connect)
+        defaults.set(hd0Type, forKey: Keys.Per.hd0Type)
+        defaults.set(hd1Type, forKey: Keys.Per.hd1Type)
+        defaults.set(hd2Type, forKey: Keys.Per.hd2Type)
+        defaults.set(hd3Type, forKey: Keys.Per.hd3Type)
+
         defaults.set(gameDevice1, forKey: Keys.Per.gameDevice1)
         defaults.set(gameDevice2, forKey: Keys.Per.gameDevice2)
         defaults.set(serialDevice, forKey: Keys.Per.serialDevice)
+        defaults.set(serialDevicePort, forKey: Keys.Per.serialDevicePort)
     }
     
     //
@@ -652,15 +769,14 @@ class Configuration {
     
     func loadCompatibilityDefaults(_ defaults: CompatibilityDefaults) {
          
+        log(level: 2)
         amiga.suspend()
         
         blitterAccuracy = defaults.blitterAccuracy
 
-        slowRamMirror = defaults.slowRamMirror
         todBug = defaults.todBug
 
         eClockSyncing = defaults.eClockSyncing
-        slowRamDelay = defaults.slowRamDelay
 
         clxSprSpr = defaults.clxSprSpr
         clxSprPlf = defaults.clxSprPlf
@@ -678,17 +794,16 @@ class Configuration {
     
     func loadCompatibilityUserDefaults() {
         
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         amiga.suspend()
         
         blitterAccuracy = defaults.integer(forKey: Keys.Com.blitterAccuracy)
 
-        slowRamMirror = defaults.bool(forKey: Keys.Com.slowRamMirror)
         todBug = defaults.bool(forKey: Keys.Com.todBug)
 
         eClockSyncing = defaults.bool(forKey: Keys.Com.eClockSyncing)
-        slowRamDelay = defaults.bool(forKey: Keys.Com.slowRamDelay)
 
         clxSprSpr = defaults.bool(forKey: Keys.Com.clxSprSpr)
         clxSprPlf = defaults.bool(forKey: Keys.Com.clxSprPlf)
@@ -706,17 +821,14 @@ class Configuration {
     
     func saveCompatibilityUserDefaults() {
         
-        track()
-        
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         defaults.set(blitterAccuracy, forKey: Keys.Com.blitterAccuracy)
 
-        defaults.set(slowRamMirror, forKey: Keys.Com.slowRamMirror)
         defaults.set(todBug, forKey: Keys.Com.todBug)
 
         defaults.set(eClockSyncing, forKey: Keys.Com.eClockSyncing)
-        defaults.set(slowRamDelay, forKey: Keys.Com.slowRamDelay)
 
         defaults.set(clxSprSpr, forKey: Keys.Com.clxSprSpr)
         defaults.set(clxSprPlf, forKey: Keys.Com.clxSprPlf)
@@ -736,6 +848,7 @@ class Configuration {
     
     func loadAudioDefaults(_ defaults: AudioDefaults) {
         
+        log(level: 2)
         amiga.suspend()
         
         vol0 = defaults.vol0
@@ -755,16 +868,24 @@ class Configuration {
         df1Pan = defaults.drivePan[1]
         df2Pan = defaults.drivePan[2]
         df3Pan = defaults.drivePan[3]
+        hd0Pan = defaults.hdPan[0]
+        hd1Pan = defaults.hdPan[1]
+        hd2Pan = defaults.hdPan[2]
+        hd3Pan = defaults.hdPan[3]
         stepVolume = defaults.stepVolume
         pollVolume = defaults.pollVolume
         insertVolume = defaults.insertVolume
         ejectVolume = defaults.ejectVolume
         
+        filterType = defaults.filterType.rawValue
+        filterAlwaysOn = defaults.filterAlwaysOn
+
         amiga.resume()
     }
     
     func loadAudioUserDefaults() {
         
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         amiga.suspend()
@@ -786,18 +907,24 @@ class Configuration {
         df1Pan = defaults.integer(forKey: Keys.Aud.df1Pan)
         df2Pan = defaults.integer(forKey: Keys.Aud.df2Pan)
         df3Pan = defaults.integer(forKey: Keys.Aud.df3Pan)
+        hd0Pan = defaults.integer(forKey: Keys.Aud.hd0Pan)
+        hd1Pan = defaults.integer(forKey: Keys.Aud.hd1Pan)
+        hd2Pan = defaults.integer(forKey: Keys.Aud.hd2Pan)
+        hd3Pan = defaults.integer(forKey: Keys.Aud.hd3Pan)
         stepVolume = defaults.integer(forKey: Keys.Aud.stepVolume)
         pollVolume = defaults.integer(forKey: Keys.Aud.pollVolume)
         insertVolume = defaults.integer(forKey: Keys.Aud.insertVolume)
         ejectVolume = defaults.integer(forKey: Keys.Aud.ejectVolume)
-        
+
+        filterType = defaults.integer(forKey: Keys.Aud.filterType)
+        filterAlwaysOn = defaults.bool(forKey: Keys.Aud.filterAlwaysOn)
+
         amiga.resume()
     }
     
     func saveAudioUserDefaults() {
         
-        track()
-        
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         defaults.set(vol0, forKey: Keys.Aud.vol0)
@@ -817,10 +944,17 @@ class Configuration {
         defaults.set(df1Pan, forKey: Keys.Aud.df1Pan)
         defaults.set(df2Pan, forKey: Keys.Aud.df2Pan)
         defaults.set(df3Pan, forKey: Keys.Aud.df3Pan)
+        defaults.set(hd0Pan, forKey: Keys.Aud.hd0Pan)
+        defaults.set(hd1Pan, forKey: Keys.Aud.hd1Pan)
+        defaults.set(hd2Pan, forKey: Keys.Aud.hd2Pan)
+        defaults.set(hd3Pan, forKey: Keys.Aud.hd3Pan)
         defaults.set(stepVolume, forKey: Keys.Aud.stepVolume)
         defaults.set(pollVolume, forKey: Keys.Aud.pollVolume)
         defaults.set(insertVolume, forKey: Keys.Aud.insertVolume)
         defaults.set(ejectVolume, forKey: Keys.Aud.ejectVolume)
+
+        defaults.set(filterType, forKey: Keys.Aud.filterType)
+        defaults.set(filterAlwaysOn, forKey: Keys.Aud.filterAlwaysOn)
     }
     
     //
@@ -829,6 +963,7 @@ class Configuration {
 
     func loadColorDefaults(_ defaults: VideoDefaults) {
         
+        log(level: 2)
         amiga.suspend()
         
         palette = defaults.palette.rawValue
@@ -839,8 +974,10 @@ class Configuration {
         amiga.resume()
     }
     
-    func loadGeometryDefaults(_ defaults: VideoDefaults) {
+    func loadGeometryDefaults(_ defaults: GeometryDefaults) {
         
+        hAutoCenter = defaults.hAutoCenter
+        vAutoCenter = defaults.vAutoCenter
         hCenter = defaults.hCenter
         vCenter = defaults.vCenter
         hZoom = defaults.hZoom
@@ -850,6 +987,8 @@ class Configuration {
     }
     
     func loadShaderDefaults(_ defaults: VideoDefaults) {
+        
+        log(level: 2)
         
         enhancer = defaults.enhancer
         upscaler = defaults.upscaler
@@ -873,15 +1012,9 @@ class Configuration {
         disalignment = defaults.disalignment
     }
     
-    func loadVideoDefaults(_ defaults: VideoDefaults) {
-        
-        loadColorDefaults(defaults)
-        loadGeometryDefaults(defaults)
-        loadColorDefaults(defaults)
-    }
-
     func loadVideoUserDefaults() {
         
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         amiga.suspend()
@@ -890,11 +1023,6 @@ class Configuration {
         brightness = defaults.integer(forKey: Keys.Vid.brightness)
         contrast = defaults.integer(forKey: Keys.Vid.contrast)
         saturation = defaults.integer(forKey: Keys.Vid.saturation)
-
-        hCenter = defaults.float(forKey: Keys.Vid.hCenter)
-        vCenter = defaults.float(forKey: Keys.Vid.vCenter)
-        hZoom = defaults.float(forKey: Keys.Vid.hZoom)
-        vZoom = defaults.float(forKey: Keys.Vid.vZoom)
 
         enhancer = defaults.integer(forKey: Keys.Vid.enhancer)
         upscaler = defaults.integer(forKey: Keys.Vid.upscaler)
@@ -913,6 +1041,23 @@ class Configuration {
         disalignment = Int32(defaults.integer(forKey: Keys.Vid.disalignment))
         disalignmentH = defaults.float(forKey: Keys.Vid.disalignmentH)
         disalignmentV = defaults.float(forKey: Keys.Vid.disalignmentV)
+                
+        amiga.resume()
+    }
+
+    func loadGeometryUserDefaults() {
+        
+        log(level: 2)
+        let defaults = UserDefaults.standard
+        
+        amiga.suspend()
+        
+        hAutoCenter = defaults.bool(forKey: Keys.Vid.hAutoCenter)
+        vAutoCenter = defaults.bool(forKey: Keys.Vid.vAutoCenter)
+        hCenter = defaults.float(forKey: Keys.Vid.hCenter)
+        vCenter = defaults.float(forKey: Keys.Vid.vCenter)
+        hZoom = defaults.float(forKey: Keys.Vid.hZoom)
+        vZoom = defaults.float(forKey: Keys.Vid.vZoom)
         
         renderer.canvas.updateTextureRect()
         
@@ -921,19 +1066,13 @@ class Configuration {
     
     func saveVideoUserDefaults() {
         
-        track()
-        
+        log(level: 2)
         let defaults = UserDefaults.standard
         
         defaults.set(palette, forKey: Keys.Vid.palette)
         defaults.set(brightness, forKey: Keys.Vid.brightness)
         defaults.set(contrast, forKey: Keys.Vid.contrast)
         defaults.set(saturation, forKey: Keys.Vid.saturation)
-
-        defaults.set(hCenter, forKey: Keys.Vid.hCenter)
-        defaults.set(vCenter, forKey: Keys.Vid.vCenter)
-        defaults.set(hZoom, forKey: Keys.Vid.hZoom)
-        defaults.set(vZoom, forKey: Keys.Vid.vZoom)
 
         defaults.set(enhancer, forKey: Keys.Vid.enhancer)
         defaults.set(upscaler, forKey: Keys.Vid.upscaler)
@@ -952,5 +1091,18 @@ class Configuration {
         defaults.set(disalignment, forKey: Keys.Vid.disalignment)
         defaults.set(disalignmentH, forKey: Keys.Vid.disalignmentH)
         defaults.set(disalignmentV, forKey: Keys.Vid.disalignmentV)
+    }
+    
+    func saveGeometryUserDefaults() {
+        
+        log(level: 2)
+        let defaults = UserDefaults.standard
+        
+        defaults.set(hAutoCenter, forKey: Keys.Vid.hAutoCenter)
+        defaults.set(vAutoCenter, forKey: Keys.Vid.vAutoCenter)
+        defaults.set(hCenter, forKey: Keys.Vid.hCenter)
+        defaults.set(vCenter, forKey: Keys.Vid.vCenter)
+        defaults.set(hZoom, forKey: Keys.Vid.hZoom)
+        defaults.set(vZoom, forKey: Keys.Vid.vZoom)
     }
 }

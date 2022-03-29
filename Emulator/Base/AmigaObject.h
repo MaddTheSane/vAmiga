@@ -9,13 +9,53 @@
 
 #pragma once
 
+/* Object model:
+ *
+ * ------------------
+ * |  AmigaObject   |
+ * ------------------
+ *         |
+ * ------------------
+ * | AmigaComponent |
+ * ------------------
+ *         |
+ *         |   ------------------   ----------------
+ *         |-->|     Thread     |-->|    Amiga     |
+ *         |   ------------------   ----------------
+ *         |   ------------------
+ *         |-->|  SubComponent  |
+ *             ------------------
+ *
+ * AmigaObject is the base class for all Amiga related classes. It provides a
+ * a textual description for the object as well as various functions for
+ * printing debug information.
+ *
+ * AmigaComponent defines the base functionality of all hardware components. It
+ * comprises functions for initializing, configuring, and serializing the
+ * object, as well as functions for powering up and down, running and
+ * pausing. Furthermore, a 'synchronized' macro is provided to prevent mutual
+ * execution of certain code components.
+ *
+ * Thread adds the ability to run the component asynchroneously. It implements
+ * the emulator's state model (off, paused, running).
+ */
+
 #include "Error.h"
 
-/* Base class for all Amiga objects. This class adds a textual description
- * the object together with functions for printing debug messages and warnings.
- */
+enum class Category
+{    
+    BankMap, Blocks, Breakpoints, Bus, Catchpoints, Checksums, Config, Dma,
+    Drive, Events, FileSystem, Geometry, List1, List2, Parameters, Partitions,
+    Properties, Registers, Segments, Signals, State, Summary, Tod, Volumes,
+    Watchpoints
+};
+
 class AmigaObject {
 
+protected:
+    
+    static bool verbose;
+    
     //
     // Initializing
     //
@@ -24,17 +64,30 @@ public:
 
     virtual ~AmigaObject() { };
     
+    
+    //
+    // Printing debug information
+    //
+    
     // Returns the name for this component (e.g., "Agnus" or "Denise")
     virtual const char *getDescription() const = 0;
     
     // Called by debug() and trace() to produce a detailed debug output
     virtual void prefix() const;
+    
+    // Prints debug information about this component
+    void dump(Category category, std::ostream& ss) const;
+    void dump(Category category) const;
+    void dump(std::ostream& ss) const;
+    void dump() const;
+    virtual void _dump(Category category, std::ostream& ss) const = 0;
 };
 
 /* This file provides several macros for printing messages:
  *
  *   - msg    Information message   (Shows up in all builds)
  *   - warn   Warning message       (Shows up in all builds)
+ *   - fatal  Error message + Exit  (Shows up in all builds)
  *   - debug  Debug message         (Shows up in debug builds, only)
  *   - plain  Plain debug message   (Shows up in debug builds, only)
  *   - trace  Detailed debug output (Shows up in debug builds, only)
@@ -43,8 +96,10 @@ public:
  * messages are prefixed by a more detailed string description produced by the
  * prefix() function.
  *
- * Debug, plain, and trace messages are accompanied by an optional 'verbose'
- * parameter. If 0 is passed in, no output will be generated.
+ * Debug, plain, and trace messages are accompanied by an optional 'enable'
+ * parameter. If 0 is passed in, no output will be generated. In addition,
+ * variable 'verbose' is checked which is set to true by default. By setting
+ * this variable to false, debug output can be silenced temporarily.
  *
  * Sidenote: In previous releases the printing macros were implemented in form
  * of variadic functions. Although this might seem to be superior at first
@@ -59,25 +114,28 @@ fprintf(stderr, format, ##__VA_ARGS__);
 #define warn(format, ...) \
 fprintf(stderr, "Warning: " format, ##__VA_ARGS__);
 
+#define fatal(format, ...) \
+{ fprintf(stderr, "Fatal: " format, ##__VA_ARGS__); exit(1); }
+
 #ifndef NDEBUG
 
-#define debug(verbose, format, ...) \
-if (verbose) { \
-fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }
+#define debug(enable, format, ...) \
+if constexpr (enable) { if (verbose) { \
+fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }}
 
-#define plain(verbose, format, ...) \
-if (verbose) { \
-fprintf(stderr, format, ##__VA_ARGS__); }
+#define plain(enable, format, ...) \
+if constexpr (enable) { if (verbose) { \
+fprintf(stderr, format, ##__VA_ARGS__); }}
 
-#define trace(verbose, format, ...) \
-if (verbose) { \
+#define trace(enable, format, ...) \
+if constexpr (enable) { if (verbose) { \
 prefix(); \
-fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }
+fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }}
 
 #else
 
-#define debug(verbose, format, ...)
-#define plain(verbose, format, ...)
-#define trace(verbose, format, ...)
+#define debug(enable, format, ...)
+#define plain(enable, format, ...)
+#define trace(enable, format, ...)
 
 #endif

@@ -11,58 +11,37 @@
 #include "Amiga.h"
 #include "Snapshot.h"
 #include "ADFFile.h"
+#include <algorithm>
 
 // Perform some consistency checks
-static_assert(sizeof(i8) == 1,  "i8 size mismatch");
+static_assert(sizeof(i8)  == 1, "i8  size mismatch");
 static_assert(sizeof(i16) == 2, "i16 size mismatch");
 static_assert(sizeof(i32) == 4, "i32 size mismatch");
 static_assert(sizeof(i64) == 8, "i64 size mismatch");
-static_assert(sizeof(u8) == 1,  "u8 size mismatch");
+static_assert(sizeof(u8)  == 1, "u8  size mismatch");
 static_assert(sizeof(u16) == 2, "u16 size mismatch");
 static_assert(sizeof(u32) == 4, "u32 size mismatch");
 static_assert(sizeof(u64) == 8, "u64 size mismatch");
 
-
-//
-// Emulator thread
-//
-
-void
-threadTerminated(void *thisAmiga)
+string
+Amiga::version()
 {
-    assert(thisAmiga != nullptr);
+    string result;
     
-    // Inform the Amiga that the thread has been canceled
-    Amiga *amiga = (Amiga *)thisAmiga;
-    amiga->threadDidTerminate();
+    result = std::to_string(VER_MAJOR) + "." + std::to_string(VER_MINOR);
+    if constexpr (VER_SUBMINOR > 0) result += "." + std::to_string(VER_SUBMINOR);
+    if constexpr (VER_BETA > 0) result += 'b' + std::to_string(VER_BETA);
+
+    return result;
 }
 
-void
-*threadMain(void *thisAmiga) {
+string
+Amiga::build()
+{
+    string db = debugBuild ? " [DEBUG BUILD]" : "";
     
-    assert(thisAmiga != nullptr);
-    
-    // Inform the Amiga that the thread is about to start
-    Amiga *amiga = (Amiga *)thisAmiga;
-    amiga->threadWillStart();
-    
-    // Configure the thread
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, nullptr);
-    pthread_cleanup_push(threadTerminated, thisAmiga);
-    
-    // Enter the run loop
-    amiga->runLoop();
-    
-    // Clean up and exit
-    pthread_cleanup_pop(1);
-    pthread_exit(nullptr);
+    return version() + db + " (" + __DATE__ + " " + __TIME__ + ")";
 }
-
-
-//
-// Amiga Class
-//
 
 Amiga::Amiga()
 {
@@ -76,12 +55,11 @@ Amiga::Amiga()
      * - The CIAs must preceed memory, because they determine if the lower
      *   memory banks are overlayed by Rom.
      *
-     * - Memory mus preceed the CPU, because it contains the CPU reset vector.
+     * - Memory must preceed the CPU, because it contains the CPU reset vector.
      */
+    
+    subComponents = std::vector<AmigaComponent *> {
 
-    subComponents = std::vector<HardwareComponent *> {
-
-        &oscillator,
         &agnus,
         &rtc,
         &denise,
@@ -95,10 +73,22 @@ Amiga::Amiga()
         &df1,
         &df2,
         &df3,
+        &hd0,
+        &hd1,
+        &hd2,
+        &hd3,
+        &hd0con,
+        &hd1con,
+        &hd2con,
+        &hd3con,
+        &ramExpansion,
         &ciaA,
         &ciaB,
         &mem,
         &cpu,
+        &remoteManager,
+        &retroShell,
+        &regressionTester,
         &msgQueue
     };
 
@@ -107,16 +97,15 @@ Amiga::Amiga()
     hardReset();
         
     // Print some debug information
-    if (SNP_DEBUG) {
+    if constexpr (SNP_DEBUG) {
         
         msg("             Agnus : %zu bytes\n", sizeof(Agnus));
         msg("       AudioFilter : %zu bytes\n", sizeof(AudioFilter));
-        // msg("       AudioStream : %zu bytes\n", sizeof(AudioStream));
         msg("               CIA : %zu bytes\n", sizeof(CIA));
         msg("       ControlPort : %zu bytes\n", sizeof(ControlPort));
         msg("               CPU : %zu bytes\n", sizeof(CPU));
         msg("            Denise : %zu bytes\n", sizeof(Denise));
-        msg("             Drive : %zu bytes\n", sizeof(Drive));
+        msg("             Drive : %zu bytes\n", sizeof(FloppyDrive));
         msg("          Keyboard : %zu bytes\n", sizeof(Keyboard));
         msg("            Memory : %zu bytes\n", sizeof(Memory));
         msg("moira::Breakpoints : %zu bytes\n", sizeof(moira::Breakpoints));
@@ -124,12 +113,11 @@ Amiga::Amiga()
         msg("   moira::Debugger : %zu bytes\n", sizeof(moira::Debugger));
         msg("      moira::Moira : %zu bytes\n", sizeof(moira::Moira));
         msg("             Muxer : %zu bytes\n", sizeof(Muxer));
-        msg("        Oscillator : %zu bytes\n", sizeof(Oscillator));
         msg("             Paula : %zu bytes\n", sizeof(Paula));
         msg("       PixelEngine : %zu bytes\n", sizeof(PixelEngine));
+        msg("     RemoteManager : %zu bytes\n", sizeof(RemoteManager));
         msg("               RTC : %zu bytes\n", sizeof(RTC));
         msg("           Sampler : %zu bytes\n", sizeof(Sampler));
-        msg("    ScreenRecorder : %zu bytes\n", sizeof(Recorder));
         msg("        SerialPort : %zu bytes\n", sizeof(SerialPort));
         msg("            Volume : %zu bytes\n", sizeof(Volume));
         msg("             Zorro : %zu bytes\n", sizeof(ZorroManager));
@@ -139,13 +127,14 @@ Amiga::Amiga()
 
 Amiga::~Amiga()
 {
-    debug(RUN_DEBUG, "Destroying Amiga[%p]\n", this);
+    debug(RUN_DEBUG, "Destroying Amiga\n");
+    if (thread.joinable()) { halt(); }
 }
 
 void
 Amiga::prefix() const
 {
-    fprintf(stderr, "[%lld] (%3d,%3d) ",
+    fprintf(stderr, "[%lld] (%3ld,%3ld) ",
             agnus.frame.nr, agnus.pos.v, agnus.pos.h);
 
     fprintf(stderr, "%06X ", cpu.getPC0());
@@ -164,31 +153,28 @@ Amiga::prefix() const
     fprintf(stderr, "%04X %04X ", paula.intena, paula.intreq);
 
     if (agnus.copper.servicing) {
-        fprintf(stderr, "[%06X] ", agnus.copper.getCopPC());
+        fprintf(stderr, "[%06X] ", agnus.copper.getCopPC0());
     }
 }
 
 void
 Amiga::reset(bool hard)
 {
-    if (hard) suspend();
+    if (!isEmulatorThread()) suspend();
     
     // If a disk change is in progress, finish it
-    paula.diskController.serviceDiskChangeEvent();
+    df0.serviceDiskChangeEvent <SLOT_DC0> ();
+    df1.serviceDiskChangeEvent <SLOT_DC1> ();
+    df2.serviceDiskChangeEvent <SLOT_DC2> ();
+    df3.serviceDiskChangeEvent <SLOT_DC3> ();
     
     // Execute the standard reset routine
-    HardwareComponent::reset(hard);
+    AmigaComponent::reset(hard);
     
-    if (hard) resume();
+    if (!isEmulatorThread()) resume();
 
     // Inform the GUI
     if (hard) msgQueue.put(MSG_RESET);
-}
-
-void
-Amiga::_initialize()
-{
-    
 }
 
 void
@@ -197,7 +183,7 @@ Amiga::_reset(bool hard)
     RESET_SNAPSHOT_ITEMS(hard)
     
     // Clear all runloop flags
-    runLoopCtrl = 0;
+    flags = 0;
 }
 
 i64
@@ -207,39 +193,52 @@ Amiga::getConfigItem(Option option) const
 
         case OPT_AGNUS_REVISION:
         case OPT_SLOW_RAM_MIRROR:
+            
             return agnus.getConfigItem(option);
             
         case OPT_DENISE_REVISION:
+        case OPT_VIEWPORT_TRACKING:
+        case OPT_HIDDEN_BITPLANES:
         case OPT_HIDDEN_SPRITES:
         case OPT_HIDDEN_LAYERS:
         case OPT_HIDDEN_LAYER_ALPHA:
         case OPT_CLX_SPR_SPR:
         case OPT_CLX_SPR_PLF:
         case OPT_CLX_PLF_PLF:
+            
             return denise.getConfigItem(option);
             
         case OPT_PALETTE:
         case OPT_BRIGHTNESS:
         case OPT_CONTRAST:
         case OPT_SATURATION:
+            
             return denise.pixelEngine.getConfigItem(option);
             
         case OPT_DMA_DEBUG_ENABLE:
         case OPT_DMA_DEBUG_MODE:
         case OPT_DMA_DEBUG_OPACITY:
+            
             return agnus.dmaDebugger.getConfigItem(option);
             
+        case OPT_REG_RESET_VAL:
+            
+            return cpu.getConfigItem(option);
+            
         case OPT_RTC_MODEL:
+            
             return rtc.getConfigItem(option);
 
         case OPT_CHIP_RAM:
         case OPT_SLOW_RAM:
         case OPT_FAST_RAM:
         case OPT_EXT_START:
+        case OPT_SAVE_ROMS:
         case OPT_SLOW_RAM_DELAY:
         case OPT_BANKMAP:
         case OPT_UNMAPPING_TYPE:
         case OPT_RAM_INIT_PATTERN:
+            
             return mem.getConfigItem(option);
             
         case OPT_SAMPLING_METHOD:
@@ -247,28 +246,35 @@ Amiga::getConfigItem(Option option) const
         case OPT_FILTER_ALWAYS_ON:
         case OPT_AUDVOLL:
         case OPT_AUDVOLR:
+            
             return paula.muxer.getConfigItem(option);
 
         case OPT_BLITTER_ACCURACY:
+            
             return agnus.blitter.getConfigItem(option);
 
         case OPT_DRIVE_SPEED:
         case OPT_LOCK_DSKSYNC:
         case OPT_AUTO_DSKSYNC:
+            
             return paula.diskController.getConfigItem(option);
             
         case OPT_SERIAL_DEVICE:
+
             return serialPort.getConfigItem(option);
 
         case OPT_CIA_REVISION: 
         case OPT_TODBUG:
         case OPT_ECLOCK_SYNCING:
+            
             return ciaA.getConfigItem(option);
 
         case OPT_ACCURATE_KEYBOARD:
+            
             return keyboard.getConfigItem(option);
 
-        default: assert(false); return 0;
+        default:
+            fatalError;
     }
 }
 
@@ -279,151 +285,481 @@ Amiga::getConfigItem(Option option, long id) const
             
         case OPT_DMA_DEBUG_ENABLE:
         case OPT_DMA_DEBUG_COLOR:
+            
             return agnus.dmaDebugger.getConfigItem(option, id);
 
         case OPT_AUDPAN:
         case OPT_AUDVOL:
+            
             return paula.muxer.getConfigItem(option, id);
 
         case OPT_DRIVE_CONNECT:
+            
             return paula.diskController.getConfigItem(option, id);
             
         case OPT_DRIVE_TYPE:
         case OPT_EMULATE_MECHANICS:
+        case OPT_START_DELAY:
+        case OPT_STOP_DELAY:
+        case OPT_STEP_DELAY:
+        case OPT_DISK_SWAP_DELAY:
         case OPT_DRIVE_PAN:
         case OPT_STEP_VOLUME:
         case OPT_POLL_VOLUME:
         case OPT_INSERT_VOLUME:
         case OPT_EJECT_VOLUME:
+            
             return df[id]->getConfigItem(option);
             
-        case OPT_DEFAULT_FILESYSTEM:
-        case OPT_DEFAULT_BOOTBLOCK:
-            return df[id]->getConfigItem(option);
+        case OPT_HDR_TYPE:
+        case OPT_HDR_CONNECT:
+        case OPT_HDR_PAN:
+        case OPT_HDR_STEP_VOLUME:
+            
+            return hd[id]->getConfigItem(option);
             
         case OPT_PULLUP_RESISTORS:
         case OPT_MOUSE_VELOCITY:
+            
             if (id == PORT_1) return controlPort1.mouse.getConfigItem(option);
             if (id == PORT_2) return controlPort2.mouse.getConfigItem(option);
-            assert(false);
+            fatalError;
             
         case OPT_AUTOFIRE:
         case OPT_AUTOFIRE_BULLETS:
         case OPT_AUTOFIRE_DELAY:
+            
             if (id == PORT_1) return controlPort1.joystick.getConfigItem(option);
             if (id == PORT_2) return controlPort2.joystick.getConfigItem(option);
-            assert(false);
+            fatalError;
+            
+        case OPT_SRV_PORT:
+        case OPT_SRV_PROTOCOL:
+        case OPT_SRV_AUTORUN:
+        case OPT_SRV_VERBOSE:
 
-        default: assert(false);
-    }
-    
-    return 0;
+            return remoteManager.getConfigItem(option, id);
+            
+        default:
+            fatalError;
+    }    
 }
 
-bool
+void
 Amiga::configure(Option option, i64 value)
 {
-    // Propagate configuration request to all components
-    bool changed = HardwareComponent::configure(option, value);
-    
-    // Inform the GUI if the configuration has changed
-    if (changed) msgQueue.put(MSG_CONFIG);
-    
-    // Dump the current configuration in debug mode
-    if (changed && CNF_DEBUG) dump(dump::Config);
+    debug(CNF_DEBUG, "configure(%s, %lld)\n", OptionEnum::key(option), value);
 
-    return changed;
+    // The following options do not send a message to the GUI
+    static std::vector<Option> quiet = {
+        
+        OPT_HIDDEN_LAYER_ALPHA,
+        OPT_BRIGHTNESS,
+        OPT_CONTRAST,
+        OPT_SATURATION,
+        OPT_DRIVE_PAN,
+        OPT_STEP_VOLUME,
+        OPT_POLL_VOLUME,
+        OPT_INSERT_VOLUME,
+        OPT_EJECT_VOLUME,
+        OPT_HDR_PAN,
+        OPT_HDR_STEP_VOLUME,
+        OPT_AUDVOLL,
+        OPT_AUDVOLR,
+        OPT_AUDPAN,
+        OPT_AUDVOL
+    };
+    
+    // Check if this option has been locked for debugging
+    value = overrideOption(option, value);
+
+    switch (option) {
+
+        case OPT_AGNUS_REVISION:
+        case OPT_SLOW_RAM_MIRROR:
+            
+            agnus.setConfigItem(option, value);
+            break;
+            
+        case OPT_DENISE_REVISION:
+        case OPT_VIEWPORT_TRACKING:
+        case OPT_HIDDEN_BITPLANES:
+        case OPT_HIDDEN_SPRITES:
+        case OPT_HIDDEN_LAYERS:
+        case OPT_HIDDEN_LAYER_ALPHA:
+        case OPT_CLX_SPR_SPR:
+        case OPT_CLX_SPR_PLF:
+        case OPT_CLX_PLF_PLF:
+            
+            denise.setConfigItem(option, value);
+            break;
+
+        case OPT_PALETTE:
+        case OPT_BRIGHTNESS:
+        case OPT_CONTRAST:
+        case OPT_SATURATION:
+            
+            denise.pixelEngine.setConfigItem(option, value);
+            break;
+
+        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_MODE:
+        case OPT_DMA_DEBUG_OPACITY:
+            
+            agnus.dmaDebugger.setConfigItem(option, value);
+            break;
+
+        case OPT_REG_RESET_VAL:
+            
+            cpu.setConfigItem(option, value);
+            break;
+            
+        case OPT_RTC_MODEL:
+            
+            rtc.setConfigItem(option, value);
+            break;
+
+        case OPT_CHIP_RAM:
+        case OPT_SLOW_RAM:
+        case OPT_FAST_RAM:
+        case OPT_EXT_START:
+        case OPT_SAVE_ROMS:
+        case OPT_SLOW_RAM_DELAY:
+        case OPT_BANKMAP:
+        case OPT_UNMAPPING_TYPE:
+        case OPT_RAM_INIT_PATTERN:
+            
+            mem.setConfigItem(option, value);
+            break;
+
+        case OPT_DRIVE_TYPE:
+        case OPT_EMULATE_MECHANICS:
+        case OPT_START_DELAY:
+        case OPT_STOP_DELAY:
+        case OPT_STEP_DELAY:
+        case OPT_DISK_SWAP_DELAY:
+        case OPT_DRIVE_PAN:
+        case OPT_STEP_VOLUME:
+        case OPT_POLL_VOLUME:
+        case OPT_INSERT_VOLUME:
+        case OPT_EJECT_VOLUME:
+            
+            df[0]->setConfigItem(option, value);
+            df[1]->setConfigItem(option, value);
+            df[2]->setConfigItem(option, value);
+            df[3]->setConfigItem(option, value);
+            break;
+            
+        case OPT_HDR_TYPE:
+        case OPT_HDR_CONNECT:
+        case OPT_HDR_PAN:
+        case OPT_HDR_STEP_VOLUME:
+            
+            hd[0]->setConfigItem(option, value);
+            hd[1]->setConfigItem(option, value);
+            hd[2]->setConfigItem(option, value);
+            hd[3]->setConfigItem(option, value);
+            break;
+     
+        case OPT_SAMPLING_METHOD:
+        case OPT_FILTER_TYPE:
+        case OPT_FILTER_ALWAYS_ON:
+        case OPT_AUDVOLL:
+        case OPT_AUDVOLR:
+            
+            paula.muxer.setConfigItem(option, value);
+            break;
+
+        case OPT_AUDPAN:
+        case OPT_AUDVOL:
+            
+            paula.muxer.setConfigItem(option, 0, value);
+            paula.muxer.setConfigItem(option, 1, value);
+            paula.muxer.setConfigItem(option, 2, value);
+            paula.muxer.setConfigItem(option, 3, value);
+            break;
+
+        case OPT_BLITTER_ACCURACY:
+            
+            agnus.blitter.setConfigItem(option, value);
+            break;
+
+        case OPT_DRIVE_SPEED:
+        case OPT_LOCK_DSKSYNC:
+        case OPT_AUTO_DSKSYNC:
+            
+            paula.diskController.setConfigItem(option, value);
+            break;
+
+        case OPT_SERIAL_DEVICE:
+            
+            serialPort.setConfigItem(option, value);
+            break;
+
+        case OPT_CIA_REVISION:
+        case OPT_TODBUG:
+        case OPT_ECLOCK_SYNCING:
+            
+            ciaA.setConfigItem(option, value);
+            ciaB.setConfigItem(option, value);
+            break;
+
+        case OPT_ACCURATE_KEYBOARD:
+            
+            keyboard.setConfigItem(option, value);
+            break;
+
+        case OPT_PULLUP_RESISTORS:
+        case OPT_MOUSE_VELOCITY:
+            
+            controlPort1.mouse.setConfigItem(option, value);
+            controlPort2.mouse.setConfigItem(option, value);
+            break;
+            
+        case OPT_AUTOFIRE:
+        case OPT_AUTOFIRE_BULLETS:
+        case OPT_AUTOFIRE_DELAY:
+            
+            controlPort1.joystick.setConfigItem(option, value);
+            controlPort2.joystick.setConfigItem(option, value);
+            break;
+            
+        case OPT_SRV_PORT:
+        case OPT_SRV_PROTOCOL:
+        case OPT_SRV_AUTORUN:
+        case OPT_SRV_VERBOSE:
+
+            remoteManager.setConfigItem(option, value);
+            break;
+
+        default:
+            fatalError;
+    }
+
+    if (std::find(quiet.begin(), quiet.end(), option) == quiet.end()) {
+        msgQueue.put(MSG_CONFIG, option);
+    }
 }
 
-bool
+void
 Amiga::configure(Option option, long id, i64 value)
 {
-    // Propagate configuration request to all components
-    bool changed = HardwareComponent::configure(option, id, value);
-    
-    // Inform the GUI if the configuration has changed
-    if (changed) msgQueue.put(MSG_CONFIG);
+    debug(CNF_DEBUG, "configure(%s, %ld, %lld)\n", OptionEnum::key(option), id, value);
 
-    // Dump the current configuration in debug mode
-    if (changed && CNF_DEBUG) dump(dump::Config);
+    // Check if this option has been locked for debugging
+    value = overrideOption(option, value);
+
+    // The following options do not send a message to the GUI
+    static std::vector<Option> quiet = {
         
-    return changed;
+        OPT_DRIVE_PAN,
+        OPT_STEP_VOLUME,
+        OPT_POLL_VOLUME,
+        OPT_INSERT_VOLUME,
+        OPT_EJECT_VOLUME,
+        OPT_HDR_PAN,
+        OPT_HDR_STEP_VOLUME,
+        OPT_AUDVOLL,
+        OPT_AUDVOLR,
+        OPT_AUDPAN,
+        OPT_AUDVOL,
+        OPT_MOUSE_VELOCITY
+    };
+    
+    switch (option) {
+            
+        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_COLOR:
+            
+            agnus.dmaDebugger.setConfigItem(option, id, value);
+            break;
+
+        case OPT_AUDPAN:
+        case OPT_AUDVOL:
+            
+            paula.muxer.setConfigItem(option, id, value);
+            break;
+
+        case OPT_DRIVE_CONNECT:
+            
+            paula.diskController.setConfigItem(option, id, value);
+            break;
+
+        case OPT_DRIVE_TYPE:
+        case OPT_EMULATE_MECHANICS:
+        case OPT_START_DELAY:
+        case OPT_STOP_DELAY:
+        case OPT_STEP_DELAY:
+        case OPT_DISK_SWAP_DELAY:
+        case OPT_DRIVE_PAN:
+        case OPT_STEP_VOLUME:
+        case OPT_POLL_VOLUME:
+        case OPT_INSERT_VOLUME:
+        case OPT_EJECT_VOLUME:
+            
+            df[id]->setConfigItem(option, value);
+            break;
+
+        case OPT_HDR_TYPE:
+        case OPT_HDR_CONNECT:
+        case OPT_HDR_PAN:
+        case OPT_HDR_STEP_VOLUME:
+            
+            hd[id]->setConfigItem(option, value);
+            break;
+
+        case OPT_PULLUP_RESISTORS:
+        case OPT_MOUSE_VELOCITY:
+            
+            if (id == PORT_1) controlPort1.mouse.setConfigItem(option, value);
+            if (id == PORT_2) controlPort2.mouse.setConfigItem(option, value);
+            break;
+            
+        case OPT_AUTOFIRE:
+        case OPT_AUTOFIRE_BULLETS:
+        case OPT_AUTOFIRE_DELAY:
+            
+            if (id == PORT_1) controlPort1.joystick.setConfigItem(option, value);
+            if (id == PORT_2) controlPort2.joystick.setConfigItem(option, value);
+            break;
+
+        case OPT_SRV_PORT:
+        case OPT_SRV_PROTOCOL:
+        case OPT_SRV_AUTORUN:
+        case OPT_SRV_VERBOSE:
+
+            remoteManager.setConfigItem(option, id, value);
+            break;
+            
+        default:
+            fatalError;
+    }
+    
+    if (std::find(quiet.begin(), quiet.end(), option) == quiet.end()) {
+        msgQueue.put(MSG_CONFIG, option);
+    }
 }
 
 void
 Amiga::configure(ConfigScheme scheme)
 {
     assert_enum(ConfigScheme, scheme);
-    debug(CNF_DEBUG, "Using ConfigScheme %s", ConfigSchemeEnum::key(scheme));
-    
-    // Switch the Amiga off
+
+    {   SUSPENDED
+        
+        switch(scheme) {
+
+            case CONFIG_A1000_OCS_1MB:
+                
+                configure(OPT_CHIP_RAM, 512);
+                configure(OPT_SLOW_RAM, 512);
+                configure(OPT_AGNUS_REVISION, AGNUS_OCS_OLD);
+                break;
+
+            case CONFIG_A500_OCS_1MB:
+                
+                configure(OPT_CHIP_RAM, 512);
+                configure(OPT_SLOW_RAM, 512);
+                configure(OPT_AGNUS_REVISION, AGNUS_OCS);
+                break;
+                
+            case CONFIG_A500_ECS_1MB:
+                
+                configure(OPT_CHIP_RAM, 512);
+                configure(OPT_SLOW_RAM, 512);
+                configure(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
+                break;
+                
+            default:
+                fatalError;
+        }
+    }
+}
+
+void
+Amiga::revertToFactorySettings()
+{
+    // Switch the emulator off
     powerOff();
 
     // Revert to the initial state
     initialize();
-    
-    // Apply the selected scheme
-    switch(scheme) {
-            
-        case CONFIG_A500_OCS_1MB:
-            
-            configure(OPT_CHIP_RAM, 512);
-            configure(OPT_SLOW_RAM, 512);
-            configure(OPT_AGNUS_REVISION, AGNUS_OCS);
-            break;
-            
-        case CONFIG_A500_ECS_1MB:
-            
-            configure(OPT_CHIP_RAM, 512);
-            configure(OPT_SLOW_RAM, 512);
-            configure(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
-            break;
-            
-        default:
-            assert(false);
-    }    
 }
 
-EventID
+i64
+Amiga::overrideOption(Option option, i64 value)
+{
+    static std::map<Option,i64> overrides = OVERRIDES;
+
+    if (overrides.find(option) != overrides.end()) {
+
+        msg("Overriding option: %s = %lld\n", OptionEnum::key(option), value);
+        return overrides[option];
+    }
+
+    return value;
+}
+
+InspectionTarget
 Amiga::getInspectionTarget() const
 {
-    return agnus.slot[SLOT_INS].id;
+    switch(agnus.id[SLOT_INS]) {
+            
+        case EVENT_NONE:  return INSPECTION_NONE;
+        case INS_AMIGA:   return INSPECTION_AMIGA;
+        case INS_CPU:     return INSPECTION_CPU;
+        case INS_MEM:     return INSPECTION_MEM;
+        case INS_CIA:     return INSPECTION_CIA;
+        case INS_AGNUS:   return INSPECTION_AGNUS;
+        case INS_PAULA:   return INSPECTION_PAULA;
+        case INS_DENISE:  return INSPECTION_DENISE;
+        case INS_PORTS:   return INSPECTION_PORTS;
+        case INS_EVENTS:  return INSPECTION_EVENTS;
+
+        default:
+            fatalError;
+    }
 }
 
 void
-Amiga::setInspectionTarget(EventID id)
+Amiga::setInspectionTarget(InspectionTarget target, Cycle trigger)
 {
-    suspend();
-    agnus.scheduleRel<SLOT_INS>(0, id);
-    agnus.serviceINSEvent();
-    resume();
+    EventID id;
+    
+    {   SUSPENDED
+        
+        switch(target) {
+                
+            case INSPECTION_NONE:    agnus.cancel<SLOT_INS>(); return;
+                
+            case INSPECTION_AMIGA:   id = INS_AMIGA; break;
+            case INSPECTION_CPU:     id = INS_CPU; break;
+            case INSPECTION_MEM:     id = INS_MEM; break;
+            case INSPECTION_CIA:     id = INS_CIA; break;
+            case INSPECTION_AGNUS:   id = INS_AGNUS; break;
+            case INSPECTION_PAULA:   id = INS_PAULA; break;
+            case INSPECTION_DENISE:  id = INS_DENISE; break;
+            case INSPECTION_PORTS:   id = INS_PORTS; break;
+            case INSPECTION_EVENTS:  id = INS_EVENTS; break;
+                
+            default:
+                fatalError;
+        }
+        
+        agnus.scheduleRel<SLOT_INS>(trigger, id);
+        if (trigger == 0) agnus.serviceINSEvent(id);
+    }
 }
 
 void
-Amiga::setInspectionTarget(EventID id, Cycle trigger)
+Amiga::_inspect() const
 {
-    suspend();
-    agnus.scheduleRel<SLOT_INS>(trigger, id);
-    resume();
-}
-
-void
-Amiga::removeInspectionTarget()
-{
-    suspend();
-    agnus.cancel<SLOT_INS>();
-    resume();
-}
-
-void
-Amiga::_inspect()
-{
-    synchronized {
+    {   SYNCHRONIZED
         
         info.cpuClock = cpu.getMasterClock();
         info.dmaClock = agnus.clock;
-        info.ciaAClock = ciaA.clock;
-        info.ciaBClock = ciaB.clock;
+        info.ciaAClock = ciaA.getClock();
+        info.ciaBClock = ciaB.getClock();
         info.frame = agnus.frame.nr;
         info.vpos = agnus.pos.v;
         info.hpos = agnus.pos.h;
@@ -431,307 +767,244 @@ Amiga::_inspect()
 }
 
 void
-Amiga::_dump(dump::Category category, std::ostream& os) const
+Amiga::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
-    if (category & dump::Config) {
-    
-        if (CNF_DEBUG) {
-            
-            df0.dump(dump::Config);
-            paula.dump(dump::Config);
-            paula.muxer.dump(dump::Config);
-            ciaA.dump(dump::Config);
-            denise.dump(dump::Config);
-        }
-    }
-    
-    if (category & dump::State) {
+    if (category == Category::State) {
         
         os << tab("Power");
         os << bol(isPoweredOn()) << std::endl;
         os << tab("Running");
         os << bol(isRunning()) << std::endl;
-        os << tab("Warp");
-        os << bol(warpMode) << std::endl;
-    }
-}
-
-void
-Amiga::powerOn()
-{
-    debug(RUN_DEBUG, "powerOn()\n");
-    
-    // Never call this function inside the emulator thread
-    assert(!isEmulatorThread());
-    
-    if (!isPoweredOn()) {
-        
-        assert(p == (pthread_t)0);
-        
-        // Throw an exception if the emulator is not fully configured
-        isReady();
-        
-        // Perform a hard reset
-        hardReset();
-        
-        // Power on all subcomponents
-        HardwareComponent::powerOn();
-        
-        // Update the recorded debug information
-        inspect();
-        
-        // Inform the GUI
-        msgQueue.put(MSG_POWER_ON);
+        os << tab("Warp mode");
+        os << bol(inWarpMode()) << std::endl;
+        os << tab("Debug mode");
+        os << bol(inDebugMode()) << std::endl;
     }
 }
 
 void
 Amiga::_powerOn()
 {
-    state = EMULATOR_STATE_PAUSED;
+    debug(RUN_DEBUG, "_powerOn\n");
 
-#ifdef DF0_DISK
-    DiskFile *df0file = AmigaFile::make <ADFFile> (DF0_DISK);
-    if (df0file) {
-        Disk *disk = Disk::makeWithFile(df0file);
-        df0.ejectDisk();
-        df0.insertDisk(disk);
-        df0.setWriteProtection(false);
-    }
-#endif
-    
-#ifdef DF1_DISK
-    DiskFile *df1file = DiskFile::makeWithFile(DF1_DISK);
-    if (df1file) {
-        Disk *disk = Disk::makeWithFile(df1file);
-        df1.ejectDisk();
-        df1.insertDisk(disk);
-        df1.setWriteProtection(false);
-    }
-#endif
-    
-#ifdef INITIAL_BREAKPOINT
-    debugMode = true;
-    cpu.debugger.breakpoints.addAt(INITIAL_BREAKPOINT);
-#endif
-}
+    // Perform a reset
+    hardReset();
 
-void
-Amiga::powerOff()
-{
-    debug(RUN_DEBUG, "powerOff()\n");
-    
-    // Never call this function inside the emulator thread
-    assert(!isEmulatorThread());
-    
-    if (!isPoweredOff()) {
-        
-        // Pause if needed
-        pause(); assert(!isRunning());
-        
-        // Power off all subcomponents
-        HardwareComponent::powerOff();
-        
-        // Update the recorded debug information
-        inspect();
-        
-        // Inform the GUI
-        msgQueue.put(MSG_POWER_OFF);
+    // Start from a snapshot if requested
+    if (string(INITIAL_SNAPSHOT) != "") {
+
+        Snapshot snapshot(INITIAL_SNAPSHOT);
+        loadSnapshot(snapshot);
     }
+            
+    // Set initial breakpoints
+    for (auto &bp : std::vector <u32> (INITIAL_BREAKPOINTS)) {
+        
+        cpu.debugger.breakpoints.setAt(bp);
+        debugMode = true;
+    }
+    
+    // Update the recorded debug information
+    inspect();
+
+    msgQueue.put(MSG_POWER_ON);
 }
 
 void
 Amiga::_powerOff()
 {
-    state = EMULATOR_STATE_OFF;
-}
+    debug(RUN_DEBUG, "_powerOff\n");
 
-void
-Amiga::run()
-{
-    debug(RUN_DEBUG, "run()\n");
-        
-    // Never call this function inside the emulator thread
-    assert(!isEmulatorThread());
+    // Update the recorded debug information
+    inspect();
     
-    if (!isRunning()) {
-        
-        assert(p == (pthread_t)0);
-        
-        // Power on if needed
-        powerOn(); assert(isPoweredOn());
-        
-        // Launch all subcomponents
-        HardwareComponent::run();
-        
-        // Create the emulator thread
-        pthread_create(&p, nullptr, threadMain, (void *)this);
-    }
+    msgQueue.put(MSG_POWER_OFF);
 }
 
 void
 Amiga::_run()
 {
-    state = EMULATOR_STATE_RUNNING;
-}
+    debug(RUN_DEBUG, "_run\n");
 
-void
-Amiga::pause()
-{
-    debug(RUN_DEBUG, "pause()\n");
-    
-    // Never call this function inside the emulator thread
-    assert(!isEmulatorThread());
+    // Enable or disable CPU debugging
+    debugMode ? cpu.debugger.enableLogging() : cpu.debugger.disableLogging();
 
-    if (isRunning()) {
-                
-        // Ask the emulator thread to terminate
-        signalStop();
-        
-        // Wait until the emulator thread has terminated
-        pthread_join(p, nullptr);
-               
-        // Assure the emulator is no longer running
-        assert(state == EMULATOR_STATE_PAUSED);
-        assert(p == (pthread_t)0);
-    }
-}
-
-void
-Amiga::shutdown()
-{
-    // Assure the emulator is powered off
-    assert(isPoweredOff());
-    
-    /* Send the SHUTDOWN message which is the last message ever send. The
-     * purpose of this message is to signal the GUI that no more messages will
-     * show up in the message queue. When the GUI receives this message, it
-     * knows that the Amiga is powered off and the message queue empty. From
-     * this time on, it is safe to destroy the emulator object.
-     */
-    msgQueue.put(MSG_SHUTDOWN);
+    msgQueue.put(MSG_RUN);
 }
 
 void
 Amiga::_pause()
 {
-    state = EMULATOR_STATE_PAUSED;
+    debug(RUN_DEBUG, "_pause\n");
+
+    remoteManager.gdbServer.breakpointReached();
+    inspect();
+    msgQueue.put(MSG_PAUSE);
 }
 
 void
-Amiga::warpOn()
+Amiga::_halt()
 {
-    assert(!isEmulatorThread());
-    
-    if (!warpMode) signalWarpOn();
-}
+    debug(RUN_DEBUG, "_halt\n");
 
-void
-Amiga::warpOff()
-{
-    assert(!isEmulatorThread());
-    
-    if (warpMode) signalWarpOff();
+    msgQueue.put(MSG_HALT);
 }
 
 void
 Amiga::_warpOn()
 {
+    debug(RUN_DEBUG, "_warpOn\n");
+
     msgQueue.put(MSG_WARP_ON);
 }
 
 void
 Amiga::_warpOff()
 {
-    oscillator.restart();
+    debug(RUN_DEBUG, "_warpOff\n");
+
     msgQueue.put(MSG_WARP_OFF);
 }
 
 void
-Amiga::debugOn()
+Amiga::_debugOn()
 {
-    assert(!isEmulatorThread());
+    debug(RUN_DEBUG, "_debugOn\n");
 
-    if (!debugMode) {
-        HardwareComponent::debugOn();
-    }
+    msgQueue.put(MSG_DEBUG_ON);
 }
 
 void
-Amiga::debugOff()
+Amiga::_debugOff()
 {
-    assert(!isEmulatorThread());
+    debug(RUN_DEBUG, "_debugOff\n");
+
+    msgQueue.put(MSG_DEBUG_OFF);
+}
+
+isize
+Amiga::load(const u8 *buffer)
+{
+    auto result = AmigaComponent::load(buffer);
+    AmigaComponent::didLoad();
     
-    if (debugMode) {
-        HardwareComponent::debugOff();
-    }
+    return result;
+}
+
+isize
+Amiga::save(u8 *buffer)
+{
+    auto result = AmigaComponent::save(buffer);
+    AmigaComponent::didSave();
+    
+    return result;
 }
 
 void
-Amiga::isReady()
-{
-    if (!mem.hasRom()) {
-        msg("isReady: No Boot Rom or Kickstart Rom found\n");
-        throw VAError(ERROR_ROM_MISSING);
-    }
+Amiga::execute()
+{    
+    while(1) {
+        
+        // Emulate the next CPU instruction
+        cpu.execute();
 
-    if (!mem.hasChipRam()) {
-        msg("isReady: No Chip Ram found\n");
-        throw VAError(ERROR_CHIP_RAM_MISSING);
-    }
-    
-    if (mem.hasArosRom()) {
+        // Check if special action needs to be taken
+        if (flags) {
+            
+            // Are we requested to take a snapshot?
+            if (flags & RL::AUTO_SNAPSHOT) {
+                clearFlag(RL::AUTO_SNAPSHOT);
+                takeAutoSnapshot();
+            }
+            
+            if (flags & RL::USER_SNAPSHOT) {
+                clearFlag(RL::USER_SNAPSHOT);
+                takeUserSnapshot();
+            }
 
-        if (!mem.hasExt()) {
-            msg("isReady: Aros requires an extension Rom\n");
-            throw VAError(ERROR_AROS_NO_EXTROM);
+            // Are we requested to update the debugger info structs?
+            if (flags & RL::INSPECT) {
+                clearFlag(RL::INSPECT);
+                inspect();
+            }
+
+            // Did we reach a soft breakpoint?
+            if (flags & RL::SOFTSTOP_REACHED) {
+                clearFlag(RL::SOFTSTOP_REACHED);
+                inspect();
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Did we reach a breakpoint?
+            if (flags & RL::BREAKPOINT_REACHED) {
+                clearFlag(RL::BREAKPOINT_REACHED);
+                inspect();
+                auto addr = isize(cpu.debugger.breakpoints.hit->addr);
+                msgQueue.put(MSG_BREAKPOINT_REACHED, addr);
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Did we reach a watchpoint?
+            if (flags & RL::WATCHPOINT_REACHED) {
+                clearFlag(RL::WATCHPOINT_REACHED);
+                inspect();
+                auto addr = isize(cpu.debugger.watchpoints.hit->addr);
+                msgQueue.put(MSG_WATCHPOINT_REACHED, addr);
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Did we reach a catchpoint?
+            if (flags & RL::CATCHPOINT_REACHED) {
+                clearFlag(RL::CATCHPOINT_REACHED);
+                inspect();
+                auto vector = u8(cpu.debugger.catchpoints.hit->addr);
+                msgQueue.put(MSG_CATCHPOINT_REACHED, vector);
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Are we requested to terminate the run loop?
+            if (flags & RL::STOP) {
+                clearFlag(RL::STOP);
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Are we requested to enter or exit warp mode?
+            if (flags & RL::WARP_ON) {
+                clearFlag(RL::WARP_ON);
+                AmigaComponent::warpOn();
+            }
+
+            if (flags & RL::WARP_OFF) {
+                clearFlag(RL::WARP_OFF);
+                AmigaComponent::warpOff();
+            }
+            
+            // Are we requested to synchronize the thread?
+            if (flags & RL::SYNC_THREAD) {
+                clearFlag(RL::SYNC_THREAD);
+                break;
+            }
         }
-
-        if (mem.ramSize() < MB(1)) {
-            msg("isReady: Aros requires at least 1 MB of memory\n");
-            throw VAError(ERROR_AROS_RAM_LIMIT);
-        }
-    }
-
-    if (mem.chipRamSize() > KB(agnus.chipRamLimit())) {
-        msg("isReady: Chip Ram exceeds Agnus limit\n");
-        throw VAError(ERROR_CHIP_RAM_LIMIT);
     }
 }
 
 void
-Amiga::suspend()
+Amiga::setFlag(u32 flag)
 {
-    debug(RUN_DEBUG, "Suspending (%zu)...\n", suspendCounter);
-    
-    if (suspendCounter || isRunning()) {
-        pause();
-        suspendCounter++;
-    }
+    SYNCHRONIZED flags |= flag;
 }
 
 void
-Amiga::resume()
+Amiga::clearFlag(u32 flag)
 {
-    debug(RUN_DEBUG, "Resuming (%zu)...\n", suspendCounter);
-    
-    if (suspendCounter && --suspendCounter == 0) {
-        run();
-    }
-}
-
-void
-Amiga::setControlFlags(u32 flags)
-{
-    synchronized { runLoopCtrl |= flags; }
-}
-
-void
-Amiga::clearControlFlags(u32 flags)
-{
-    synchronized { runLoopCtrl &= ~flags; }
+    SYNCHRONIZED flags &= ~flag;
 }
 
 void
@@ -747,6 +1020,9 @@ Amiga::stepInto()
 
     cpu.debugger.stepInto();
     run();
+    
+    // Inform the GUI
+    msgQueue.put(MSG_STEP);
 }
 
 void
@@ -756,121 +1032,9 @@ Amiga::stepOver()
     
     cpu.debugger.stepOver();
     run();
-}
-
-void
-Amiga::threadWillStart()
-{
-    debug(RUN_DEBUG, "Emulator thread started\n");
-}
-
-void
-Amiga::threadDidTerminate()
-{
-    debug(RUN_DEBUG, "Emulator thread terminated\n");
-
-    // Trash the thread pointer
-    p = (pthread_t)0;    
-}
-
-void
-Amiga::runLoop()
-{
-    debug(RUN_DEBUG, "runLoop()\n");
     
     // Inform the GUI
-    msgQueue.put(MSG_RUN);
-
-    // Restart the synchronization timer
-    oscillator.restart();
-    
-    // Enable or disable debugging features
-    // TODO: MOVE TO CPU::_run()
-    if (debugMode) {
-        cpu.debugger.enableLogging();
-    } else {
-        cpu.debugger.disableLogging();
-    }
-    
-    // Enter the loop
-    while(1) {
-        
-        // Emulate the next CPU instruction
-        cpu.execute();
-
-        // Check if special action needs to be taken
-        if (runLoopCtrl) {
-            
-            // Are we requested to take a snapshot?
-            if (runLoopCtrl & RL_AUTO_SNAPSHOT) {
-                debug(RUN_DEBUG, "RL_AUTO_SNAPSHOT\n");
-                autoSnapshot = Snapshot::makeWithAmiga(this);
-                msgQueue.put(MSG_AUTO_SNAPSHOT_TAKEN);
-                clearControlFlags(RL_AUTO_SNAPSHOT);
-            }
-            
-            if (runLoopCtrl & RL_USER_SNAPSHOT) {
-                debug(RUN_DEBUG, "RL_USER_SNAPSHOT\n");
-                userSnapshot = Snapshot::makeWithAmiga(this);
-                msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
-                clearControlFlags(RL_USER_SNAPSHOT);
-            }
-
-            // Are we requested to update the debugger info structs?
-            if (runLoopCtrl & RL_INSPECT) {
-                debug(RUN_DEBUG, "RL_INSPECT\n");
-                inspect();
-                clearControlFlags(RL_INSPECT);
-            }
-
-            // Did we reach a breakpoint?
-            if (runLoopCtrl & RL_BREAKPOINT_REACHED) {
-                inspect();
-                msgQueue.put(MSG_BREAKPOINT_REACHED);
-                debug(RUN_DEBUG, "BREAKPOINT_REACHED pc: %x\n", cpu.getPC());
-                clearControlFlags(RL_BREAKPOINT_REACHED);
-                break;
-            }
-
-            // Did we reach a watchpoint?
-            if (runLoopCtrl & RL_WATCHPOINT_REACHED) {
-                inspect();
-                msgQueue.put(MSG_WATCHPOINT_REACHED);
-                debug(RUN_DEBUG, "WATCHPOINT_REACHED pc: %x\n", cpu.getPC());
-                clearControlFlags(RL_WATCHPOINT_REACHED);
-                break;
-            }
-
-            // Are we requested to terminate the run loop?
-            if (runLoopCtrl & RL_STOP) {
-                clearControlFlags(RL_STOP);
-                debug(RUN_DEBUG, "RL_STOP\n");
-                break;
-            }
-
-            // Are we requested to enter or exit warp mode?
-            if (runLoopCtrl & RL_WARP_ON) {
-                clearControlFlags(RL_WARP_ON);
-                debug(RUN_DEBUG, "RL_WARP_ON\n");
-                HardwareComponent::warpOn();
-            }
-
-            if (runLoopCtrl & RL_WARP_OFF) {
-                clearControlFlags(RL_WARP_OFF);
-                debug(RUN_DEBUG, "RL_WARP_OFF\n");
-                HardwareComponent::warpOff();
-            }
-        }
-    }
-    
-    // Enter pause mode
-    HardwareComponent::pause();
-    
-    // Update the recorded debug information
-    inspect();
-
-    // Inform the GUI
-    msgQueue.put(MSG_PAUSE);
+    msgQueue.put(MSG_STEP);
 }
 
 void
@@ -879,8 +1043,7 @@ Amiga::requestAutoSnapshot()
     if (!isRunning()) {
 
         // Take snapshot immediately
-        autoSnapshot = Snapshot::makeWithAmiga(this);
-        msgQueue.put(MSG_AUTO_SNAPSHOT_TAKEN);
+        takeAutoSnapshot();
         
     } else {
 
@@ -895,8 +1058,7 @@ Amiga::requestUserSnapshot()
     if (!isRunning()) {
         
         // Take snapshot immediately
-        userSnapshot = Snapshot::makeWithAmiga(this);
-        msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
+        takeUserSnapshot();
         
     } else {
         
@@ -922,22 +1084,105 @@ Amiga::latestUserSnapshot()
 }
 
 void
-Amiga::loadFromSnapshotUnsafe(Snapshot *snapshot)
+Amiga::loadSnapshot(const Snapshot &snapshot)
 {
-    u8 *ptr;
-    
-    if (snapshot && (ptr = snapshot->getData())) {
-        load(ptr);
-        msgQueue.put(MSG_SNAPSHOT_RESTORED);
+    {   SUSPENDED
+        
+        try {
+            
+            // Restore the saved state
+            load(snapshot.getData());
+            
+        } catch (VAError &error) {
+            
+            /* If we reach this point, the emulator has been put into an
+             * inconsistent state due to corrupted snapshot data. We cannot
+             * continue emulation, because it would likely crash the
+             * application. Because we cannot revert to the old state either,
+             * we perform a hard reset to eliminate the inconsistency.
+             */
+            hardReset();
+            throw error;
+        }
+        
+        // Print some debug info if requested
+        if constexpr (SNP_DEBUG) dump();
     }
+    
+    // Inform the GUI
+    msgQueue.put(MSG_SNAPSHOT_RESTORED);
 }
 
 void
-Amiga::loadFromSnapshotSafe(Snapshot *snapshot)
+Amiga::takeAutoSnapshot()
 {
-    trace(SNP_DEBUG, "loadFromSnapshotSafe\n");
+    if (autoSnapshot) {
+
+        warn("Old auto-snapshot still present. Ignoring request.\n");
+        return;
+    }
     
-    suspend();
-    loadFromSnapshotUnsafe(snapshot);
-    resume();
+    autoSnapshot = new Snapshot(*this);
+    msgQueue.put(MSG_AUTO_SNAPSHOT_TAKEN);
+}
+
+void
+Amiga::takeUserSnapshot()
+{
+    if (userSnapshot) {
+
+        warn("Old user-snapshot still present. Ignoring request.\n");
+        return;
+    }
+    
+    userSnapshot = new Snapshot(*this);
+    msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
+}
+
+fs::path
+Amiga::tmp()
+{
+    STATIC_SYNCHRONIZED
+    
+    static fs::path base;
+            
+    if (base.empty()) {
+
+        // Use /tmp as default folder for temporary files
+        base = "/tmp";
+
+        // Open a file to see if we have write permissions
+        std::ofstream logfile(base / "vAmiga.log");
+
+        // If /tmp is not accessible, use a different directory
+        if (!logfile.is_open()) {
+            
+            base = fs::temp_directory_path();
+            logfile.open(base / "vAmiga.log");
+
+            if (!logfile.is_open()) {
+                
+                throw VAError(ERROR_DIR_NOT_FOUND);
+            }
+        }
+        
+        logfile.close();
+        fs::remove(base / "vAmiga.log");
+    }
+    
+    return base;
+}
+
+fs::path
+Amiga::tmp(const string &name, bool unique)
+{
+    STATIC_SYNCHRONIZED
+    
+    auto base = tmp();
+    auto result = base / name;
+    
+    // Make the file name unique if requested
+    if (unique) result = fs::path(util::makeUniquePath(result.string()));
+    
+    return result;
 }

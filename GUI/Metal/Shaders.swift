@@ -93,7 +93,7 @@ class ComputeKernel: NSObject {
         
         // Lookup kernel function in library
         guard let function = library.makeFunction(name: name) else {
-            track("ERROR: Cannot find kernel function '\(name)' in library.")
+            log(warning: "Cannot find kernel function '\(name)' in library.")
             return nil
         }
         
@@ -101,10 +101,10 @@ class ComputeKernel: NSObject {
         do {
             try kernel = device.makeComputePipelineState(function: function)
         } catch {
-            track("ERROR: Cannot create compute kernel '\(name)'.")
+            log(warning: "Cannot create compute kernel '\(name)'.")
             let alert = NSAlert()
             alert.alertStyle = .informational
-            alert.icon = NSImage.init(named: "metal")
+            alert.icon = NSImage(named: "metal")
             alert.messageText = "Failed to create compute kernel."
             alert.informativeText = "Kernel '\(name)' will be ignored when selected."
             alert.addButton(withTitle: "OK")

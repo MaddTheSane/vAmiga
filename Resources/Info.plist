@@ -110,9 +110,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.1b</string>
+	<string>2.0b1</string>
 	<key>CFBundleVersion</key>
-	<string>1.0.1b</string>
+	<string>220321</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.entertainment</string>
 	<key>LSMinimumSystemVersion</key>
@@ -120,9 +120,11 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string></string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2021 Dirk Hoffmann. All rights reserved.</string>
+	<string>Copyright © 2022 Dirk Hoffmann. All rights reserved.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>CFBundleDisplayName</key>
+	<string></string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

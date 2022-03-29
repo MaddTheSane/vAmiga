@@ -81,7 +81,6 @@ class Monitor: DialogController {
     
     override func awakeFromNib() {
 
-        track()
         super.awakeFromNib()
         refresh()
     }
@@ -98,7 +97,7 @@ class Monitor: DialogController {
         let col = bus || monEnable.isEnabled
                 
         // Bus debugger
-        let info = amiga.dmaDebugger.getInfo()
+        let info = amiga.dmaDebugger.info
         let opacity = amiga.getConfig(.DMA_DEBUG_OPACITY)
         let mode = amiga.getConfig(.DMA_DEBUG_MODE)
         
@@ -304,13 +303,5 @@ class Monitor: DialogController {
         
         updateHiddenLayers()
         refresh()
-    }
-}
-
-extension Monitor: NSWindowDelegate {
-
-    func windowWillClose(_ notification: Notification) {
-
-        track("Closing monitor")
     }
 }

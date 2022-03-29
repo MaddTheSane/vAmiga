@@ -20,19 +20,16 @@ enum_long(DENISE_REV)
 {
     DENISE_OCS,           // Revision 8362R8
     DENISE_OCS_BRDRBLNK,  // Revision 8362R8 + ECS Border blank feature
-    DENISE_ECS,           // Revision 8373 (not supported yet)
-
-    DENISE_COUNT
+    DENISE_ECS            // Revision 8373 (not supported yet)
 };
 typedef DENISE_REV DeniseRevision;
 
 #ifdef __cplusplus
-struct DeniseRevisionEnum : util::Reflection<DeniseRevisionEnum, DeniseRevision> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < DENISE_COUNT;
-    }
+struct DeniseRevisionEnum : util::Reflection<DeniseRevisionEnum, DeniseRevision>
+{    
+    static long minVal() { return 0; }
+    static long maxVal() { return DENISE_ECS; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "DENISE"; }
     static const char *key(DeniseRevision value)
@@ -42,7 +39,6 @@ struct DeniseRevisionEnum : util::Reflection<DeniseRevisionEnum, DeniseRevision>
             case DENISE_OCS:          return "OCS";
             case DENISE_OCS_BRDRBLNK: return "OCS_BRDRBLNK";
             case DENISE_ECS:          return "ECS";
-            case DENISE_COUNT:        return "???";
         }
         return "???";
     }
@@ -55,28 +51,18 @@ struct DeniseRevisionEnum : util::Reflection<DeniseRevisionEnum, DeniseRevision>
 
 typedef struct
 {
-    // Number of lines the sprite was armed
-    u16 height;
-
-    // Extracted information from SPRxPOS and SPRxCTL
-    i16 hstrt;
-    i16 vstrt;
-    i16 vstop;
-    bool attach;
-    
-    // Upper 16 color register (recorded where the observed sprite starts)
-    u16 colors[16];
-}
-SpriteInfo;
-
-typedef struct
-{
     // Emulated chip model
     DeniseRevision revision;
-    
+
+    // Informs the GUI about viewport changes
+    bool viewportTracking;
+
+    // Hides certain bitplanes
+    u8 hiddenBitplanes;
+
     // Hides certain sprites
     u8 hiddenSprites;
-
+    
     // Hides certain graphics layers
     u16 hiddenLayers;
     
@@ -96,6 +82,32 @@ DeniseConfig;
 
 typedef struct
 {
+    // Number of lines the sprite was armed
+    isize height;
+
+    // Extracted information from SPRxPOS and SPRxCTL
+    isize hstrt;
+    isize vstrt;
+    isize vstop;
+    bool attach;
+    
+    // Upper 16 color registers (at the time the observed sprite starts)
+    u16 colors[16];
+}
+SpriteInfo;
+
+typedef struct
+{
+    // Extracted information from DIWSTRT and DIWSTOP
+    isize hstrt;
+    isize hstop;
+    isize vstrt;
+    isize vstop;
+}
+ViewPortInfo;
+
+typedef struct
+{
     u16 bplcon0;
     u16 bplcon1;
     u16 bplcon2;
@@ -104,11 +116,8 @@ typedef struct
 
     u16 diwstrt;
     u16 diwstop;
-    i16 diwHstrt;
-    i16 diwHstop;
-    i16 diwVstrt;
-    i16 diwVstop;
-
+    ViewPortInfo viewport;
+ 
     u16 joydat[2];
     u16 clxdat;
 

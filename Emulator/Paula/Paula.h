@@ -10,27 +10,21 @@
 #pragma once
 
 #include "PaulaTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "AudioFilter.h"
 #include "AudioStream.h"
 #include "ChangeRecorder.h"
 #include "DiskController.h"
 #include "Muxer.h"
 #include "StateMachine.h"
-#include "TimeDelayed.h"
 #include "UART.h"
 
-//
-// Class
-//
-
-class Paula : public AmigaComponent {
+class Paula : public SubComponent {
     
 private:
 
     // Result of the latest inspection
-    PaulaInfo info;
-    AudioInfo audioInfo;
+    mutable PaulaInfo info = {};
 
     
     //
@@ -76,12 +70,9 @@ public:
     // Trigger cycle for setting a bit in INTREQ
     Cycle setIntreq[16];
 
-    // Value pipe for emulating the four cycle delay on the IPL pins (DEPRECATED)
+    // Value pipe for emulating the delay on the IPL pins
     u64 iplPipe;
-    
-    // Interrupt priority line (IPL)
-    util::TimeDelayed <u8,4> ipl = util::TimeDelayed <u8,4> ();
-    
+        
     
     //
     // Control ports
@@ -113,59 +104,52 @@ public:
 public:
 
     Paula(Amiga& ref);
-
+    
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override { return "Paula"; }
+    void _dump(Category category, std::ostream& os) const override;
 
+    
+    //
+    // Methods from AmigaComponent
+    //
+        
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override;
-    
-    
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    PaulaInfo getInfo() { return HardwareComponent::getInfo(info); }
-    AudioInfo getAudioInfo() { return HardwareComponent::getInfo(audioInfo); }
+    void _run() override;
+    void _pause() override;
+    void _warpOn() override;
+    void _warpOff() override;
+    void _inspect() const override;
 
-    
-private:
-    
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
     template <class T>
     void applyToPersistentItems(T& worker)
     {
+        
     }
 
     template <class T>
-    void applyToHardResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
+        if (hard) {
 
-        << audioClock;
-    }
+            worker
 
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
+            << audioClock;
+        }
+
         worker
         
         << intreq
         << intena
         << setIntreq
-        >> ipl
         << iplPipe
         << potgo
         << potCntX0
@@ -180,61 +164,20 @@ private:
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
-
- 
-    //
-    // Controlling
-    //
     
-private:
     
-    void _run() override;
-    void _pause() override;
-    void _warpOn() override;
-    void _warpOff() override;
-
-
     //
-    // Accessing registers
+    // Analyzing
     //
     
 public:
-        
-    // ADKCONR and ADKCON
-    u16 peekADKCONR() const;
-    void pokeADKCON(u16 value);
-
-    bool UARTBRK() const { return GET_BIT(adkcon, 11); }
-
-    // INTREQR and INTREQ
-    u16 peekINTREQR() const;
-    template <Accessor s> void pokeINTREQ(u16 value);
-    void setINTREQ(bool setclr, u16 value);
-    void setINTREQ(u16 value) { setINTREQ(value & 0x8000, value & 0x7FFF); }
-
-    // INTENAR and INTENA
-    u16 peekINTENAR() const { return intena; }
-    template <Accessor s> void pokeINTENA(u16 value);
-    void setINTENA(bool setclr, u16 value);
-    void setINTENA(u16 value) { setINTENA(value & 0x8000, value & 0x7FFF); }
-
-    // POTxDAT
-    template <isize x> u16 peekPOTxDAT() const;
-
-    // POTGOR and POTGO
-    u16 peekPOTGOR() const;
-    bool OUTRY() const { return potgo & 0x8000; }
-    bool DATRY() const { return potgo & 0x4000; }
-    bool OUTRX() const { return potgo & 0x2000; }
-    bool DATRX() const { return potgo & 0x1000; }
-    bool OUTLY() const { return potgo & 0x0800; }
-    bool DATLY() const { return potgo & 0x0400; }
-    bool OUTLX() const { return potgo & 0x0200; }
-    bool DATLX() const { return potgo & 0x0100; }
-    void pokePOTGO(u16 value);
+    
+    PaulaInfo getInfo() const { return AmigaComponent::getInfo(info); }
+    // AudioInfo getAudioInfo() const { return AmigaComponent::getInfo(audioInfo); }
 
 
     //
@@ -242,6 +185,53 @@ public:
     //
     
     void executeUntil(Cycle target);
+
+
+    //
+    // Managing interrupts
+    //
+    
+public:
+    
+    // Signals an interrupt in INTREQ
+    void raiseIrq(IrqSource src) { setINTREQ(true, (u16)(1 << src)); }
+    
+    // Schedules an interrupt
+    void scheduleIrqAbs(IrqSource src, Cycle trigger);
+    void scheduleIrqRel(IrqSource src, Cycle trigger);
+
+private:
+
+    // Updates the IPL pipe
+    void checkInterrupt();
+
+    // Computes the interrupt level of a pending interrupt
+    u8 interruptLevel();
+    
+    
+    //
+    // Accessing registers
+    //
+    
+public:
+        
+    u16 peekADKCONR() const;
+    void pokeADKCON(u16 value);
+
+    u16 peekINTREQR() const;
+    template <Accessor s> void pokeINTREQ(u16 value);
+    void setINTREQ(bool setclr, u16 value);
+    void setINTREQ(u16 value) { setINTREQ(value & 0x8000, value & 0x7FFF); }
+
+    u16 peekINTENAR() const;
+    template <Accessor s> void pokeINTENA(u16 value);
+    void setINTENA(bool setclr, u16 value);
+    void setINTENA(u16 value) { setINTENA(value & 0x8000, value & 0x7FFF); }
+
+    template <isize x> u16 peekPOTxDAT() const;
+
+    u16 peekPOTGOR() const;
+    void pokePOTGO(u16 value);
 
     
     //
@@ -258,24 +248,4 @@ public:
 
     // Charges or discharges a potentiometer capacitor
     void servicePotEvent(EventID id);
-
-    
-    //
-    // Managing interrupts
-    //
-    
-public:
-    
-    // Schedules an interrupt
-    void raiseIrq(IrqSource src);
-    void scheduleIrqAbs(IrqSource src, Cycle trigger);
-    void scheduleIrqRel(IrqSource src, Cycle trigger);
-
-    // Checks intena and intreq and triggers an interrupt (if pending)
-    void checkInterrupt();
-
-private:
-    
-    // Computes the interrupt level of a pending interrupt.
-    u8 interruptLevel();
 };

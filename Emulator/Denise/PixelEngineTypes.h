@@ -23,19 +23,16 @@ enum_long(PALETTE)
     PALETTE_PAPER_WHITE,
     PALETTE_GREEN,
     PALETTE_AMBER,
-    PALETTE_SEPIA,
-    
-    PALETTE_COUNT
+    PALETTE_SEPIA
 };
 typedef PALETTE Palette;
 
 #ifdef __cplusplus
-struct PaletteEnum : util::Reflection<PaletteEnum, Palette> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < PALETTE_COUNT;
-    }
+struct PaletteEnum : util::Reflection<PaletteEnum, Palette>
+{    
+    static long minVal() { return 0; }
+    static long maxVal() { return PALETTE_SEPIA; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "PALETTE"; }
     static const char *key(Palette value)
@@ -48,7 +45,6 @@ struct PaletteEnum : util::Reflection<PaletteEnum, Palette> {
             case PALETTE_GREEN:        return "GREEN";
             case PALETTE_AMBER:        return "AMBER";
             case PALETTE_SEPIA:        return "SEPIA";
-            case PALETTE_COUNT:        return "???";
         }
         return "???";
     }
@@ -58,13 +54,6 @@ struct PaletteEnum : util::Reflection<PaletteEnum, Palette> {
 //
 // Structures
 //
-
-typedef struct
-{
-    u32 *data;
-    bool longFrame;
-}
-ScreenBuffer;
 
 typedef struct
 {

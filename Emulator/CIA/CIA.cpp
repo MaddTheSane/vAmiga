@@ -12,28 +12,24 @@
 #include "Agnus.h"
 #include "ControlPort.h"
 #include "DiskController.h"
-#include "IO.h"
+#include "IOUtils.h"
 #include "Memory.h"
 #include "MsgQueue.h"
 #include "Paula.h"
 #include "SerialPort.h"
 
-#define CIA_DEBUG (nr == 0 ? CIAA_DEBUG : CIAB_DEBUG)
-
-CIA::CIA(int n, Amiga& ref) : AmigaComponent(ref), nr(n)
+CIA::CIA(int n, Amiga& ref) : SubComponent(ref), nr(n)
 {    
-    subComponents = std::vector<HardwareComponent *> { &tod };
+    subComponents = std::vector<AmigaComponent *> { &tod };
 }
 
 void
 CIA::_initialize()
 {
-    config.revision = CIA_8520_DIP;
-    config.todBug = true;
-    config.eClockSyncing = true;
-    
-    PA = 0xFF;
-    PB = 0xFF;
+    AmigaComponent::_initialize();
+
+    pa = 0xFF;
+    pb = 0xFF;
 }
 
 void
@@ -43,8 +39,8 @@ CIA::_reset(bool hard)
 
     RESET_SNAPSHOT_ITEMS(hard)
     
-    CNT = true;
-    INT = 1;
+    cnt = true;
+    irq = 1;
     
     counterA = 0xFFFF;
     counterB = 0xFFFF;
@@ -52,13 +48,35 @@ CIA::_reset(bool hard)
     latchB = 0xFFFF;
     
     // UAE initializes CRB with 4 (which I think is wrong)
-    if (MIMIC_UAE) CRB = 0x4;
+    if constexpr (MIMIC_UAE) crb = 0x4;
 
     updatePA();
     updatePB();
     
     // Update the memory layout because the OVL bit may have changed
     mem.updateMemSrcTables();
+}
+
+CIAConfig
+CIA::getDefaultConfig()
+{
+    CIAConfig defaults;
+    
+    defaults.revision = CIA_MOS_8520_DIP;
+    defaults.todBug = true;
+    defaults.eClockSyncing = true;
+
+    return defaults;
+}
+
+void
+CIA::resetConfig()
+{
+    auto defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_CIA_REVISION, defaults.revision);
+    setConfigItem(OPT_TODBUG, defaults.todBug);
+    setConfigItem(OPT_ECLOCK_SYNCING, defaults.eClockSyncing);
 }
 
 i64
@@ -71,12 +89,11 @@ CIA::getConfigItem(Option option) const
         case OPT_ECLOCK_SYNCING: return config.eClockSyncing;
         
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 CIA::setConfigItem(Option option, i64 value)
 {
     switch (option) {
@@ -84,75 +101,62 @@ CIA::setConfigItem(Option option, i64 value)
         case OPT_CIA_REVISION:
             
             if (!CIARevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, CIARevisionEnum::keyList());
-            }
-            if (config.revision == value) {
-                return false;
+                throw VAError(ERROR_OPT_INVARG, CIARevisionEnum::keyList());
             }
             
             config.revision = (CIARevision)value;
-            return true;
+            return;
 
         case OPT_TODBUG:
-            
-            if (config.todBug == value) {
-                return false;
-            }
-            
+                        
             config.todBug = value;
-            return true;
+            return;
             
         case OPT_ECLOCK_SYNCING:
             
-            if (config.eClockSyncing == value) {
-                return false;
-            }
-
             config.eClockSyncing = value;
-            return true;
+            return;
             
         default:
-            return false;
+            fatalError;
     }
 }
 
 void
-CIA::_inspect()
+CIA::_inspect() const
 {
-    synchronized {
+    {   SYNCHRONIZED
         
-        updatePA();
-        info.portA.port = PA;
-        info.portA.reg = PRA;
-        info.portA.dir = DDRA;
+        info.portA.port = computePA();
+        info.portA.reg = pra;
+        info.portA.dir = ddra;
         
-        updatePB();
-        info.portB.port = PB;
-        info.portB.reg = PRB;
-        info.portB.dir = DDRB;
+        info.portB.port = computePB();
+        info.portB.reg = prb;
+        info.portB.dir = ddrb;
         
         info.timerA.count = LO_HI(spypeek(0x04), spypeek(0x05));
         info.timerA.latch = latchA;
         info.timerA.running = (delay & CIACountA3);
-        info.timerA.toggle = CRA & 0x04;
-        info.timerA.pbout = CRA & 0x02;
-        info.timerA.oneShot = CRA & 0x08;
+        info.timerA.toggle = cra & 0x04;
+        info.timerA.pbout = cra & 0x02;
+        info.timerA.oneShot = cra & 0x08;
         
         info.timerB.count = LO_HI(spypeek(0x06), spypeek(0x07));
         info.timerB.latch = latchB;
         info.timerB.running = (delay & CIACountB3);
-        info.timerB.toggle = CRB & 0x04;
-        info.timerB.pbout = CRB & 0x02;
-        info.timerB.oneShot = CRB & 0x08;
+        info.timerB.toggle = crb & 0x04;
+        info.timerB.pbout = crb & 0x02;
+        info.timerB.oneShot = crb & 0x08;
         
         info.sdr = sdr;
         info.ssr = ssr;
         info.icr = icr;
         info.imr = imr;
-        info.intLine = INT;
+        info.irq = irq;
         
-        info.cnt = tod.info;
-        info.cntIntEnable = imr & 0x04;
+        info.tod = tod.info;
+        info.todIrqEnable = imr & 0x04;
         
         info.idleSince = idleSince();
         info.idleTotal = idleTotal();
@@ -161,11 +165,11 @@ CIA::_inspect()
 }
 
 void
-CIA::_dump(dump::Category category, std::ostream& os) const
+CIA::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
-    if (category & dump::Config) {
+    if (category == Category::Config) {
         
         os << tab("Revision");
         os << CIARevisionEnum::key(config.revision) << std::endl;
@@ -175,34 +179,33 @@ CIA::_dump(dump::Category category, std::ostream& os) const
         os << bol(config.eClockSyncing) << std::endl;
     }
     
-    if (category & dump::State) {
+    if (category == Category::State) {
         
         os << tab("Clock") << dec(clock) << std::endl;
         os << tab("Sleeping") << bol(sleeping) << std::endl;
         os << tab("Tiredness") << (isize)tiredness << std::endl;
         os << tab("Sleep cycle") << dec(sleepCycle) << std::endl;
         os << tab("Wakeup cycle") << dec(wakeUpCycle) << std::endl;
-        os << tab("CNT") << bol(CNT) << std::endl;
-        os << tab("INT") << bol(INT) << std::endl;
-
+        os << tab("CNT") << bol(cnt) << std::endl;
+        os << tab("INT") << bol(irq) << std::endl;
     }
     
-    if (category & dump::Registers) {
+    if (category == Category::Registers) {
         
         os << std::endl;
         os << tab("Counter A") << hex(counterA) << std::endl;
         os << tab("Latch A") << hex(latchA) << std::endl;
-        os << tab("Data register A") << hex(PRA) << std::endl;
-        os << tab("Data port direction A") << hex(DDRA) << std::endl;
-        os << tab("Data port A") << hex(PA) << std::endl;
-        os << tab("Control register A") << hex(CRA) << std::endl;
+        os << tab("Data register A") << hex(pra) << std::endl;
+        os << tab("Data port direction A") << hex(ddra) << std::endl;
+        os << tab("Data port A") << hex(pa) << std::endl;
+        os << tab("Control register A") << hex(cra) << std::endl;
         os << std::endl;
         os << tab("Counter B") << hex(counterB) << std::endl;
         os << tab("Latch B") << hex(latchB) << std::endl;
-        os << tab("Data register B") << hex(PRB) << std::endl;
-        os << tab("Data port direction B") << hex(DDRB) << std::endl;
-        os << tab("Data port B") << hex(PB) << std::endl;
-        os << tab("Control register B") << hex(CRB) << std::endl;
+        os << tab("Data register B") << hex(prb) << std::endl;
+        os << tab("Data port direction B") << hex(ddrb) << std::endl;
+        os << tab("Data port B") << hex(pb) << std::endl;
+        os << tab("Control register B") << hex(crb) << std::endl;
         os << std::endl;
         os << tab("Interrupt control reg") << hex(icr) << std::endl;
         os << tab("Interrupt mask reg") << hex(imr) << std::endl;
@@ -211,6 +214,11 @@ CIA::_dump(dump::Category category, std::ostream& os) const
         os << tab("SSR") << hex(ssr) << std::endl;
         os << tab("serCounter") << dec(serCounter) << std::endl;
         os << std::endl;
+    }
+    
+    if (category == Category::Tod) {
+        
+        tod.dump(Category::State, os);
     }
 }
 
@@ -228,7 +236,7 @@ CIA::emulateFallingEdgeOnFlagPin()
     icr |= 0x10;
     
     if (imr & 0x10) {
-        triggerFlagPinIrq();
+        triggerFlagPinIrq(&delay);
     }
 }
 
@@ -238,23 +246,23 @@ CIA::emulateRisingEdgeOnCntPin()
     trace(CIASER_DEBUG, "emulateRisingEdgeOnCntPin\n");
     
     wakeUp();
-    CNT = 1;
+    cnt = 1;
     
     // Timer A
-    if ((CRA & 0x21) == 0x21) delay |= CIACountA1;
+    if ((cra & 0x21) == 0x21) delay |= CIACountA1;
     
     // Timer B
-    if ((CRB & 0x61) == 0x21) delay |= CIACountB1;
+    if ((crb & 0x61) == 0x21) delay |= CIACountB1;
     
     // Serial register
-    if (!(CRA & 0x40) /* input mode */ ) {
+    if (!(cra & 0x40) /* input mode */ ) {
         
         // debug("rising CNT: serCounter %d\n", serCounter);
         if (serCounter == 0) serCounter = 8;
-        trace(CIASER_DEBUG, "Clocking in bit %d [%d]\n", SP, serCounter);
+        trace(CIASER_DEBUG, "Clocking in bit %d [%d]\n", sp, serCounter);
         
         // Shift in a bit from the SP line
-        ssr = (u8)(ssr << 1) | (u8)SP;
+        ssr = (u8)(ssr << 1) | (u8)sp;
         
         // Perform special action if a byte is complete
         if (--serCounter == 0) {
@@ -276,57 +284,57 @@ CIA::emulateFallingEdgeOnCntPin()
     trace(CIASER_DEBUG, "emulateFallingEdgeOnCntPin\n");
 
     wakeUp();
-    CNT = 0;
+    cnt = 0;
 }
 
 void
-CIA::reloadTimerA()
+CIA::reloadTimerA(u64 *delay)
 {
     counterA = latchA;
     
     // Make sure the timer waits for one cycle before it continues to count
-    delay &= ~CIACountA2;
+    *delay &= ~CIACountA2;
 }
 
 void
-CIA::reloadTimerB()
+CIA::reloadTimerB(u64 *delay)
 {
     counterB = latchB;
     
     // Make sure the timer waits for one cycle before it continues to count
-    delay &= ~CIACountB2;
+    *delay &= ~CIACountB2;
 }
 
 void
-CIA::triggerTimerIrq()
+CIA::triggerTimerIrq(u64 *delay)
 {
     trace(CIA_DEBUG, "triggerTimerIrq()\n");
-    delay |= (delay & CIAReadIcr0) ? CIASetInt0 : CIASetInt1;
-    delay |= (delay & CIAReadIcr0) ? CIASetIcr0 : CIASetIcr1;
+    *delay |= (*delay & CIAReadIcr0) ? CIASetInt0 : CIASetInt1;
+    *delay |= (*delay & CIAReadIcr0) ? CIASetIcr0 : CIASetIcr1;
 }
 
 void
-CIA::triggerTodIrq()
+CIA::triggerTodIrq(u64 *delay)
 {
     trace(CIA_DEBUG, "triggerTodIrq()\n");
-    delay |= CIASetInt0;
-    delay |= CIASetIcr0;
+    *delay |= CIASetInt0;
+    *delay |= CIASetIcr0;
 }
 
 void
-CIA::triggerFlagPinIrq()
+CIA::triggerFlagPinIrq(u64 *delay)
 {
     trace(CIA_DEBUG, "triggerFlagPinIrq()\n");
-    delay |= CIASetInt0;
-    delay |= CIASetIcr0;
+    *delay |= CIASetInt0;
+    *delay |= CIASetIcr0;
 }
 
 void
-CIA::triggerSerialIrq()
+CIA::triggerSerialIrq(u64 *delay)
 {
     trace(CIA_DEBUG, "triggerSerialIrq()\n");
-    delay |= CIASetInt0;
-    delay |= CIASetIcr0;
+    *delay |= CIASetInt0;
+    *delay |= CIASetIcr0;
 }
 
 void
@@ -340,8 +348,9 @@ void
 CIA::executeOneCycle()
 {
     clock += CIA_CYCLES(1);
-    
-    // debug("Executing CIA: new clock = %lld\n", clock);
+ 
+    // Make a local copy for speed
+    u64 delay = this->delay;
     
     u64 oldDelay = delay;
     u64 oldFeed  = feed;
@@ -386,32 +395,31 @@ CIA::executeOneCycle()
 	// | one shot      |---X->| oneShotA0 |--
 	// -----------------      -------------
 
-				
+    //
 	// Timer A
-
-	// Decrement counter
-
-	if (delay & CIACountA3)
-		counterA--; // (1)
+    //
+    
+	// (1) : Decrement counter
+	if (delay & CIACountA3) counterA--;
 	
-	// Check underflow condition
-	bool timerAOutput = (counterA == 0 && (delay & CIACountA2)); // (2)
+	// (2) : Check underflow condition
+	bool timerAOutput = (counterA == 0 && (delay & CIACountA2));
 	
 	if (timerAOutput) {
-        
-        trace(CIA_DEBUG, "Timer A underflow\n");
-        
+                
         icrAck &= ~0x01;
         
-		// Stop timer in one shot mode
-		if ((delay | feed) & CIAOneShotA0) { // (3)
-			CRA &= ~0x01;
+		// (3) Stop timer in one shot mode
+		if ((delay | feed) & CIAOneShotA0) {
+            
+			cra &= ~0x01;
 			delay &= ~(CIACountA2 | CIACountA1 | CIACountA0);
 			feed &= ~CIACountA0;
 		}
 		
 		// Timer A output to timer B in cascade mode
-		if ((CRB & 0x61) == 0x41 || ((CRB & 0x61) == 0x61 && CNT)) {
+		if ((crb & 0x61) == 0x41 || ((crb & 0x61) == 0x61 && cnt)) {
+            
 			delay |= CIACountB1;
 		}
         
@@ -419,38 +427,35 @@ CIA::executeOneCycle()
 		delay |= CIALoadA1;
 	}
     
-	// Load counter
-	if (delay & CIALoadA1) // (4)
-		reloadTimerA(); 
+	// (4) : Load counter
+	if (delay & CIALoadA1) reloadTimerA(&delay);
 	
+    //
 	// Timer B
-	
-	// Decrement counter
-	if (delay & CIACountB3) {
-		counterB--; // (1)
-    } 
+	//
+    
+	// (1) : Decrement counter
+	if (delay & CIACountB3) counterB--;
 
-	// Check underflow condition
-	bool timerBOutput = (counterB == 0 && (delay & CIACountB2)); // (2)
+	// (2) : Check underflow condition
+	bool timerBOutput = (counterB == 0 && (delay & CIACountB2));
 	
 	if (timerBOutput) {
 				
-        // debug("Timer B underflow\n");
-
         icrAck &= ~0x02;
         
-		// Stop timer in one shot mode
-		if ((delay | feed) & CIAOneShotB0) { // (3)
-			CRB &= ~0x01;
+		// (3) : Stop timer in one shot mode
+		if ((delay | feed) & CIAOneShotB0) {
+            
+			crb &= ~0x01;
 			delay &= ~(CIACountB2 | CIACountB1 | CIACountB0);
 			feed &= ~CIACountB0;
 		}
 		delay |= CIALoadB1;
 	}
 	
-	// Load counter
-	if (delay & CIALoadB1) // (4)
-		reloadTimerB();
+	// (4) : Load counter
+	if (delay & CIALoadB1) reloadTimerB(&delay);
 		
     //
     // Serial register
@@ -461,8 +466,9 @@ CIA::executeOneCycle()
     }
     
     // Generate clock signal
-    if (timerAOutput && (CRA & 0x40) /* output mode */ ) {
+    if (timerAOutput && (cra & 0x40)) {
         
+        // output mode
         if (serCounter) {
             
             // Toggle serial clock signal
@@ -482,13 +488,17 @@ CIA::executeOneCycle()
     }
     
     // Run shift register with generated clock signal
-    if (serCounter && (CRA & 0x40) /* output mode */) {
-        if ((delay & (CIASerClk2 | CIASerClk1)) == CIASerClk1) {      // Positive edge
-            if (serCounter == 1) {
-                delay |= CIASerInt0; // Trigger interrupt
-            }
+    if (serCounter && (cra & 0x40)) {
+        
+        // Output mode
+        if ((delay & (CIASerClk2 | CIASerClk1)) == CIASerClk1) {
+            
+            // Positive edge
+            if (serCounter == 1) delay |= CIASerInt0;
         }
-        else if ((delay & (CIASerClk2 | CIASerClk1)) == CIASerClk2) { // Negative edge
+        else if ((delay & (CIASerClk2 | CIASerClk1)) == CIASerClk2) {
+            
+            // Negative edge
             serCounter--;
         }
     }
@@ -506,7 +516,7 @@ CIA::executeOneCycle()
 	// timerA  | Flip ---------------     |       (7)     |  |              |
     // output -X----->| bPB67Toggle |---->| 0x04: toggle  |  | bCRA & 0x02  |
 	//            (5) |  ^ 0x40     |     |       (8)     |  | output mode  |-> PB6 out
-	//                ---------------     -----------------  |              |
+	//                ---------------     -----------------  |     (6)      |
 	//                       ^ Set        -----------------  | 0x00 (port)  |
 	//                       |            | port B bit 6  |->|              |
 	// ----------------- 0->1|            |    output     |  ----------------
@@ -514,54 +524,63 @@ CIA::executeOneCycle()
 	// | timer A start |
 	// -----------------
 
+    //
 	// Timer A output to PB6
-	
+    //
+    
 	if (timerAOutput) {
 		
-		PB67Toggle ^= 0x40; // (5) toggle underflow counter bit
+        // (5) : Toggle underflow counter bit
+		pb67Toggle ^= 0x40;
 		
-		if (CRA & 0x02) { // (6)
+        // (6)
+		if (cra & 0x02) {
 
-			if ((CRA & 0x04) == 0) { 
-				// (7) set PB6 high for one clock cycle
-				PB67TimerOut |= 0x40;
+			if ((cra & 0x04) == 0) {
+                
+				// (7) : Set PB6 high for one clock cycle
+				pb67TimerOut |= 0x40;
 				delay |= CIAPB6Low0;
 				delay &= ~CIAPB6Low1;
-			} else { 
-				// (8) toggle PB6 (copy bit 6 from PB67Toggle)
-				// PB67TimerOut = (PB67TimerOut & 0xBF) | (PB67Toggle & 0x40);
-                PB67TimerOut ^= 0x40;
+                
+			} else {
+                
+				// (8) : Toggle PB6
+                pb67TimerOut ^= 0x40;
 			}
 		}
 	}
 
+    //
 	// Timer B output to PB7
-	
+	//
+    
 	if (timerBOutput) {
 		
-		PB67Toggle ^= 0x80; // (5) toggle underflow counter bit
+        // (5) : Toggle underflow counter bit
+		pb67Toggle ^= 0x80;
 	
-		if (CRB & 0x02) { // (6)
+        // (6)
+		if (crb & 0x02) {
 		
-			if ((CRB & 0x04) == 0) {
-				// (7) set PB7 high for one clock cycle
-				PB67TimerOut |= 0x80;
+			if ((crb & 0x04) == 0) {
+                
+				// (7) : Set PB7 high for one clock cycle
+				pb67TimerOut |= 0x80;
 				delay |= CIAPB7Low0;
 				delay &= ~CIAPB7Low1;
+                
 			} else {
-				// (8) toggle PB7 (copy bit 7 from PB67Toggle)
-				// PB67TimerOut = (PB67TimerOut & 0x7F) | (PB67Toggle & 0x80);
-                PB67TimerOut ^= 0x80;
+                
+				// (8) : Toggle PB7
+                pb67TimerOut ^= 0x80;
 			}
 		}
 	}
 	
 	// Set PB67 back to low
-	if (delay & CIAPB6Low1)
-		PB67TimerOut &= ~0x40;
-
-	if (delay & CIAPB7Low1)
-		PB67TimerOut &= ~0x80;
+    if (delay & CIAPB6Low1) { pb67TimerOut &= ~0x40; }
+    if (delay & CIAPB7Low1) { pb67TimerOut &= ~0x80; }
 
 	
 	//
@@ -597,24 +616,19 @@ CIA::executeOneCycle()
 	//                                              |
 	//                                             Phi2
     
-	if (timerAOutput) { // (9)
-		icr |= 0x01;
-	}
-
-    if (timerBOutput) { // (10)
-        icr |= 0x02;
-    }
+    if (timerAOutput) { icr |= 0x01; } // (9)
+    if (timerBOutput) { icr |= 0x02; } // (10)
     
-    // Check for timer interrupt
-    if ((timerAOutput && (imr & 0x01)) || (timerBOutput && (imr & 0x02))) { // (11)
-        triggerTimerIrq();
+    // (11) : Check for timer interrupt
+    if ((timerAOutput && (imr & 0x01)) || (timerBOutput && (imr & 0x02))) {
+        triggerTimerIrq(&delay);
     }
 
     // Check for TOD interrupt
     if (delay & CIATODInt0) {
         icr |= 0x04;
         if (imr & 0x04) {
-            triggerTodIrq();
+            triggerTodIrq(&delay);
         }
     }
     
@@ -622,7 +636,7 @@ CIA::executeOneCycle()
     if (delay & CIASerInt2) {
         icr |= 0x08;
         if (imr & 0x08) {
-            triggerSerialIrq();
+            triggerSerialIrq(&delay);
         }
     }
     
@@ -638,29 +652,31 @@ CIA::executeOneCycle()
             icr |= 0x80;
         }
         if (delay & CIASetInt1) { // (14)
-            INT = 0;
+            irq = 0;
             pullDownInterruptLine();
         }
         if (delay & CIAClearInt0) { // (14)
-            INT = 1;
+            irq = 1;
             releaseInterruptLine();
         }
     }
 
-	// Move delay flags left and feed in new bits
-	delay = ((delay << 1) & CIADelayMask) | feed;
+    // Move delay flags left and feed in new bits
+    delay = ((delay << 1) & CIADelayMask) | feed;
     
-    // Go into idle state if possible
+    // Get tired if nothing has happened in this cycle
     if (oldDelay == delay && oldFeed == feed) tiredness++; else tiredness = 0;
-  
+    
+    // Write back local copy
+    this->delay = delay;
+
     // Sleep if threshold is reached
     if (tiredness > 8 && !CIA_ON_STEROIDS) {
         sleep();
         scheduleWakeUp();
-        return;
+    } else {
+        scheduleNextExecution();
     }
-    
-    scheduleNextExecution();
 }
 
 void
@@ -677,12 +693,10 @@ CIA::sleep()
     // CIAs with stopped timers can sleep forever
     if (!(feed & CIACountA0)) sleepA = INT64_MAX;
     if (!(feed & CIACountB0)) sleepB = INT64_MAX;
-    Cycle sleep = std::min(sleepA, sleepB);
     
     // ZZzzz
-    // debug("ZZzzzz: clock = %lld A = %d B = %d sleepA = %lld sleepB = %lld\n", clock, counterA, counterB, sleepA, sleepB);
     sleepCycle = clock;
-    wakeUpCycle = sleep;
+    wakeUpCycle = std::min(sleepA, sleepB);;
     sleeping = true;
     tiredness = 0;
 }
@@ -711,13 +725,11 @@ CIA::wakeUp(Cycle targetCycle)
         
         if (feed & CIACountA0) {
             assert(counterA >= AS_CIA_CYCLES(missedCycles));
-            counterA -= AS_CIA_CYCLES(missedCycles);
-            // debug("Making up %d timer A cycles\n", AS_CIA_CYCLES(missedCycles));
+            counterA -= (u16)AS_CIA_CYCLES(missedCycles);
         }
         if (feed & CIACountB0) {
             assert(counterB >= AS_CIA_CYCLES(missedCycles));
-            counterB -= AS_CIA_CYCLES(missedCycles);
-            // debug("Making up %d timer B cycles\n", AS_CIA_CYCLES(missedCycles));
+            counterB -= (u16)AS_CIA_CYCLES(missedCycles);
         }
         
         idleCycles += missedCycles;
@@ -739,20 +751,16 @@ CIA::idleSince() const
 // CIA A
 //
 
-CIAA::CIAA(Amiga& ref) : CIA(0, ref)
-{
-}
-
 void
 CIAA::_powerOn()
 {
-    messageQueue.put(MSG_POWER_LED_DIM);
+    msgQueue.put(MSG_POWER_LED_DIM);
 }
 
 void
 CIAA::_powerOff()
 {
-    messageQueue.put(MSG_POWER_LED_OFF);
+    msgQueue.put(MSG_POWER_LED_OFF);
 }
 
 void 
@@ -782,43 +790,51 @@ CIAA::releaseInterruptLine()
 void
 CIAA::updatePA()
 {
-    u8 internal = portAinternal();
-    u8 external = portAexternal();
-
-    u8 oldPA = PA;
-    PA = (internal & DDRA) | (external & ~DDRA);
-
-    // A connected device may force the output level to a specific value
-    controlPort1.changePra(PA);
-    controlPort2.changePra(PA);
-
-    // PLCC CIAs always return the PRA contents for output bits
-    // We ignore PLCC emulation until the A600 is supported
-    // if (config.type == CIA_8520_PLCC) PA = (PA & ~DDRA) | (PRA & DDRA);
-
+    u8 oldpa = pa;
+    pa = computePA();
+    
+    if (oldpa ^ pa) {
+        
+        trace(DSKREG_DEBUG,
+              "/FIR1: %d /FIR0: %d /RDY: %d /TK0: %d "
+              "/WPRO: %d /CHNG: %d /LED: %d OVL: %d\n",
+              !!(pa & 0x80), !!(pa & 0x40), !!(pa & 0x20), !!(pa & 0x10),
+              !!(pa & 0x08), !!(pa & 0x04), !!(pa & 0x02), !!(pa & 0x01));
+    }
+    
     // Check the LED bit
-    if ((oldPA ^ PA) & 0b00000010) {
-        messageQueue.put((PA & 0b00000010) ? MSG_POWER_LED_DIM : MSG_POWER_LED_ON);
+    if ((oldpa ^ pa) & 0b00000010) {
+        msgQueue.put((pa & 0b00000010) ? MSG_POWER_LED_DIM : MSG_POWER_LED_ON);
     }
 
     // Check the OVL bit which controls the Kickstart ROM overlay
-    if ((oldPA ^ PA) & 0b00000001) {
+    if ((oldpa ^ pa) & 0b00000001) {
         mem.updateMemSrcTables();
     }
+}
+
+u8 CIAA::computePA() const
+{
+    u8 internal = portAinternal();
+    u8 external = portAexternal();
     
-    /*
-    if (oldPA ^ PA) {
-        debug("## PA changed: /FIR1: %d /FIR0: %d /RDY: %d /TK0: %d /WPRO: %d /CHNG: %d /LED: %d OVL: %d\n",
-              !!(PA & 0x80), !!(PA & 0x40), !!(PA & 0x20), !!(PA & 0x10),
-              !!(PA & 0x08), !!(PA & 0x04), !!(PA & 0x02), !!(PA & 0x01));
-    }
-    */
+    u8 result = (internal & ddra) | (external & ~ddra);
+
+    // A connected device may force the output level to a specific value
+    controlPort1.changePra(result);
+    controlPort2.changePra(result);
+    
+    // PLCC CIAs always return the PRA contents for output bits
+    if (config.revision == CIA_MOS_8520_PLCC)
+        result = (result & ~ddra) | (pra & ddra);
+
+    return result;
 }
 
 u8
 CIAA::portAinternal() const
 {
-    return PRA;
+    return pra;
 }
 
 u8
@@ -849,28 +865,36 @@ CIAA::portAexternal() const
 void
 CIAA::updatePB()
 {
+    pb = computePB();
+}
+
+u8
+CIAA::computePB() const
+{
     u8 internal = portBinternal();
     u8 external = portBexternal();
 
-    PB = (internal & DDRB) | (external & ~DDRB);
+    u8 result = (internal & ddrb) | (external & ~ddrb);
 
     // Check if timer A underflows show up on PB6
-    if (GET_BIT(PB67TimerMode, 6))
-        REPLACE_BIT(PB, 6, PB67TimerOut & (1 << 6));
+    if (GET_BIT(pb67TimerMode, 6))
+        REPLACE_BIT(result, 6, pb67TimerOut & (1 << 6));
     
     // Check if timer B underflows show up on PB7
-    if (GET_BIT(PB67TimerMode, 7))
-        REPLACE_BIT(PB, 7, PB67TimerOut & (1 << 7));
+    if (GET_BIT(pb67TimerMode, 7))
+        REPLACE_BIT(result, 7, pb67TimerOut & (1 << 7));
 
     // PLCC CIAs always return the PRB contents for output bits
-    // We ignore PLCC emulation until the A600 is supported
-    // if (config.type == CIA_8520_PLCC) PB = (PB & ~DDRB) | (PRB & DDRB);
+    if (config.revision == CIA_MOS_8520_PLCC)
+        result = (result & ~ddrb) | (prb & ddrb);
+
+    return result;
 }
 
 u8
 CIAA::portBinternal() const
 {
-    return PRB;
+    return prb;
 }
 
 u8
@@ -897,10 +921,6 @@ CIAA::setKeyCode(u8 keyCode)
 //
 // CIA B
 // 
-
-CIAB::CIAB(Amiga& ref) : CIA(1, ref)
-{
-}
 
 void 
 CIAB::pullDownInterruptLine()
@@ -929,7 +949,7 @@ CIAB::releaseInterruptLine()
 u8
 CIAB::portAinternal() const
 {
-    return PRA;
+    return pra;
 }
 
 u8
@@ -956,35 +976,39 @@ CIAB::portAexternal() const
 void
 CIAB::updatePA()
 {
-    // debug(CIA_DEBUG, "updatePA()\n");
-
-    u8 internal = portAinternal();
-    u8 external = portAexternal();
-
-    u8 oldPA = PA;
-    PA = (internal & DDRA) | (external & ~DDRA);
+    u8 oldPA = pa;
+    pa = computePA();
 
     // Drive serial pins if they are configured as output
-    if (GET_BIT(DDRA, 6)) serialPort.setRTS(!GET_BIT(internal, 6));
-    if (GET_BIT(DDRA, 7)) serialPort.setDTR(!GET_BIT(internal, 7));
+    if (GET_BIT(ddra, 6)) serialPort.setRTS(!GET_BIT(pra, 6));
+    if (GET_BIT(ddra, 7)) serialPort.setDTR(!GET_BIT(pra, 7));
     
-    // PLCC CIAs always return the PRA contents for output bits
-    // We ignore PLCC emulation until the A600 is supported
-    // if (config.type == CIA_8520_PLCC) PA = (PA & ~DDRA) | (PRA & DDRA);
-
     /* Inside the Amiga, PA0 and PA1 of CIAB are wired to the SP pin and the
      * CNT pin, respectively. If the shift register is run in input mode,
      * a positive edge on the CNT pin will transfer the value on the SP pin
      * into the shift register. To shift in the correct value, we need to set
      * the SP pin first and emulate the edge on the CNT pin afterwards.
      */
-    if (DDRA & 1) setSP(PA & 1); else setSP(1);
-
-    if (!(oldPA & 2) &&  (PA & 2)) emulateRisingEdgeOnCntPin();
-    if ( (oldPA & 2) && !(PA & 2)) emulateFallingEdgeOnCntPin();
-    
+    if (ddra & 1) { setSP(pa & 1); } else { setSP(1); }
+    if (!(oldPA & 2) &&  (pa & 2)) emulateRisingEdgeOnCntPin();
+    if ( (oldPA & 2) && !(pa & 2)) emulateFallingEdgeOnCntPin();
 }
 
+u8
+CIAB::computePA() const
+{
+    u8 internal = portAinternal();
+    u8 external = portAexternal();
+
+    u8 result = (internal & ddra) | (external & ~ddra);
+    
+    // PLCC CIAs always return the PRA contents for output bits
+    if (config.revision == CIA_MOS_8520_PLCC)
+        result = (result & ~ddra) | (pra & ddra);
+    
+    return result;
+}
+    
 //            -------
 //  /STEP <-- | PB0 |   (Floppy drive step heads)
 //    DIR <-- | PB1 |   (Floppy drive head direction)
@@ -999,15 +1023,15 @@ CIAB::updatePA()
 u8
 CIAB::portBinternal() const
 {
-    u8 result = PRB;
+    u8 result = prb;
     
     // Check if timer A underflow shows up on PB6
-    if (GET_BIT(PB67TimerMode, 6))
-        REPLACE_BIT(result, 6, PB67TimerOut & (1 << 6));
+    if (GET_BIT(pb67TimerMode, 6))
+        REPLACE_BIT(result, 6, pb67TimerOut & (1 << 6));
 
     // Check if timer B underflows show up on PB7
-    if (GET_BIT(PB67TimerMode, 7))
-        REPLACE_BIT(result, 7, PB67TimerOut & (1 << 7));
+    if (GET_BIT(pb67TimerMode, 7))
+        REPLACE_BIT(result, 7, pb67TimerOut & (1 << 7));
 
     return result;
 }
@@ -1021,23 +1045,33 @@ CIAB::portBexternal() const
 void
 CIAB::updatePB()
 {
+    u8 oldPB = pb;
+    pb = computePB();
+
+    // Notify the disk controller about the changed bits
+    if (oldPB ^ pb) {
+        
+        trace(DSKREG_DEBUG,
+              "MTR: %d SEL3: %d SEL2: %d SEL1: %d "
+              "SEL0: %d SIDE: %d DIR: %d STEP: %d\n",
+              !!(pb & 0x80), !!(pb & 0x40), !!(pb & 0x20), !!(pb & 0x10),
+              !!(pb & 0x08), !!(pb & 0x04), !!(pb & 0x02), !!(pb & 0x01));
+
+        diskController.PRBdidChange(oldPB, pb);
+    }
+}
+
+u8
+CIAB::computePB() const
+{
     u8 internal = portBinternal();
     u8 external = portBexternal();
 
-    u8 oldPB = PB;
-    PB = (internal & DDRB) | (external & ~DDRB);
-
+    u8 result = (internal & ddrb) | (external & ~ddrb);
+    
     // PLCC CIAs always return the PRB contents for output bits
-    // We ignore PLCC emulation until the A600 is supported
-    // if (config.type == CIA_8520_PLCC) PB = (PB & ~DDRB) | (PRB & DDRB);
-
-    // Notify the disk controller about the changed bits
-    if (oldPB ^ PB) {
-        /*
-        debug("PB changed: MTR: %d SEL3: %d SEL2: %d SEL1: %d SEL0: %d SIDE: %d DIR: %d STEP: %d\n",
-              !!(PB & 0x80), !!(PB & 0x40), !!(PB & 0x20), !!(PB & 0x10),
-              !!(PB & 0x08), !!(PB & 0x04), !!(PB & 0x02), !!(PB & 0x01));
-        */
-        diskController.PRBdidChange(oldPB, PB);
-    }
+    if (config.revision == CIA_MOS_8520_PLCC)
+        result = (result & ~ddrb) | (prb & ddrb);
+    
+    return result;
 }

@@ -10,7 +10,7 @@
 #pragma once
 
 #include "TODTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 
 typedef union
 {
@@ -24,15 +24,15 @@ typedef union
 }
 Counter24;
 
-class TOD : public AmigaComponent {
+class TOD : public SubComponent {
     
     friend CIA;
     
     // Reference to the connected CIA
-    CIA *cia;
+    CIA &cia;
 
     // Result of the latest inspection
-    CounterInfo info;
+    mutable TODInfo info = {};
             
     // The 24 bit counter
     Counter24 tod;
@@ -74,42 +74,35 @@ class TOD : public AmigaComponent {
 
 public:
 
-    TOD(CIA *cia, Amiga& ref);
+    TOD(CIA &ciaref, Amiga& ref);
 
-    const char *getDescription() const override;
-
+    
+    //
+    // Methods from AmigaObject
+    //
+    
 private:
     
-    void _initialize() override;
+    const char *getDescription() const override;
+    void _dump(Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
+private:
+    
     void _reset(bool hard) override;
 
-
-    //
-    // Analyzing
-    //
-    
-    CounterInfo getInfo() { return HardwareComponent::getInfo(info); }
-
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Serializing
-    //
-    
     template <class T>
     void applyToPersistentItems(T& worker)
     {
-    }
-
-    template <class T>
-    void applyToHardResetItems(T& worker)
-    {
+        
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
 
@@ -124,10 +117,22 @@ private:
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
+
+    //
+    // Analyzing
+    //
     
+public:
+    
+    TODInfo getInfo() const { return AmigaComponent::getInfo(info); }
+
+    void _inspect() const override;
+
+ 
     //
     // Accessing
     //

@@ -9,24 +9,29 @@
 
 #pragma once
 
-#include "AmigaComponent.h"
 #include "MoiraConfig.h"
 #include "MoiraTypes.h"
 #include "MoiraDebugger.h"
 #include "StrWriter.h"
+#include "SubComponent.h"
 
-#include <assert.h>
+#include <cassert>
 
 namespace moira {
 
-// Execution control flags
+#ifdef _MSC_VER
+#define unreachable    __assume(false)
+#else
+#define unreachable    __builtin_unreachable()
+#endif
+#define fatalError     assert(false); unreachable
 
-
-class Moira : public AmigaComponent {
+class Moira : public SubComponent {
 
     friend class Debugger;
     friend class Breakpoints;
     friend class Watchpoints;
+    friend class Catchpoints;
 
 protected:
 
@@ -52,7 +57,7 @@ protected:
 
 public:
 
-    // Breakpoints, watchpoints, instruction tracing
+    // Breakpoints, watchpoints, catchpoints, instruction tracing
     Debugger debugger = Debugger(*this);
 
 protected:
@@ -98,6 +103,7 @@ protected:
     static const int CPU_TRACE_FLAG        = (1 << 13);
     static const int CPU_CHECK_BP          = (1 << 14);
     static const int CPU_CHECK_WP          = (1 << 15);
+    static const int CPU_CHECK_CP          = (1 << 16);
 
     // Number of elapsed cycles since powerup
     i64 clock;
@@ -196,7 +202,7 @@ public:
     // Return an info struct for a certain opcode
     InstrInfo getInfo(u16 op); 
 
-    
+        
     //
     // Interfacing with other components
     //
@@ -221,11 +227,12 @@ protected:
     virtual u16 readIrqUserVector(u8 level) const { return 0; }
 
     // Instrution delegates
-    virtual void signalReset() { };
-    virtual void signalStop(u16 op) { };
-    virtual void signalTAS() { };
+    virtual void signalResetInstr() { };
+    virtual void signalStopInstr(u16 op) { };
+    virtual void signalTASInstr() { };
 
     // State delegates
+    virtual void signalHardReset() { };
     virtual void signalHalt() { };
 
     // Exception delegates
@@ -248,6 +255,9 @@ protected:
     // Called when a breakpoint is reached
     virtual void watchpointReached(u32 addr) { };
 
+    // Called at the beginning of each instruction handler (see EXEC_DEBUG)
+    virtual void execDebug(const char *cmd) { };
+    
 #endif
     
     // Reads a byte or a word from memory
@@ -266,9 +276,9 @@ protected:
     u16 readIrqUserVector(u8 level) const;
 
     // Instrution delegates
-    void signalReset();
-    void signalStop(u16 op);
-    void signalTAS();
+    void signalResetInstr();
+    void signalStopInstr(u16 op);
+    void signalTasInstr();
 
     // State delegates
     void signalHalt();
@@ -287,12 +297,15 @@ protected:
     // Exception delegates
     void addressErrorHandler();
     
-    // Called when a breakpoint is reached
+    // Called when a debug point is reached
+    void softstopReached(u32 addr);
     void breakpointReached(u32 addr);
-
-    // Called when a breakpoint is reached
     void watchpointReached(u32 addr);
-    
+    void catchpointReached(u8 vector);
+
+    // Called at the beginning of each instruction handler (see EXEC_DEBUG)
+    void execDebug(const char *cmd);
+ 
 
     //
     // Accessing the clock
@@ -306,8 +319,7 @@ public:
 protected:
 
     // Advances the clock (called before each memory access)
-    void sync(int cycles); 
-    // virtual void sync(int cycles) { clock += cycles; }
+    void sync(int cycles);
 
 
     //
@@ -398,7 +410,7 @@ public:
 private:
     
     // Polls the IPL pins
-    void pollIrq() { reg.ipl = ipl; }
+    void pollIpl() { reg.ipl = ipl; }
     
     // Selects the IRQ vector to branch to
     u16 getIrqVector(u8 level) const;

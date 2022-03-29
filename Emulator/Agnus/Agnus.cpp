@@ -10,36 +10,23 @@
 #include "config.h"
 #include "Agnus.h"
 #include "Amiga.h"
-#include "IO.h"
-#include <iomanip>
 
-Agnus::Agnus(Amiga& ref) : AmigaComponent(ref)
+Agnus::Agnus(Amiga& ref) : SubComponent(ref)
 {    
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<AmigaComponent *> {
         
+        &sequencer,
         &copper,
         &blitter,
         &dmaDebugger
     };
-        
-    initLookupTables();
-}
-
-void
-Agnus::_initialize()
-{
-    config.revision = AGNUS_ECS_1MB;
-    ptrMask = 0x0FFFFF;
-    
-    // Wipe out event slots
-    memset(slot, 0, sizeof(slot));
 }
 
 void
 Agnus::_reset(bool hard)
 {
-    auto insEvent = slot[SLOT_INS].id;
-    
+    auto insEvent = id[SLOT_INS];
+
     RESET_SNAPSHOT_ITEMS(hard)
     
     // Start with a long frame
@@ -47,36 +34,50 @@ Agnus::_reset(bool hard)
     
     // Initialize statistical counters
     clearStats();
-    
-    // Initialize event tables
-    for (isize i = pos.h; i < HPOS_CNT; i++) bplEvent[i] = bplDMA[0][0][i];
-    for (isize i = pos.h; i < HPOS_CNT; i++) dasEvent[i] = dasDMA[0][i];
-    updateBplJumpTable();
-    updateDasJumpTable();
-    
-    // Initialize event slots
+            
+    // Initialize all event slots
     for (isize i = 0; i < SLOT_COUNT; i++) {
         
-        slot[i].triggerCycle = NEVER;
-        slot[i].id = (EventID)0;
-        slot[i].data = 0;
+        trigger[i] = NEVER;
+        id[i] = (EventID)0;
+        data[i] = 0;
     }
     
+    assert(clock == 0);
+    
     // Schedule initial events
-    scheduleRel<SLOT_RAS>(DMA_CYCLES(HPOS_CNT), RAS_HSYNC);
-    scheduleRel<SLOT_CIAA>(CIA_CYCLES(AS_CIA_CYCLES(clock)), CIA_EXECUTE);
-    scheduleRel<SLOT_CIAB>(CIA_CYCLES(AS_CIA_CYCLES(clock)), CIA_EXECUTE);
-    scheduleRel<SLOT_SEC>(NEVER, SEC_TRIGGER);
+    scheduleAbs<SLOT_SEC>(NEVER, SEC_TRIGGER);
+    scheduleAbs<SLOT_TER>(NEVER, TER_TRIGGER);
+    scheduleAbs<SLOT_RAS>(DMA_CYCLES(HPOS_MAX), RAS_HSYNC);
+    scheduleAbs<SLOT_CIAA>(CIA_CYCLES(AS_CIA_CYCLES(clock)), CIA_EXECUTE);
+    scheduleAbs<SLOT_CIAB>(CIA_CYCLES(AS_CIA_CYCLES(clock)), CIA_EXECUTE);
     scheduleStrobe0Event();
-    scheduleRel<SLOT_IRQ>(NEVER, IRQ_CHECK);
+    scheduleAbs<SLOT_IRQ>(NEVER, IRQ_CHECK);
     diskController.scheduleFirstDiskEvent();
-    scheduleNextBplEvent();
-    scheduleNextDasEvent();
+    scheduleFirstBplEvent();
+    scheduleFirstDasEvent();
+    scheduleAbs<SLOT_SRV>(SEC(0.5), SRV_LAUNCH_DAEMON);
+    if (insEvent) scheduleAbs <SLOT_INS> (0, insEvent);
+}
+
+AgnusConfig
+Agnus::getDefaultConfig()
+{
+    AgnusConfig defaults;
+
+    defaults.revision = AGNUS_ECS_1MB;
+    defaults.slowRamMirror = true;
+        
+    return defaults;
+}
+
+void
+Agnus::resetConfig()
+{
+    auto defaults = getDefaultConfig();
     
-    // Reschedule the old inspection event if there was one
-    if (insEvent) scheduleAbs<SLOT_INS>(0, insEvent);
-    
-    pokeVPOS(0);
+    setConfigItem(OPT_AGNUS_REVISION, defaults.revision);
+    setConfigItem(OPT_SLOW_RAM_MIRROR, defaults.slowRamMirror);
 }
 
 i64
@@ -88,59 +89,61 @@ Agnus::getConfigItem(Option option) const
         case OPT_SLOW_RAM_MIRROR: return config.slowRamMirror;
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 Agnus::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_AGNUS_REVISION:
-            
-            #ifdef FORCE_AGNUS_REVISION
-            value = FORCE_AGNUS_REVISION;
-            warn("Overriding Agnus revision: %lld\n", value);
-            #endif
-            
-            if (!AgnusRevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, AgnusRevisionEnum::keyList());
-            }            
-            if (config.revision == value) {
-                return false;
+                        
+            if (!isPoweredOff()) {
+                throw VAError(ERROR_OPT_LOCKED);
             }
-            
-            amiga.suspend();
-            
-            config.revision = (AgnusRevision)value;
-            switch (config.revision) {
+            if (!AgnusRevisionEnum::isValid(value)) {
+                throw VAError(ERROR_OPT_INVARG, AgnusRevisionEnum::keyList());
+            }            
+                                    
+            switch (config.revision = (AgnusRevision)value) {
+                    
+                case AGNUS_OCS_OLD:
                 case AGNUS_OCS:     ptrMask = 0x07FFFF; break;
                 case AGNUS_ECS_1MB: ptrMask = 0x0FFFFF; break;
                 case AGNUS_ECS_2MB: ptrMask = 0x1FFFFF; break;
-                default: assert(false);
+                
+                default:
+                    fatalError;
             }
             mem.updateMemSrcTables();
-            
-            amiga.resume();
-            return true;
+            return;
             
         case OPT_SLOW_RAM_MIRROR:
             
-            if (config.slowRamMirror == value) {
-                return false;
-            }
             config.slowRamMirror = value;
-            return true;
+            return;
             
         default:
-            return false;
+            fatalError;
     }
 }
 
-i16
-Agnus::idBits()
+bool
+Agnus::isOCS() const
+{
+    return config.revision == AGNUS_OCS_OLD || config.revision == AGNUS_OCS;
+}
+
+bool
+Agnus::isECS() const
+{
+    return config.revision == AGNUS_ECS_1MB || config.revision == AGNUS_ECS_2MB;
+}
+
+u16
+Agnus::idBits() const
 {
     switch (config.revision) {
             
@@ -151,7 +154,7 @@ Agnus::idBits()
 }
 
 isize
-Agnus::chipRamLimit()
+Agnus::chipRamLimit() const
 {
     switch (config.revision) {
 
@@ -162,234 +165,20 @@ Agnus::chipRamLimit()
 }
 
 bool
-Agnus::slowRamIsMirroredIn()
+Agnus::slowRamIsMirroredIn() const
 {
 
+    /* The ECS revision of Agnus has a special feature that makes Slow Ram
+     * accessible for DMA. In the 512 MB Chip Ram + 512 Slow Ram configuration,
+     * Slow Ram is mapped into the second Chip Ram segment. OCS Agnus does not
+     * have this feature. It is able to access Chip Ram, only.
+     */
+    
     if (config.slowRamMirror && isECS()) {
         return mem.chipRamSize() == KB(512) && mem.slowRamSize() == KB(512);
     } else {
         return false;
     }
-}
-
-void
-Agnus::_inspect()
-{
-    synchronized {
-        
-        info.vpos     = pos.v;
-        info.hpos     = pos.h;
-        
-        info.dmacon   = dmacon;
-        info.bplcon0  = bplcon0;
-        info.bpu      = bpu();
-        info.ddfstrt  = ddfstrt;
-        info.ddfstop  = ddfstop;
-        info.diwstrt  = diwstrt;
-        info.diwstop  = diwstop;
-        
-        info.bpl1mod  = bpl1mod;
-        info.bpl2mod  = bpl2mod;
-        info.bltamod  = blitter.bltamod;
-        info.bltbmod  = blitter.bltbmod;
-        info.bltcmod  = blitter.bltcmod;
-        info.bltdmod  = blitter.bltdmod;
-        info.bltcon0  = blitter.bltcon0;
-        info.bls      = bls;
-        
-        info.coppc    = copper.coppc & ptrMask;
-        info.dskpt    = dskpt & ptrMask;
-        info.bltpt[0] = blitter.bltapt & ptrMask;
-        info.bltpt[1] = blitter.bltbpt & ptrMask;
-        info.bltpt[2] = blitter.bltcpt & ptrMask;
-        info.bltpt[3] = blitter.bltdpt & ptrMask;
-        for (isize i = 0; i < 6; i++) info.bplpt[i] = bplpt[i] & ptrMask;
-        for (isize i = 0; i < 4; i++) info.audpt[i] = audpt[i] & ptrMask;
-        for (isize i = 0; i < 4; i++) info.audlc[i] = audlc[i] & ptrMask;
-        for (isize i = 0; i < 8; i++) info.sprpt[i] = sprpt[i] & ptrMask;
-    }
-}
-
-void
-Agnus::_dump(dump::Category category, std::ostream& os) const
-{
-    using namespace util;
-    
-    if (category & dump::Config) {
-    
-        os << tab("Chip Revison");
-        os << AgnusRevisionEnum::key(config.revision) << std::endl;
-        os << tab("Slow Ram mirror");
-        os << bol(config.slowRamMirror) << std::endl;
-    }
-
-    if (category & dump::State) {
-        
-        os << tab("Clock");
-        os << dec(clock) << std::endl;
-        os << tab("Frame");
-        os << dec(frame.nr) << std::endl;
-        os << tab("LOF");
-        os << dec(frame.lof) << std::endl;
-        os << tab("LOF in previous frame");
-        os << dec(frame.prevlof) << std::endl;
-        os << tab("Beam position");
-        os << "(" << dec(pos.v) << "," << dec(pos.h) << ")" << std::endl;
-        os << tab("Latched position");
-        os << "(" << dec(pos.vLatched) << "," << dec(pos.hLatched) << ")" << std::endl;
-        os << tab("scrollLoresOdd");
-        os << dec(scrollLoresOdd) << std::endl;
-        os << tab("scrollLoresEven");
-        os << dec(scrollLoresEven) << std::endl;
-        os << tab("scrollHiresOdd");
-        os << dec(scrollHiresOdd) << std::endl;
-        os << tab("scrollHiresEven");
-        os << dec(scrollHiresEven) << std::endl;
-        os << tab("Bitplane DMA line");
-        os << bol(bplDmaLine) << std::endl;
-        os << tab("BLS signal");
-        os << bol(bls) << std::endl;
-    }
-
-    if (category & dump::Registers) {
-        
-        os << tab("DMACON");
-        os << hex(dmacon) << std::endl;
-        
-        os << tab("DDFSTRT, DDFSTOP");
-        os << hex(ddfstrt) << ' ' << hex(ddfstop) << ' ' << std::endl;
-        
-        os << tab("DIWSTRT, DIWSTOP");
-        os << hex(diwstrt) << ' ' << hex(diwstop) << ' ' << std::endl;
-
-        os << tab("BPLCON0, BPLCON1");
-        os << hex(bplcon0) << ' ' << hex(bplcon1) << ' ' << std::endl;
-
-        os << tab("BPL1MOD, BPL2MOD");
-        os << dec(bpl1mod) << ' ' << dec(bpl2mod) << ' ' << std::endl;
-    
-        os << tab("BPL0PT - BPL2PT");
-        os << hex(bplpt[0]) << ' ' << hex(bplpt[1]) << ' ';
-        os << hex(bplpt[2]) << ' ' << ' ' << std::endl;
-        os << tab("BPL3PT - BPL5PT");
-        os << hex(bplpt[3]) << ' ' << hex(bplpt[4]) << ' ';
-        os << hex(bplpt[5]) << std::endl;
-
-        os << tab("SPR0PT - SPR3PT");
-        os << hex(sprpt[0]) << ' ' << hex(sprpt[1]) << ' ';
-        os << hex(sprpt[2]) << ' ' << hex(sprpt[3]) << ' ' << std::endl;
-        os << tab("SPR4PT - SPR7PT");
-        os << hex(sprpt[4]) << ' ' << hex(sprpt[5]) << ' ';
-        os << hex(sprpt[5]) << ' ' << hex(sprpt[7]) << ' ' << std::endl;
-
-        os << tab("AUD0PT - AUD3PT");
-        os << hex(audpt[0]) << ' ' << hex(audpt[1]) << ' ';
-        os << hex(audpt[2]) << ' ' << hex(audpt[3]) << ' ' << std::endl;
-
-        os << tab("DSKPT");
-        os << hex(dskpt) << std::endl;
-    }
-    
-    if (category & dump::Events) {
-        
-        EventInfo eventInfo;
-        inspectEvents(eventInfo);
-            
-        os << std::left << std::setw(10) << "Slot";
-        os << std::left << std::setw(14) << "Event";
-        os << std::left << std::setw(18) << "Trigger position";
-        os << std::left << std::setw(16) << "Trigger cycle" << std::endl;
-        
-        for (isize i = 0; i < 23; i++) {
-
-            EventSlotInfo &info = eventInfo.slotInfo[i];
-            bool willTrigger = info.trigger != NEVER;
-            
-            os << std::left << std::setw(10) << EventSlotEnum::key(info.slot);
-            os << std::left << std::setw(14) << info.eventName;
-            
-            if (willTrigger) {
-                
-                if (info.frameRel == -1) {
-                    os << std::left << std::setw(18) << "previous frame";
-                } else if (info.frameRel > 0) {
-                    os << std::left << std::setw(18) << "other frame";
-                } else {
-                    string vpos = std::to_string(info.vpos);
-                    string hpos = std::to_string(info.hpos);
-                    string pos = "(" + vpos + "," + hpos + ")";
-                    os << std::left << std::setw(18) << pos;
-                }
-
-                if (info.triggerRel == 0) {
-                    os << std::left << std::setw(16) << "due immediately";
-                } else {
-                    string cycle = std::to_string(info.triggerRel / 8);
-                    os << std::left << std::setw(16) << "due in " + cycle + " DMA cycles";
-                }
-            }
-            os << std::endl;
-        }
-    }
-    
-    /*
-    ss << "\nBPL DMA table:\n\n");
-    dumpBplEventTable();
-
-    ss << "\nDAS DMA table:\n\n");
-    dumpDasEventTable();
-    */
-}
-
-void
-Agnus::clearStats()
-{
-    for (isize i = 0; i < BUS_COUNT; i++) stats.usage[i] = 0;
-    
-    stats.copperActivity = 0;
-    stats.blitterActivity = 0;
-    stats.diskActivity = 0;
-    stats.audioActivity = 0;
-    stats.spriteActivity = 0;
-    stats.bitplaneActivity = 0;
-}
-
-void
-Agnus::updateStats()
-{
-    const double w = 0.5;
-    
-    double copper = stats.usage[BUS_COPPER];
-    double blitter = stats.usage[BUS_BLITTER];
-    double disk = stats.usage[BUS_DISK];
-    double audio = stats.usage[BUS_AUDIO];
-    
-    double sprite =
-    stats.usage[BUS_SPRITE0] +
-    stats.usage[BUS_SPRITE1] +
-    stats.usage[BUS_SPRITE2] +
-    stats.usage[BUS_SPRITE3] +
-    stats.usage[BUS_SPRITE4] +
-    stats.usage[BUS_SPRITE5] +
-    stats.usage[BUS_SPRITE6] +
-    stats.usage[BUS_SPRITE7];
-    
-    double bitplane =
-    stats.usage[BUS_BPL1] +
-    stats.usage[BUS_BPL2] +
-    stats.usage[BUS_BPL3] +
-    stats.usage[BUS_BPL4] +
-    stats.usage[BUS_BPL5] +
-    stats.usage[BUS_BPL6];
-
-    stats.copperActivity = w * stats.copperActivity + (1 - w) * copper;
-    stats.blitterActivity = w * stats.blitterActivity + (1 - w) * blitter;
-    stats.diskActivity = w * stats.diskActivity + (1 - w) * disk;
-    stats.audioActivity = w * stats.audioActivity + (1 - w) * audio;
-    stats.spriteActivity = w * stats.spriteActivity + (1 - w) * sprite;
-    stats.bitplaneActivity = w * stats.bitplaneActivity + (1 - w) * bitplane;
-    
-    for (isize i = 0; i < BUS_COUNT; i++) stats.usage[i] = 0;
 }
 
 Cycle
@@ -428,15 +217,6 @@ Agnus::belongsToNextFrame(Cycle cycle) const
     return cycle >= startOfNextFrame();
 }
 
-bool
-Agnus::inBplDmaLine(u16 dmacon, u16 bplcon0) const
-{
-    return
-    ddfVFlop                 // Outside VBLANK, inside DIW
-    && bpu(bplcon0)          // At least one bitplane enabled
-    && bpldma(dmacon);       // Bitplane DMA enabled
-}
-
 Cycle
 Agnus::beamToCycle(Beam beam) const
 {
@@ -451,312 +231,36 @@ Agnus::cycleToBeam(Cycle cycle) const
     Cycle diff = AS_DMA_CYCLES(cycle - startOfFrame());
     assert(diff >= 0);
 
-    result.v = diff / HPOS_CNT;
-    result.h = diff % HPOS_CNT;
+    result.v = (isize)(diff / HPOS_CNT);
+    result.h = (isize)(diff % HPOS_CNT);
     return result;
-}
-
-Beam
-Agnus::addToBeam(Beam beam, Cycle cycles) const
-{
-    Beam result;
-
-    Cycle cycle = beam.v * HPOS_CNT + beam.h + cycles;
-    result.v = cycle / HPOS_CNT;
-    result.h = cycle % HPOS_CNT;
-
-    return result;
-}
-
-
-void
-Agnus::predictDDF()
-{
-    auto oldLores = ddfLores;
-    auto oldHires = ddfHires;
-    auto oldState = ddfState;
-    
-    ddfstrtReached = ddfstrt < HPOS_CNT ? ddfstrt : -1;
-    ddfstopReached = ddfstop < HPOS_CNT ? ddfstop : -1;
-    
-    computeDDFWindow();
-    
-    if (ddfLores != oldLores || ddfHires != oldHires || ddfState != oldState) {
-        
-        hsyncActions |= HSYNC_UPDATE_BPL_TABLE; // Update bitplane events
-        hsyncActions |= HSYNC_PREDICT_DDF;      // Call this function again
-    }
-    
-    trace(DDF_DEBUG, "predictDDF LORES: %d %d\n", ddfLores.strt, ddfLores.stop);
-    trace(DDF_DEBUG, "predictDDF HIRES: %d %d\n", ddfHires.strt, ddfHires.stop);
-}
-
-void
-Agnus::computeDDFWindow()
-{
-    isOCS() ? computeDDFWindowOCS() : computeDDFWindowECS();
-}
-
-#define DDF_EMPTY     0
-#define DDF_STRT_STOP 1
-#define DDF_STRT_D8   2
-#define DDF_18_STOP   3
-#define DDF_18_D8     4
-
-void
-Agnus::computeDDFWindowOCS()
-{
-    /* To determine the correct data fetch window, we need to distinguish
-     * three kinds of DDFSTRT / DDFSTOP values.
-     *
-     *   0:   small : Value is smaller than the left hardware stop.
-     *   1:  medium : Value complies to the specs.
-     *   2:   large : Value is larger than HPOS_MAX and thus never reached.
-     */
-    int strt = (ddfstrtReached < 0) ? 2 : (ddfstrtReached < 0x18) ? 0 : 1;
-    int stop = (ddfstopReached < 0) ? 2 : (ddfstopReached < 0x18) ? 0 : 1;
-
-    /* Emulate the special "scan line effect" of the OCS Agnus.
-     * If DDFSTRT is set to a small value, DMA is enabled every other row.
-     */
-    if (ddfstrtReached < 0x18) {
-        if (ocsEarlyAccessLine == pos.v) {
-            ddfLores.compute(ddfstrtReached, ddfstopReached);
-            ddfHires.compute(ddfstrtReached, ddfstopReached);
-        } else {
-            ddfLores.clear();
-            ddfHires.clear();
-            ocsEarlyAccessLine = pos.v + 1;
-        }
-        return;
-    }
-
-    /* Nr | DDFSTRT | DDFSTOP | State   || Data Fetch Window   | Next State
-     *  --------------------------------------------------------------------
-     *  0 | small   | small   | -       || Empty               | DDF_OFF
-     *  1 | small   | medium  | -       || [0x18 ; DDFSTOP]    | DDF_OFF
-     *  2 | small   | large   | -       || [0x18 ; 0xD8]       | DDF_OFF
-     *  3 | medium  | small   | -       || not handled         | DDF_OFF
-     *  4 | medium  | medium  | -       || [DDFSTRT ; DDFSTOP] | DDF_OFF
-     *  5 | medium  | large   | -       || [DDFSTRT ; 0xD8]    | DDF_OFF
-     *  6 | large   | small   | -       || not handled         | DDF_OFF
-     *  7 | large   | medium  | -       || not handled         | DDF_OFF
-     *  8 | large   | large   | -       || Empty               | DDF_OFF
-     */
-    const struct { isize interval; } table[9] = {
-        { DDF_EMPTY     }, // 0
-        { DDF_18_STOP   }, // 1
-        { DDF_18_D8     }, // 2
-        { DDF_EMPTY     }, // 3
-        { DDF_STRT_STOP }, // 4
-        { DDF_STRT_D8   }, // 5
-        { DDF_EMPTY     }, // 6
-        { DDF_EMPTY     }, // 7
-        { DDF_EMPTY     }  // 8
-    };
-
-    isize index = 3*strt + stop;
-    switch (table[index].interval) {
-
-        case DDF_EMPTY:
-            ddfLores.clear();
-            ddfHires.clear();
-            break;
-        case DDF_STRT_STOP:
-            ddfLores.compute(ddfstrtReached, ddfstopReached);
-            ddfHires.compute(ddfstrtReached, ddfstopReached);
-            break;
-        case DDF_STRT_D8:
-            ddfLores.compute(ddfstrtReached, 0xD8);
-            ddfHires.compute(ddfstrtReached, 0xD8);
-            break;
-        case DDF_18_STOP:
-            ddfLores.compute(0x18, ddfstopReached);
-            ddfHires.compute(0x18, ddfstopReached);
-            break;
-        case DDF_18_D8:
-            ddfLores.compute(0x18, 0xD8);
-            ddfHires.compute(0x18, 0xD8);
-            break;
-    }
-
-    trace(DDF_DEBUG, "DDF Window (OCS):  (%d,%d) (%d,%d)\n",
-          ddfLores.strt, ddfHires.strt, ddfLores.stop, ddfHires.stop);
-
-    return;
-}
-
-void
-Agnus::computeDDFWindowECS()
-{
-    /* To determine the correct data fetch window, we need to distinguish
-     * three kinds of DDFSTRT / DDFSTOP values.
-     *
-     *   0:   small : Value is smaller than the left hardware stop.
-     *   1:  medium : Value complies to the specs.
-     *   2:   large : Value is larger than HPOS_MAX and thus never reached.
-     */
-    int strt = (ddfstrtReached < 0) ? 2 : (ddfstrtReached < 0x18) ? 0 : 1;
-    int stop = (ddfstopReached < 0) ? 2 : (ddfstopReached < 0x18) ? 0 : 1;
-
-    /* Nr | DDFSTRT | DDFSTOP | State   || Data Fetch Window   | Next State
-     *  --------------------------------------------------------------------
-     *  0 | small   | small   | DDF_OFF || Empty               | DDF_OFF
-     *  1 | small   | small   | DDF_ON  || Empty               | DDF_OFF
-     *  2 | small   | medium  | DDF_OFF || [0x18 ; DDFSTOP]    | DDF_OFF
-     *  3 | small   | medium  | DDF_ON  || [0x18 ; DDFSTOP]    | DDF_OFF
-     *  4 | small   | large   | DDF_OFF || [0x18 ; 0xD8]       | DDF_ON
-     *  5 | small   | large   | DDF_ON  || [0x18 ; 0xD8]       | DDF_ON
-     *  6 | medium  | small   | DDF_OFF || not handled         | -
-     *  7 | medium  | small   | DDF_ON  || not handled         | -
-     *  8 | medium  | medium  | DDF_OFF || [DDFSTRT ; DDFSTOP] | DDF_OFF
-     *  9 | medium  | medium  | DDF_ON  || [0x18 ; DDFSTOP]    | DDF_OFF
-     * 10 | medium  | large   | DDF_OFF || [DDFSTRT ; 0xD8]    | DDF_ON
-     * 11 | medium  | large   | DDF_ON  || [0x18 ; 0xD8]       | DDF_ON
-     * 12 | large   | small   | DDF_OFF || not handled         | -
-     * 13 | large   | small   | DDF_ON  || not handled         | -
-     * 14 | large   | medium  | DDF_OFF || not handled         | -
-     * 15 | large   | medium  | DDF_ON  || not handled         | -
-     * 16 | large   | large   | DDF_OFF || Empty               | DDF_OFF
-     * 17 | large   | large   | DDF_ON  || [0x18 ; 0xD8]       | DDF_ON
-     */
-    const struct { isize interval; DDFState state; } table[18] = {
-        { DDF_EMPTY ,    DDF_OFF }, // 0
-        { DDF_EMPTY ,    DDF_OFF }, // 1
-        { DDF_18_STOP ,  DDF_OFF }, // 2
-        { DDF_18_STOP ,  DDF_OFF }, // 3
-        { DDF_18_D8 ,    DDF_ON  }, // 4
-        { DDF_18_D8 ,    DDF_ON  }, // 5
-        { DDF_EMPTY ,    DDF_OFF }, // 6
-        { DDF_EMPTY ,    DDF_OFF }, // 7
-        { DDF_STRT_STOP, DDF_OFF }, // 8
-        { DDF_18_STOP ,  DDF_OFF }, // 9
-        { DDF_STRT_D8 ,  DDF_ON  }, // 10
-        { DDF_18_D8 ,    DDF_ON  }, // 11
-        { DDF_EMPTY ,    DDF_OFF }, // 12
-        { DDF_EMPTY ,    DDF_OFF }, // 13
-        { DDF_EMPTY ,    DDF_OFF }, // 14
-        { DDF_EMPTY ,    DDF_OFF }, // 15
-        { DDF_EMPTY ,    DDF_OFF }, // 16
-        { DDF_18_D8 ,    DDF_ON  }, // 17
-    };
-
-    isize index = 6*strt + 2*stop + (ddfState == DDF_ON);
-    switch (table[index].interval) {
-
-        case DDF_EMPTY:
-            ddfLores.clear();
-            ddfHires.clear();
-            break;
-        case DDF_STRT_STOP:
-            ddfLores.compute(ddfstrtReached, ddfstopReached);
-            ddfHires.compute(ddfstrtReached, ddfstopReached);
-            break;
-        case DDF_STRT_D8:
-            ddfLores.compute(ddfstrtReached, 0xD8);
-            ddfHires.compute(ddfstrtReached, 0xD8);
-            break;
-        case DDF_18_STOP:
-            ddfLores.compute(0x18, ddfstopReached);
-            ddfHires.compute(0x18, ddfstopReached);
-            break;
-        case DDF_18_D8:
-            ddfLores.compute(0x18, 0xD8);
-            ddfHires.compute(0x18, 0xD8);
-            break;
-    }
-    ddfState = table[index].state;
-
-    trace(DDF_DEBUG, "DDF Window (ECS):  (%d,%d) (%d,%d)\n",
-          ddfLores.strt, ddfHires.strt, ddfLores.stop, ddfHires.stop);
-
-    return;
-}
-
-
-int
-Agnus::bpu(u16 v)
-{
-    // Extract the three BPU bits and check for hires mode
-    int bpu = (v >> 12) & 0b111;
-    bool hires = GET_BIT(v, 15);
-
-    if (hires) {
-        return bpu < 5 ? bpu : 0; // Disable all channels if value is invalid
-    } else {
-        return bpu < 7 ? bpu : 4; // Enable four channels if value is invalid
-    }
 }
 
 void
 Agnus::execute()
 {
     // Process pending events
-    if (nextTrigger <= clock) {
-        executeEventsUntil(clock);
-    } else {
-        assert(pos.h < 0xE2);
-    }
+    if (nextTrigger <= clock) executeUntil(clock);
+
+    // If this assertion hits, the HSYNC event hasn't been served
+    assert(pos.h < HPOS_MAX);
 
     // Advance the internal clock and the horizontal counter
     clock += DMA_CYCLES(1);
-
-    assert(pos.h <= HPOS_MAX);
-    pos.h = pos.h < HPOS_MAX ? pos.h + 1 : 0; // (pos.h + 1) % HPOS_CNT;
-
-    // If this assertion hits, the HSYNC event hasn't been served
-    // if (pos.h > HPOS_CNT) { dump(); dumpBplEventTable(); }
-    assert(pos.h <= HPOS_CNT);
+    pos.h++;
 }
-
-#ifdef AGNUS_EXEC_DEBUG
 
 void
-Agnus::executeUntil(Cycle targetClock)
+Agnus::execute(DMACycle cycles)
 {
-    // Align to DMA cycle raster
-    targetClock &= ~0b111;
-
-    // Compute the number of DMA cycles to execute
-    DMACycle dmaCycles = (targetClock - clock) / DMA_CYCLES(1);
-
-    // Execute DMA cycles one after another
-    for (DMACycle i = 0; i < dmaCycles; i++) execute();
+    for (DMACycle i = 0; i < cycles; i++) execute();
 }
-
-#else
-
-void
-Agnus::executeUntil(Cycle targetClock)
-{
-    // Align to DMA cycle raster
-    targetClock &= ~0b111;
-
-    // Compute the number of DMA cycles to execute
-    DMACycle dmaCycles = (targetClock - clock) / DMA_CYCLES(1);
-
-    if (targetClock < nextTrigger && dmaCycles > 0) {
-
-        // Advance directly to the target clock
-        clock = targetClock;
-        pos.h += dmaCycles;
-
-        // If this assertion hits, the HSYNC event hasn't been served
-        assert(pos.h <= HPOS_CNT);
-
-    } else {
-
-        // Execute DMA cycles one after another
-        for (DMACycle i = 0; i < dmaCycles; i++) execute();
-    }
-}
-#endif
 
 void
 Agnus::syncWithEClock()
 {
     // Check if E clock syncing is disabled
-    if (!ciaa.getEClockSyncing()) return;
+    if (!ciaa.getConfig().eClockSyncing) return;
 
     /* The E clock is 6 clocks low and 4 clocks high:
      *
@@ -771,7 +275,9 @@ Agnus::syncWithEClock()
     // We want to sync to position (2).
     // If we are already too close, we seek (2) in the next E clock cycle.
     Cycle delay = 0;
+    
     switch (eClk) {
+            
         case 0: delay = 4 * (2 + 10); break;
         case 1: delay = 4 * (1 + 10); break;
         case 2: delay = 4 * (0 + 10); break;
@@ -782,38 +288,25 @@ Agnus::syncWithEClock()
         case 7: delay = 4 * (5 + 10); break;
         case 8: delay = 4 * (4 + 10); break;
         case 9: delay = 4 * (3 + 10); break;
-        default: assert(false);
+
+        default:
+            fatalError;
     }
     
     // Doublecheck that we are going to sync to a DMA cycle
     assert(DMA_CYCLES(AS_DMA_CYCLES(clock + delay)) == clock + delay);
     
     // Execute Agnus until the target cycle has been reached
-    executeUntil(clock + delay);
+    execute(AS_DMA_CYCLES(delay));
 
     // Add wait states to the CPU
     cpu.addWaitStates(delay);
 }
 
-/*
-bool
-Agnus::inSyncWithEClock()
-{
-    // Check if E clock syncing is disabled
-    if (!ciaa.getEClockSyncing()) return true;
-        
-    // Determine where we are in the current E clock cycle
-    Cycle eClk = (clock >> 2) % 10;
-    
-    // Unsure if this condition is accurate
-    return eClk >= 2 && eClk <= 6;
-}
-*/
-
 void
 Agnus::executeUntilBusIsFree()
 {    
-    i16 posh = pos.h == 0 ? HPOS_MAX : pos.h - 1;
+    isize posh = pos.h == 0 ? HPOS_MAX : pos.h - 1;
 
     // Check if the bus is blocked
     if (busOwner[posh] != BUS_NONE) {
@@ -823,8 +316,13 @@ Agnus::executeUntilBusIsFree()
 
         // Execute Agnus until the bus is free
         do {
-            // debug("Blocked by %d\n", busOwner[posh]);
-
+            
+            /*
+            if (pos.v >= 0x66 && pos.v <= 0x66) {
+                trace(true, "CPU blocked in %ld by %s\n", posh, BusOwnerEnum::key(busOwner[posh]));
+            }
+            */
+            
             posh = pos.h;
             execute();
             if (++delay == 2) bls = true;
@@ -837,7 +335,13 @@ Agnus::executeUntilBusIsFree()
         // Add wait states to the CPU
         cpu.addWaitStates(DMA_CYCLES(delay));
     }
-
+    
+    /*
+    if (pos.v >= 0x66 && pos.v <= 0x66) {
+        trace(true, "CPU got cycle %ld\n", posh);
+    }
+    */
+    
     // Assign bus to the CPU
     busOwner[posh] = BUS_CPU;
 }
@@ -848,7 +352,7 @@ Agnus::executeUntilBusIsFreeForCIA()
     // Sync with the E clock driving the CIA
     syncWithEClock();
     
-    i16 posh = pos.h == 0 ? HPOS_MAX : pos.h - 1;
+    isize posh = pos.h == 0 ? HPOS_MAX : pos.h - 1;
     
     // Check if the bus is blocked
     if (busOwner[posh] != BUS_NONE) {
@@ -877,25 +381,168 @@ Agnus::executeUntilBusIsFreeForCIA()
 }
 
 void
-Agnus::recordRegisterChange(Cycle delay, u32 addr, u16 value)
+Agnus::recordRegisterChange(Cycle delay, u32 addr, u16 value, Accessor acc)
 {
     // Record the new register value
-    changeRecorder.insert(clock + delay, RegChange { addr, value} );
+    changeRecorder.insert(clock + delay, RegChange { addr, value, (u16)acc } );
     
     // Schedule the register change
     scheduleNextREGEvent();
 }
 
 void
-Agnus::updateRegisters()
-{
+Agnus::executeUntil(Cycle cycle) {
+
+    //
+    // Check primary slots
+    //
+
+    if (isDue<SLOT_REG>(cycle)) {
+        agnus.serviceREGEvent(cycle);
+    }
+    if (isDue<SLOT_CIAA>(cycle)) {
+        ciaa.serviceEvent(id[SLOT_CIAA]);
+    }
+    if (isDue<SLOT_CIAB>(cycle)) {
+        ciab.serviceEvent(id[SLOT_CIAB]);
+    }
+    if (isDue<SLOT_BPL>(cycle)) {
+        agnus.serviceBPLEvent(id[SLOT_BPL]);
+    }
+    if (isDue<SLOT_DAS>(cycle)) {
+        agnus.serviceDASEvent(id[SLOT_DAS]);
+    }
+    if (isDue<SLOT_COP>(cycle)) {
+        copper.serviceEvent(id[SLOT_COP]);
+    }
+    if (isDue<SLOT_BLT>(cycle)) {
+        blitter.serviceEvent(id[SLOT_BLT]);
+    }
+
+    if (isDue<SLOT_SEC>(cycle)) {
+
+        //
+        // Check secondary slots
+        //
+
+        if (isDue<SLOT_CH0>(cycle)) {
+            paula.channel0.serviceEvent();
+        }
+        if (isDue<SLOT_CH1>(cycle)) {
+            paula.channel1.serviceEvent();
+        }
+        if (isDue<SLOT_CH2>(cycle)) {
+            paula.channel2.serviceEvent();
+        }
+        if (isDue<SLOT_CH3>(cycle)) {
+            paula.channel3.serviceEvent();
+        }
+        if (isDue<SLOT_DSK>(cycle)) {
+            paula.diskController.serviceDiskEvent();
+        }
+        if (isDue<SLOT_VBL>(cycle)) {
+            agnus.serviceVblEvent(id[SLOT_VBL]);
+        }
+        if (isDue<SLOT_IRQ>(cycle)) {
+            paula.serviceIrqEvent();
+        }
+        if (isDue<SLOT_KBD>(cycle)) {
+            keyboard.serviceKeyboardEvent(id[SLOT_KBD]);
+        }
+        if (isDue<SLOT_TXD>(cycle)) {
+            uart.serviceTxdEvent(id[SLOT_TXD]);
+        }
+        if (isDue<SLOT_RXD>(cycle)) {
+            uart.serviceRxdEvent(id[SLOT_RXD]);
+        }
+        if (isDue<SLOT_POT>(cycle)) {
+            paula.servicePotEvent(id[SLOT_POT]);
+        }
+        if (isDue<SLOT_IPL>(cycle)) {
+            paula.serviceIplEvent();
+        }
+        if (isDue<SLOT_RAS>(cycle)) {
+            agnus.serviceRASEvent();
+        }
+
+        if (isDue<SLOT_TER>(cycle)) {
+
+            //
+            // Check tertiary slots
+            //
+
+            if (isDue<SLOT_DC0>(cycle)) {
+                df0.serviceDiskChangeEvent <SLOT_DC0> ();
+            }
+            if (isDue<SLOT_DC1>(cycle)) {
+                df1.serviceDiskChangeEvent <SLOT_DC1> ();
+            }
+            if (isDue<SLOT_DC2>(cycle)) {
+                df2.serviceDiskChangeEvent <SLOT_DC2> ();
+            }
+            if (isDue<SLOT_DC3>(cycle)) {
+                df3.serviceDiskChangeEvent <SLOT_DC3> ();
+            }
+            if (isDue<SLOT_HD0>(cycle)) {
+                hd0.serviceHdrEvent <SLOT_HD0> ();
+            }
+            if (isDue<SLOT_HD1>(cycle)) {
+                hd1.serviceHdrEvent <SLOT_HD1> ();
+            }
+            if (isDue<SLOT_HD2>(cycle)) {
+                hd2.serviceHdrEvent <SLOT_HD2> ();
+            }
+            if (isDue<SLOT_HD3>(cycle)) {
+                hd3.serviceHdrEvent <SLOT_HD3> ();
+            }
+            if (isDue<SLOT_MSE1>(cycle)) {
+                controlPort1.mouse.serviceMouseEvent <SLOT_MSE1> ();
+            }
+            if (isDue<SLOT_MSE2>(cycle)) {
+                controlPort2.mouse.serviceMouseEvent <SLOT_MSE2> ();
+            }
+            if (isDue<SLOT_KEY>(cycle)) {
+                keyboard.serviceKeyEvent();
+            }
+            if (isDue<SLOT_SRV>(cycle)) {
+                remoteManager.serviceServerEvent();
+            }
+            if (isDue<SLOT_SER>(cycle)) {
+                remoteManager.serServer.serviceSerEvent();
+            }
+            if (isDue<SLOT_INS>(cycle)) {
+                agnus.serviceINSEvent(id[SLOT_INS]);
+            }
+
+            // Determine the next trigger cycle for all tertiary slots
+            Cycle next = trigger[SLOT_TER + 1];
+            for (isize i = SLOT_TER + 2; i < SLOT_COUNT; i++) {
+                if (trigger[i] < next) next = trigger[i];
+            }
+            rescheduleAbs<SLOT_TER>(next);
+        }
+        
+        // Determine the next trigger cycle for all secondary slots
+        Cycle next = trigger[SLOT_SEC + 1];
+        for (isize i = SLOT_SEC + 2; i <= SLOT_TER; i++) {
+            if (trigger[i] < next) next = trigger[i];
+        }
+        rescheduleAbs<SLOT_SEC>(next);
+    }
+
+    // Determine the next trigger cycle for all primary slots
+    Cycle next = trigger[0];
+    for (isize i = 1; i <= SLOT_SEC; i++) {
+        if (trigger[i] < next) next = trigger[i];
+    }
+    nextTrigger = next;
 }
 
-template <int nr> void
+template <isize nr> void
 Agnus::executeFirstSpriteCycle()
 {
-    trace(SPR_DEBUG, "executeFirstSpriteCycle<%d>\n", nr);
-
+    trace(SPR_DEBUG, "executeFirstSpriteCycle<%ld>\n", nr);
+    
     if (pos.v == sprVStop[nr]) {
 
         sprDmaState[nr] = SPR_DMA_IDLE;
@@ -903,9 +550,16 @@ Agnus::executeFirstSpriteCycle()
         if (busOwner[pos.h] == BUS_NONE) {
 
             // Read in the next control word (POS part)
-            u16 value = doSpriteDMA<nr>();
-            agnus.pokeSPRxPOS<nr>(value);
-            denise.pokeSPRxPOS<nr>(value);
+            if (sprdma()) {
+                
+                auto value = doSpriteDmaRead<nr>();
+                agnus.pokeSPRxPOS<nr>(value);
+                denise.pokeSPRxPOS<nr>(value);
+                
+            } else {
+                
+                busOwner[pos.h] = BUS_BLOCKED;
+            }
         }
 
     } else if (sprDmaState[nr] == SPR_DMA_ACTIVE) {
@@ -913,36 +567,57 @@ Agnus::executeFirstSpriteCycle()
         if (busOwner[pos.h] == BUS_NONE) {
 
             // Read in the next data word (part A)
-            u16 value = doSpriteDMA<nr>();
-            denise.pokeSPRxDATA<nr>(value);
+            if (sprdma()) {
+                
+                auto value = doSpriteDmaRead<nr>();
+                denise.pokeSPRxDATA<nr>(value);
+                
+            } else {
+                
+                busOwner[pos.h] = BUS_BLOCKED;
+            }
         }
     }
 }
 
-template <int nr> void
+template <isize nr> void
 Agnus::executeSecondSpriteCycle()
 {
-    trace(SPR_DEBUG, "executeSecondSpriteCycle<%d>\n", nr);
+    trace(SPR_DEBUG, "executeSecondSpriteCycle<%ld>\n", nr);
 
     if (pos.v == sprVStop[nr]) {
 
         sprDmaState[nr] = SPR_DMA_IDLE;
 
         if (busOwner[pos.h] == BUS_NONE) {
-            
-            // Read in the next control word (CTL part)
-            u16 value = doSpriteDMA<nr>();
-            agnus.pokeSPRxCTL<nr>(value);
-            denise.pokeSPRxCTL<nr>(value);
+
+            if (sprdma()) {
+                
+                // Read in the next control word (CTL part)
+                auto value = doSpriteDmaRead<nr>();
+                agnus.pokeSPRxCTL<nr>(value);
+                denise.pokeSPRxCTL<nr>(value);
+                
+            } else {
+                
+                busOwner[pos.h] = BUS_BLOCKED;
+            }
         }
 
     } else if (sprDmaState[nr] == SPR_DMA_ACTIVE) {
 
         if (busOwner[pos.h] == BUS_NONE) {
 
-            // Read in the next data word (part B)
-            u16 value = doSpriteDMA<nr>();
-            denise.pokeSPRxDATB<nr>(value);
+            if (sprdma()) {
+                
+                // Read in the next data word (part B)
+                auto value = doSpriteDmaRead<nr>();
+                denise.pokeSPRxDATB<nr>(value);
+                
+            } else {
+                
+                busOwner[pos.h] = BUS_BLOCKED;
+            }
         }
     }
 }
@@ -952,7 +627,7 @@ Agnus::updateSpriteDMA()
 {
     // When the function is called, the sprite logic already sees an inremented
     // vertical position counter
-    i16 v = pos.v + 1;
+    isize v = pos.v + 1;
 
     // Reset the vertical trigger coordinates in line 25
     if (v == 25 && sprdma()) {
@@ -976,16 +651,16 @@ Agnus::updateSpriteDMA()
 void
 Agnus::hsyncHandler()
 {
-    assert(pos.h == 0 || pos.h == HPOS_MAX + 1);
-
-    // Call the hsync handlers of Denise
+    assert(pos.h == 0);
+    
+    // Let Denise finish up the current line
     denise.endOfLine(pos.v);
 
     // Update pot counters
-    if (paula.chargeX0 < 1.0) paula.potCntX0++;
-    if (paula.chargeY0 < 1.0) paula.potCntY0++;
-    if (paula.chargeX1 < 1.0) paula.potCntX1++;
-    if (paula.chargeY1 < 1.0) paula.potCntY1++;
+    if (paula.chargeX0 < 1.0) U8_INC(paula.potCntX0, 1);
+    if (paula.chargeY0 < 1.0) U8_INC(paula.potCntY0, 1);
+    if (paula.chargeX1 < 1.0) U8_INC(paula.potCntX1, 1);
+    if (paula.chargeY1 < 1.0) U8_INC(paula.potCntY1, 1);
 
     // Transfer DMA requests from Paula to Agnus
     paula.channel0.requestDMA();
@@ -993,111 +668,25 @@ Agnus::hsyncHandler()
     paula.channel2.requestDMA();
     paula.channel3.requestDMA();
 
-    // Reset the horizontal counter
-    pos.h = 0;
-
     // Advance the vertical counter
     if (++pos.v >= frame.numLines()) vsyncHandler();
 
-    // Initialize variables which keep values for certain trigger positions
-    dmaconAtDDFStrt = dmacon;
-    bplcon0AtDDFStrt = bplcon0;
-
-
-    //
-    // DIW
-    //
-
-    if (pos.v == diwVstrt && !diwVFlop) {
-        diwVFlop = true;
-        trace(DIW_DEBUG, "diwVFlop = %d\n", diwVFlop);
-    }
-    if (pos.v == diwVstop && diwVFlop) {
-        diwVFlop = false;
-        trace(DIW_DEBUG, "diwVFlop = %d\n", diwVFlop);
-    }
-
-    // Horizontal DIW flipflop
-    diwHFlop = (diwHFlopOff != -1) ? false : (diwHFlopOn != -1) ? true : diwHFlop;
-    diwHFlopOn = diwHstrt;
-    diwHFlopOff = diwHstop;
-
-
-    //
-    // DDF
-    //
-
-    // Update the vertical DDF flipflop
-    ddfVFlop = !inLastRasterline() && diwVFlop;
-
-
-    //
-    // Determine the bitplane DMA status for the line to come
-    //
-
-    bool newBplDmaLine = inBplDmaLine();
-
-    // Update the bpl event table if the value has changed
-    if (newBplDmaLine ^ bplDmaLine) {
-        hsyncActions |= HSYNC_UPDATE_BPL_TABLE;
-        bplDmaLine = newBplDmaLine;
-    }
-
-
-    //
-    // Determine the disk, audio and sprite DMA status for the line to come
-    //
-
-    u16 newDmaDAS;
-
-    if (dmacon & DMAEN) {
-
-        // Copy DMA enable bits from dmacon
-        newDmaDAS = dmacon & 0b111111;
-
-        // Disable sprites outside the sprite DMA area
-        if (pos.v < 25 || pos.v >= frame.lastLine()) newDmaDAS &= 0b011111;
-
-    } else {
-
-        newDmaDAS = 0;
-    }
-
-    if (dmaDAS != newDmaDAS) hsyncActions |= HSYNC_UPDATE_DAS_TABLE;
-    dmaDAS = newDmaDAS;
-
-    //
-    // Process pending work items
-    //
-
-    if (hsyncActions) {
-
-        if (hsyncActions & HSYNC_PREDICT_DDF) {
-            hsyncActions &= ~HSYNC_PREDICT_DDF;
-            predictDDF();
-        }
-        if (hsyncActions & HSYNC_UPDATE_BPL_TABLE) {
-            hsyncActions &= ~HSYNC_UPDATE_BPL_TABLE;
-            updateBplEvents();
-        }
-        if (hsyncActions & HSYNC_UPDATE_DAS_TABLE) {
-            hsyncActions &= ~HSYNC_UPDATE_DAS_TABLE;
-            updateDasEvents(dmaDAS);
-        }
-    }
-
+    // Save the current value of certain variables
+    dmaconInitial = dmacon;
+    bplcon0Initial = bplcon0;
+    bplcon1Initial = bplcon1;
+    
     // Clear the bus usage table
     for (isize i = 0; i < HPOS_CNT; i++) busOwner[i] = BUS_NONE;
 
+    // Pass control to the sequencer
+    sequencer.hsyncHandler();
+    
     // Schedule the first BPL and DAS events
-    scheduleNextBplEvent();
-    scheduleNextDasEvent();
-
-
-    //
-    // Let other components prepare for the next line
-    //
-
+    scheduleFirstBplEvent();
+    scheduleFirstDasEvent();
+    
+    // Let Denise prepare for the next line
     denise.beginOfLine(pos.v);
 }
 
@@ -1106,7 +695,7 @@ Agnus::vsyncHandler()
 {
     // Run the screen recorder
     denise.screenRecorder.vsyncHandler(clock - 50 * DMA_CYCLES(HPOS_CNT));
-
+    
     // Synthesize sound samples
     paula.executeUntil(clock - 50 * DMA_CYCLES(HPOS_CNT));
 
@@ -1115,24 +704,21 @@ Agnus::vsyncHandler()
 
     // Reset vertical position counter
     pos.v = 0;
-
-    // Initialize the DIW flipflops
-    diwVFlop = false;
-    diwHFlop = true; 
             
     // Let other components do their own VSYNC stuff
+    sequencer.vsyncHandler();
     copper.vsyncHandler();
     denise.vsyncHandler();
-    controlPort1.joystick.execute();
-    controlPort2.joystick.execute();
+    controlPort1.joystick.vsyncHandler();
+    controlPort2.joystick.vsyncHandler();
     retroShell.vsyncHandler();
 
     // Update statistics
     updateStats();
     mem.updateStats();
     
-    // Count some sheep (zzzzzz) ...
-    oscillator.synchronize();
+    // Let the thread synchronize
+    amiga.setFlag(RL::SYNC_THREAD);
 }
 
 //

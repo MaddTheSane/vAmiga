@@ -9,22 +9,19 @@
 
 class DialogWindow: NSWindow {
 
-    // Delegation method for ESC and Cmd+.
+    // Delegation method for ESC and Cmd+
     override func cancelOperation(_ sender: Any?) {
-              
-        track()
-        
+                      
         if let controller = delegate as? DialogController {
             controller.cancelAction(sender)
         }
     }
 }
 
-/* Base class for all auxiliary windows.
- * The class extends NSWindowController by a reference to the controller
- * of the connected emulator window (parent) and a reference to the parents
- * proxy object. It also provides some wrappers around showing and hiding the
- * window.
+/* Base class for all auxiliary windows. The class extends NSWindowController
+ * by a reference to the controller of the connected emulator window (parent)
+ * and a reference to the parents proxy object. It also provides some wrappers
+ * around showing and hiding the window.
  */
 protocol DialogControllerDelegate: AnyObject {
     
@@ -43,6 +40,9 @@ class DialogController: NSWindowController, DialogControllerDelegate {
     var parent: MyController!
     var amiga: AmigaProxy!
 
+    // List of open windows or sheets (to make ARC happy)
+    static var active: [DialogController] = []
+    
     // Remembers whether awakeFromNib has been called
     var awake = false
     
@@ -51,10 +51,22 @@ class DialogController: NSWindowController, DialogControllerDelegate {
         let controller = Self.init(windowNibName: nibName)
         controller.parent = parent
         controller.amiga = parent.amiga
-
+        
         return controller
     }
 
+    func register() {
+        
+        DialogController.active.append(self)
+        log("Register: \(DialogController.active)", level: 2)
+    }
+    
+    func unregister() {
+        
+        DialogController.active = DialogController.active.filter {$0 != self}
+        log("Unregister: \(DialogController.active)", level: 2)
+    }
+    
     override func windowWillLoad() {
     }
     
@@ -64,6 +76,7 @@ class DialogController: NSWindowController, DialogControllerDelegate {
     override func awakeFromNib() {
     
         awake = true
+        window?.delegate = self
         sheetWillShow()
     }
     
@@ -79,16 +92,23 @@ class DialogController: NSWindowController, DialogControllerDelegate {
         
     }
     
+    func showWindow(completionHandler handler:(() -> Void)? = nil) {
+
+        register()
+        if awake { sheetWillShow() }
+        
+        showWindow(self)
+    }
+
     func showSheet(completionHandler handler:(() -> Void)? = nil) {
 
+        register()
         if awake { sheetWillShow() }
         
         parent.window?.beginSheet(window!, completionHandler: { result in
-            if result == NSApplication.ModalResponse.OK {
-                
-                handler?()
-                self.cleanup()
-            }
+
+            handler?()
+            self.cleanup()
         })
 
         sheetDidShow()
@@ -97,23 +117,27 @@ class DialogController: NSWindowController, DialogControllerDelegate {
     func hideSheet() {
     
         if let win = window {
-            
-            // win.orderOut(self)
             parent.window?.endSheet(win, returnCode: .cancel)
         }
+        unregister()
     }
     
-    // Default action method for the OK button
     @IBAction func okAction(_ sender: Any!) {
         
-        track()
         hideSheet()
     }
     
-    // Default action method for the Cancel button
     @IBAction func cancelAction(_ sender: Any!) {
         
-        track()
         hideSheet()
+    }
+}
+
+extension DialogController: NSWindowDelegate {
+
+    func windowWillClose(_ notification: Notification) {
+
+        log()
+        unregister()
     }
 }

@@ -9,14 +9,9 @@
 
 #include "config.h"
 #include "CopperDebugger.h"
+#include "Amiga.h"
 #include "Copper.h"
-#include "IO.h"
-
-void
-CopperDebugger::_initialize()
-{
-
-}
+#include "IOUtils.h"
 
 void
 CopperDebugger::_reset(bool hard)
@@ -24,20 +19,20 @@ CopperDebugger::_reset(bool hard)
     cache.clear();
     current1 = nullptr;
     current2 = nullptr;
-    dump();
 }
 
 void
-CopperDebugger::_dump(dump::Category category, std::ostream& os) const
+CopperDebugger::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
 
-    if (!debugMode) {
+    if (!amiga.inDebugMode()) {
+        
         os << "No recorded data. Debug mode is off." << std::endl;
         return;
     }
     
-    if ((category & dump::List1) && current1) {
+    if (category == Category::List1 && current1) {
 
         isize count = (current1->end - current1->start) / 4;
         for (isize i = 0; i < count && i < 100; i++) {
@@ -45,7 +40,7 @@ CopperDebugger::_dump(dump::Category category, std::ostream& os) const
         }
     }
     
-    if ((category & dump::List2) && current2) {
+    if (category == Category::List2 && current2) {
 
         isize count = (current2->end - current2->start) / 4;
         for (isize i = 0; i < count && i < 100; i++) {
@@ -55,33 +50,31 @@ CopperDebugger::_dump(dump::Category category, std::ostream& os) const
 }
 
 u32
-CopperDebugger::startOfCopperList(isize nr)
+CopperDebugger::startOfCopperList(isize nr) const
 {
+    assert(nr == 1 || nr == 2);
+
+    SYNCHRONIZED
+    
     u32 result = 0;
     
-    synchronized {
-
-        assert(nr == 1 || nr == 2);
-
-        if (nr == 1 && current1) result = current1->start;
-        if (nr == 2 && current2) result = current2->start;
-    }
+    if (nr == 1 && current1) result = current1->start;
+    if (nr == 2 && current2) result = current2->start;
     
     return result;
 }
 
 u32
-CopperDebugger::endOfCopperList(isize nr)
+CopperDebugger::endOfCopperList(isize nr) const
 {
+    assert(nr == 1 || nr == 2);
+
+    SYNCHRONIZED
+
     u32 result = 0;
-    
-    synchronized {
 
-        assert(nr == 1 || nr == 2);
-
-        if (nr == 1 && current1) result = current1->end;
-        if (nr == 2 && current2) result = current2->end;
-    }
+    if (nr == 1 && current1) result = current1->end;
+    if (nr == 2 && current2) result = current2->end;
     
     return result;
 }
@@ -89,82 +82,101 @@ CopperDebugger::endOfCopperList(isize nr)
 void
 CopperDebugger::advanced()
 {
-    synchronized {
-        
-        auto addr = copper.coppc;
-        auto nr = copper.copList;
-        assert(nr == 1 || nr == 2);
-        
-        // Adjust the end address if the Copper went beyond
-        if (nr == 1 && current1 && current1->end < addr) {
-            current1->end = addr;
-        }
-        if (nr == 2 && current2 && current2->end < addr) {
-            current2->end = addr;
-        }
+    SYNCHRONIZED
+    
+    auto addr = copper.coppc;
+    auto nr = copper.copList;
+    assert(nr == 1 || nr == 2);
+    
+    // Adjust the end address if the Copper went beyond
+    if (nr == 1 && current1 && current1->end < addr) {
+        current1->end = addr;
+    }
+    if (nr == 2 && current2 && current2->end < addr) {
+        current2->end = addr;
     }
 }
 
 void
 CopperDebugger::jumped()
 {
-    synchronized {
-        
-        auto addr = copper.coppc;
-        auto nr = copper.copList;
-        assert(nr == 1 || nr == 2);
-        
-        // Lookup Copper list in cache
-        auto list = cache.find(addr);
-        
-        // Create a new list if it was not found
-        if (list == cache.end()) {
-            cache.insert(std::make_pair(addr, CopperList { addr, addr }));
-            list = cache.find(addr);
-        }
-        
-        // Switch to the new list
-        if (nr == 1) {
-            current1 = &list->second;
-        } else {
-            current2 = &list->second;
-        }
-    }
-}
-
-string
-CopperDebugger::disassemble(u32 addr) const
-{
-    char pos[16];
-    char mask[16];
-    char disassembly[128];
+    SYNCHRONIZED
     
-    if (copper.isMoveCmd(addr)) {
-        
-        sprintf(disassembly, "MOVE $%04X, %s", copper.getDW(addr), regName(copper.getRA(addr)));
-        return string(disassembly);
+    auto addr = copper.coppc;
+    auto nr = copper.copList;
+    assert(nr == 1 || nr == 2);
+    
+    // Lookup Copper list in cache
+    auto list = cache.find(addr);
+    
+    // Create a new list if it was not found
+    if (list == cache.end()) {
+        cache.insert(std::make_pair(addr, CopperList { addr, addr }));
+        list = cache.find(addr);
     }
     
-    const char *mnemonic = copper.isWaitCmd(addr) ? "WAIT" : "SKIP";
-    const char *suffix = copper.getBFD(addr) ? "" : "b";
-    
-    sprintf(pos, "($%02X,$%02X)", copper.getVP(addr), copper.getHP(addr));
-    
-    if (copper.getVM(addr) == 0xFF && copper.getHM(addr) == 0xFF) {
-        mask[0] = 0;
+    // Switch to the new list
+    if (nr == 1) {
+        current1 = &list->second;
     } else {
-        sprintf(mask, ", ($%02X,$%02X)", copper.getHM(addr), copper.getVM(addr));
+        current2 = &list->second;
     }
-    
-    sprintf(disassembly, "%s%s %s%s", mnemonic, suffix, pos, mask);
-    return string(disassembly);
 }
 
 string
-CopperDebugger::disassemble(isize list, isize offset) const
+CopperDebugger::disassemble(isize list, isize offset, bool symbolic) const
 {
     assert(list == 1 || list == 2);
     
     u32 addr = (u32)((list == 1 ? copper.cop1lc : copper.cop2lc) + 2 * offset);
-    return string(disassemble(addr));
+    return string(disassemble(addr, symbolic));
+}
+
+string
+CopperDebugger::disassemble(u32 addr, bool symbolic) const
+{
+    if (symbolic) {
+        
+        char pos[16];
+        char mask[16];
+        char txt[128];
+        
+        if (copper.isMoveCmd(addr)) {
+            
+            auto source = copper.getDW(addr);
+            auto target = Memory::regName(copper.getRA(addr));
+            snprintf(txt, sizeof(txt), "MOVE $%04X, %s", source, target);
+            
+            return string(txt);
+        }
+        
+        const char *mnemonic = copper.isWaitCmd(addr) ? "WAIT" : "SKIP";
+        const char *suffix = copper.getBFD(addr) ? "" : "b";
+        
+        auto vp = copper.getVP(addr);
+        auto hp = copper.getHP(addr);
+        snprintf(pos, sizeof(pos), "($%02X,$%02X)", vp, hp);
+        
+        if (copper.getVM(addr) == 0xFF && copper.getHM(addr) == 0xFF) {
+            mask[0] = 0;
+        } else {
+            
+            auto hm = copper.getHM(addr);
+            auto vm = copper.getVM(addr);
+            snprintf(mask, sizeof(mask), ", ($%02X,$%02X)", hm, vm);
+        }
+        
+        snprintf(txt, sizeof(txt), "%s%s %s%s", mnemonic, suffix, pos, mask);
+        return string(txt);
+        
+    } else {
+        
+        auto word1 = mem.spypeek16 <ACCESSOR_AGNUS> (addr);
+        auto word2 = mem.spypeek16 <ACCESSOR_AGNUS> (addr + 2);
+        
+        auto hex1 = util::hexstr <4> (word1);
+        auto hex2 = util::hexstr <4> (word2);
+        
+        return "dc.w " + hex1 + "," + hex2;
+    }
 }

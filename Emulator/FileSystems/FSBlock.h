@@ -12,51 +12,68 @@
 #include "AmigaObject.h"
 #include "FSTypes.h"
 #include "FSObjects.h"
+#include "Buffer.h"
+#include "IOUtils.h"
+#include "BootBlockImage.h"
+#include <vector>
+
+using util::Buffer;
 
 struct FSBlock : AmigaObject {
         
-    // The partition this block belongs to
-    struct FSPartition &partition;
-    
+    // The device this block belongs to
+    class FileSystem &device;
+
+    // The type of this block
+    FSBlockType type = FS_UNKNOWN_BLOCK;
+        
     // The sector number of this block
     Block nr;
     
-    // Outcome of the last integrity check (0 = OK, n = n-th corrupted block)
+    // Outcome of the latest integrity check (0 = OK, n = n-th corrupted block)
     isize corrupted = 0;
         
-    // The actual block data
-    u8 *data = nullptr;
+    // Block data
+    Buffer<u8> data;
 
     
     //
     // Constructing
     //
     
-    FSBlock(FSPartition &p, Block nr) : partition(p) { this->nr = nr; }
-    virtual ~FSBlock() { }
+    FSBlock(FileSystem &ref, Block nr, FSBlockType t);
 
-    static FSBlock *makeWithType(FSPartition &p, Block nr, FSBlockType type);
+    static FSBlock *make(FileSystem &ref, Block nr, FSBlockType type) throws;
+
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+protected:
+    
+    const char *getDescription() const override;
+    void _dump(Category category, std::ostream& os) const override { }
     
     
     //
     // Querying block properties
     //
 
-    // Returns the type of this block
-    virtual FSBlockType type() const = 0; 
-
+public:
+    
     // Returns the size of this block in bytes (usually 512)
     isize bsize() const;
 
-    // Extract the file system type from the block header
-    virtual FSVolumeType dos() const { return FS_NODOS; }
-    
+    // Returns the number of data bytes stored in this block
+    isize dsize() const;
+        
     // Returns the role of a certain byte in this block
-    virtual FSItemType itemType(isize byte) const { return FSI_UNKNOWN; }
+    FSItemType itemType(isize byte) const;
     
     // Returns the type and subtype identifiers of this block
-    virtual u32 typeID() const;
-    virtual u32 subtypeID() const;
+    u32 typeID() const;
+    u32 subtypeID() const;
     
     
     //
@@ -67,7 +84,7 @@ struct FSBlock : AmigaObject {
     isize check(bool strict) const;
 
     // Checks the integrity of a certain byte in this block
-    virtual ErrorCode check(isize pos, u8 *expected, bool strict) const { return ERROR_OK; }
+    ErrorCode check(isize pos, u8 *expected, bool strict) const;
         
     
     //
@@ -90,22 +107,29 @@ struct FSBlock : AmigaObject {
     void dec32(isize n) const { dec32(addr32(n)); }
 
     // Returns the location of the checksum inside this block
-    virtual isize checksumLocation() const { return -1; }
+    isize checksumLocation() const;
     
     // Computes a checksum for this block
-    virtual u32 checksum() const;
+    u32 checksum() const;
     
     // Updates the checksum in this block
     void updateChecksum();
     
+private:
+
+    u32 checksumStandard() const;
+    u32 checksumBootBlock() const;
+
     
     //
     // Debugging
     //
     
+public:
+    
     // Prints some debug information for this block
-    virtual void dump() const { };
-    virtual void dumpData() const;
+    void dump() const;
+    void dumpData() const;
 
     
     //
@@ -115,14 +139,19 @@ struct FSBlock : AmigaObject {
 public:
     
     // Imports this block from a buffer (bsize must match the volume block size)
-    virtual void importBlock(const u8 *src, isize bsize);
+    void importBlock(const u8 *src, isize bsize);
 
     // Exports this block to a buffer (bsize must match the volume block size)
-    virtual void exportBlock(u8 *dst, isize bsize);
+    void exportBlock(u8 *dst, isize bsize);
     
     // Exports this block to the host file system
-    virtual ErrorCode exportBlock(const string &path) { return ERROR_OK; }
+    ErrorCode exportBlock(const fs::path &path);
         
+private:
+    
+    ErrorCode exportUserDirBlock(const fs::path &path);
+    ErrorCode exportFileHeaderBlock(const fs::path &path);
+
                 
     //
     // Geting and setting names and comments
@@ -130,34 +159,34 @@ public:
     
 public:
     
-    virtual FSName getName() const { return FSName(""); }
-    virtual void setName(FSName name) { }
-    virtual bool isNamed(FSName &other) const { return false; }
+    FSName getName() const;
+    void setName(FSName name);
+    bool isNamed(FSName &other) const;
 
-    virtual FSComment getComment() const { return FSComment(""); }
-    virtual void setComment(FSComment name) { }
+    FSComment getComment() const;
+    void setComment(FSComment name);
 
     
     //
     // Getting and settting date and time
     //
     
-    virtual FSTime getCreationDate() const { return FSTime((time_t)0); }
-    virtual void setCreationDate(FSTime t) { }
+    FSTime getCreationDate() const;
+    void setCreationDate(FSTime t);
 
-    virtual FSTime getModificationDate() const { return FSTime((time_t)0); }
-    virtual void setModificationDate(FSTime t) { }
+    FSTime getModificationDate() const;
+    void setModificationDate(FSTime t);
     
     
     //
     // Getting and setting file properties
     //
     
-    virtual u32 getProtectionBits() const { return 0; }
-    virtual void setProtectionBits(u32 val) { }
+    u32 getProtectionBits() const;
+    void setProtectionBits(u32 val);
 
-    virtual u32 getFileSize() const { return 0; }
-    virtual void setFileSize(u32 val) { }
+    u32 getFileSize() const;
+    void setFileSize(u32 val);
 
     
     //
@@ -165,39 +194,42 @@ public:
     //
 
     // Link to the parent directory block
-    virtual Block getParentDirRef() const { return 0; }
-    virtual void setParentDirRef(Block ref) { }
+    Block getParentDirRef() const;
+    void setParentDirRef(Block ref);
     struct FSBlock *getParentDirBlock();
     
     // Link to the file header block
-    virtual Block getFileHeaderRef() const { return 0; }
-    virtual void setFileHeaderRef(Block ref) { }
-    struct FSFileHeaderBlock *getFileHeaderBlock();
+    Block getFileHeaderRef() const;
+    void setFileHeaderRef(Block ref);
+    FSBlock *getFileHeaderBlock();
 
     // Link to the next block with the same hash
-    virtual Block getNextHashRef() const { return 0; }
-    virtual void setNextHashRef(Block ref) { }
+    Block getNextHashRef() const;
+    void setNextHashRef(Block ref);
     struct FSBlock *getNextHashBlock();
 
     // Link to the next extension block
-    virtual Block getNextListBlockRef() const { return 0; }
-    virtual void setNextListBlockRef(Block ref) { }
-    struct FSFileListBlock *getNextListBlock();
-
+    Block getNextListBlockRef() const;
+    void setNextListBlockRef(Block ref);
+    FSBlock *getNextListBlock();
+    
     // Link to the next bitmap extension block
-    virtual Block getNextBmExtBlockRef() const { return 0; }
-    virtual void setNextBmExtBlockRef(Block ref) { }
-    struct FSBitmapExtBlock *getNextBmExtBlock();
+    Block getNextBmExtBlockRef() const;
+    void setNextBmExtBlockRef(Block ref);
+    FSBlock *getNextBmExtBlock();
     
     // Link to the first data block
-    virtual Block getFirstDataBlockRef() const { return 0; }
-    virtual void setFirstDataBlockRef(Block ref) { }
-    struct FSDataBlock *getFirstDataBlock();
+    Block getFirstDataBlockRef() const;
+    void setFirstDataBlockRef(Block ref);
+    FSBlock *getFirstDataBlock();
+
+    Block getDataBlockRef(isize nr) const;
+    void setDataBlockRef(isize nr, Block ref);
 
     // Link to the next data block
-    virtual Block getNextDataBlockRef() const { return 0; }
-    virtual void setNextDataBlockRef(Block ref) { }
-    struct FSDataBlock *getNextDataBlock();
+    Block getNextDataBlockRef() const;
+    void setNextDataBlockRef(Block ref);
+    FSBlock *getNextDataBlock();
 
         
     //
@@ -205,10 +237,10 @@ public:
     //
     
     // Returns the hash table size
-    virtual isize hashTableSize() const { return 0; }
+    isize hashTableSize() const;
 
     // Returns a hash value for this block
-    virtual u32 hashValue() const { return 0; }
+    u32 hashValue() const;
 
     // Looks up an item in the hash table
     u32 getHashRef(u32 nr) const;
@@ -219,28 +251,60 @@ public:
 
 
     //
+    // Working with boot blocks
+    //
+
+    void writeBootBlock(BootBlockId id, isize page);
+    
+    
+    //
     // Working with bitmap blocks
     //
 
+    // Adds bitmap block references to the root block or an extension block
+    bool addBitmapBlockRefs(std::vector<Block> &refs);
+    void addBitmapBlockRefs(std::vector<Block> &refs,
+                            std::vector<Block>::iterator &it);
     
+    //Gets or sets a link to a bitmap block
+    Block getBmBlockRef(isize nr) const;
+    void setBmBlockRef(isize nr, Block ref);
+
     
     //
     // Working with data blocks
     //
     
+    // Gets or sets the data block number
+    u32 getDataBlockNr() const;
+    void setDataBlockNr(u32 val);
+
     // Returns the maximum number of storable data block references
     isize getMaxDataBlockRefs() const;
 
     // Gets or sets the number of data block references in this block
-    virtual isize getNumDataBlockRefs() const { return 0; }
-    virtual void setNumDataBlockRefs(u32 val) { }
-    virtual void incNumDataBlockRefs() { }
-
+    isize getNumDataBlockRefs() const;
+    void setNumDataBlockRefs(u32 val);
+    void incNumDataBlockRefs();
+        
     // Adds a data block reference to this block
-    virtual bool addDataBlockRef(u32 first, u32 ref) { return false; }
+    bool addDataBlockRef(Block ref);
+    bool addDataBlockRef(u32 first, u32 ref);
+    
+    // Gets or sets the number of data bytes stored in this block
+    u32 getDataBytesInBlock() const;
+    void setDataBytesInBlock(u32 val);
 
     // Adds data bytes to this block
-    virtual isize addData(const u8 *buffer, isize size) { return 0; }
+    // isize addData(const u8 *buffer, isize size);
+    
+    
+    //
+    // Exporting
+    //
+    
+    isize writeData(std::ostream& os);
+    isize writeData(std::ostream& os, isize size);
 };
 
 typedef FSBlock* BlockPtr;
@@ -270,46 +334,46 @@ if (value > (u32)exp) \
 { *expected = (u8)(exp); return ERROR_FS_EXPECTED_SMALLER_VALUE; } }
 
 #define EXPECT_DOS_REVISION { \
-if (!FSVolumeTypeEnum::isValid(value)) return ERROR_FS_EXPECTED_DOS_REVISION; }
+if (!FSVolumeTypeEnum::isValid((isize)value)) return ERROR_FS_EXPECTED_DOS_REVISION; }
 
 #define EXPECT_REF { \
-if (!partition.dev.block(value)) return ERROR_FS_EXPECTED_REF; }
+if (!device.block(value)) return ERROR_FS_EXPECTED_REF; }
 
 #define EXPECT_SELFREF { \
 if (value != nr) return ERROR_FS_EXPECTED_SELFREF; }
 
 #define EXPECT_FILEHEADER_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_FILEHEADER_BLOCK); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_FILEHEADER_BLOCK); e != ERROR_OK) return e; }
 
 #define EXPECT_HASH_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_FILEHEADER_BLOCK, FS_USERDIR_BLOCK); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_FILEHEADER_BLOCK, FS_USERDIR_BLOCK); e != ERROR_OK) return e; }
 
 #define EXPECT_OPTIONAL_HASH_REF { \
 if (value) { EXPECT_HASH_REF } }
 
 #define EXPECT_PARENT_DIR_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_ROOT_BLOCK, FS_USERDIR_BLOCK); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_ROOT_BLOCK, FS_USERDIR_BLOCK); e != ERROR_OK) return e; }
 
 #define EXPECT_FILELIST_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_FILELIST_BLOCK); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_FILELIST_BLOCK); e != ERROR_OK) return e; }
 
 #define EXPECT_OPTIONAL_FILELIST_REF { \
 if (value) { EXPECT_FILELIST_REF } }
 
 #define EXPECT_BITMAP_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_BITMAP_BLOCK); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_BITMAP_BLOCK); e != ERROR_OK) return e; }
 
 #define EXPECT_OPTIONAL_BITMAP_REF { \
 if (value) { EXPECT_BITMAP_REF } }
 
 #define EXPECT_BITMAP_EXT_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_BITMAP_EXT_BLOCK); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_BITMAP_EXT_BLOCK); e != ERROR_OK) return e; }
 
 #define EXPECT_OPTIONAL_BITMAP_EXT_REF { \
 if (value) { EXPECT_BITMAP_EXT_REF } }
 
 #define EXPECT_DATABLOCK_REF { \
-if (ErrorCode e = partition.dev.checkBlockType(value, FS_DATA_BLOCK_OFS, FS_DATA_BLOCK_FFS); e != ERROR_OK) return e; }
+if (ErrorCode e = device.checkBlockType(value, FS_DATA_BLOCK_OFS, FS_DATA_BLOCK_FFS); e != ERROR_OK) return e; }
 
 #define EXPECT_OPTIONAL_DATABLOCK_REF { \
 if (value) { EXPECT_DATABLOCK_REF } }

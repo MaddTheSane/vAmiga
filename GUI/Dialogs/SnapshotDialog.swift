@@ -29,13 +29,10 @@ class SnapshotDialog: DialogController {
     
     override func windowWillLoad() {
    
-        track()
     }
     
     override func sheetDidShow() {
-  
-        track()
-        
+          
         now = Date()
         
         parent.stopSnapshotTimer()
@@ -182,18 +179,17 @@ class SnapshotDialog: DialogController {
     }
         
     @IBAction func revertAction(_ sender: NSButton!) {
-        
-        track()
-        if !parent.restoreSnapshot(item: currentItem) {
+                
+        do {
+            try parent.restoreSnapshot(item: currentItem)
+            hideSheet()
+        } catch {
             NSSound.beep()
         }
-        hideSheet()
     }
 
     @IBAction override func cancelAction(_ sender: Any!) {
         
-        track()
-
         let items: [NSView] = [
             
             nr,

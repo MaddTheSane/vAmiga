@@ -9,16 +9,15 @@
 
 class Layer: NSObject {
     
-    let mtkView: MTKView
-    let device: MTLDevice
     let renderer: Renderer
     
     var ressourceManager: RessourceManager { return renderer.ressourceManager }
+    var device: MTLDevice { return renderer.device }
+    var view: MTKView { return renderer.view }
     var amiga: AmigaProxy { return renderer.parent.amiga }
     
-    // Alpha channel
-    var alpha: AnimatedFloat = AnimatedFloat.init(0.0)
-    var mix: AnimatedFloat = AnimatedFloat.init(0.0)
+    // Alpha channel of this layer
+    var alpha: AnimatedFloat = AnimatedFloat(0.0)
 
     //
     // Initializing
@@ -27,9 +26,6 @@ class Layer: NSObject {
     init(renderer: Renderer) {
         
         self.renderer = renderer
-        self.mtkView = renderer.view
-        self.device = renderer.device
-
         super.init()
     }
     
@@ -40,7 +36,7 @@ class Layer: NSObject {
     var isVisible: Bool { return alpha.current > 0.0 }
     var isOpaque: Bool { return alpha.current == 1.0 }
     var isTransparent: Bool { return alpha.current < 1.0 }
-    var isAnimating: Bool { return alpha.animates() }
+    var isAnimating: Bool { return alpha.animates }
     var isFadingIn: Bool { return alpha.target > alpha.current }
     var isFadingOut: Bool { return alpha.target < alpha.current }
         
@@ -60,12 +56,17 @@ class Layer: NSObject {
     
     func update(frames: Int64) {
         
-        if alpha.animates() {
+        if alpha.animates {
 
             alpha.move()
             alphaDidChange()
+            
+            if !alpha.animates {
+                animationHasStopped()
+            }
         }
     }
     
     func alphaDidChange() { }
+    func animationHasStopped() { }
 }

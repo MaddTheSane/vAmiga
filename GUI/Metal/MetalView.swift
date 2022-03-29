@@ -13,6 +13,8 @@ public class MetalView: MTKView {
     
     @IBOutlet weak var parent: MyController!
     
+    var myDocument: MyDocument { return parent.mydocument! }
+    var renderer: Renderer { return parent.renderer }
     var prefs: Preferences { return parent.pref }
     
     // Reference to the first mouse (internal, always connected)
@@ -21,7 +23,7 @@ public class MetalView: MTKView {
     // Reference to the second mouse (USB, usually unconnected)
     var mouse2: GamePad?
 
-    // Shows whether the Amiga possesses of the mouse
+    // Shows whether the emulator possesses of the mouse
     var gotMouse = false
 
     /* Tracking area for trapping the mouse. The tracking area is utilized to
@@ -33,8 +35,11 @@ public class MetalView: MTKView {
     var insideTrackingArea = false
         
     // Time stamp needed to detect a shaking mouse
-    var lastShake = DispatchTime.init(uptimeNanoseconds: 0)
+    var lastShake = DispatchTime(uptimeNanoseconds: 0)
     
+    // When a file is dragged in, it's URL is stored in this variable
+    var draggedUrl: URL?
+
     required public init(coder: NSCoder) {
     
         super.init(coder: coder)
@@ -54,7 +59,7 @@ public class MetalView: MTKView {
     override public func resignFirstResponder() -> Bool { return false }
     
     // Adjusts view height by a certain number of pixels
-    fileprivate func adjustHeight(_ height: CGFloat) {
+    func adjustHeight(_ height: CGFloat) {
     
         var newFrame = frame
         newFrame.origin.y -= height
@@ -63,8 +68,8 @@ public class MetalView: MTKView {
     }
     
     // Shrinks view vertically by the height of the status bar
-    public func shrink() { adjustHeight(-26.0) }
+    // public func shrink() { adjustHeight(-26.0) }
     
     // Expand view vertically by the height of the status bar
-    public func expand() { adjustHeight(26.0) }
+    // public func expand() { adjustHeight(26.0) }
 }

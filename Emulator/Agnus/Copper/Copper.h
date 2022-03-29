@@ -10,14 +10,14 @@
 #pragma once
 
 #include "CopperTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
+#include "AgnusTypes.h"
 #include "Beam.h"
 #include "Checksum.h"
 #include "CopperDebugger.h"
-#include "Event.h"
 #include "Memory.h"
 
-class Copper : public AmigaComponent
+class Copper : public SubComponent
 {
     friend class Agnus;
     friend class CopperDebugger;
@@ -30,10 +30,10 @@ public:
 private:
     
     // Result of the latest inspection
-    CopperInfo info;
+    mutable CopperInfo info = {};
     
     // The currently executed Copper list (1 or 2)
-    u8 copList = 1;
+    isize copList = 1;
 
     /* Indicates if the next instruction should be skipped. This flag is
      * usually false. It is set to true by the SKIP instruction if the skip
@@ -50,8 +50,8 @@ private:
      * Copper lists. Note that these values cannot be computed directly. They
      * are computed by observing the program counter.
      */
-    u32 cop1end;
-    u32 cop2end;
+    // u32 cop1end;
+    // u32 cop2end;
 
     // The Copper Danger bit (CDANG)
     bool cdang;
@@ -63,6 +63,9 @@ private:
     // The Copper program counter
     u32 coppc = 0;
 
+    // The Copper program counter at the time of the latest FETCH
+    u32 coppc0 = 0;
+    
     /* Indicates whether the Copper has been active since the last vertical
      * sync. The value of this variable is used to determine if a write to the
      * location registers will be pushed through the Copper's program counter.
@@ -74,9 +77,6 @@ public:
     // Indicates if Copper is currently servicing an event (for debugging only)
     bool servicing = false;
     
-    // Temporary debug flag
-    bool verbose = false;
-
 
     //
     // Debugging
@@ -85,7 +85,7 @@ public:
 private:
 
     u64 checkcnt = 0;
-    u32 checksum = util::fnv_1a_init32();
+    u32 checksum = util::fnvInit32();
 
 
     //
@@ -96,10 +96,53 @@ public:
     
     Copper(Amiga& ref);
 
-    const char *getDescription() const override { return "Copper"; }
     
-    void _initialize() override;
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
+    const char *getDescription() const override { return "Copper"; }
+    void _dump(Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
+private:
+    
     void _reset(bool hard) override;
+    void _inspect() const override;
+    
+    template <class T>
+    void applyToPersistentItems(T& worker)
+    {
+        
+    }
+
+    template <class T>
+    void applyToResetItems(T& worker, bool hard = true)
+    {
+        worker
+
+        << copList
+        << skip
+        << cop1lc
+        << cop2lc
+        << cdang
+        << cop1ins
+        << cop2ins
+        << coppc
+        << coppc0
+        << activeInThisFrame;
+    }
+
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //
@@ -109,51 +152,7 @@ public:
 public:
     
     // Returns the result of the latest inspection
-    CopperInfo getInfo() { return HardwareComponent::getInfo(info); }
-
-private:
-
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Serialization
-    //
-    
-private:
-    
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
-        worker
-
-        << copList
-        << skip
-        << cop1lc
-        << cop2lc
-        << cop1end
-        << cop2end
-        << cdang
-        << cop1ins
-        << cop2ins
-        << coppc
-        << activeInThisFrame;
-    }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    CopperInfo getInfo() const { return AmigaComponent::getInfo(info); }
 
 
     //
@@ -162,8 +161,8 @@ private:
 
 public:
     
-    u32 getCopPC() const { return coppc; }
-    
+    u32 getCopPC0() const { return coppc0; }
+
     void pokeCOPCON(u16 value);
     template <Accessor s> void pokeCOPJMP1();
     template <Accessor s> void pokeCOPJMP2();
@@ -201,23 +200,28 @@ private:
      * false: The Copper does not wake up the current frame.
      *        Variable 'result' remains untouched.
      */
+    bool findMatchOld(Beam &result) const; // DEPRECATED
     bool findMatch(Beam &result) const;
-    bool findMatchNew(Beam &result) const;
-
-    // Called by findMatch() to determine the vertical trigger position
-    bool findVerticalMatch(i16 vStrt, i16 vComp, i16 vMask, i16 &result) const;
 
     // Called by findMatch() to determine the horizontal trigger position
-    bool findHorizontalMatch(i16 hStrt, i16 hComp, i16 hMask, i16 &result) const;
-    bool findHorizontalMatchNew(u32 &beam, u32 comp, u32 mask) const;
+    bool findHorizontalMatchOld(u32 &beam, u32 comp, u32 mask) const; // DEPRECATED
+    bool findHorizontalMatch(u32 &beam, u32 comp, u32 mask) const;
 
     // Emulates the Copper writing a value into one of the custom registers
     void move(u32 addr, u16 value);
 
-    // Runs the comparator circuit
+    // Runs the comparator circuit (DEPRECATED)
+    /*
     bool comparator(Beam beam, u16 waitpos, u16 mask) const;
     bool comparator(Beam beam) const;
     bool comparator() const;
+    */
+    
+    // Runs the comparator circuit
+    bool runComparator() const;
+    bool runComparator(Beam beam) const;
+    bool runComparator(Beam beam, u16 waitpos, u16 mask) const;
+    bool runHorizontalComparator(Beam beam, u16 waitpos, u16 mask) const;
 
     // Emulates a WAIT command
     void scheduleWaitWakeup(bool bfd);
@@ -258,7 +262,10 @@ private:
     
     bool isWaitCmd() const;
     bool isWaitCmd(u32 addr) const;
-    
+
+    bool isSkipCmd() const;
+    bool isSkipCmd(u32 addr) const;
+
     u16 getRA() const;
     u16 getRA(u32 addr) const;
 
@@ -298,6 +305,7 @@ public:
 public:
     
     // Processes a Copper event
+    void serviceEvent();
     void serviceEvent(EventID id);
 
     // Schedules the next Copper event

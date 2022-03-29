@@ -35,6 +35,16 @@ extension ConfigurationController {
 
         let renderer = parent.renderer!
 
+        // Geometry
+        vidHAutoCenter.state = config.hAutoCenter ? .off : .on
+        vidVAutoCenter.state = config.vAutoCenter ? .off : .on
+        vidHCenter.isEnabled = !config.hAutoCenter
+        vidVCenter.isEnabled = !config.vAutoCenter
+        vidHCenter.floatValue = config.hCenter * 1000
+        vidVCenter.floatValue = config.vCenter * 1000
+        vidHZoom.floatValue = config.hZoom * 1000
+        vidVZoom.floatValue = config.vZoom * 1000
+
         // Video
         vidEnhancerPopUp.selectItem(withTag: config.enhancer)
         vidUpscalerPopUp.selectItem(withTag: config.upscaler)
@@ -78,12 +88,6 @@ extension ConfigurationController {
         vidMisalignmentXSlider.isEnabled = config.disalignment > 0
         vidMisalignmentYSlider.floatValue = config.disalignmentV
         vidMisalignmentYSlider.isEnabled = config.disalignment > 0
-
-        // Geometry
-        vidHCenter.floatValue = config.hCenter * 1000
-        vidVCenter.floatValue = config.vCenter * 1000
-        vidHZoom.floatValue = config.hZoom * 1000
-        vidVZoom.floatValue = config.vZoom * 1000
   
         // Buttons
         vidPowerButton.isHidden = !bootable
@@ -95,7 +99,7 @@ extension ConfigurationController {
     
     @IBAction func vidPaletteAction(_ sender: NSPopUpButton!) {
         
-        config.palette = sender.integerValue
+        config.palette = sender.selectedTag()
         refresh()
     }
     
@@ -232,32 +236,46 @@ extension ConfigurationController {
     //
     // Action methods (Geometry)
     //
-        
+
+    @IBAction func vidHAutoCenterAction(_ sender: NSButton) {
+
+        config.hAutoCenter = sender.state == .off
+        parent.renderer.canvas.updateTextureRect()
+        refresh()
+    }
+
+    @IBAction func vidVAutoCenterAction(_ sender: NSButton) {
+
+        config.vAutoCenter = sender.state == .off
+        parent.renderer.canvas.updateTextureRect()
+        refresh()
+    }
+
     @IBAction func vidHCenterAction(_ sender: NSSlider!) {
 
         config.hCenter = sender.floatValue / 1000
-        track("hcenter = \(config.hCenter)")
+        log("hcenter = \(config.hCenter)", level: 2)
         refresh()
     }
     
     @IBAction func vidVCenterAction(_ sender: NSSlider!) {
         
         config.vCenter = sender.floatValue / 1000
-        track("vcenter = \(config.vCenter)")
+        log("vcenter = \(config.vCenter)", level: 2)
         refresh()
     }
     
     @IBAction func vidHZoomAction(_ sender: NSSlider!) {
         
         config.hZoom = sender.floatValue / 1000
-        track("hzoom = \(config.hZoom)")
+        log("hzoom = \(config.hZoom)", level: 2)
         refresh()
     }
 
     @IBAction func vidVZoomAction(_ sender: NSSlider!) {
         
         config.vZoom = sender.floatValue / 1000
-        track("vzoom = \(config.vZoom)")
+        log("vzoom = \(config.vZoom)", level: 2)
         refresh()
     }
     
@@ -265,21 +283,29 @@ extension ConfigurationController {
     // Action methods (Misc)
     //
     
-    @IBAction func vidPresetAction(_ sender: NSPopUpButton!) {
-        
-        switch sender.selectedTag() {
+    @IBAction func vidPresetAction(_ sender: NSMenuItem!) {
+                
+        switch sender.tag {
             
-        case 0: // Standard Geometry (taken from TFT profile)
-            config.loadGeometryDefaults(VideoDefaults.tft)
-            
-        case 1: // Centered Geometry (taken from CRT profile)
-            config.loadGeometryDefaults(VideoDefaults.crt)
-            
-        case 2: // TFT Appearance
+        case 0: // Recommended settings (Centered TFT)
+            config.loadGeometryDefaults(GeometryDefaults.wide)
+            config.loadColorDefaults(VideoDefaults.tft)
+            config.loadShaderDefaults(VideoDefaults.tft)
+
+        case 1: // Narrow Geometry
+            config.loadGeometryDefaults(GeometryDefaults.narrow)
+
+        case 2: // Wide Geometry
+            config.loadGeometryDefaults(GeometryDefaults.wide)
+
+        case 3: // Extreme Geometry
+            config.loadGeometryDefaults(GeometryDefaults.extreme)
+
+        case 6: // TFT Appearance
             config.loadColorDefaults(VideoDefaults.tft)
             config.loadShaderDefaults(VideoDefaults.tft)
             
-        case 3: // CRT Appearance
+        case 7: // CRT Appearance
             config.loadColorDefaults(VideoDefaults.crt)
             config.loadShaderDefaults(VideoDefaults.crt)
             
@@ -292,5 +318,6 @@ extension ConfigurationController {
     @IBAction func vidDefaultsAction(_ sender: NSButton!) {
         
         config.saveVideoUserDefaults()
+        config.saveGeometryUserDefaults()
     }
 }

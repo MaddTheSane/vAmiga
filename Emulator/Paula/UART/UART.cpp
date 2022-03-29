@@ -10,18 +10,12 @@
 #include "config.h"
 #include "UART.h"
 #include "Agnus.h"
+#include "IOUtils.h"
 #include "MsgQueue.h"
 #include "Paula.h"
+#include "RemoteManager.h"
 #include "SerialPort.h"
-
-UART::UART(Amiga& ref) : AmigaComponent(ref)
-{
-}
-
-void
-UART::_initialize()
-{
-}
+#include <iostream>
 
 void
 UART::_reset(bool hard)
@@ -31,21 +25,28 @@ UART::_reset(bool hard)
 }
 
 void
-UART::_inspect()
+UART::_inspect() const
 {
-    synchronized {
-        
-        info.receiveBuffer = receiveBuffer;
-        info.receiveShiftReg = receiveShiftReg;
-        info.transmitBuffer = transmitBuffer;
-        info.transmitShiftReg = transmitShiftReg;
-    }
+    SYNCHRONIZED
+    
+    info.serper = serper;
+    info.baudRate = baudRate();
+    info.receiveBuffer = receiveBuffer;
+    info.receiveShiftReg = receiveShiftReg;
+    info.transmitBuffer = transmitBuffer;
+    info.transmitShiftReg = transmitShiftReg;
 }
 
 void
-UART::_dump(dump::Category category, std::ostream& os) const
+UART::_dump(Category category, std::ostream& os) const
 {
-    os << "serper: %X\n" << (int)serper;
+    using namespace util;
+    
+    if (category == Category::State) {
+        
+        os << tab("Serper");
+        os << hex(serper) << std::endl;
+    }
 }
 
 u16
@@ -57,6 +58,14 @@ UART::peekSERDATR()
     // Clear the overrun bit if the interrupt has been acknowledged
     if (!rbf) ovrun = false;
 
+    u16 result = spypeekSERDATR();
+    trace(SER_DEBUG, "peekSERDATR() = %x\n", result);
+    return result;
+}
+
+u16
+UART::spypeekSERDATR() const
+{
     /* 15      OVRUN      Serial port receiver overun
      * 14      RBF        Serial port receive buffer full
      * 13      TBE        Serial port transmit buffer empty
@@ -68,13 +77,12 @@ UART::peekSERDATR()
      * 07..00  DB7 - DB0  Data bits
      */
     u16 result = receiveBuffer & 0x3FF;
+    
     REPLACE_BIT(result, 15, ovrun);
-    REPLACE_BIT(result, 14, rbf);
+    REPLACE_BIT(result, 14, GET_BIT(paula.intreq, 11));
     REPLACE_BIT(result, 13, transmitBuffer == 0);
     REPLACE_BIT(result, 12, transmitShiftReg == 0);
     REPLACE_BIT(result, 11, serialPort.getRXD());
-
-    trace(SER_DEBUG, "peekSERDATR() = %x\n", result);
 
     return result;
 }
@@ -95,8 +103,9 @@ void
 UART::pokeSERPER(u16 value)
 {
     trace(SER_DEBUG, "pokeSERPER(%X)\n", value);
-
     serper = value;
+    trace(SER_DEBUG, "New baud rate = %ld\n", baudRate());
+
 }
 
 void
@@ -107,10 +116,14 @@ UART::copyToTransmitShiftRegister()
     assert(transmitShiftReg == 0);
     assert(transmitBuffer != 0);
 
+    // Send the byte to the null modem cable
+    auto byte = (char)(transmitBuffer & 0xFF);
+    remoteManager.serServer << byte;
+    
     // Inform the GUI about the outgoing data
-    messageQueue.put(MSG_SER_OUT, transmitBuffer);
-    trace(SER_DEBUG, "transmitBuffer: %X ('%c')\n", transmitBuffer & 0xFF, transmitBuffer & 0xFF);
-
+    msgQueue.put(MSG_SER_OUT, transmitBuffer);
+    trace(SER_DEBUG, "transmitBuffer: %X ('%c')\n", byte, byte);
+    
     // Move the contents of the transmit buffer into the shift register
     transmitShiftReg = transmitBuffer;
     transmitBuffer = 0;
@@ -137,16 +150,13 @@ UART::copyFromReceiveShiftRegister()
     receiveShiftReg = 0;
 
     // Inform the GUI about the incoming data
-    messageQueue.put(MSG_SER_IN, receiveBuffer);
-
-    // msg("receiveBuffer: %X ('%c')\n", receiveBuffer & 0xFF, receiveBuffer & 0xFF);
+    msgQueue.put(MSG_SER_IN, receiveBuffer);
 
     count++;
 
     // Update the overrun bit
-    // Bit will be 1 if the RBF interrupt hasn't been acknowledged yet
     ovrun = GET_BIT(paula.intreq, 11);
-    if (ovrun) trace(SER_DEBUG, "OVERRUN BIT IS 1\n");
+    if (ovrun) { trace(SER_DEBUG, "OVERRUN BIT IS 1\n"); }
 
     // Trigger the RBF interrupt (Read Buffer Full)
     trace(SER_DEBUG, "Triggering RBF interrupt\n");
@@ -156,8 +166,11 @@ UART::copyFromReceiveShiftRegister()
 void
 UART::updateTXD()
 {
-    // If the UARTBRK bit is set, the TXD line is forced to 0
-    serialPort.setTXD(outBit && !paula.UARTBRK());
+    // Get the UARTBRK bit
+    bool uartbrk = GET_BIT(paula.adkcon, 11);
+    
+    // If the bit is set, force the TXD line to 0
+    serialPort.setTXD(outBit && !uartbrk);
 }
 
 void
@@ -170,7 +183,7 @@ UART::rxdHasChanged(bool value)
         recCnt = 0;
 
         // Trigger the event in the middle of the first data bit
-        Cycle delay = rate() * 3 / 2;
+        Cycle delay = pulseWidth() * 3 / 2;
 
         // Schedule the event
         agnus.scheduleRel<SLOT_RXD>(delay, RXD_BIT);

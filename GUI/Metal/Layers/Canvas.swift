@@ -11,15 +11,28 @@ import MetalPerformanceShaders
 
 class Canvas: Layer {
     
+    var mergeFilter: ComputeKernel! { return ressourceManager.mergeFilter }
+    var mergeBypass: ComputeKernel! { return ressourceManager.mergeBypassFilter }
+    var enhancer: ComputeKernel! { return ressourceManager.enhancer }
+    var bloomFilter: ComputeKernel! { return ressourceManager.bloomFilter }
+    var upscaler: ComputeKernel! { return ressourceManager.upscaler }
+    var scanlineFilter: ComputeKernel! { return ressourceManager.scanlineFilter }
+    
     // Indicates whether the recently drawn frames were long or short frames
     var currLOF = true
     var prevLOF = true
 
     // Used to determine if the GPU texture needs to be updated
-    var prevBuffer: ScreenBuffer?
-
+    var prevBuffer: UnsafeMutablePointer<u32>?
+    
     // Variable used to emulate interlace flickering
     var flickerCnt = 0
+
+    // Tracked display window (adaptive viewport feature)
+    var x1 = CGFloat(0)
+    var y1 = CGFloat(0)
+    var x2 = CGFloat(0)
+    var y2 = CGFloat(0)
 
     //
     // Textures
@@ -69,7 +82,7 @@ class Canvas: Layer {
     var scanlineTexture: MTLTexture! = nil
 
     // Part of the texture that is currently visible
-    var textureRect = CGRect.init() { didSet { buildVertexBuffers() } }
+    var textureRect = CGRect() { didSet { buildVertexBuffers() } }
 
     //
     // Buffers and Uniforms
@@ -106,15 +119,15 @@ class Canvas: Layer {
     }
     
     func buildVertexBuffers() {
-
-        quad2D = Node.init(device: device,
-                           x: -1.0, y: -1.0, z: 0.0, w: 2.0, h: 2.0,
-                           t: textureRect)
-
-        quad3D = Quad.init(device: device,
-                           x1: -0.64, y1: -0.48, z1: -0.64,
-                           x2: 0.64, y2: 0.48, z2: 0.64,
-                           t: textureRect)
+        
+        quad2D = Node(device: device,
+                      x: -1.0, y: -1.0, z: 0.0, w: 2.0, h: 2.0,
+                      t: textureRect)
+        
+        quad3D = Quad(device: device,
+                      x1: -0.64, y1: -0.48, z1: -0.64,
+                      x2: 0.64, y2: 0.48, z2: 0.64,
+                      t: textureRect)
     }
     
     func buildTextures() {
@@ -143,7 +156,6 @@ class Canvas: Layer {
         bloomTextureR = device.makeTexture(size: TextureSize.merged, usage: rwt)
         bloomTextureG = device.makeTexture(size: TextureSize.merged, usage: rwt)
         bloomTextureB = device.makeTexture(size: TextureSize.merged, usage: rwt)
-        
         renderer.metalAssert(bloomTextureR != nil,
                              "The bloom texture (R channel) could not be allocated.")
         renderer.metalAssert(bloomTextureG != nil,
@@ -208,7 +220,6 @@ class Canvas: Layer {
     override func update(frames: Int64) {
             
         super.update(frames: frames)
-        // updateTexture()
     }
     
     func updateTexture() {
@@ -216,42 +227,49 @@ class Canvas: Layer {
         precondition(longFrameTexture != nil)
         precondition(shortFrameTexture != nil)
 
-        // track() // "longFrameTexture = \(longFrameTexture)")
         if amiga.poweredOff {
                     
             var buffer = amiga.denise.noise!
             longFrameTexture.replace(w: Int(HPIXELS),
-                                     h: longFrameTexture.height,
+                                     h: Int(VPIXELS),
                                      buffer: buffer)
+            
             buffer = amiga.denise.noise!
             shortFrameTexture.replace(w: Int(HPIXELS),
-                                     h: shortFrameTexture.height,
-                                     buffer: buffer)
+                                      h: Int(VPIXELS),
+                                      buffer: buffer)
             return
         }
         
-        let buffer = amiga.denise.stableBuffer
-        
-        // Only proceed if the emulator delivers a new texture
-        if prevBuffer?.data == buffer.data { return }
-        prevBuffer = buffer
+        // Lock the most recent texture
+        amiga.denise.lockStableBuffer()
 
-        // Determine if the new texture is a long frame or a short frame
-        prevLOF = currLOF
-        currLOF = buffer.longFrame
+        // Get the texture
+        let buffer = amiga.denise.stableBuffer!
         
-        // Update the GPU texture
-        if currLOF {
-            // track("Updating long frame texture")
-            longFrameTexture.replace(w: Int(HPIXELS),
-                                     h: longFrameTexture.height,
-                                     buffer: buffer.data + Int(HBLANK_MIN) * 4)
-        } else {
-            // track("Updating short frame texture")
-            shortFrameTexture.replace(w: Int(HPIXELS),
-                                      h: shortFrameTexture.height,
-                                      buffer: buffer.data + Int(HBLANK_MIN) * 4)
+        if prevBuffer != buffer {
+            
+            prevBuffer = buffer
+            
+            // Determine if the new texture is a long frame or a short frame
+            prevLOF = currLOF
+            currLOF = amiga.denise.longFrame
+            
+            // Update the GPU texture
+            let offset = Int(HBLANK_MIN) * 4
+            if currLOF {
+                longFrameTexture.replace(w: Int(HPIXELS),
+                                         h: Int(VPIXELS),
+                                         buffer: buffer + offset)
+            } else {
+                shortFrameTexture.replace(w: Int(HPIXELS),
+                                          h: Int(VPIXELS),
+                                          buffer: buffer + offset)
+            }
         }
+        
+        // Unlock texture
+        amiga.denise.unlockStableBuffer()
     }
     
     //
@@ -262,11 +280,9 @@ class Canvas: Layer {
                 
         func applyGauss(_ texture: inout MTLTexture, radius: Float) {
             
-            if #available(OSX 10.13, *) {
-                let gauss = MPSImageGaussianBlur(device: device, sigma: radius)
-                gauss.encode(commandBuffer: buffer,
-                             inPlaceTexture: &texture, fallbackCopyAllocator: nil)
-            }
+            let gauss = MPSImageGaussianBlur(device: device, sigma: radius)
+            gauss.encode(commandBuffer: buffer,
+                         inPlaceTexture: &texture, fallbackCopyAllocator: nil)
         }
         
         // Compute the merge texture
@@ -281,65 +297,60 @@ class Canvas: Layer {
             mergeUniforms.longFrameScale = (flickerCnt % 4 >= 2) ? 1.0 : weight
             mergeUniforms.shortFrameScale = (flickerCnt % 4 >= 2) ? weight : 1.0
             
-            ressourceManager.mergeFilter.apply(commandBuffer: buffer,
-                                               textures: [longFrameTexture,
-                                                          shortFrameTexture,
-                                                          mergeTexture],
-                                               options: &mergeUniforms,
-                                               length: MemoryLayout<MergeUniforms>.stride)
+            mergeFilter.apply(commandBuffer: buffer,
+                              textures: [longFrameTexture, shortFrameTexture, mergeTexture],
+                              options: &mergeUniforms,
+                              length: MemoryLayout<MergeUniforms>.stride)
             
         } else if currLOF {
             
             // Case 2: Non-interlace drawing (two long frames in a row)
-            ressourceManager.mergeBypassFilter.apply(commandBuffer: buffer,
-                                                     textures: [longFrameTexture, mergeTexture])
+            mergeBypass.apply(commandBuffer: buffer,
+                              textures: [longFrameTexture, mergeTexture])
         } else {
             
             // Case 3: Non-interlace drawing (two short frames in a row)
-            ressourceManager.mergeBypassFilter.apply(commandBuffer: buffer,
-                                                     textures: [shortFrameTexture, mergeTexture])
+            mergeBypass.apply(commandBuffer: buffer,
+                              textures: [shortFrameTexture, mergeTexture])
         }
         
-        // Compute upscaled texture (first pass, in-texture upscaling)
-        ressourceManager.enhancer.apply(commandBuffer: buffer,
-                                        source: mergeTexture,
-                                        target: lowresEnhancedTexture)
+        // Compute the upscaled texture (first pass, in-texture upscaling)
+        enhancer.apply(commandBuffer: buffer,
+                       source: mergeTexture,
+                       target: lowresEnhancedTexture)
         
         // Compute the bloom textures
         if renderer.shaderOptions.bloom != 0 {
-            ressourceManager.bloomFilter.apply(commandBuffer: buffer,
-                                               textures: [mergeTexture,
-                                                          bloomTextureR,
-                                                          bloomTextureG,
-                                                          bloomTextureB],
-                                               options: &renderer.shaderOptions,
-                                               length: MemoryLayout<ShaderOptions>.stride)
+            bloomFilter.apply(commandBuffer: buffer,
+                              textures: [mergeTexture,
+                                         bloomTextureR,
+                                         bloomTextureG,
+                                         bloomTextureB],
+                              options: &renderer.shaderOptions,
+                              length: MemoryLayout<ShaderOptions>.stride)
             
             applyGauss(&bloomTextureR, radius: renderer.shaderOptions.bloomRadius)
             applyGauss(&bloomTextureG, radius: renderer.shaderOptions.bloomRadius)
             applyGauss(&bloomTextureB, radius: renderer.shaderOptions.bloomRadius)
         }
         
-        // Compute upscaled texture (second pass)
-        ressourceManager.upscaler.apply(commandBuffer: buffer,
-                                        source: lowresEnhancedTexture,
-                                        target: upscaledTexture)
+        // Compute the upscaled texture (second pass)
+        upscaler.apply(commandBuffer: buffer,
+                       source: lowresEnhancedTexture,
+                       target: upscaledTexture)
         
         // Blur the upscaled texture
-        if #available(OSX 10.13, *), renderer.shaderOptions.blur > 0 {
-            let gauss = MPSImageGaussianBlur(device: device,
-                                             sigma: renderer.shaderOptions.blurRadius)
-            gauss.encode(commandBuffer: buffer,
-                         inPlaceTexture: &upscaledTexture,
-                         fallbackCopyAllocator: nil)
+        if renderer.shaderOptions.blur > 0 {
+            
+            applyGauss(&upscaledTexture, radius: renderer.shaderOptions.blurRadius)
         }
         
         // Emulate scanlines
-        ressourceManager.scanlineFilter.apply(commandBuffer: buffer,
-                                              source: upscaledTexture,
-                                              target: scanlineTexture,
-                                              options: &renderer.shaderOptions,
-                                              length: MemoryLayout<ShaderOptions>.stride)
+        scanlineFilter.apply(commandBuffer: buffer,
+                             source: upscaledTexture,
+                             target: scanlineTexture,
+                             options: &renderer.shaderOptions,
+                             length: MemoryLayout<ShaderOptions>.stride)
     }
     
     func setupFragmentShader(encoder: MTLRenderCommandEncoder) {

@@ -10,15 +10,15 @@
 #pragma once
 
 #include "StateMachineTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "Sampler.h"
 #include "Agnus.h"
 
 template <isize nr>
-class StateMachine : public AmigaComponent {
+class StateMachine : public SubComponent {
 
     // Result of the latest inspection
-    AudioChannelInfo info;
+    mutable StateMachineInfo info = {};
 
 public:
 
@@ -26,7 +26,7 @@ public:
     Cycle clock;
 
     // The current state of this machine
-    i8 state;
+    isize state;
 
     // The 16 bit output buffer
     u16 buffer;
@@ -61,14 +61,13 @@ public:
      *  number that should be placed in this register [AUDxPER] is 124 decimal.
      *  This corresponds to a maximum sample frequency of 28.86 khz." [HRM]
      *
-     * Many games initialize the period  programs write a value of 1 into
-     * AUDxPER (e.g., James Pond 2 and Ghosts'n Goblins). As a result, the
-     * sample buffer is flooded with identical samples. To prevent this,
-     * these two variables prevent the sample buffer from being written to in
-     * penlo() and penhi(). The locks are released whenever a new sample is
-     * written into the AUDxDAT register.
+     * Many games initialize AUDxPER with a value of 1 (e.g., James Pond 2 and
+     * Ghosts'n Goblins). As a result, the sample buffer is flooded with
+     * identical samples. To prevent this, these two variables hinder penlo()
+     * and penhi() to write into the sample buffer. The locks are released
+     * whenever a new sample is written into the AUDxDAT register.
      *
-     * This feature is experimental (and might well be disabled).
+     * This feature is experimental (and might be well disabled).
      */
     bool enablePenlo = false;
     bool enablePenhi = false;
@@ -82,50 +81,42 @@ public:
 
     StateMachine(Amiga& ref);
 
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override;
+    void _dump(Category category, std::ostream& os) const override;
 
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override;
-
-    
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    AudioChannelInfo getInfo() { return HardwareComponent::getInfo(info); }
-    
-private:
-    
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Serializing
-    //
-    
-private:
+    void _inspect() const override;
     
     template <class T>
     void applyToPersistentItems(T& worker)
     {
+        
     }
 
     template <class T>
-    void applyToHardResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
+        if (hard) {
+            
+            worker
+            
+            << clock;
+        }
 
-        << clock;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
         worker
         
         << state
@@ -145,25 +136,19 @@ private:
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //
-    // Accessing registers
+    // Analyzing
     //
-
-public:
-
-    void pokeAUDxLEN(u16 value);
-    void pokeAUDxPER(u16 value);
-    void pokeAUDxVOL(u16 value);
-    void pokeAUDxDAT(u16 value);
-
-    // Called when the DMA mode changes
-    void enableDMA();
-    void disableDMA();
     
+public:
+    
+    StateMachineInfo getInfo() const { return AmigaComponent::getInfo(info); }
+        
     
     //
     // Performing state machine actions
@@ -171,14 +156,18 @@ public:
 
 public:
 
+    // Called when DMA mode changes
+    void enableDMA();
+    void disableDMA();
+
     // Returns true if the state machine is running in DMA mode
-    bool AUDxON() const;
+    bool AUDxON() const { return agnus.auddma<nr>(); }
 
     // Returns true if the audio interrupt is pending
     bool AUDxIP() const;
 
     // Asks Paula to trigger the audio interrupt
-    void AUDxIR();
+    void AUDxIR() const;
 
     // Asks Agnus for one word of data
     void AUDxDR() { audDR = true; }
@@ -193,7 +182,7 @@ public:
     void lencntrld() { audlen = audlenLatch; }
 
     // Counts length counter down one notch
-    void lencount() { audlen--; }
+    void lencount() { U16_DEC(audlen, 1); }
 
     // Checks if the length counter has finished
     bool lenfin() { return audlen == 1; }
@@ -214,7 +203,7 @@ public:
     bool AUDxAP() const;
 
     // Condition for normal DMA and interrupt requests
-    bool napnav() { return !AUDxAP() || AUDxAV(); }
+    bool napnav() const { return !AUDxAP() || AUDxAV(); }
 
     // Enables the high byte of data to go to the digital-analog converter
     void penhi();
@@ -222,7 +211,7 @@ public:
     // Enables the high byte of data to go to the digital-analog converter
     void penlo();
 
-    // Transfers DMA requests to Agnus (done in the first refresh cycle)
+    // Transfers a DMA request to Agnus (done in the first refresh cycle)
     void requestDMA() { if (audDR) { agnus.setAudxDR<nr>(); audDR = 0; } }
     
     
@@ -241,6 +230,19 @@ private:
     void move_010_011();
     void move_011_000();
     void move_011_010();
+
+    
+    //
+    // Accessing registers
+    //
+
+public:
+
+    // Writes a value into an audio register
+    void pokeAUDxLEN(u16 value);
+    void pokeAUDxPER(u16 value);
+    void pokeAUDxVOL(u16 value);
+    void pokeAUDxDAT(u16 value);
 
     
     //

@@ -17,7 +17,7 @@
 
 typedef struct
 {
-    i8 state;
+    isize state;
     bool dma;
     u16 audlenLatch;
     u16 audlen;
@@ -27,10 +27,4 @@ typedef struct
     u16 audvol;
     u16 auddat;
 }
-AudioChannelInfo;
-
-typedef struct
-{
-    AudioChannelInfo channel[4];
-}
-AudioInfo;
+StateMachineInfo;

@@ -29,7 +29,7 @@ extension UserDefaults {
         if let encoded = try? PropertyListEncoder().encode(item) {
             set(encoded, forKey: key)
         } else {
-            track("Failed to encode \(key)")
+            log(warning: "Failed to encode \(key)")
         }
     }
     
@@ -40,7 +40,7 @@ extension UserDefaults {
             if let decoded = try? PropertyListDecoder().decode(T.self, from: data) {
                 item = decoded
             } else {
-                track("Failed to decode \(key)")
+                log(warning: "Failed to decode \(key)")
             }
         }
     }
@@ -54,16 +54,19 @@ extension UserDefaults {
     
     static func registerUserDefaults() {
                 
+        log(level: 2)
+        
         registerGeneralUserDefaults()
         registerControlsUserDefaults()
         registerDevicesUserDefaults()
         
         registerRomUserDefaults()
-        registerHardwareUserDefaults()
+        registerChipsetUserDefaults()
         registerPeripheralsUserDefaults()
         registerCompatibilityUserDefaults()
         registerAudioUserDefaults()
         registerVideoUserDefaults()
+        registerGeometryUserDefaults()
     }
 }
 
@@ -71,6 +74,7 @@ extension MyController {
     
     func loadUserDefaults() {
                 
+        log(level: 2)
         amiga.suspend()
         
         pref.loadGeneralUserDefaults()
@@ -78,16 +82,20 @@ extension MyController {
         pref.loadDevicesUserDefaults()
 
         config.loadRomUserDefaults()
-        config.loadHardwareUserDefaults()
+        config.loadChipsetUserDefaults()
+        config.loadMemoryUserDefaults()
         config.loadPeripheralsUserDefaults()
         config.loadCompatibilityUserDefaults()
         config.loadAudioUserDefaults()
         config.loadVideoUserDefaults()
+        config.loadGeometryUserDefaults()
 
         amiga.resume()
     }
     
     func loadUserDefaults(url: URL, prefixes: [String]) {
+        
+        log(level: 2)
         
         if let fileContents = NSDictionary(contentsOf: url) {
             
@@ -105,11 +113,11 @@ extension MyController {
     
     func saveUserDefaults(url: URL, prefixes: [String]) {
         
-        track()
-        
+        log(level: 2)
+
         let dict = UserDefaults.standard.dictionaryRepresentation()
         let filteredDict = dict.filter { prefixes.contains(where: $0.0.hasPrefix) }
-        let nsDict = NSDictionary.init(dictionary: filteredDict)
+        let nsDict = NSDictionary(dictionary: filteredDict)
         nsDict.write(to: url, atomically: true)
     }
 }
@@ -131,6 +139,7 @@ struct Keys {
         static let screenshotTarget       = "VAMIGA_GEN_ScreenshotTarget"
                 
         // Screen captures
+        static let ffmpegPath             = "VAMIGA_GEN_ffmpegPath"
         static let captureSource          = "VAMIGA_GEN_Source"
         static let bitRate                = "VAMIGA_GEN_BitRate"
         static let aspectX                = "VAMIGA_GEN_AspectX"
@@ -163,6 +172,7 @@ struct GeneralDefaults {
     let screenshotTarget: NSBitmapImageRep.FileType
     
     // Captures
+    let ffmpegPath: String
     let captureSource: Int
     let bitRate: Int
     let aspectX: Int
@@ -184,7 +194,7 @@ struct GeneralDefaults {
     // Schemes
     //
     
-    static let std = GeneralDefaults.init(
+    static let std = GeneralDefaults(
                       
         autoSnapshots: false,
         autoSnapshotInterval: 20,
@@ -194,6 +204,7 @@ struct GeneralDefaults {
         screenshotSource: 0,
         screenshotTarget: .png,
 
+        ffmpegPath: "",
         captureSource: 0,
         bitRate: 2048,
         aspectX: 768,
@@ -223,6 +234,7 @@ extension UserDefaults {
             Keys.Gen.screenshotSource: defaults.screenshotSource,
             Keys.Gen.screenshotTarget: Int(defaults.screenshotTarget.rawValue),
 
+            Keys.Gen.ffmpegPath: defaults.ffmpegPath,
             Keys.Gen.captureSource: defaults.captureSource,
             Keys.Gen.bitRate: defaults.bitRate,
             Keys.Gen.aspectX: defaults.aspectX,
@@ -253,6 +265,7 @@ extension UserDefaults {
                      Keys.Gen.screenshotSource,
                      Keys.Gen.screenshotTarget,
                      
+                     Keys.Gen.ffmpegPath,
                      Keys.Gen.captureSource,
                      Keys.Gen.bitRate,
                      Keys.Gen.aspectX,
@@ -330,22 +343,22 @@ struct ControlsDefaults {
     
     static let stdKeyMap1 = [
         
-        MacKey.init(keyCode: kVK_LeftArrow): GamePadAction.PULL_LEFT.rawValue,
-        MacKey.init(keyCode: kVK_RightArrow): GamePadAction.PULL_RIGHT.rawValue,
-        MacKey.init(keyCode: kVK_UpArrow): GamePadAction.PULL_UP.rawValue,
-        MacKey.init(keyCode: kVK_DownArrow): GamePadAction.PULL_DOWN.rawValue,
-        MacKey.init(keyCode: kVK_Space): GamePadAction.PRESS_FIRE.rawValue
+        MacKey(keyCode: kVK_LeftArrow): GamePadAction.PULL_LEFT.rawValue,
+        MacKey(keyCode: kVK_RightArrow): GamePadAction.PULL_RIGHT.rawValue,
+        MacKey(keyCode: kVK_UpArrow): GamePadAction.PULL_UP.rawValue,
+        MacKey(keyCode: kVK_DownArrow): GamePadAction.PULL_DOWN.rawValue,
+        MacKey(keyCode: kVK_Space): GamePadAction.PRESS_FIRE.rawValue
     ]
     static let stdKeyMap2 = [
         
-        MacKey.init(keyCode: kVK_ANSI_S): GamePadAction.PULL_LEFT.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_D): GamePadAction.PULL_RIGHT.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_E): GamePadAction.PULL_UP.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_X): GamePadAction.PULL_DOWN.rawValue,
-        MacKey.init(keyCode: kVK_ANSI_C): GamePadAction.PRESS_FIRE.rawValue
+        MacKey(keyCode: kVK_ANSI_S): GamePadAction.PULL_LEFT.rawValue,
+        MacKey(keyCode: kVK_ANSI_D): GamePadAction.PULL_RIGHT.rawValue,
+        MacKey(keyCode: kVK_ANSI_E): GamePadAction.PULL_UP.rawValue,
+        MacKey(keyCode: kVK_ANSI_X): GamePadAction.PULL_DOWN.rawValue,
+        MacKey(keyCode: kVK_ANSI_C): GamePadAction.PRESS_FIRE.rawValue
     ]
     
-    static let std = ControlsDefaults.init(
+    static let std = ControlsDefaults(
         
         mouseKeyMap: [:],
         joyKeyMap1: stdKeyMap1,
@@ -454,7 +467,7 @@ struct DevicesDefaults {
     let rightStickScheme2: Int
     let hatSwitchScheme2: Int
 
-    static let std = DevicesDefaults.init(
+    static let std = DevicesDefaults(
         
         leftStickScheme1: 0,
         rightStickScheme1: 0,
@@ -519,7 +532,7 @@ struct RomDefaults {
     
     let extStart: Int
     
-    static let std = RomDefaults.init(
+    static let std = RomDefaults(
         
         extStart: 0xE0
     )
@@ -561,24 +574,21 @@ extension UserDefaults {
         let fm = FileManager.default
         
         if let url = womUrl {
-            track("Deleting Wom")
             try? fm.removeItem(at: url)
         }
         
         if let url = romUrl {
-            track("Deleting Rom")
             try? fm.removeItem(at: url)
         }
         
         if let url = extUrl {
-            track("Deleting Ext")
             try? fm.removeItem(at: url)
         }
     }
 }
 
 //
-// User defaults (Hardware)
+// User defaults (Chipset)
 //
 
 extension Keys {
@@ -591,18 +601,6 @@ extension Keys {
         static let ciaRev             = "VAMIGA_HW_CiaRev"
         static let realTimeClock      = "VAMIGA_HW_RealTimeClock"
         
-        // Filter
-        static let filterType         = "VAMIGA_HW_FilterType"
-        static let filterAlwaysOn     = "VAMIGA_HW_FilterAlwaysOn"
-
-        // Memory
-        static let chipRam            = "VAMIGA_HW_ChipRam"
-        static let slowRam            = "VAMIGA_HW_SlowRam"
-        static let fastRam            = "VAMIGA_HW_FastRam"
-        static let ramInitPattern     = "VAMIGA_HW_RamInitPattern"
-        
-        static let bankMap            = "VAMIGA_HW_BankMap"
-        static let unmappingType      = "VAMIGA_HW_UnmappingType"
     }
 }
 
@@ -613,9 +611,6 @@ struct HardwareDefaults {
     let ciaRev: CIARevision
     let realTimeClock: RTCRevision
     
-    let filterType: FilterType
-    let filterAlwaysOn: Bool
-
     let chipRam: Int
     let slowRam: Int
     let fastRam: Int
@@ -628,18 +623,15 @@ struct HardwareDefaults {
     // Schemes
     //
     
-    static let A500 = HardwareDefaults.init(
+    static let A500 = HardwareDefaults(
         
         agnusRev: .ECS_1MB,
         deniseRev: .OCS,
-        ciaRev: ._8520_DIP,
-        realTimeClock: .OKI,
-
-        filterType: .BUTTERWORTH,
-        filterAlwaysOn: false,
+        ciaRev: .MOS_8520_DIP,
+        realTimeClock: .NONE,
         
         chipRam: 512,
-        slowRam: 512,
+        slowRam: 0,
         fastRam: 0,
         ramInitPattern: .ALL_ZEROES,
 
@@ -647,16 +639,13 @@ struct HardwareDefaults {
         unmappingType: .FLOATING
     )
     
-    static let A1000 = HardwareDefaults.init(
+    static let A1000 = HardwareDefaults(
         
-        agnusRev: .OCS,
+        agnusRev: .OCS_OLD,
         deniseRev: .OCS,
-        ciaRev: ._8520_DIP,
+        ciaRev: .MOS_8520_DIP,
         realTimeClock: .NONE,
         
-        filterType: .BUTTERWORTH,
-        filterAlwaysOn: false,
-
         chipRam: 256,
         slowRam: 0,
         fastRam: 0,
@@ -666,16 +655,13 @@ struct HardwareDefaults {
         unmappingType: .FLOATING
     )
     
-    static let A2000 = HardwareDefaults.init(
+    static let A2000 = HardwareDefaults(
         
-        agnusRev: .ECS_2MB,
+        agnusRev: .ECS_1MB,
         deniseRev: .OCS,
-        ciaRev: ._8520_DIP,
+        ciaRev: .MOS_8520_DIP,
         realTimeClock: .OKI,
         
-        filterType: .BUTTERWORTH,
-        filterAlwaysOn: false,
-
         chipRam: 512,
         slowRam: 512,
         fastRam: 0,
@@ -688,7 +674,7 @@ struct HardwareDefaults {
 
 extension UserDefaults {
     
-    static func registerHardwareUserDefaults() {
+    static func registerChipsetUserDefaults() {
         
         let defaults = HardwareDefaults.A500
         let dictionary: [String: Any] = [
@@ -696,44 +682,146 @@ extension UserDefaults {
             Keys.Hrw.agnusRev: defaults.agnusRev.rawValue,
             Keys.Hrw.deniseRev: defaults.deniseRev.rawValue,
             Keys.Hrw.ciaRev: defaults.ciaRev.rawValue,
-            Keys.Hrw.realTimeClock: defaults.realTimeClock.rawValue,
-
-            Keys.Hrw.filterType: defaults.filterType.rawValue,
-            Keys.Hrw.filterAlwaysOn: defaults.filterAlwaysOn,
-
-            Keys.Hrw.chipRam: defaults.chipRam,
-            Keys.Hrw.slowRam: defaults.slowRam,
-            Keys.Hrw.fastRam: defaults.fastRam,
-            Keys.Hrw.ramInitPattern: defaults.ramInitPattern.rawValue,
-
-            Keys.Hrw.bankMap: defaults.bankMap.rawValue,
-            Keys.Hrw.unmappingType: defaults.unmappingType.rawValue
+            Keys.Hrw.realTimeClock: defaults.realTimeClock.rawValue
         ]
         
         let userDefaults = UserDefaults.standard
         userDefaults.register(defaults: dictionary)
     }
         
-    static func resetHardwareUserDefaults() {
+    static func resetChipsetUserDefaults() {
+        
+        let defaults = UserDefaults.standard
+        
+        let keys = [ Keys.Hrw.agnusRev,
+                     Keys.Hrw.deniseRev,
+                     Keys.Hrw.ciaRev,
+                     Keys.Hrw.realTimeClock ]
+
+        for key in keys { defaults.removeObject(forKey: key) }
+    }
+}
+
+//
+// User defaults (Memory)
+//
+
+extension Keys {
+    
+    struct Mem {
+                
+        // Memory
+        static let chipRam            = "VAMIGA_MEM_ChipRam"
+        static let slowRam            = "VAMIGA_MEM_SlowRam"
+        static let fastRam            = "VAMIGA_MEM_FastRam"
+        static let ramInitPattern     = "VAMIGA_MEM_InitPattern"
+        
+        static let bankMap            = "VAMIGA_MEM_BankMap"
+        static let unmappingType      = "VAMIGA_MEM_UnmappingType"
+
+        // Features
+        static let slowRamDelay       = "VAMIGA_MEM_SlowRamDelay"
+        static let slowRamMirror      = "VAMIGA_MEM_SlowRamMirror"
+    }
+}
+
+struct MemoryDefaults {
+    
+    let chipRam: Int
+    let slowRam: Int
+    let fastRam: Int
+    let ramInitPattern: RamInitPattern
+
+    let bankMap: BankMap
+    let unmappingType: UnmappedMemory
+    
+    let slowRamDelay: Bool
+    let slowRamMirror: Bool
+
+    //
+    // Schemes
+    //
+    
+    static let A500 = MemoryDefaults(
+                
+        chipRam: 512,
+        slowRam: 0,
+        fastRam: 0,
+        ramInitPattern: .ALL_ZEROES,
+
+        bankMap: .A500,
+        unmappingType: .FLOATING,
+        
+        slowRamDelay: true,
+        slowRamMirror: true
+    )
+    
+    static let A1000 = MemoryDefaults(
+        
+        chipRam: 256,
+        slowRam: 0,
+        fastRam: 0,
+        ramInitPattern: .ALL_ZEROES,
+
+        bankMap: .A1000,
+        unmappingType: .FLOATING,
+        
+        slowRamDelay: true,
+        slowRamMirror: true
+    )
+    
+    static let A2000 = MemoryDefaults(
+        
+        chipRam: 512,
+        slowRam: 512,
+        fastRam: 0,
+        ramInitPattern: .ALL_ZEROES,
+
+        bankMap: .A2000B,
+        unmappingType: .FLOATING,
+        
+        slowRamDelay: true,
+        slowRamMirror: true
+    )
+}
+
+extension UserDefaults {
+    
+    static func registerMemoryUserDefaults() {
+        
+        let defaults = MemoryDefaults.A500
+        let dictionary: [String: Any] = [
+            
+            Keys.Mem.chipRam: defaults.chipRam,
+            Keys.Mem.slowRam: defaults.slowRam,
+            Keys.Mem.fastRam: defaults.fastRam,
+            Keys.Mem.ramInitPattern: defaults.ramInitPattern.rawValue,
+
+            Keys.Mem.bankMap: defaults.bankMap.rawValue,
+            Keys.Mem.unmappingType: defaults.unmappingType.rawValue,
+            
+            Keys.Mem.slowRamDelay: defaults.slowRamDelay,
+            Keys.Mem.slowRamMirror: defaults.slowRamMirror
+        ]
+        
+        let userDefaults = UserDefaults.standard
+        userDefaults.register(defaults: dictionary)
+    }
+        
+    static func resetMemoryUserDefaults() {
         
         let defaults = UserDefaults.standard
 
-        let keys = [Keys.Hrw.agnusRev,
-                    Keys.Hrw.deniseRev,
-                    Keys.Hrw.ciaRev,
-                    Keys.Hrw.realTimeClock,
-                    
-                    Keys.Hrw.filterType,
-                    Keys.Hrw.filterAlwaysOn,
-                                
-                    Keys.Hrw.chipRam,
-                    Keys.Hrw.slowRam,
-                    Keys.Hrw.fastRam,
-                    Keys.Hrw.ramInitPattern,
-
-                    Keys.Hrw.bankMap,
-                    Keys.Hrw.unmappingType
-                ]
+        let keys = [ Keys.Mem.chipRam,
+                     Keys.Mem.slowRam,
+                     Keys.Mem.fastRam,
+                     Keys.Mem.ramInitPattern,
+                     
+                     Keys.Mem.bankMap,
+                     Keys.Mem.unmappingType,
+                     
+                     Keys.Mem.slowRamDelay,
+                     Keys.Mem.slowRamMirror ]
 
         for key in keys { defaults.removeObject(forKey: key) }
     }
@@ -747,7 +835,7 @@ extension Keys {
     
     struct Per {
         
-        // Drives
+        // Floppy Drives
         static let df0Connect         = "VAMIGA_PER_DF0Connect"
         static let df1Connect         = "VAMIGA_PER_DF1Connect"
         static let df2Connect         = "VAMIGA_PER_DF2Connect"
@@ -756,45 +844,52 @@ extension Keys {
         static let df1Type            = "VAMIGA_PER_DF1Type"
         static let df2Type            = "VAMIGA_PER_DF2Type"
         static let df3Type            = "VAMIGA_PER_DF3Type"
-        
-        // Disks
-        static let blankDiskFormat    = "VAMIGA_PER_BlankDiskFormat"
-        static let bootBlock          = "VAMIGA_PER_BootBlock"
+
+        // Hard Drives
+        static let hd0Connect         = "VAMIGA_PER_HD0Connect"
+        static let hd1Connect         = "VAMIGA_PER_HD1Connect"
+        static let hd2Connect         = "VAMIGA_PER_HD2Connect"
+        static let hd3Connect         = "VAMIGA_PER_HD3Connect"
+        static let hd0Type            = "VAMIGA_PER_HD0Type"
+        static let hd1Type            = "VAMIGA_PER_HD1Type"
+        static let hd2Type            = "VAMIGA_PER_HD2Type"
+        static let hd3Type            = "VAMIGA_PER_HD3Type"
 
         // Ports
         static let gameDevice1        = "VAMIGA_PER_GameDevice1"
         static let gameDevice2        = "VAMIGA_PER_GameDevice2"
         static let serialDevice       = "VAMIGA_PER_SerialDevice"
+        static let serialDevicePort   = "VAMIGA_PER_SerialDevicePort"
     }
 }
 
 struct PeripheralsDefaults {
         
     var driveConnect: [Bool]
-    var driveType: [DriveType]
+    var driveType: [FloppyDriveType]
 
-    let blankDiskFormat: FSVolumeType
-    let bootBlock: Int
+    var hardDriveConnect: [Bool]
+    var hardDriveType: [HardDriveType]
 
     var gameDevice1: Int
     var gameDevice2: Int
     var serialDevice: SerialPortDevice
+    var serialDevicePort: Int
         
     //
     // Schemes
     //
     
-    static let std = PeripheralsDefaults.init(
+    static let std = PeripheralsDefaults(
         
         driveConnect: [true, false, false, false],
         driveType: [.DD_35, .DD_35, .DD_35, .DD_35],
-        
-        blankDiskFormat: .OFS,
-        bootBlock: 0,
-            
+        hardDriveConnect: [true, false, false, false],
+        hardDriveType: [.GENERIC, .GENERIC, .GENERIC, .GENERIC],
         gameDevice1: 0,
         gameDevice2: -1,
-        serialDevice: .NONE
+        serialDevice: .NONE,
+        serialDevicePort: 8080
     )
 }
 
@@ -814,12 +909,19 @@ extension UserDefaults {
             Keys.Per.df2Type: defaults.driveType[2].rawValue,
             Keys.Per.df3Type: defaults.driveType[3].rawValue,
 
-            Keys.Per.blankDiskFormat: Int(defaults.blankDiskFormat.rawValue),
-            Keys.Per.bootBlock: defaults.bootBlock,
+            Keys.Per.hd0Connect: defaults.driveConnect[0],
+            Keys.Per.hd1Connect: defaults.driveConnect[1],
+            Keys.Per.hd2Connect: defaults.driveConnect[2],
+            Keys.Per.hd3Connect: defaults.driveConnect[3],
+            Keys.Per.hd0Type: defaults.driveType[0].rawValue,
+            Keys.Per.hd1Type: defaults.driveType[1].rawValue,
+            Keys.Per.hd2Type: defaults.driveType[2].rawValue,
+            Keys.Per.hd3Type: defaults.driveType[3].rawValue,
 
             Keys.Per.gameDevice1: defaults.gameDevice1,
             Keys.Per.gameDevice2: defaults.gameDevice2,
-            Keys.Per.serialDevice: defaults.serialDevice.rawValue
+            Keys.Per.serialDevice: defaults.serialDevice.rawValue,
+            Keys.Per.serialDevicePort: defaults.serialDevicePort
         ]
         
         let userDefaults = UserDefaults.standard
@@ -839,12 +941,19 @@ extension UserDefaults {
                      Keys.Per.df2Type,
                      Keys.Per.df3Type,
                      
-                     Keys.Per.blankDiskFormat,
-                     Keys.Per.bootBlock,
-
+                     Keys.Per.hd0Connect,
+                     Keys.Per.hd1Connect,
+                     Keys.Per.hd2Connect,
+                     Keys.Per.hd3Connect,
+                     Keys.Per.hd0Type,
+                     Keys.Per.hd1Type,
+                     Keys.Per.hd2Type,
+                     Keys.Per.hd3Type,
+                     
                      Keys.Per.gameDevice1,
                      Keys.Per.gameDevice2,
-                     Keys.Per.serialDevice
+                     Keys.Per.serialDevice,
+                     Keys.Per.serialDevicePort
         ]
 
         for key in keys { userDefaults.removeObject(forKey: key) }
@@ -863,13 +972,11 @@ extension Keys {
         static let blitterAccuracy   = "VAMIGA_COM_BlitterAccuracy"
         
         // Chipset
-        static let slowRamMirror      = "VAMIGA_COM_SlowRamMirror"
         static let borderBlank        = "VAMIGA_COM_BorderBlank"
         static let todBug             = "VAMIGA_COM_TodBug"
 
         // Timing
         static let eClockSyncing     = "VAMIGA_COM_EClockSyncing"
-        static let slowRamDelay      = "VAMIGA_COM_SlowRamDelay"
         
         // Graphics
         static let clxSprSpr         = "VAMIGA_COM_ClxSprSpr"
@@ -891,12 +998,10 @@ struct CompatibilityDefaults {
     
     let blitterAccuracy: Int
     
-    let slowRamMirror: Bool
     let borderBlank: Bool
     let todBug: Bool
 
     let eClockSyncing: Bool
-    let slowRamDelay: Bool
     
     let clxSprSpr: Bool
     let clxSprPlf: Bool
@@ -913,16 +1018,14 @@ struct CompatibilityDefaults {
     // Schemes
     //
     
-    static let std = CompatibilityDefaults.init(
+    static let std = CompatibilityDefaults(
         
         blitterAccuracy: 2,
         
-        slowRamMirror: true,
         borderBlank: false,
         todBug: true,
             
         eClockSyncing: true,
-        slowRamDelay: true,
         
         clxSprSpr: false,
         clxSprPlf: false,
@@ -936,16 +1039,14 @@ struct CompatibilityDefaults {
         accurateKeyboard: true
      )
     
-    static let accurate = CompatibilityDefaults.init(
+    static let accurate = CompatibilityDefaults(
         
         blitterAccuracy: 2,
 
-        slowRamMirror: true,
         borderBlank: false,
         todBug: true,
 
         eClockSyncing: true,
-        slowRamDelay: true,
 
         clxSprSpr: true,
         clxSprPlf: true,
@@ -959,16 +1060,14 @@ struct CompatibilityDefaults {
         accurateKeyboard: true
     )
 
-    static let accelerated = CompatibilityDefaults.init(
+    static let accelerated = CompatibilityDefaults(
         
         blitterAccuracy: 0,
 
-        slowRamMirror: true,
         borderBlank: false,
         todBug: true,
 
         eClockSyncing: false,
-        slowRamDelay: false,
 
         clxSprSpr: false,
         clxSprPlf: false,
@@ -992,12 +1091,10 @@ extension UserDefaults {
 
             Keys.Com.blitterAccuracy: defaults.blitterAccuracy,
 
-            Keys.Com.slowRamMirror: defaults.slowRamMirror,
             Keys.Com.borderBlank: defaults.borderBlank,
             Keys.Com.todBug: defaults.todBug,
 
             Keys.Com.eClockSyncing: defaults.eClockSyncing,
-            Keys.Com.slowRamDelay: defaults.slowRamDelay,
 
             Keys.Com.clxSprSpr: defaults.clxSprSpr,
             Keys.Com.clxSprPlf: defaults.clxSprPlf,
@@ -1021,12 +1118,10 @@ extension UserDefaults {
 
         let keys = [ Keys.Com.blitterAccuracy,
 
-                     Keys.Com.slowRamMirror,
                      Keys.Com.borderBlank,
                      Keys.Com.todBug,
 
                      Keys.Com.eClockSyncing,
-                     Keys.Com.slowRamDelay,
 
                      Keys.Com.clxSprSpr,
                      Keys.Com.clxSprPlf,
@@ -1071,10 +1166,18 @@ extension Keys {
         static let df1Pan             = "VAMIGA_AUD_DF1Pan"
         static let df2Pan             = "VAMIGA_AUD_DF2Pan"
         static let df3Pan             = "VAMIGA_AUD_DF3Pan"
+        static let hd0Pan             = "VAMIGA_AUD_HD0Pan"
+        static let hd1Pan             = "VAMIGA_AUD_HD1Pan"
+        static let hd2Pan             = "VAMIGA_AUD_HD2Pan"
+        static let hd3Pan             = "VAMIGA_AUD_HD3Pan"
         static let stepVolume         = "VAMIGA_AUD_StepVolume"
         static let pollVolume         = "VAMIGA_AUD_PollVolume"
         static let insertVolume       = "VAMIGA_AUD_InsertVolume"
         static let ejectVolume        = "VAMIGA_AUD_EjectVolume"
+
+        // Filter
+        static let filterType         = "VAMIGA_AUD_FilterType"
+        static let filterAlwaysOn     = "VAMIGA_AUD_FilterAlwaysOn"
     }
 }
 
@@ -1097,60 +1200,73 @@ struct AudioDefaults {
 
     // Drive
     var drivePan: [Int]
+    var hdPan: [Int]
     var stepVolume: Int
     var pollVolume: Int
     var insertVolume: Int
     var ejectVolume: Int
-    
+
+    // Filter
+    let filterType: FilterType
+    let filterAlwaysOn: Bool
+
     //
     // Schemes
     //
     
-    static let std = AudioDefaults.init(
+    static let std = AudioDefaults(
         
         vol0: 100,
         vol1: 100,
         vol2: 100,
         vol3: 100,
-        pan0: 170,
-        pan1: 30,
-        pan2: 30,
-        pan3: 170,
+        pan0: 50,
+        pan1: 350,
+        pan2: 350,
+        pan3: 50,
         
         volL: 50,
         volR: 50,
         samplingMethod: .NONE,
         
         drivePan: [100, 300, 100, 300],
+        hdPan: [100, 300, 100, 300],
         stepVolume: 50,
         pollVolume: 0,
         insertVolume: 50,
-        ejectVolume: 50
+        ejectVolume: 50,
+        
+        filterType: .BUTTERWORTH,
+        filterAlwaysOn: false
     )
     
-    static let stereo = AudioDefaults.init(
+    static let stereo = AudioDefaults(
         
         vol0: 100,
         vol1: 100,
         vol2: 100,
         vol3: 100,
-        pan0: 150,
-        pan1: 50,
-        pan2: 50,
-        pan3: 150,
+        pan0: 100,
+        pan1: 300,
+        pan2: 300,
+        pan3: 100,
         
         volL: 50,
         volR: 50,
         samplingMethod: .NONE,
         
         drivePan: [100, 300, 100, 300],
+        hdPan: [100, 300, 100, 300],
         stepVolume: 50,
         pollVolume: 0,
         insertVolume: 50,
-        ejectVolume: 50
+        ejectVolume: 50,
+        
+        filterType: .BUTTERWORTH,
+        filterAlwaysOn: false
     )
 
-    static let mono = AudioDefaults.init(
+    static let mono = AudioDefaults(
         
         vol0: 100,
         vol1: 100,
@@ -1166,10 +1282,14 @@ struct AudioDefaults {
         samplingMethod: .NONE,
         
         drivePan: [100, 300, 100, 300],
+        hdPan: [100, 300, 100, 300],
         stepVolume: 50,
         pollVolume: 0,
         insertVolume: 50,
-        ejectVolume: 50
+        ejectVolume: 50,
+        
+        filterType: .BUTTERWORTH,
+        filterAlwaysOn: false
     )
 }
 
@@ -1197,10 +1317,17 @@ extension UserDefaults {
             Keys.Aud.df1Pan: defaults.drivePan[1],
             Keys.Aud.df2Pan: defaults.drivePan[2],
             Keys.Aud.df3Pan: defaults.drivePan[3],
+            Keys.Aud.hd0Pan: defaults.hdPan[0],
+            Keys.Aud.hd1Pan: defaults.hdPan[1],
+            Keys.Aud.hd2Pan: defaults.hdPan[2],
+            Keys.Aud.hd3Pan: defaults.hdPan[3],
             Keys.Aud.stepVolume: defaults.stepVolume,
             Keys.Aud.pollVolume: defaults.pollVolume,
             Keys.Aud.insertVolume: defaults.insertVolume,
-            Keys.Aud.ejectVolume: defaults.ejectVolume
+            Keys.Aud.ejectVolume: defaults.ejectVolume,
+
+            Keys.Aud.filterType: defaults.filterType.rawValue,
+            Keys.Aud.filterAlwaysOn: defaults.filterAlwaysOn
         ]
 
         let userDefaults = UserDefaults.standard
@@ -1228,10 +1355,17 @@ extension UserDefaults {
                      Keys.Aud.df1Pan,
                      Keys.Aud.df2Pan,
                      Keys.Aud.df3Pan,
+                     Keys.Aud.hd0Pan,
+                     Keys.Aud.hd1Pan,
+                     Keys.Aud.hd2Pan,
+                     Keys.Aud.hd3Pan,
                      Keys.Aud.stepVolume,
                      Keys.Aud.pollVolume,
                      Keys.Aud.insertVolume,
-                     Keys.Aud.ejectVolume ]
+                     Keys.Aud.ejectVolume,
+
+                     Keys.Aud.filterType,
+                     Keys.Aud.filterAlwaysOn ]
 
         for key in keys { userDefaults.removeObject(forKey: key) }
     }
@@ -1252,6 +1386,8 @@ extension Keys {
         static let saturation         = "VAMIGA_VID_Saturation"
         
         // Geometry
+        static let hAutoCenter        = "VAMIGA_VID_HAutoCenter"
+        static let vAutoCenter        = "VAMIGA_VID_VAutoCenter"
         static let hCenter            = "VAMIGA_VID_HCenter"
         static let vCenter            = "VAMIGA_VID_VCenter"
         static let hZoom              = "VAMIGA_VID_HZoom"
@@ -1288,13 +1424,7 @@ struct VideoDefaults {
     let brightness: Int
     let contrast: Int
     let saturation: Int
-    
-    // Geometry
-    let hCenter: Float
-    let vCenter: Float
-    let hZoom: Float
-    let vZoom: Float
-    
+        
     // Upscalers
     let enhancer: Int
     let upscaler: Int
@@ -1321,19 +1451,14 @@ struct VideoDefaults {
     // Schemes
     //
     
-    // TFT monitor appearance with a texture cutout similar to UAE
-    static let tft = VideoDefaults.init(
+    // TFT monitor
+    static let tft = VideoDefaults(
         
         palette: Palette.COLOR,
         brightness: 50,
         contrast: 100,
         saturation: 50,
         
-        hCenter: 0.6333,
-        vCenter: 0.1683,
-        hZoom: 0.0454,
-        vZoom: 0.0349,
-
         enhancer: 0,
         upscaler: 0,
         
@@ -1355,18 +1480,13 @@ struct VideoDefaults {
         disalignmentV: 0.001
     )
     
-    // CRT monitor appearance with a texture-cutout closer to the center
-    static let crt = VideoDefaults.init(
+    // CRT monitor
+    static let crt = VideoDefaults(
         
         palette: Palette.COLOR,
         brightness: 50,
         contrast: 100,
         saturation: 50,
-        
-        hCenter: 0.1169,
-        vCenter: 0.1683,
-        hZoom: 0.0454,
-        vZoom: 0.0349,
         
         enhancer: 0,
         upscaler: 0,
@@ -1390,6 +1510,46 @@ struct VideoDefaults {
     )
 }
 
+struct GeometryDefaults {
+        
+    let hAutoCenter: Bool
+    let vAutoCenter: Bool
+    let hCenter: Float
+    let vCenter: Float
+    let hZoom: Float
+    let vZoom: Float
+    
+    static let narrow = GeometryDefaults(
+        
+        hAutoCenter: true,
+        vAutoCenter: true,
+        hCenter: 0.6,
+        vCenter: 0.47,
+        hZoom: 1.0,
+        vZoom: 0.27
+    )
+
+    static let wide = GeometryDefaults(
+        
+        hAutoCenter: true,
+        vAutoCenter: true,
+        hCenter: 0.409,
+        vCenter: 0.143,
+        hZoom: 0.747,
+        vZoom: 0.032
+    )
+
+    static let extreme = GeometryDefaults(
+        
+        hAutoCenter: false,
+        vAutoCenter: false,
+        hCenter: 0,
+        vCenter: 0,
+        hZoom: 0,
+        vZoom: 0
+    )
+}
+
 extension UserDefaults {
     
     static func registerVideoUserDefaults() {
@@ -1401,11 +1561,6 @@ extension UserDefaults {
             Keys.Vid.brightness: defaults.brightness,
             Keys.Vid.contrast: defaults.contrast,
             Keys.Vid.saturation: defaults.saturation,
-
-            Keys.Vid.hCenter: defaults.hCenter,
-            Keys.Vid.vCenter: defaults.vCenter,
-            Keys.Vid.hZoom: defaults.hZoom,
-            Keys.Vid.vZoom: defaults.vZoom,
 
             Keys.Vid.enhancer: defaults.enhancer,
             Keys.Vid.upscaler: defaults.upscaler,
@@ -1432,6 +1587,23 @@ extension UserDefaults {
         userDefaults.register(defaults: dictionary)
     }
 
+    static func registerGeometryUserDefaults() {
+        
+        let defaults = GeometryDefaults.wide
+        let dictionary: [String: Any] = [
+            
+            Keys.Vid.hAutoCenter: defaults.hAutoCenter,
+            Keys.Vid.vAutoCenter: defaults.vAutoCenter,
+            Keys.Vid.hCenter: defaults.hCenter,
+            Keys.Vid.vCenter: defaults.vCenter,
+            Keys.Vid.hZoom: defaults.hZoom,
+            Keys.Vid.vZoom: defaults.vZoom
+        ]
+        
+        let userDefaults = UserDefaults.standard
+        userDefaults.register(defaults: dictionary)
+    }
+    
     static func resetVideoUserDefaults() {
         
         let defaults = UserDefaults.standard
@@ -1441,11 +1613,6 @@ extension UserDefaults {
                      Keys.Vid.contrast,
                      Keys.Vid.saturation,
                      
-                     Keys.Vid.hCenter,
-                     Keys.Vid.vCenter,
-                     Keys.Vid.hZoom,
-                     Keys.Vid.vZoom,
-
                      Keys.Vid.enhancer,
                      Keys.Vid.upscaler,
 
@@ -1465,6 +1632,21 @@ extension UserDefaults {
                      Keys.Vid.disalignment,
                      Keys.Vid.disalignmentH,
                      Keys.Vid.disalignmentV
+        ]
+
+        for key in keys { defaults.removeObject(forKey: key) }
+    }
+    
+    static func resetGeometryUserDefaults() {
+        
+        let defaults = UserDefaults.standard
+
+        let keys = [ Keys.Vid.hAutoCenter,
+                     Keys.Vid.vAutoCenter,
+                     Keys.Vid.hCenter,
+                     Keys.Vid.vCenter,
+                     Keys.Vid.hZoom,
+                     Keys.Vid.vZoom
         ]
 
         for key in keys { defaults.removeObject(forKey: key) }

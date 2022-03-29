@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-import AppKit
+// import AppKit
 
 extension NSPasteboard.PasteboardType {
     static let compatibleFileURL = NSPasteboard.PasteboardType(kUTTypeFileURL as String)
@@ -37,29 +37,45 @@ public extension MetalView {
         switch type {
             
         case .string:
-            track("Dragged in string")
             return NSDragOperation.copy
         
         case .fileContents:
-            track("Dragged in file contents")
             return NSDragOperation.copy
             
         case .compatibleFileURL:
-            track("Dragged in filename")
+            if let url = NSURL.init(from: pasteBoard) as URL? {
+            
+                // Unpack the file if it is compressed
+                draggedUrl = url.unpacked(maxSize: 2048 * 1024)
+
+                // Analyze the file type
+                let type = AmigaFileProxy.type(of: draggedUrl)
+                
+                // Open the drop zone layer
+                parent.renderer.dropZone.open(type: type, delay: 0.25)
+            }
+
             return NSDragOperation.copy
             
         default:
-            track("Unsupported type")
             return NSDragOperation()
         }
     }
     
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        
+        parent.renderer.dropZone.draggingUpdated(sender)
+        return NSDragOperation.copy
+    }
+
     override func draggingExited(_ sender: NSDraggingInfo?) {
     
+        parent.renderer.dropZone.close(delay: 0.25)
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
         
+        parent.renderer.dropZone.close(delay: 0.25)
         return true
     }
     
@@ -67,61 +83,78 @@ public extension MetalView {
         
         let pasteBoard = sender.draggingPasteboard
         
-        guard
-            let type = pasteBoard.availableType(from: acceptedTypes()),
-            let document = parent.mydocument
-            else { return false }
+        if let type = pasteBoard.availableType(from: acceptedTypes()) {
+            
+            switch type {
+                
+            case .string:
+                return performStringDrag(sender)
+                
+            case .compatibleFileURL:
+                return performUrlDrag(sender)
+                
+            default:
+                break
+            }
+        }
         
-        switch type {
-            
-        case .string:
-            
-            // Type text on virtual keyboard
-            guard let text = pasteBoard.string(forType: .string) else {
-                return false
-            }
-            parent.keyboard.autoTypeAsync(text)
-            return true
-            
-        case .fileContents:
-            
-            // Check if we got another virtual machine dragged in
-            let fileWrapper = pasteBoard.readFileWrapper()
-            let fileData = fileWrapper?.regularFileContents
-            let length = fileData!.count
-            let nsData = fileData! as NSData
-            let rawPtr = nsData.bytes
-            
-            let snapshot: SnapshotProxy? = try? Proxy.make(buffer: rawPtr, length: length)
-            if snapshot == nil { return false }
-            
-            if document.proceedWithUnexportedDisk() {
-                DispatchQueue.main.async {
-                    let snap = snapshot
-                    self.parent.load(snapshot: snap)
-                }
-                return true
-            } else {
-                return false
-            }
-            
-        case .compatibleFileURL:
-            
-            if let url = NSURL.init(from: pasteBoard) as URL? {
-                do {
-                    try document.createAttachment(from: url)
-                    return document.mountAttachment()
-                } catch {
-                    (error as? VAError)?.warning("Drag operation failed")
-                }
-            }
+        return false
+    }
+    
+    func performStringDrag(_ sender: NSDraggingInfo) -> Bool {
+        
+        let pasteBoard = sender.draggingPasteboard
+        
+        // Type text on virtual keyboard
+        guard let text = pasteBoard.string(forType: .string) else {
             return false
-                        
-        default:
+        }
+        parent.keyboard.autoTypeAsync(text)
+        return true
+    }
+
+    func performUrlDrag(_ sender: NSDraggingInfo) -> Bool {
+                
+        guard let url = draggedUrl else { return false }
+            
+        do {
+            
+            // Check if the file is a snapshot or a script
+            do {
+                let types: [FileType] = [ .SNAPSHOT, .SCRIPT ]
+                try myDocument.createAttachment(from: url, allowedTypes: types)
+                try myDocument.mountAttachment()
+                return true
+                
+            } catch let error as VAError {
+                
+                if error.errorCode != .FILE_TYPE_MISMATCH {
+                    throw error
+                }
+            }
+            
+            // Check drop zones
+            for i in 0...3 {
+                if renderer.dropZone.isInside(sender, zone: i) {
+                    
+                    let types: [FileType] = [ .HDF, .ADF, .EXT, .IMG, .DMS, .EXE, .DIR ]
+                    try myDocument.createAttachment(from: url, allowedTypes: types)
+                    try myDocument.mountAttachment(drive: i)
+                    return true
+                }
+            }
+            
+            return false
+            
+        } catch {
+            
+            // Make the drop layer display an error message after closing
+            parent.renderer.dropZone.error = error as? VAError
+            parent.renderer.dropZone.errorUrl = url
             return false
         }
     }
-    
+            
     override func concludeDragOperation(_ sender: NSDraggingInfo?) {
     }
 }

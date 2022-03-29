@@ -18,35 +18,88 @@
  *   CIA_8520_DIP  mimics option "[ ] 391078-01" in UAE (default)
  *   CIA_8520_PLCC mimics option "[X] 391078-01" in UAE (A600)
  */
-enum_long(CIARevision)
+enum_long(CIA_REVISION)
 {
-    CIA_8520_DIP,
-    CIA_8520_PLCC,
-    
-    CIA_COUNT
+    CIA_MOS_8520_DIP,
+    CIA_MOS_8520_PLCC
 };
+typedef CIA_REVISION CIARevision;
 
 #ifdef __cplusplus
-struct CIARevisionEnum : util::Reflection<CIARevisionEnum, CIARevision> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < CIA_COUNT;
-    }
+struct CIARevisionEnum : util::Reflection<CIARevisionEnum, CIARevision>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return CIA_MOS_8520_PLCC; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "CIA"; }
     static const char *key(CIARevision value)
     {
         switch (value) {
                 
-            case CIA_8520_DIP:   return "8520_DIP";
-            case CIA_8520_PLCC:  return "8520_PLCC";
-            case CIA_COUNT:      return "???";
+            case CIA_MOS_8520_DIP:   return "MOS_8520_DIP";
+            case CIA_MOS_8520_PLCC:  return "MOS_8520_PLCC";
         }
         return "???";
     }
 };
 #endif
+
+enum_long(CIAREG)
+{
+    CIAREG_PRA,
+    CIAREG_PRB,
+    CIAREG_DDRA,
+    CIAREG_DDRB,
+    CIAREG_TALO,
+    CIAREG_TAHI,
+    CIAREG_TBLO,
+    CIAREG_TBHI,
+    CIAREG_TODTHS,
+    CIAREG_TODSEC,
+    CIAREG_TODMIN,
+    CIAREG_TODHR,
+    CIAREG_SDR,
+    CIAREG_ICR,
+    CIAREG_CRA,
+    CIAREG_CRB
+};
+typedef CIAREG CIAReg;
+
+#ifdef __cplusplus
+struct CIARegEnum : util::Reflection<CIARegEnum, CIAReg>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return CIAREG_CRB; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    
+    static const char *prefix() { return "CIAREG"; }
+    static const char *key(CIAReg value)
+    {
+        switch (value) {
+                
+            case CIAREG_PRA:     return "PRA";
+            case CIAREG_PRB:     return "PRB";
+            case CIAREG_DDRA:    return "DDRA";
+            case CIAREG_DDRB:    return "DDRB";
+            case CIAREG_TALO:    return "TALO";
+            case CIAREG_TAHI:    return "TAHI";
+            case CIAREG_TBLO:    return "TBLO";
+            case CIAREG_TBHI:    return "TBHI";
+            case CIAREG_TODTHS:  return "TODTHS";
+            case CIAREG_TODSEC:  return "TODSEC";
+            case CIAREG_TODMIN:  return "TODMIN";
+            case CIAREG_TODHR:   return "TODHR";
+            case CIAREG_SDR:     return "SDR";
+            case CIAREG_ICR:     return "ICR";
+            case CIAREG_CRA:     return "CRA";
+            case CIAREG_CRB:     return "CRB";
+        }
+        return "???";
+    }
+};
+#endif
+
 
 //
 // Structures
@@ -62,44 +115,39 @@ CIAConfig;
 
 typedef struct
 {
-    struct {
-        u8 port;
-        u8 reg;
-        u8 dir;
-    } portA;
+    u8 port;
+    u8 reg;
+    u8 dir;
+}
+CIAPortInfo;
 
-    struct {
-        u8 port;
-        u8 reg;
-        u8 dir;
-    } portB;
+typedef struct
+{
+    u16 count;
+    u16 latch;
+    bool running;
+    bool toggle;
+    bool pbout;
+    bool oneShot;
+}
+CIATimerInfo;
 
-    struct {
-        u16 count;
-        u16 latch;
-        bool running;
-        bool toggle;
-        bool pbout;
-        bool oneShot;
-    } timerA;
+typedef struct
+{
+    CIAPortInfo portA;
+    CIAPortInfo portB;
 
-    struct {
-        u16 count;
-        u16 latch;
-        bool running;
-        bool toggle;
-        bool pbout;
-        bool oneShot;
-    } timerB;
+    CIATimerInfo timerA;
+    CIATimerInfo timerB;
 
     u8 sdr;
     u8 ssr;
     u8 icr;
     u8 imr;
-    bool intLine;
+    bool irq;
     
-    CounterInfo cnt;
-    bool cntIntEnable;
+    TODInfo tod;
+    bool todIrqEnable;
     
     Cycle idleSince;
     Cycle idleTotal;

@@ -12,24 +12,29 @@
 #include "Agnus.h"
 
 void
+Copper::serviceEvent()
+{
+    serviceEvent(agnus.id[SLOT_COP]);
+}
+
+void
 Copper::serviceEvent(EventID id)
 {
     u16 reg;
-    Beam beam;
-
+    
     servicing = true;
 
     switch (id) {
             
         case COP_REQ_DMA:
 
-            trace(COP_DEBUG && verbose, "COP_REQ_DMA\n");
+            trace(COP_DEBUG, "COP_REQ_DMA\n");
             
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
 
             // Don't wake up in an odd cycle
-            if (agnus.pos.h % 2) { reschedule(); break; }
+            if (IS_ODD(agnus.pos.h)) { reschedule(); break; }
 
             // Continue with fetching the first instruction word
             schedule(COP_FETCH);
@@ -37,21 +42,31 @@ Copper::serviceEvent(EventID id)
             
         case COP_WAKEUP:
             
-            trace(COP_DEBUG && verbose, "COP_WAKEUP\n");
+            trace(COP_DEBUG, "COP_WAKEUP\n");
             
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
             
             // Don't wake up in an odd cycle
-            if (agnus.pos.h % 2) { reschedule(); break; }
-            
-            // Continue with fetching the first instruction word
-            schedule(COP_FETCH);
+            if (IS_ODD(agnus.pos.h)) { reschedule(); break; }
+
+            // Check if the wakeup condition is still true
+            if (runComparator()) {
+
+                // Continue with fetching the first instruction word
+                schedule(COP_FETCH);
+
+            } else {
+
+                // Reschedule the wakeup event
+                trace(XFILES, "XFILES: Copper wakeup aborted\n");
+                scheduleWaitWakeup(getBFD());
+            }
             break;
             
         case COP_WAKEUP_BLIT:
             
-            trace(COP_DEBUG && verbose, "COP_WAKEUP_BLIT\n");
+            trace(COP_DEBUG, "COP_WAKEUP_BLIT\n");
             
             // Check if the Blitter is busy, keep on waiting
             if (agnus.blitter.isActive()) {
@@ -63,7 +78,7 @@ Copper::serviceEvent(EventID id)
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
             
             // Don't wake up in an odd cycle
-            if (agnus.pos.h % 2) { reschedule(); break; }
+            if (IS_ODD(agnus.pos.h)) { reschedule(); break; }
             
             // Continue with fetching the first instruction word
             schedule(COP_FETCH);
@@ -71,25 +86,30 @@ Copper::serviceEvent(EventID id)
             
         case COP_FETCH:
 
-            trace(COP_DEBUG && verbose, "COP_FETCH\n");
+            trace(COP_DEBUG, "COP_FETCH\n");
 
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
 
+            if (isSkipCmd()) {
+                
+                // Set the skip flag if the previous command was a SKIP command
+                skip = runComparator();
+
+                // If the BFD flag is cleared, we also need to check the Blitter
+                if (!getBFD()) skip &= !agnus.blitter.isActive();
+            }
+                
+            // Remember the program counter (picked up by the debugger)
+            coppc0 = coppc;
+            
             // Load the first instruction word
-            cop1ins = agnus.doCopperDMA(coppc);
+            cop1ins = agnus.doCopperDmaRead(coppc);
             advancePC();
 
             if (COP_CHECKSUM) {
                 checkcnt++;
-                checksum = util::fnv_1a_it32(checksum, cop1ins);
-            }
-
-            // Dynamically determine the end of the Copper list
-            if (copList == 1) {
-                if (coppc > cop1end) cop1end = coppc;
-            } else {
-                if (coppc > cop2end) cop2end = coppc;
+                checksum = util::fnvIt32(checksum, cop1ins);
             }
 
             // Fork execution depending on the instruction type
@@ -98,16 +118,16 @@ Copper::serviceEvent(EventID id)
             
         case COP_MOVE:
 
-            trace(COP_DEBUG && verbose, "COP_MOVE\n");
+            trace(COP_DEBUG, "COP_MOVE\n");
 
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
 
             // Load the second instruction word
-            cop2ins = agnus.doCopperDMA(coppc);
+            cop2ins = agnus.doCopperDmaRead(coppc);
             advancePC();
 
-            if (COP_CHECKSUM) checksum = util::fnv_1a_it32(checksum, cop2ins);
+            if (COP_CHECKSUM) checksum = util::fnvIt32(checksum, cop2ins);
 
             // Extract register number from the first instruction word
             reg = (cop1ins & 0x1FE);
@@ -125,11 +145,11 @@ Copper::serviceEvent(EventID id)
             switch (reg) {
                 case 0x88:
                     schedule(COP_JMP1);
-                    agnus.slot[SLOT_COP].data = 1;
+                    agnus.data[SLOT_COP] = 1;
                     break;
                 case 0x8A:
                     schedule(COP_JMP1);
-                    agnus.slot[SLOT_COP].data = 2;
+                    agnus.data[SLOT_COP] = 2;
                     break;
                 default:
                     move(reg, cop2ins);
@@ -138,16 +158,16 @@ Copper::serviceEvent(EventID id)
             
         case COP_WAIT_OR_SKIP:
 
-            // debug(COP_DEBUG, "COP_WAIT_OR_SKIP: %X wait %x (%d)\n", coppc, cop1ins, cop1ins);
-
+            trace(COP_DEBUG, "COP_WAIT_OR_SKIP\n");
+            
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
 
             // Load the second instruction word
-            cop2ins = agnus.doCopperDMA(coppc);
+            cop2ins = agnus.doCopperDmaRead(coppc);
             advancePC();
 
-            if (COP_CHECKSUM) checksum = util::fnv_1a_it32(checksum, cop2ins);
+            if (COP_CHECKSUM) checksum = util::fnvIt32(checksum, cop2ins);
 
             // Fork execution depending on the instruction type
             schedule(isWaitCmd() ? COP_WAIT1 : COP_SKIP1);
@@ -155,9 +175,7 @@ Copper::serviceEvent(EventID id)
 
         case COP_WAIT1:
             
-            trace(COP_DEBUG, "COP_WAIT1: %X wait %x (%d)\n", coppc, cop1ins, cop1ins);
-
-            trace(COP_DEBUG && verbose, "COP_WAIT1\n");
+            trace(COP_DEBUG, "COP_WAIT1\n");
 
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
@@ -168,9 +186,7 @@ Copper::serviceEvent(EventID id)
 
         case COP_WAIT2:
 
-            // debug(COP_DEBUG, "COP_WAIT2: %X wait %x (%d)\n", coppc, cop1ins, cop1ins);
-
-            trace(COP_DEBUG && verbose, "COP_WAIT2\n");
+            trace(COP_DEBUG, "COP_WAIT2\n");
 
             // Clear the skip flag
             skip = false;
@@ -184,18 +200,13 @@ Copper::serviceEvent(EventID id)
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
 
-            // Test 'coptim3' suggests that cycle $E1 is blocked in this state
-            if (agnus.pos.h == 0xE1) { reschedule(); break; }
-
             // Schedule a wakeup event at the target position
             scheduleWaitWakeup(getBFD());
             break;
 
         case COP_WAIT_BLIT:
             
-            trace(COP_DEBUG, "COP_WAIT_BLIT: %X wait %x (%d)\n", coppc, cop1ins, cop1ins);
-
-            trace(COP_DEBUG && verbose, "COP_WAIT_BLIT\n");
+            trace(COP_DEBUG, "COP_WAIT_BLIT\n");
             
             // Wait for the next free cycle
             if (agnus.busOwner[agnus.pos.h] != BUS_NONE &&
@@ -210,7 +221,7 @@ Copper::serviceEvent(EventID id)
 
         case COP_SKIP1:
 
-            trace(COP_DEBUG && verbose, "COP_SKIP1\n");
+            trace(COP_DEBUG, "COP_SKIP1\n");
 
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
@@ -221,31 +232,16 @@ Copper::serviceEvent(EventID id)
 
         case COP_SKIP2:
 
-            trace(COP_DEBUG && verbose, "COP_SKIP2\n");
+            trace(COP_DEBUG, "COP_SKIP2\n");
 
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
-
-            // Test 'coptim3' suggests that cycle $E1 is blocked in this state
-            if (agnus.pos.h == 0xE1) { reschedule(); break; }
-
-            // Compute the beam position that needs to be compared
-            beam = agnus.addToBeam(agnus.pos, 2);
-
-            // Run the comparator to see if the next command is skipped
-            trace(COP_DEBUG && verbose, "Calling comparator(%d,%d)\n", beam.v, beam.h);
-            skip = comparator(beam);
-
-            // If the BFD flag is cleared, we also need to check the Blitter
-            if (!getBFD()) skip &= !agnus.blitter.isActive();
-            
+                        
             // Continue with the next command
             schedule(COP_FETCH);
             break;
 
         case COP_JMP1:
-
-            // debug("COP_JMP1\n");
 
             // The bus is not needed in this cycle, but still allocated
             (void)agnus.allocateBus<BUS_COPPER>();
@@ -255,25 +251,19 @@ Copper::serviceEvent(EventID id)
                 schedule(COP_JMP2, 1);
                 break;
             }
-
             schedule(COP_JMP2);
             break;
 
         case COP_JMP2:
 
-            // debug("COP_JMP2\n");
-
             // Wait for the next possible DMA cycle
             if (!agnus.busIsFree<BUS_COPPER>()) { reschedule(); break; }
 
-            switchToCopperList((isize)agnus.slot[SLOT_COP].data);
+            switchToCopperList((isize)agnus.data[SLOT_COP]);
             schedule(COP_FETCH);
             break;
 
         case COP_VBLANK:
-
-            // debug("COP_VBLANK\n");
-            // debug("agnus.copdma = %d\n", agnus.copdma());
             
             // Allocate the bus
             // TODO: FIND OUT IF THE BUS IS REALLY ALLOCATED IN THIS STATE
@@ -282,13 +272,10 @@ Copper::serviceEvent(EventID id)
             switchToCopperList(1);
             activeInThisFrame = agnus.copdma();
             schedule(COP_FETCH);
-
             break;
 
         default:
-            
-            assert(false);
-            break;
+            fatalError;
     }
 
     servicing = false;

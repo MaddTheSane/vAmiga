@@ -32,7 +32,7 @@ class Console: Layer {
         
         textView = (scrollView.documentView as? NSTextView)!
         textView.isEditable = false
-        textView.backgroundColor = NSColor.init(r: 0x80, g: 0x80, b: 0x80, a: 0x80)
+        textView.backgroundColor = NSColor(r: 0x80, g: 0x80, b: 0x80, a: 0x80)
         
         super.init(renderer: renderer)
         
@@ -54,9 +54,9 @@ class Console: Layer {
             
             if let text = amiga.retroShell.getText() {
                 
-                let cursorColor = NSColor.init(r: 255, g: 255, b: 255, a: 128)
+                let cursorColor = NSColor(r: 255, g: 255, b: 255, a: 128)
                 let monoFont = NSFont.monospaced(ofSize: 14, weight: .medium)
-                let cpos = amiga.retroShell.cposRel
+                let cpos = amiga.retroShell.cursorRel - 1
                 
                 let attr = [
                     NSAttributedString.Key.foregroundColor: NSColor.white,
@@ -65,11 +65,8 @@ class Console: Layer {
                 let string = NSMutableAttributedString(string: text, attributes: attr)
                 string.addAttribute(.backgroundColor,
                                     value: cursorColor,
-                                    range: NSRange(location: string.length - 1 - cpos, length: 1))
+                                    range: NSRange(location: string.length + cpos, length: 1))
                 textView.textStorage?.setAttributedString(string)
-
-            } else {
-                track("ERROR: text is NULL\n")
             }
             
             textView.scrollToEndOfDocument(self)
@@ -81,18 +78,14 @@ class Console: Layer {
                 
         let a1 = Int(alpha.current * 0xFF)
         let a2 = Int(alpha.current * 0.8 * 0xFF)
-        textView.textColor = NSColor.init(r: 0xFF, g: 0xFF, b: 0xFF, a: a1)
-        textView.backgroundColor = NSColor.init(r: 0x80, g: 0x80, b: 0x80, a: a2)
+        textView.textColor = NSColor(r: 0xFF, g: 0xFF, b: 0xFF, a: a1)
+        textView.backgroundColor = NSColor(r: 0x80, g: 0x80, b: 0x80, a: a2)
         
         if alpha.current > 0 && scrollView.superview == nil {
-            
-            track("Adding console sub view")
             contentView.addSubview(scrollView)
         }
         
         if alpha.current == 0 && scrollView.superview != nil {
-        
-            track("Removing console sub view")
             scrollView.removeFromSuperview()
         }
     }
@@ -101,15 +94,15 @@ class Console: Layer {
                 
         let size = controller.metal.frame.size
         let origin = controller.metal.frame.origin
-        let newSize = NSSize.init(width: size.width, height: size.height)
+        let newSize = NSSize(width: size.width, height: size.height)
         
         scrollView.setFrameSize(newSize)
-        scrollView.frame.origin = CGPoint.init(x: origin.x, y: origin.y)
+        scrollView.frame.origin = CGPoint(x: origin.x, y: origin.y)
     }
     
     func keyDown(with event: NSEvent) {
         
-        let macKey = MacKey.init(event: event)
+        let macKey = MacKey(event: event)
         
         switch macKey.keyCode {
         

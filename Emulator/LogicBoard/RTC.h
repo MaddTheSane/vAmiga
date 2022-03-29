@@ -10,15 +10,15 @@
 #pragma once
 
 #include "RTCTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 
-class RTC : public AmigaComponent {
+class RTC : public SubComponent {
 
-    // Current configuration
-    RTCConfig config;
+    // The current configuration
+    RTCConfig config = {};
 
-    /* The currently stored time. The RTC stores the time as a difference to
-     * the time provided by the host machine. I.e.:
+    /* The current time of the real-time clock. The RTC stores the time as a
+     * difference to the time provided by the host machine. I.e.:
      *
      *     Time of the real-time clock = Time of the host machine + timeDiff
      *
@@ -30,7 +30,7 @@ class RTC : public AmigaComponent {
     // The RTC registers
     u8 reg[4][16];
     
-    // The last call to function getTime()
+    // Time stamp of the last call to function getTime()
     Cycle lastCall;
 
     // Remembers the most recent query of the host machine's real-time clock
@@ -46,44 +46,26 @@ class RTC : public AmigaComponent {
     
 public:
     
-    RTC(Amiga& ref);
-
+    using SubComponent::SubComponent;
+    
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override { return "RTC"; }
+    void _dump(Category category, std::ostream& os) const override;
 
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override;
-
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    const RTCConfig &getConfig() const { return config; }
-    
-    i64 getConfigItem(Option option) const;
-    bool setConfigItem(Option option, i64 value) override;
-    
-    bool isPresent() const { return config.model != RTC_NONE; }
-
-    
-    //
-    // Analyzing
-    //
-    
-private:
-    
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Serializing
-    //
-    
-private:
     
     template <class T>
     void applyToPersistentItems(T& worker)
@@ -94,29 +76,44 @@ private:
     }
 
     template <class T>
-    void applyToHardResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
-
-        << timeDiff
-        << reg
-        << lastCall
-        << lastMeasure
-        << lastMeasuredValue;
+        if (hard) {
+            
+            worker
+            
+            << timeDiff
+            << reg
+            << lastCall
+            << lastMeasure
+            << lastMeasuredValue;
+        }
     }
     
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
-    }
-
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //
-    // Accessing the stored time
+    // Configuring
+    //
+    
+public:
+    
+    static RTCConfig getDefaultConfig();
+    const RTCConfig &getConfig() const { return config; }
+    void resetConfig() override;
+    
+    i64 getConfigItem(Option option) const;
+    void setConfigItem(Option option, i64 value);
+    
+    bool isPresent() const { return config.model != RTC_NONE; }
+
+    
+    //
+    // Accessing time
     //
     
     // Returns the current value of the real-time clock

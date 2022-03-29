@@ -7,17 +7,22 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-let fmt4  = MyFormatter.init(radix: 16, min: 0, max: 0xF)
-let fmt8  = MyFormatter.init(radix: 16, min: 0, max: 0xFF)
-let fmt16 = MyFormatter.init(radix: 16, min: 0, max: 0xFFFF)
-let fmt24 = MyFormatter.init(radix: 16, min: 0, max: 0xFFFFFF)
-let fmt32 = MyFormatter.init(radix: 16, min: 0, max: 0xFFFFFFFF)
-let fmt8b = MyFormatter.init(radix: 2, min: 0, max: 255)
+let fmt4  = MyFormatter(radix: 16, min: 0, max: 0xF)
+let fmt8  = MyFormatter(radix: 16, min: 0, max: 0xFF)
+let fmt16 = MyFormatter(radix: 16, min: 0, max: 0xFFFF)
+let fmt24 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFF)
+let fmt32 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFFFF)
+let fmt8b = MyFormatter(radix: 2, min: 0, max: 0xFF)
+let fmt16b = MyFormatter(radix: 2, min: 0, max: 0xFFFF)
 
 class Inspector: DialogController {
 
     // Commons
     @IBOutlet weak var panel: NSTabView!
+    @IBOutlet weak var stopAndGoButton: NSButton!
+    @IBOutlet weak var stepIntoButton: NSButton!
+    @IBOutlet weak var stepOverButton: NSButton!
+    @IBOutlet weak var message: NSTextField!
 
     // CPU panel
     @IBOutlet weak var cpuInstrView: InstrTableView!
@@ -55,12 +60,6 @@ class Inspector: DialogController {
     @IBOutlet weak var cpuV: NSButton!
     @IBOutlet weak var cpuC: NSButton!
 
-    @IBOutlet weak var cpuStopAndGoButton: NSButton!
-    @IBOutlet weak var cpuStepIntoButton: NSButton!
-    @IBOutlet weak var cpuStepOverButton: NSButton!
-    @IBOutlet weak var cpuTraceStopAndGoButton: NSButton!
-    @IBOutlet weak var cpuTraceStepIntoButton: NSButton!
-    @IBOutlet weak var cpuTraceStepOverButton: NSButton!
     @IBOutlet weak var cpuTraceClearButton: NSButton!
 
     // Memory panel
@@ -233,36 +232,28 @@ class Inspector: DialogController {
     @IBOutlet weak var dmaDSKPT: NSTextField!
     @IBOutlet weak var dmaDSKEnable: NSButton!
 
-    // Copper and Blitter panel
-    @IBOutlet weak var copActive1: NSButton!
-    @IBOutlet weak var copActive2: NSButton!
+    // Copper panel
+    @IBOutlet weak var copList1: CopperTableView!
+    @IBOutlet weak var copList1Format: NSSegmentedControl!
+    @IBOutlet weak var copList1Plus: NSButton!
+    @IBOutlet weak var copList1Minus: NSButton!
+
+    @IBOutlet weak var copList2: CopperTableView!
+    @IBOutlet weak var copList2Format: NSSegmentedControl!
+    @IBOutlet weak var copList2Plus: NSButton!
+    @IBOutlet weak var copList2Minus: NSButton!
+
     @IBOutlet weak var cop1LC: NSTextField!
     @IBOutlet weak var cop2LC: NSTextField!
     @IBOutlet weak var cop1INS: NSTextField!
     @IBOutlet weak var cop2INS: NSTextField!
     @IBOutlet weak var copPC: NSTextField!
     @IBOutlet weak var copCDANG: NSButton!
-    @IBOutlet weak var copSelector: NSSegmentedControl!
-    @IBOutlet weak var copList: CopperTableView!
-    @IBOutlet weak var copPlus: NSButton!
-    @IBOutlet weak var copMinus: NSButton!
 
+    // Blitter panel
     @IBOutlet weak var bltBLTCON0a: NSTextField!
     @IBOutlet weak var bltBLTCON0b: NSTextField!
     @IBOutlet weak var bltBLTCON0c: NSTextField!
-    @IBOutlet weak var bltUseA: NSButton!
-    @IBOutlet weak var bltUseB: NSButton!
-    @IBOutlet weak var bltUseC: NSButton!
-    @IBOutlet weak var bltUseD: NSButton!
-    @IBOutlet weak var bltLF0: NSButton!
-    @IBOutlet weak var bltLF1: NSButton!
-    @IBOutlet weak var bltLF2: NSButton!
-    @IBOutlet weak var bltLF3: NSButton!
-    @IBOutlet weak var bltLF4: NSButton!
-    @IBOutlet weak var bltLF5: NSButton!
-    @IBOutlet weak var bltLF6: NSButton!
-    @IBOutlet weak var bltLF7: NSButton!
-
     @IBOutlet weak var bltBLTCON1a: NSTextField!
     @IBOutlet weak var bltBLTCON1b: NSTextField!
     @IBOutlet weak var bltBLTCON1c: NSTextField!
@@ -271,29 +262,61 @@ class Inspector: DialogController {
     @IBOutlet weak var bltFCI: NSButton!
     @IBOutlet weak var bltDESC: NSButton!
     @IBOutlet weak var bltLINE: NSButton!
-
-    @IBOutlet weak var bltBZERO: NSButton!
     @IBOutlet weak var bltBBUSY: NSButton!
 
-    @IBOutlet weak var bltAold: NSTextField!
-    @IBOutlet weak var bltBold: NSTextField!
-    @IBOutlet weak var bltAnew: NSTextField!
-    @IBOutlet weak var bltBnew: NSTextField!
+    @IBOutlet weak var bltUseA: NSButton!
+    @IBOutlet weak var bltUseB: NSButton!
+    @IBOutlet weak var bltUseC: NSButton!
+    @IBOutlet weak var bltUseD: NSButton!
     @IBOutlet weak var bltAhold: NSTextField!
     @IBOutlet weak var bltBhold: NSTextField!
     @IBOutlet weak var bltChold: NSTextField!
     @IBOutlet weak var bltDhold: NSTextField!
+    @IBOutlet weak var bltAold: NSTextField!
+    @IBOutlet weak var bltBold: NSTextField!
+    @IBOutlet weak var bltAnew: NSTextField!
+    @IBOutlet weak var bltBnew: NSTextField!
+    @IBOutlet weak var bltBZERO: NSButton!
 
-    @IBOutlet weak var bltY: NSTextField!
-    @IBOutlet weak var bltX: NSTextField!
+    @IBOutlet weak var bltMaskIn: NSTextField!
     @IBOutlet weak var bltFirstWord: NSButton!
     @IBOutlet weak var bltLastWord: NSButton!
-
-    // Blitter panel
     @IBOutlet weak var bltAFWM: NSTextField!
     @IBOutlet weak var bltALWM: NSTextField!
-    @IBOutlet weak var bltAShift: NSTextField!
-    @IBOutlet weak var bltBShift: NSTextField!
+    @IBOutlet weak var bltMaskOut: NSTextField!
+
+    @IBOutlet weak var bltBarrelAIn: NSTextField!
+    @IBOutlet weak var bltBarrelAShift: NSTextField!
+    @IBOutlet weak var bltBarrelAOut: NSTextField!
+    @IBOutlet weak var bltBarrelBIn: NSTextField!
+    @IBOutlet weak var bltBarrelBShift: NSTextField!
+    @IBOutlet weak var bltBarrelBOut: NSTextField!
+
+    @IBOutlet weak var bltFillIn: NSTextField!
+    @IBOutlet weak var bltFillOut: NSTextField!
+    
+    @IBOutlet weak var bltLFA: NSTextField!
+    @IBOutlet weak var bltLFB: NSTextField!
+    @IBOutlet weak var bltLFC: NSTextField!
+    @IBOutlet weak var bltLF0: NSButton!
+    @IBOutlet weak var bltLF1: NSButton!
+    @IBOutlet weak var bltLF2: NSButton!
+    @IBOutlet weak var bltLF3: NSButton!
+    @IBOutlet weak var bltLF4: NSButton!
+    @IBOutlet weak var bltLF5: NSButton!
+    @IBOutlet weak var bltLF6: NSButton!
+    @IBOutlet weak var bltLF7: NSButton!
+    @IBOutlet weak var bltLF0Val: NSTextField!
+    @IBOutlet weak var bltLF1Val: NSTextField!
+    @IBOutlet weak var bltLF2Val: NSTextField!
+    @IBOutlet weak var bltLF3Val: NSTextField!
+    @IBOutlet weak var bltLF4Val: NSTextField!
+    @IBOutlet weak var bltLF5Val: NSTextField!
+    @IBOutlet weak var bltLF6Val: NSTextField!
+    @IBOutlet weak var bltLF7Val: NSTextField!
+    @IBOutlet weak var bltLFD: NSTextField!
+
+    // Currently unused
     @IBOutlet weak var bltMinterm: NSTextField!
     @IBOutlet weak var bltFirstWordTime1: NSButton!
     @IBOutlet weak var bltFirstWordTime2: NSButton!
@@ -508,6 +531,9 @@ class Inspector: DialogController {
     @IBOutlet weak var poCD: NSButton!
     @IBOutlet weak var poDTR: NSButton!
 
+    @IBOutlet weak var poSERPER: NSTextField!
+    @IBOutlet weak var poLONG: NSButton!
+    @IBOutlet weak var poBaud: NSTextField!
     @IBOutlet weak var poRecShift: NSTextField!
     @IBOutlet weak var poRecBuffer: NSTextField!
     @IBOutlet weak var poTransShift: NSTextField!
@@ -537,7 +563,10 @@ class Inspector: DialogController {
     var deniseInfo: DeniseInfo!
     var spriteInfo: SpriteInfo!
     var paulaInfo: PaulaInfo!
-    var audioInfo: AudioInfo!
+    var audioInfo0: StateMachineInfo!
+    var audioInfo1: StateMachineInfo!
+    var audioInfo2: StateMachineInfo!
+    var audioInfo3: StateMachineInfo!
     var diskInfo: DiskControllerInfo!
     var port1Info: ControlPortInfo!
     var port2Info: ControlPortInfo!
@@ -554,15 +583,19 @@ class Inspector: DialogController {
 
     override func showWindow(_ sender: Any?) {
 
-        track()
-
         super.showWindow(self)
         amiga.debugMode = true
         updateInspectionTarget()
     }
 
+    override func awakeFromNib() {
+
+        super.awakeFromNib()
+        message.stringValue = ""
+    }
+    
     deinit {
-        track()
+        log()
     }
     
     // Assigns a number formatter to a control
@@ -589,6 +622,19 @@ class Inspector: DialogController {
         
         if window?.isVisible == false { return }
 
+        if full {
+        
+            if parent!.amiga.running {
+                stopAndGoButton.image = NSImage(named: "pauseTemplate")
+                stepIntoButton.isEnabled = false
+                stepOverButton.isEnabled = false
+            } else {
+                stopAndGoButton.image = NSImage(named: "runTemplate")
+                stepIntoButton.isEnabled = true
+                stepOverButton.isEnabled = true
+            }
+        }
+        
         if let id = panel.selectedTabViewItem?.label {
 
             switch id {
@@ -597,7 +643,8 @@ class Inspector: DialogController {
             case "CIA": refreshCIA(count: count, full: full)
             case "Memory": refreshMemory(count: count, full: full)
             case "Agnus": refreshAgnus(count: count, full: full)
-            case "Copper and Blitter": refreshCopperBlitter(count: count, full: full)
+            case "Copper": refreshCopper(count: count, full: full)
+            case "Blitter": refreshBlitter(count: count, full: full)
             case "Denise": refreshDenise(count: count, full: full)
             case "Paula": refreshPaula(count: count, full: full)
             case "Ports": refreshPorts(count: count, full: full)
@@ -607,23 +654,100 @@ class Inspector: DialogController {
         }
     }
     
-    @IBAction func refreshAction(_ sender: Any!) {
-        
-        track()
-        fullRefresh()
-    }
-        
     func scrollToPC() {
 
         cpuInstrView.jumpTo(addr: Int(cpuInfo.pc0))
     }
+    
+    func powerOn() {
+    
+        message.stringValue = ""
+        fullRefresh()
+    }
+
+    func powerOff() {
+    
+        message.stringValue = ""
+        fullRefresh()
+    }
+
+    func run() {
+        
+        message.stringValue = ""
+        cpuInstrView.breakpointPC = -1
+        cpuInstrView.watchpointPC = -1
+        fullRefresh()
+    }
+    
+    func pause() {
+        
+        fullRefresh()
+    }
+
+    func step() {
+                
+        message.stringValue = ""
+        cpuInstrView.breakpointPC = -1
+        cpuInstrView.watchpointPC = -1
+        fullRefresh()
+        scrollToPC()
+    }
+    
+    func reset() {
+        
+        message.stringValue = ""
+        cpuInstrView.breakpointPC = -1
+        cpuInstrView.watchpointPC = -1
+        fullRefresh()
+    }
+    
+    func signalBreakPoint(pc: Int) {
+            
+        message.stringValue = "Breakpoint reached"
+        cpuInstrView.breakpointPC = pc
+        scrollToPC()
+    }
+
+    func signalWatchPoint(pc: Int) {
+    
+        message.stringValue = "Watchpoint reached"
+        cpuInstrView.watchpointPC = pc
+        scrollToPC()
+    }
+
+    func signalCatchPoint(vector: Int) {
+    
+        let name = amiga.cpu.vectorName(vector)!
+        message.stringValue = "Catched exception vector \(vector) (\(name))"
+        scrollToPC()
+    }
+
+    @IBAction func refreshAction(_ sender: Any!) {
+        
+        fullRefresh()
+    }
+    
+    @IBAction func stopAndGoAction(_ sender: NSButton!) {
+
+        amiga.stopAndGo()
+    }
+    
+    @IBAction func stepIntoAction(_ sender: NSButton!) {
+
+        amiga.stepInto()
+    }
+    
+    @IBAction func stepOverAction(_ sender: NSButton!) {
+
+        amiga.stepOver()
+    }
 }
 
-extension Inspector: NSWindowDelegate {
+extension Inspector {
     
-    func windowWillClose(_ notification: Notification) {
+    override func windowWillClose(_ notification: Notification) {
 
-        track("Closing inspector")
+        super.windowWillClose(notification)
 
         // Leave debug mode
         amiga?.debugMode = false
@@ -639,15 +763,16 @@ extension Inspector: NSTabViewDelegate {
 
             switch id {
 
-            case "CPU":     parent?.amiga.inspectionTarget = .INS_CPU
-            case "CIA":     parent?.amiga.inspectionTarget = .INS_CIA
-            case "Memory":  parent?.amiga.inspectionTarget = .INS_MEM
-            case "Agnus":   parent?.amiga.inspectionTarget = .INS_AGNUS
-            case "Copper and Blitter":  parent?.amiga.inspectionTarget = .INS_AGNUS
-            case "Denise":  parent?.amiga.inspectionTarget = .INS_DENISE
-            case "Paula":   parent?.amiga.inspectionTarget = .INS_PAULA
-            case "Ports":   parent?.amiga.inspectionTarget = .INS_PORTS
-            case "Events":  parent?.amiga.inspectionTarget = .INS_EVENTS
+            case "CPU":     parent?.amiga.inspectionTarget = .CPU
+            case "CIA":     parent?.amiga.inspectionTarget = .CIA
+            case "Memory":  parent?.amiga.inspectionTarget = .MEM
+            case "Agnus":   parent?.amiga.inspectionTarget = .AGNUS
+            case "Copper":  parent?.amiga.inspectionTarget = .AGNUS
+            case "Blitter": parent?.amiga.inspectionTarget = .AGNUS
+            case "Denise":  parent?.amiga.inspectionTarget = .DENISE
+            case "Paula":   parent?.amiga.inspectionTarget = .PAULA
+            case "Ports":   parent?.amiga.inspectionTarget = .PORTS
+            case "Events":  parent?.amiga.inspectionTarget = .EVENTS
             default:        break
             }
             

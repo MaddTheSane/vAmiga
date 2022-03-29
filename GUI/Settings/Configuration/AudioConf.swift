@@ -10,9 +10,7 @@
 extension ConfigurationController {
     
     func refreshAudioTab() {
-        
-        // let config = amiga.config.audio
-        
+                
         // In
         audVol0.integerValue = config.vol0
         audVol1.integerValue = config.vol1
@@ -29,15 +27,24 @@ extension ConfigurationController {
         audSamplingMethod.selectItem(withTag: config.samplingMethod)
 
         // Drives
-        audDf0Pan.integerValue = config.df0Pan
-        audDf1Pan.integerValue = config.df1Pan
-        audDf2Pan.integerValue = config.df2Pan
-        audDf3Pan.integerValue = config.df3Pan
         audStepVolume.integerValue = config.stepVolume
         audPollVolume.integerValue = config.pollVolume
         audInsertVolume.integerValue = config.insertVolume
         audEjectVolume.integerValue = config.ejectVolume
-        
+        audDf0Pan.integerValue = config.df0Pan
+        audDf1Pan.integerValue = config.df1Pan
+        audDf2Pan.integerValue = config.df2Pan
+        audDf3Pan.integerValue = config.df3Pan
+        audHd0Pan.integerValue = config.hd0Pan
+        audHd1Pan.integerValue = config.hd1Pan
+        audHd2Pan.integerValue = config.hd2Pan
+        audHd3Pan.integerValue = config.hd3Pan
+
+        // Audio filter
+        audFilterType.selectItem(withTag: config.filterType)
+        audFilterAlwaysOn.state = config.filterAlwaysOn ? .on : .off
+        audFilterAlwaysOn.isEnabled = config.filterType != FilterType.NONE.rawValue
+
         // Buttons
         audPowerButton.isHidden = !bootable
     }
@@ -120,6 +127,18 @@ extension ConfigurationController {
         refresh()
     }
 
+    @IBAction func audHdPanAction(_ sender: NSSlider!) {
+                                
+        switch sender.tag {
+        case 0: config.hd0Pan = sender.integerValue
+        case 1: config.hd1Pan = sender.integerValue
+        case 2: config.hd2Pan = sender.integerValue
+        case 3: config.hd3Pan = sender.integerValue
+        default: fatalError()
+        }
+        refresh()
+    }
+
     @IBAction func audStepVolumeAction(_ sender: NSSlider!) {
 
         config.stepVolume = sender.integerValue
@@ -143,11 +162,21 @@ extension ConfigurationController {
         config.ejectVolume = sender.integerValue
         refresh()
     }
+     
+    @IBAction func audFilterTypeAction(_ sender: NSPopUpButton!) {
         
+        config.filterType = sender.selectedTag()
+        refresh()
+    }
+
+    @IBAction func audFilterAlwaysOnAction(_ sender: NSButton!) {
+
+        config.filterAlwaysOn = sender.state == .on
+        refresh()
+    }
+
     @IBAction func audPresetAction(_ sender: NSPopUpButton!) {
-        
-        track()
-        
+                
         switch sender.selectedTag() {
         case 0: config.loadAudioDefaults(AudioDefaults.std)
         case 1: config.loadAudioDefaults(AudioDefaults.stereo)
@@ -159,7 +188,6 @@ extension ConfigurationController {
     
     @IBAction func audDefaultsAction(_ sender: NSButton!) {
         
-        track()
         config.saveAudioUserDefaults()
     }
 }

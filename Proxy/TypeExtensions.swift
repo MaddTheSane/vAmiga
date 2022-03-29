@@ -13,32 +13,48 @@ extension EventSlot: CustomStringConvertible {
         
         switch self {
         
-        case .REG:   return "Registers"
-        case .RAS:   return "Rasterline"
-        case .CIAA:  return "CIA A"
-        case .CIAB:  return "CIA B"
-        case .BPL:   return "Bitplane DMA"
-        case .DAS:   return "Other DMA"
-        case .COP:   return "Copper"
-        case .BLT:   return "Blitter"
-        case .SEC:   return "Secondary"
+        case .REG:      return "Registers"
+        case .CIAA:     return "CIA A"
+        case .CIAB:     return "CIA B"
+        case .BPL:      return "Bitplane DMA"
+        case .DAS:      return "Other DMA"
+        case .COP:      return "Copper"
+        case .BLT:      return "Blitter"
+        case .SEC:      return "Next secondary event"
 
-        case .CH0:   return "Audio channel 0"
-        case .CH1:   return "Audio channel 1"
-        case .CH2:   return "Audio channel 2"
-        case .CH3:   return "Audio channel 3"
-        case .DSK:   return "Disk Controller"
-        case .DCH:   return "Disk Change"
-        case .VBL:   return "Vertical blank"
-        case .IRQ:   return "Interrupts"
-        case .IPL:   return "IPL"
-        case .KBD:   return "Keyboard"
-        case .TXD:   return "UART out"
-        case .RXD:   return "UART in"
-        case .POT:   return "Potentiometer"
-        case .INS:   return "Inspector"
-        case .COUNT: return "???"
-        default:     fatalError()
+        case .CH0:      return "Audio channel 0"
+        case .CH1:      return "Audio channel 1"
+        case .CH2:      return "Audio channel 2"
+        case .CH3:      return "Audio channel 3"
+        case .DSK:      return "Disk Controller"
+        case .VBL:      return "Vertical blank"
+        case .IRQ:      return "Interrupts"
+        case .IPL:      return "IPL"
+        case .KBD:      return "Keyboard"
+        case .TXD:      return "UART out"
+        case .RXD:      return "UART in"
+        case .POT:      return "Potentiometer"
+        case .RAS:      return "Rasterline"
+        case .TER:      return "Next tertiary event"
+
+        case .DC0:      return "Disk Change Df0"
+        case .DC1:      return "Disk Change Df1"
+        case .DC2:      return "Disk Change Df2"
+        case .DC3:      return "Disk Change Df3"
+        case .HD0:      return "Hard drive Hd0"
+        case .HD1:      return "Hard drive Hd1"
+        case .HD2:      return "Hard drive Hd2"
+        case .HD3:      return "Hard drive Hd3"
+        case .MSE1:     return "Port 1 mouse"
+        case .MSE2:     return "Port 2 mouse"
+        case .KEY:      return "Auto typing"
+        case .SRV:      return "Server daemon"
+        case .SER:      return "Null modem cable"
+        case .INS:      return "Inspector"
+
+        case .COUNT:    return "???"
+            
+        default:        fatalError()
         }
     }
 }
@@ -143,9 +159,9 @@ extension ErrorCode {
         case .OK:
             return ""
         case .FS_EXPECTED_VALUE:
-            return String.init(format: "Expected $%02X", exp)
+            return String(format: "Expected $%02X", exp)
         case .FS_EXPECTED_SMALLER_VALUE:
-            return String.init(format: "Expected a value less or equal $%02X", exp)
+            return String(format: "Expected a value less or equal $%02X", exp)
         case .FS_EXPECTED_DOS_REVISION:
             return "Expected a value between 0 and 7"
         case .FS_EXPECTED_NO_REF:
@@ -177,7 +193,7 @@ extension ErrorCode {
         case .FS_INVALID_HASHTABLE_SIZE:
             return "Expected $48 (72 hash table entries)"
         default:
-            track("\(self)")
+            log(warning: "\(self)")
             fatalError()
         }
     }

@@ -15,30 +15,32 @@
 #include "CIA.h"
 #include "CPU.h"
 #include "Denise.h"
-#include "Drive.h"
+#include "FloppyDrive.h"
+#include "GdbServer.h"
+#include "HardDrive.h"
 #include "Keyboard.h"
 #include "Memory.h"
 #include "MsgQueue.h"
-#include "Oscillator.h"
+#include "OSDebugger.h"
 #include "Paula.h"
 #include "RegressionTester.h"
+#include "RemoteManager.h"
 #include "RetroShell.h"
+#include "RshServer.h"
 #include "RTC.h"
 #include "SerialPort.h"
+#include "Thread.h"
 #include "ZorroManager.h"
-
-void threadTerminated(void *thisAmiga);
-void *threadMain(void *thisAmiga);
 
 /* A complete virtual Amiga. This class is the most prominent one of all. To
  * run the emulator, it is sufficient to create a single object of this type.
  * All subcomponents are created automatically. The public API gives you
- * control over the emulator's behaviour such as running and pausing the
- * emulation. Please note that most subcomponents have their own public API.
- * E.g., to query information from Paula, you need to invoke a public method on
+ * control over the emulator's behaviour such as running and pausing emulation.
+ * Please note that most subcomponents have their own public API. E.g., to
+ * query information from Paula, you need to invoke a public method on
  * amiga.paula.
  */
-class Amiga : public HardwareComponent {
+class Amiga : public Thread {
 
     /* Result of the latest inspection. In order to update the GUI inspector
      * panels, the emulator schedules events in the inspector slot (SLOT_INS in
@@ -46,7 +48,7 @@ class Amiga : public HardwareComponent {
      * current state is recorded. When the GUI updates the inspector panels, it
      * displays the result of the latest inspection.
      */
-    AmigaInfo info;
+    mutable AmigaInfo info = {};
 
      
     //
@@ -65,35 +67,47 @@ public:
     Paula paula = Paula(*this);
     
     // Logic board
-    Oscillator oscillator = Oscillator(*this);
     RTC rtc = RTC(*this);
     ZorroManager zorro = ZorroManager(*this);
-    
-    // Ports
     ControlPort controlPort1 = ControlPort(*this, PORT_1);
     ControlPort controlPort2 = ControlPort(*this, PORT_2);
     SerialPort serialPort = SerialPort(*this);
 
-    // Peripherals
-    Keyboard keyboard = Keyboard(*this);
-
     // Floppy drives
-    Drive df0 = Drive(*this, 0);
-    Drive df1 = Drive(*this, 1);
-    Drive df2 = Drive(*this, 2);
-    Drive df3 = Drive(*this, 3);
+    FloppyDrive df0 = FloppyDrive(*this, 0);
+    FloppyDrive df1 = FloppyDrive(*this, 1);
+    FloppyDrive df2 = FloppyDrive(*this, 2);
+    FloppyDrive df3 = FloppyDrive(*this, 3);
+
+    // Hard drives
+    HardDrive hd0 = HardDrive(*this, 0);
+    HardDrive hd1 = HardDrive(*this, 1);
+    HardDrive hd2 = HardDrive(*this, 2);
+    HardDrive hd3 = HardDrive(*this, 3);
+
+    // Zorro boards
+    HdController hd0con = HdController(*this, hd0);
+    HdController hd1con = HdController(*this, hd1);
+    HdController hd2con = HdController(*this, hd2);
+    HdController hd3con = HdController(*this, hd3);
+    RamExpansion ramExpansion = RamExpansion(*this);
+
+    // Other Peripherals
+    Keyboard keyboard = Keyboard(*this);
     
-    // Shortcuts to all four drives
-    Drive *df[4] = { &df0, &df1, &df2, &df3 };
-    
-    // Command console
-    RetroShell retroShell = RetroShell(*this);
-    
-    // Communication channel to the GUI
+    // Shortcuts
+    FloppyDrive *df[4] = { &df0, &df1, &df2, &df3 };
+    HardDrive *hd[4] = { &hd0, &hd1, &hd2, &hd3 };
+    HdController *hdcon[4] = { &hd0con, &hd1con, &hd2con, &hd3con };
+
+    // Gateway to the GUI
     MsgQueue msgQueue = MsgQueue(*this);
 
-    // Regression test manager
-    RegressionTester regressionTester;
+    // Misc
+    RetroShell retroShell = RetroShell(*this);
+    RemoteManager remoteManager = RemoteManager(*this);
+    OSDebugger osDebugger = OSDebugger(*this);
+    RegressionTester regressionTester = RegressionTester(*this);
     
     
     //
@@ -101,33 +115,37 @@ public:
     //
     
 private:
-    
-    // The current emulator state
-    EmulatorState state = EMULATOR_STATE_OFF;
-    
-    /* Run loop control. This variable is checked at the end of each runloop
+        
+    /* Run loop flags. This variable is checked at the end of each runloop
      * iteration. Most of the time, the variable is 0 which causes the runloop
      * to repeat. A value greater than 0 means that one or more runloop control
      * flags are set. These flags are flags processed and the loop either
      * repeats or terminates depending on the provided flags.
      */
-    u32 runLoopCtrl = 0;
-    
-    // The invocation counter for implementing suspend() / resume()
-    isize suspendCounter = 0;
-    
-    // The emulator thread
-    pthread_t p = (pthread_t)0;
-        
+    RunLoopFlags flags = 0;
+                
 
     //
     // Snapshot storage
     //
-    
+        
 private:
     
     class Snapshot *autoSnapshot = nullptr;
     class Snapshot *userSnapshot = nullptr;
+
+    
+    //
+    // Static methods
+    //
+    
+public:
+    
+    // Returns a version string for this release
+    static string version();
+
+    // Returns a build number string for this release
+    static string build();
 
     
     //
@@ -139,18 +157,77 @@ public:
     Amiga();
     ~Amiga();
 
-    const char *getDescription() const override { return "Amiga"; }
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+public:
 
     void prefix() const override;
 
+private:
+    
+    const char *getDescription() const override { return "Amiga"; }
+    void _dump(Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
+public:
+    
     void reset(bool hard);
     void hardReset() { reset(true); }
     void softReset() { reset(false); }
+    
+private:
+    
+    void _reset(bool hard) override;
+    void _powerOn() override;
+    void _powerOff() override;
+    void _run() override;
+    void _pause() override;
+    void _halt() override;
+    void _warpOn() override;
+    void _warpOff() override;
+    void _debugOn() override;
+    void _debugOff() override;
+    void _inspect() const override;
+
+    template <class T>
+    void applyToPersistentItems(T& worker)
+    {
+        
+    }
+
+    template <class T>
+    void applyToResetItems(T& worker, bool hard = true)
+    {
+        
+    }
+
+public:
+    
+    isize load(const u8 *buffer) override;
+    isize save(u8 *buffer) override;
 
 private:
     
-    void _initialize() override;
-    void _reset(bool hard) override;
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM; }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    
+    
+    //
+    // Methods from Thread
+    //
+    
+private:
+    
+    void execute() override;
 
     
     //
@@ -164,12 +241,20 @@ public:
     i64 getConfigItem(Option option, long id) const;
     
     // Sets a single configuration item
-    bool configure(Option option, i64 value) throws;
-    bool configure(Option option, long id, i64 value) throws;
+    void configure(Option option, i64 value) throws;
+    void configure(Option option, long id, i64 value) throws;
     
-    // Prepares the Amiga for regression testing
+    // Configures the Amiga with a predefined set of options
     void configure(ConfigScheme scheme);
+
+    // Reverts to factory settings
+    void revertToFactorySettings();
     
+private:
+    
+    // Overrides a config option if the corresponding debug option is enabled
+    i64 overrideOption(Option option, i64 value);
+
     
     //
     // Analyzing
@@ -177,125 +262,32 @@ public:
     
 public:
     
-    AmigaInfo getInfo() { return HardwareComponent::getInfo(info); }
+    AmigaInfo getInfo() const { return AmigaComponent::getInfo(info); }
     
-    EventID getInspectionTarget() const;
-    void setInspectionTarget(EventID id);
-    void setInspectionTarget(EventID id, Cycle trigger);
-    void removeInspectionTarget();
-    
-private:
-    
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
-    }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-
-
-    //
-    // Controlling
-    //
-    
-public:
-    
-    bool isPoweredOff() const override { return state == EMULATOR_STATE_OFF; }
-    bool isPoweredOn() const override { return state != EMULATOR_STATE_OFF; }
-    bool isPaused() const override { return state == EMULATOR_STATE_PAUSED; }
-    bool isRunning() const override { return state == EMULATOR_STATE_RUNNING; }
-
-    void powerOn() throws;
-    void powerOff();
-    void run() throws;
-    void pause();
-    void shutdown();
-    
-    void warpOn();
-    void warpOff();
-    bool inWarpMode() { return warpMode; }
-
-    void debugOn();
-    void debugOff();
-    bool inDebugMode() { return debugMode; }
-
-private:
-    
-    void _powerOn() override;
-    void _powerOff() override;
-    void _run() override;
-    void _pause() override;
-    void _warpOn() override;
-    void _warpOff() override;
-
-    
-    //
-    // Working with the emulator thread
-    //
-    
-public:
-    
-    // Returns true if the currently executed thread is the emulator thread
-    bool isEmulatorThread() { return pthread_self() == p; }
+    InspectionTarget getInspectionTarget() const;
+    void setInspectionTarget(InspectionTarget target, Cycle trigger = 0);
+    void removeInspectionTarget() { setInspectionTarget(INSPECTION_NONE); }
         
-    // Checks whether the Amiga is ready or throws an exception if not
-    void isReady() throws;
-    
-    /* Pauses the emulation thread temporarily. Because the emulator is running
-     * in a separate thread, the GUI has to pause the emulator before changing
-     * it's internal state. This is done by embedding the code inside a
-     * suspend / resume block:
-     *
-     *            suspend();
-     *            do something with the internal state;
-     *            resume();
-     *
-     *  It it safe to nest multiple suspend() / resume() blocks.
-     */
-    void suspend();
-    void resume();
-    
-    /* Sets or clears a run loop control flag. The functions are thread-safe
-     * and can be called from inside or outside the emulator thread.
-     */
-    void setControlFlags(u32 flags);
-    void clearControlFlags(u32 flags);
-    
-    // Convenience wrappers for controlling the run loop
-    void signalStop() { setControlFlags(RL_STOP); }
-    void signalInspect() { setControlFlags(RL_INSPECT); }
-    void signalWarpOn() { setControlFlags(RL_WARP_ON); }
-    void signalWarpOff() { setControlFlags(RL_WARP_OFF); }
-    void signalAutoSnapshot() { setControlFlags(RL_AUTO_SNAPSHOT); }
-    void signalUserSnapshot() { setControlFlags(RL_USER_SNAPSHOT); }
-
+        
     //
     // Running the emulator
     //
-    
+            
 public:
+        
+    /* Sets or clears a flag for controlling the run loop. The functions are
+     * thread-safe and can be called safely from outside the emulator thread.
+     */
+    void setFlag(u32 flags);
+    void clearFlag(u32 flags);
+    
+    // Convenience wrappers
+    void signalStop() { setFlag(RL::STOP); }
+    void signalInspect() { setFlag(RL::INSPECT); }
+    void signalWarpOn() { setFlag(RL::WARP_ON); }
+    void signalWarpOff() { setFlag(RL::WARP_OFF); }
+    void signalAutoSnapshot() { setFlag(RL::AUTO_SNAPSHOT); }
+    void signalUserSnapshot() { setFlag(RL::USER_SNAPSHOT); }
     
     // Runs or pauses the emulator
     void stopAndGo();
@@ -312,26 +304,7 @@ public:
      * length bytes of the current instruction and starts the emulator thread.
      */
     void stepOver();
-    
-    /* The thread enter function. This (private) method is invoked when the
-     * emulator thread launches. It has to be declared public to make it
-     * accessible by the emulator thread.
-     */
-    void threadWillStart();
-    
-    /* The thread exit function. This (private) method is invoked when the
-     * emulator thread terminates. It has to be declared public to make it
-     * accessible by the emulator thread.
-     */
-    void threadDidTerminate();
-    
-    /* The Amiga run loop. This function is one of the most prominent ones. It
-     * implements the outermost loop of the emulator and therefore the place
-     * where emulation starts. If you want to understand how the emulator works,
-     * this function should be your starting point.
-     */
-    void runLoop();
-
+        
     
     //
     // Handling snapshots
@@ -346,16 +319,33 @@ public:
      */
     void requestAutoSnapshot();
     void requestUserSnapshot();
-     
-    // Returns the most recent snapshot or nullptr if none was taken
+         
+    /* Returns the most recent snapshot or nullptr if none was taken. If a
+     * snapshot was taken, the function hands over the ownership to the caller
+     * and deletes the internal pointer.
+     */
     Snapshot *latestAutoSnapshot();
     Snapshot *latestUserSnapshot();
 
-    /* Loads the current state from a snapshot file. There is an thread-unsafe
-     * and thread-safe version of this function. The first one can be unsed
-     * inside the emulator thread or from outside if the emulator is halted.
-     * The second one can be called any time.
-     */
-    void loadFromSnapshotUnsafe(Snapshot *snapshot);
-    void loadFromSnapshotSafe(Snapshot *snapshot);
+    // Loads the current state from a snapshot file
+    void loadSnapshot(const Snapshot &snapshot) throws;
+    
+private:
+    
+    // Takes a snapshot of a certain kind
+    void takeAutoSnapshot();
+    void takeUserSnapshot();
+    
+    
+    //
+    // Miscellaneous
+    //
+    
+public:
+    
+    // Returns a path to a temporary folder
+    static fs::path tmp() throws;
+    
+    // Assembles a path to a temporary file
+    static fs::path tmp(const string &name, bool unique = false) throws;
 };

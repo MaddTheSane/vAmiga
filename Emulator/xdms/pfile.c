@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 #include "cdata.h"
 #include "u_init.h"
@@ -30,24 +31,57 @@
 
 
 
-static USHORT Process_Track(FILE *, FILE *, UCHAR *, UCHAR *, USHORT, USHORT, USHORT);
+static USHORT Process_Track(UCHAR *, UCHAR *, USHORT, USHORT, USHORT);
 static USHORT Unpack_Track(UCHAR *, UCHAR *, USHORT, USHORT, UCHAR, UCHAR);
 static void printbandiz(UCHAR *, USHORT);
 static void dms_decrypt(UCHAR *, USHORT);
-USHORT extractDMS(FILE *fi, FILE *fo);
+USHORT extractDMS(const UCHAR *in, size_t inSize, UCHAR **out, size_t *outSize, int verbose);
 
 static char modes[7][7]={"NOCOMP","SIMPLE","QUICK ","MEDIUM","DEEP  ","HEAVY1","HEAVY2"};
 static USHORT PWDCRC;
 
-UCHAR *text;
+static const UCHAR* inbuf;
+static size_t insize;
+static size_t inpos;
+static UCHAR* outbuf;
+static size_t outpos;
+
+static size_t In_Read(void* buf, size_t elem_size, size_t elem_count)
+{
+    const size_t num_bytes = elem_size * elem_count;
+    if (inpos + num_bytes > insize)
+        return 0;
+    memcpy(buf, inbuf + inpos, num_bytes);
+    inpos += num_bytes;
+    return num_bytes;
+}
+
+static size_t Out_Write(void* buf, size_t elem_size, size_t elem_count)
+{
+    const size_t num_bytes = elem_size * elem_count;
+    UCHAR* new_buf = realloc(outbuf, outpos + num_bytes);
+    if (!new_buf) {
+        free(outbuf);
+        outbuf = NULL;
+        return 0;
+    }
+    outbuf = new_buf;
+
+    memcpy(outbuf + outpos, buf, num_bytes);
+    outpos += num_bytes;
+
+    return num_bytes;
+}
+
+UCHAR* text;
 
 int OverrideErrors;
 
 // New entry point for vAmiga (Dirk Hoffmann)
-USHORT extractDMS(FILE *fi, FILE *fo) {
+USHORT extractDMS(const UCHAR *in, size_t inSize, UCHAR **out, size_t *outSize, int verbose) {
     
     USHORT cmd = CMD_UNPACK;
-    USHORT opt = OPT_VERBOSE;
+    USHORT opt = verbose ? OPT_VERBOSE : 0;
     USHORT PCRC = 0;
     USHORT pwd = 0;
     
@@ -55,6 +89,17 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
     ULONG pkfsize, unpkfsize;
     UCHAR *b1, *b2;
     time_t date;
+
+    *out = NULL;
+    *outSize = 0;
+
+    assert(!outbuf);
+    
+    inbuf = in;
+    insize = inSize;
+    inpos = 0;
+    outbuf = NULL;
+    outpos = 0;
     
     b1 = (UCHAR *)calloc((size_t)TRACK_BUFFER_LEN,1);
     if (!b1) return ERR_NOMEMORY;
@@ -70,8 +115,7 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
         return ERR_NOMEMORY;
     }
         
-    if (fread(b1,1,HEADLEN,fi) != HEADLEN) {
-        fclose(fi);
+    if (In_Read(b1, 1, HEADLEN) != HEADLEN) {
         free(b1);
         free(b2);
         free(text);
@@ -80,7 +124,6 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
     
     if ( (b1[0] != 'D') || (b1[1] != 'M') || (b1[2] != 'S') || (b1[3] != '!') ) {
         /*  Check the first 4 bytes of file to see if it is "DMS!"  */
-        fclose(fi);
         free(b1);
         free(b2);
         free(text);
@@ -91,7 +134,6 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
     /* Header CRC */
     
     if (hcrc != CreateCRC(b1+4,(ULONG)(HEADLEN-6))) {
-        fclose(fi);
         free(b1);
         free(b2);
         free(text);
@@ -114,7 +156,6 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
     
     if (disktype == 7) {
         /*  It's not a DMS compressed disk image, but a FMS archive  */
-        fclose(fi);
         free(b1);
         free(b2);
         free(text);
@@ -130,9 +171,9 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
     
     if (cmd != CMD_VIEW) {
         if (cmd == CMD_SHOWBANNER) /*  Banner is in the first track  */
-            ret = Process_Track(fi,NULL,b1,b2,cmd,opt,(geninfo & 2)?pwd:0);
+            ret = Process_Track(b1,b2,cmd,opt,(geninfo & 2)?pwd:0);
         else {
-            while ( (ret=Process_Track(fi,fo,b1,b2,cmd,opt,(geninfo & 2)?pwd:0)) == NO_PROBLEM ) ;
+            while ( (ret=Process_Track(b1,b2,cmd,opt,(geninfo & 2)?pwd:0)) == NO_PROBLEM ) ;
             if ((cmd == CMD_UNPACK) && (opt == OPT_VERBOSE)) fprintf(stderr,"\n");
         }
     }
@@ -147,17 +188,19 @@ USHORT extractDMS(FILE *fi, FILE *fo) {
     /*  So, when we find something that is not a track header,   */
     /*  we suppose that the valid data is over. And say it's ok. */
     if (ret == ERR_NOTTRACK) ret = NO_PROBLEM;
-    
-    fclose(fi);
-    fclose(fo);
-    
+        
     free(b1);
     free(b2);
     free(text);
+
+    *out = outbuf;
+    *outSize = outpos;
+    outbuf = NULL;
     
     return ret;
 }
 
+#if 0
 USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd){
     FILE *fi, *fo=NULL;
     USHORT from, to, geninfo, c_version, cmode, hcrc, disktype, pv, ret;
@@ -380,17 +423,17 @@ USHORT Process_File(char *iname, char *oname, USHORT cmd, USHORT opt, USHORT PCR
 
     return ret;
 }
+#endif
 
 
-
-static USHORT Process_Track(FILE *fi, FILE *fo, UCHAR *b1, UCHAR *b2,
+static USHORT Process_Track(UCHAR *b1, UCHAR *b2,
                 USHORT cmd, USHORT opt, USHORT pwd)
 {
     USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l, r;
     UCHAR cmode, flags;
 
 
-    l = (USHORT)fread(b1,1,THLEN,fi);
+    l = (USHORT)In_Read(b1,1,THLEN);
 
     if (l != THLEN) {
         if (l==0)
@@ -432,7 +475,7 @@ static USHORT Process_Track(FILE *fi, FILE *fo, UCHAR *b1, UCHAR *b2,
 
     if ((pklen1 > TRACK_BUFFER_LEN) || (pklen2 >TRACK_BUFFER_LEN) || (unpklen > TRACK_BUFFER_LEN)) return ERR_BIGTRACK;
 
-    if (fread(b1,1,(size_t)pklen1,fi) != pklen1) return ERR_SREAD;
+    if (In_Read(b1,1,(size_t)pklen1) != pklen1) return ERR_SREAD;
 
     if (CreateCRC(b1,(ULONG)pklen1) != dcrc) {
         if (OverrideErrors) {
@@ -480,7 +523,7 @@ static USHORT Process_Track(FILE *fi, FILE *fo, UCHAR *b1, UCHAR *b2,
             }
         }
 
-        if (fwrite(b2, 1, (size_t) unpklen, fo) != unpklen)
+        if (Out_Write(b2, 1, (size_t) unpklen) != unpklen)
             return ERR_CANTWRITE;
 
         if (opt == OPT_VERBOSE) {

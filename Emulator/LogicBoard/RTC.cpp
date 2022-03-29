@@ -9,14 +9,10 @@
 
 #include "config.h"
 #include "RTC.h"
+#include "Chrono.h"
 #include "CPU.h"
-#include "IO.h"
+#include "IOUtils.h"
 #include "Memory.h"
-
-RTC::RTC(Amiga& ref) : AmigaComponent(ref)
-{
-    config.model = RTC_OKI;
-}
 
 i64
 RTC::getConfigItem(Option option) const
@@ -26,44 +22,31 @@ RTC::getConfigItem(Option option) const
         case OPT_RTC_MODEL:  return (long)config.model;
         
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 RTC::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_RTC_MODEL:
-            
-            #ifdef FORCE_RTC
-            value = FORCE_RTC;
-            warn("Overriding RTC revision: %lld KB\n", value);
-            #endif
-            
-            if (!RTCRevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, RTCRevisionEnum::keyList());
+                
+            if (!isPoweredOff()) {
+                throw VAError(ERROR_OPT_LOCKED);
             }
-            if (config.model == value) {
-                return false;
+            if (!RTCRevisionEnum::isValid(value)) {
+                throw VAError(ERROR_OPT_INVARG, RTCRevisionEnum::keyList());
             }
             
             config.model = (RTCRevision)value;
             mem.updateMemSrcTables();
-            
-            return true;
+            return;
                         
         default:
-            return false;
+            fatalError;
     }
-}
-
-void
-RTC::_initialize()
-{
-    
 }
 
 void
@@ -88,18 +71,36 @@ RTC::_reset(bool hard)
     }
 }
 
+RTCConfig
+RTC::getDefaultConfig()
+{
+    RTCConfig defaults;
+
+    defaults.model = RTC_OKI;
+    
+    return defaults;
+}
+
 void
-RTC::_dump(dump::Category category, std::ostream& os) const
+RTC::resetConfig()
+{
+    RTCConfig defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_RTC_MODEL, defaults.model);
+}
+
+void
+RTC::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
-    if (category & dump::Config) {
+    if (category == Category::Config) {
         
         os << tab("Chip Model");
         os << RTCRevisionEnum::key(config.model) << std::endl;
     }
     
-    if (category & dump::Registers) {
+    if (category == Category::Registers) {
         
         for (isize i = 0; i < 16; i++) {
             os << "    " << hex((u8)i) << " : ";
@@ -118,7 +119,7 @@ RTC::getTime()
     Cycle result;
     Cycle master = cpu.getMasterClock();
 
-    long timeBetweenCalls = AS_SEC(master - lastCall);
+    auto timeBetweenCalls = AS_SEC(master - lastCall);
            
     if (timeBetweenCalls > 2) {
 
@@ -185,12 +186,8 @@ RTC::spypeek(isize nr) const
             
             result = reg[bank()][nr];
     }
-    
-    #ifdef FORCE_RTC_REGISTER
-    result = FORCE_RTC_REGISTER;
-    #endif
-    
-    trace(RTC_DEBUG, "peek(%zu) = $%X [bank %zu]\n", nr, result, bank());
+        
+    trace(RTC_DEBUG, "peek(%ld) = $%X [bank %ld]\n", nr, result, bank());
     return result;
 }
 
@@ -199,7 +196,7 @@ RTC::poke(isize nr, u8 value)
 {
     assert(nr < 16);
 
-    trace(RTC_DEBUG, "poke(%zu, $%02X) [bank %zu]\n", nr, value, bank());
+    trace(RTC_DEBUG, "poke(%ld, $%02X) [bank %ld]\n", nr, value, bank());
 
     // Ony proceed if a real-time clock is installed
     if (rtc.isPresent()) return;
@@ -225,33 +222,33 @@ RTC::time2registers()
     time_t rtcTime = getTime();
     
     // Convert the time_t value to a tm struct
-    tm *t = localtime(&rtcTime);
+    auto t = util::Time::local(rtcTime);
     
     // Write the registers
-    config.model == RTC_RICOH ? time2registersRicoh(t) : time2registersOki(t);
+    config.model == RTC_RICOH ? time2registersRicoh(&t) : time2registersOki(&t);
 }
 
 void
 RTC::time2registersOki(tm *t)
 {
-    reg[0][0x0] = t->tm_sec % 10;
-    reg[0][0x1] = t->tm_sec / 10;
-    reg[0][0x2] = t->tm_min % 10;
-    reg[0][0x3] = t->tm_min / 10;
-    reg[0][0x4] = t->tm_hour % 10;
-    reg[0][0x5] = t->tm_hour / 10;
-    reg[0][0x6] = t->tm_mday % 10;
-    reg[0][0x7] = t->tm_mday / 10;
-    reg[0][0x8] = (t->tm_mon + 1) % 10;
-    reg[0][0x9] = (t->tm_mon + 1) / 10;
-    reg[0][0xA] = t->tm_year % 10;
-    reg[0][0xB] = t->tm_year / 10;
-    reg[0][0xC] = t->tm_yday / 7;
+    reg[0][0x0] = (u8)(t->tm_sec % 10);
+    reg[0][0x1] = (u8)(t->tm_sec / 10);
+    reg[0][0x2] = (u8)(t->tm_min % 10);
+    reg[0][0x3] = (u8)(t->tm_min / 10);
+    reg[0][0x4] = (u8)(t->tm_hour % 10);
+    reg[0][0x5] = (u8)(t->tm_hour / 10);
+    reg[0][0x6] = (u8)(t->tm_mday % 10);
+    reg[0][0x7] = (u8)(t->tm_mday / 10);
+    reg[0][0x8] = (u8)((t->tm_mon + 1) % 10);
+    reg[0][0x9] = (u8)((t->tm_mon + 1) / 10);
+    reg[0][0xA] = (u8)(t->tm_year % 10);
+    reg[0][0xB] = (u8)(t->tm_year / 10);
+    reg[0][0xC] = (u8)(t->tm_yday / 7);
     
     // Change the hour format in AM/PM mode
     if (t->tm_hour > 12 && GET_BIT(reg[0][15], 2) == 0) {
-        reg[0][4] = (t->tm_hour - 12) % 10;
-        reg[0][5] = (t->tm_hour - 12) / 10;
+        reg[0][4] = (u8)((t->tm_hour - 12) % 10);
+        reg[0][5] = (u8)((t->tm_hour - 12) / 10);
         reg[0][5] |= 0b100;
     }
 }
@@ -259,24 +256,24 @@ RTC::time2registersOki(tm *t)
 void
 RTC::time2registersRicoh(tm *t)
 {
-    reg[0][0x0] = t->tm_sec % 10;
-    reg[0][0x1] = t->tm_sec / 10;
-    reg[0][0x2] = t->tm_min % 10;
-    reg[0][0x3] = t->tm_min / 10;
-    reg[0][0x4] = t->tm_hour % 10;
-    reg[0][0x5] = t->tm_hour / 10;
-    reg[0][0x6] = t->tm_yday / 7;
-    reg[0][0x7] = t->tm_mday % 10;
-    reg[0][0x8] = t->tm_mday / 10;
-    reg[0][0x9] = (t->tm_mon + 1) % 10;
-    reg[0][0xA] = (t->tm_mon + 1) / 10;
-    reg[0][0xB] = t->tm_year % 10;
-    reg[0][0xC] = t->tm_year / 10;
+    reg[0][0x0] = (u8)(t->tm_sec % 10);
+    reg[0][0x1] = (u8)(t->tm_sec / 10);
+    reg[0][0x2] = (u8)(t->tm_min % 10);
+    reg[0][0x3] = (u8)(t->tm_min / 10);
+    reg[0][0x4] = (u8)(t->tm_hour % 10);
+    reg[0][0x5] = (u8)(t->tm_hour / 10);
+    reg[0][0x6] = (u8)(t->tm_yday / 7);
+    reg[0][0x7] = (u8)(t->tm_mday % 10);
+    reg[0][0x8] = (u8)(t->tm_mday / 10);
+    reg[0][0x9] = (u8)((t->tm_mon + 1) % 10);
+    reg[0][0xA] = (u8)((t->tm_mon + 1) / 10);
+    reg[0][0xB] = (u8)(t->tm_year % 10);
+    reg[0][0xC] = (u8)(t->tm_year / 10);
     
     // Change the hour format in AM/PM mode
     if (t->tm_hour > 12 && GET_BIT(reg[0][10], 0) == 0) {
-        reg[0][4] = (t->tm_hour - 12) % 10;
-        reg[0][5] = (t->tm_hour - 12) / 10;
+        reg[0][4] = (u8)((t->tm_hour - 12) % 10);
+        reg[0][5] = (u8)((t->tm_hour - 12) / 10);
         reg[0][5] |= 0b010;
     }
     
@@ -299,8 +296,7 @@ RTC::time2registersRicoh(tm *t)
 void
 RTC::registers2time()
 {
-    tm t;
-    memset(&t, 0, sizeof(t));
+    tm t = { };
     
     // Read the registers
     config.model == RTC_RICOH ? registers2timeRicoh(&t) : registers2timeOki(&t);

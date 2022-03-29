@@ -11,13 +11,12 @@
 #include "Denise.h"
 #include "Agnus.h"
 #include "Amiga.h"
-#include "ControlPort.h"
-#include "IO.h"
+#include "IOUtils.h"
 #include "SSEUtils.h"
 
-Denise::Denise(Amiga& ref) : AmigaComponent(ref)
+Denise::Denise(Amiga& ref) : SubComponent(ref)
 {    
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<AmigaComponent *> {
         
         &pixelEngine,
         &screenRecorder
@@ -25,28 +24,48 @@ Denise::Denise(Amiga& ref) : AmigaComponent(ref)
 }
 
 void
-Denise::_initialize()
-{
-    config.hiddenSprites = 0;
-    config.hiddenLayers = 0;
-    config.hiddenLayerAlpha = 128;
-    config.clxSprSpr = true;
-    config.clxSprPlf = true;
-    config.clxPlfPlf = true;
-    
-    memset(spriteInfo, 0, sizeof(spriteInfo));
-    memset(latchedSpriteInfo, 0, sizeof(latchedSpriteInfo));
-}
-
-void
 Denise::_reset(bool hard)
 {
     RESET_SNAPSHOT_ITEMS(hard)
     
-    memset(bBuffer, 0, sizeof(bBuffer));
-    memset(iBuffer, 0, sizeof(iBuffer));
-    memset(mBuffer, 0, sizeof(mBuffer));
-    memset(zBuffer, 0, sizeof(zBuffer));
+    std::memset(bBuffer, 0, sizeof(bBuffer));
+    std::memset(iBuffer, 0, sizeof(iBuffer));
+    std::memset(mBuffer, 0, sizeof(mBuffer));
+    std::memset(zBuffer, 0, sizeof(zBuffer));
+}
+
+DeniseConfig
+Denise::getDefaultConfig()
+{
+    DeniseConfig defaults;
+
+    defaults.revision = DENISE_OCS;
+    defaults.viewportTracking = true;
+    defaults.hiddenBitplanes = 0;
+    defaults.hiddenSprites = 0;
+    defaults.hiddenLayers = 0;
+    defaults.hiddenLayerAlpha = 128;
+    defaults.clxSprSpr = true;
+    defaults.clxSprPlf = true;
+    defaults.clxPlfPlf = true;
+
+    return defaults;
+}
+
+void
+Denise::resetConfig()
+{
+    auto defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_DENISE_REVISION, defaults.revision);
+    setConfigItem(OPT_VIEWPORT_TRACKING, defaults.viewportTracking);
+    setConfigItem(OPT_HIDDEN_BITPLANES, defaults.hiddenBitplanes);
+    setConfigItem(OPT_HIDDEN_SPRITES, defaults.hiddenSprites);
+    setConfigItem(OPT_HIDDEN_LAYERS, defaults.hiddenLayers);
+    setConfigItem(OPT_HIDDEN_LAYER_ALPHA, defaults.hiddenLayerAlpha);
+    setConfigItem(OPT_CLX_SPR_SPR, defaults.clxSprSpr);
+    setConfigItem(OPT_CLX_SPR_PLF, defaults.clxSprPlf);
+    setConfigItem(OPT_CLX_PLF_PLF, defaults.clxPlfPlf);
 }
 
 i64
@@ -55,6 +74,8 @@ Denise::getConfigItem(Option option) const
     switch (option) {
             
         case OPT_DENISE_REVISION:     return config.revision;
+        case OPT_VIEWPORT_TRACKING:   return config.viewportTracking;
+        case OPT_HIDDEN_BITPLANES:    return config.hiddenBitplanes;
         case OPT_HIDDEN_SPRITES:      return config.hiddenSprites;
         case OPT_HIDDEN_LAYERS:       return config.hiddenLayers;
         case OPT_HIDDEN_LAYER_ALPHA:  return config.hiddenLayerAlpha;
@@ -63,12 +84,11 @@ Denise::getConfigItem(Option option) const
         case OPT_CLX_PLF_PLF:         return config.clxPlfPlf;
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 Denise::setConfigItem(Option option, i64 value)
 {
     switch (option) {
@@ -76,190 +96,56 @@ Denise::setConfigItem(Option option, i64 value)
         case OPT_DENISE_REVISION:
             
             if (!DeniseRevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, DeniseRevisionEnum::keyList());
-            }
-            if (config.revision == value) {
-                return false;
+                throw VAError(ERROR_OPT_INVARG, DeniseRevisionEnum::keyList());
             }
             
             config.revision = (DeniseRevision)value;
-            return true;
-                        
+            return;
+
+        case OPT_VIEWPORT_TRACKING:
+            
+            config.viewportTracking = (bool)value;
+            debugger.resetDIWTracker();
+            return;
+
+        case OPT_HIDDEN_BITPLANES:
+            
+            config.hiddenBitplanes = (u8)value;
+            return;
+
         case OPT_HIDDEN_SPRITES:
             
-            if (config.hiddenSprites == value) {
-                return false;
-            }
-            
-            config.hiddenSprites = value;
-            return true;
+            config.hiddenSprites = (u8)value;
+            return;
             
         case OPT_HIDDEN_LAYERS:
             
-            if (config.hiddenLayers == value) {
-                return false;
-            }
-
-            config.hiddenLayers = value;
-            return true;
+            config.hiddenLayers = (u16)value;
+            return;
             
         case OPT_HIDDEN_LAYER_ALPHA:
             
-            if (config.hiddenLayerAlpha == value) {
-                return false;
-            }
-            
-            config.hiddenLayerAlpha = value;
-            return true;
+            config.hiddenLayerAlpha = (u8)value;
+            return;
 
         case OPT_CLX_SPR_SPR:
             
-            if (config.clxSprSpr == value) {
-                return false;
-            }
-
-            config.clxSprSpr = value;
-            return true;
+            config.clxSprSpr = (bool)value;
+            return;
             
         case OPT_CLX_SPR_PLF:
             
-            if (config.clxSprPlf == value) {
-                return false;
-            }
-
-            config.clxSprPlf = value;
-            return true;
+            config.clxSprPlf = (bool)value;
+            return;
             
         case OPT_CLX_PLF_PLF:
             
-            if (config.clxPlfPlf == value) {
-                return false;
-            }
-
-            config.clxPlfPlf = value;
-            return true;
+            config.clxPlfPlf = (bool)value;
+            return;
 
         default:
-            return false;
+            fatalError;
     }
-}
-
-void
-Denise::_inspect()
-{
-    synchronized {
-        
-        info.bplcon0 = bplcon0;
-        info.bplcon1 = bplcon1;
-        info.bplcon2 = bplcon2;
-        info.bpu = bpu();
-        
-        info.diwstrt = agnus.diwstrt;
-        info.diwstop = agnus.diwstop;
-        info.diwHstrt = agnus.diwHstrt;
-        info.diwHstop = agnus.diwHstop;
-        info.diwVstrt = agnus.diwVstrt;
-        info.diwVstop = agnus.diwVstop;
-        
-        info.joydat[0] = controlPort1.joydat();
-        info.joydat[1] = controlPort2.joydat();
-        info.clxdat = 0;
-        
-        for (isize i = 0; i < 6; i++) {
-            info.bpldat[i] = bpldat[i];
-        }
-        for (isize i = 0; i < 32; i++) {
-            info.colorReg[i] = pixelEngine.getColor(i);
-            info.color[i] = pixelEngine.getRGBA(i);
-        }
-    }
-}
-
-void
-Denise::_dump(dump::Category category, std::ostream& os) const
-{
-    using namespace util;
-    
-    if (category & dump::Config) {
-        
-        os << tab("Chip revision");
-        os << DeniseRevisionEnum::key(config.revision) << std::endl;
-        os << tab("Hidden sprites");
-        os << hex(config.hiddenSprites) << std::endl;
-        os << tab("Hidden layers");
-        os << hex(config.hiddenLayers) << std::endl;
-        os << tab("Hidden layer alpha");
-        os << dec(config.hiddenLayerAlpha) << std::endl;
-        os << tab("clxSprSpr");
-        os << bol(config.clxSprSpr) << std::endl;
-        os << tab("clxSprSpr");
-        os << bol(config.clxSprSpr) << std::endl;
-        os << tab("clxSprSpr");
-        os << bol(config.clxSprSpr) << std::endl;
-    }
-    
-    if (category & dump::Registers) {
-        
-        os << tab("BPLCON0");
-        os << hex(bplcon0) << std::endl;
-        os << tab("BPLCON1");
-        os << hex(bplcon1) << std::endl;
-        os << tab("BPLCON2");
-        os << hex(bplcon2) << std::endl;
-        os << tab("BPLCON3");
-        os << hex(bplcon3) << std::endl;
-    
-        os << tab("SPRxDATA");
-        for (isize i = 0; i < 8; i++) os << hex(sprdata[i]) << ' ';
-        os << std::endl;
-        os << tab("SPRxDATB");
-        for (isize i = 0; i < 8; i++) os << hex(sprdatb[i]) << ' ';
-        os << std::endl;
-        os << tab("SPRxPOS");
-        for (isize i = 0; i < 8; i++) os << hex(sprpos[i]) << ' ';
-        os << std::endl;
-        os << tab("SPRxCTL");
-        for (isize i = 0; i < 8; i++) os << hex(sprctl[i]) << ' ';
-        os << std::endl;
-    }
-}
-
-SpriteInfo
-Denise::getSpriteInfo(isize nr)
-{
-    SpriteInfo result;
-    synchronized { result = latchedSpriteInfo[nr]; }
-    return result;
-}
-
-int
-Denise::bpu(u16 v)
-{
-    // Extract the three BPU bits and check for hires mode
-    int bpu = (v >> 12) & 0b111;
-    bool hires = GET_BIT(v, 15);
-
-    if (hires) {
-        // return bpu < 5 ? bpu : 0; // Disable all bitplanes if value is invalid
-        return bpu < 7 ? bpu : 6; 
-    } else {
-        return bpu < 7 ? bpu : 6; // Enable six bitplanes if value is invalid
-    }
-}
-
-u16
-Denise::zPF(u16 prioBits)
-{
-    switch (prioBits) {
-
-        case 0: return Z_0;
-        case 1: return Z_1;
-        case 2: return Z_2;
-        case 3: return Z_3;
-        case 4: return Z_4;
-    }
-
-    return 0;
 }
 
 bool
@@ -270,70 +156,94 @@ Denise::spritePixelIsVisible(Pixel hpos) const
 }
 
 void
-Denise::updateShiftRegisters()
+Denise::updateShiftRegistersOdd()
 {
-    // Only proceed if the load cycle has been reached
-    if (agnus.pos.h < fillPos) return;
-    fillPos = INT16_MAX;
-    
-    armedOdd = true;
-    armedEven = true;
-    
     switch (bpu()) {
-        case 6: shiftReg[5] = bpldatPipe[5];
+            
+        case 6:
         case 5: shiftReg[4] = bpldatPipe[4];
-        case 4: shiftReg[3] = bpldatPipe[3];
+        case 4:
         case 3: shiftReg[2] = bpldatPipe[2];
-        case 2: shiftReg[1] = bpldatPipe[1];
+        case 2:
         case 1: shiftReg[0] = bpldatPipe[0];
     }
-    
-    // On Intel machines, call the optimized SSE code
-    #if (defined(__i386__) || defined(__x86_64__)) && defined(__MACH__)
-    
-    if (!NO_SSE) {
-        util::transposeSSE(shiftReg, slice);
-        return;
+}
+
+void
+Denise::updateShiftRegistersEven()
+{
+    switch (bpu()) {
+            
+        case 6: shiftReg[5] = bpldatPipe[5];
+        case 5:
+        case 4: shiftReg[3] = bpldatPipe[3];
+        case 3:
+        case 2: shiftReg[1] = bpldatPipe[1];
     }
-    
-    #endif
-    
-    // On all other machines, fallback to the slower standard implementation
-    u32 mask = 0x8000;
+}
+
+void
+Denise::extractSlices(u8 slices[16])
+{
+    u16 mask = 0x8000;
     for (isize i = 0; i < 16; i++, mask >>= 1) {
         
-        slice[i] =
-        (!!(shiftReg[0] & mask) << 0) |
-        (!!(shiftReg[1] & mask) << 1) |
-        (!!(shiftReg[2] & mask) << 2) |
-        (!!(shiftReg[3] & mask) << 3) |
-        (!!(shiftReg[4] & mask) << 4) |
-        (!!(shiftReg[5] & mask) << 5);
+        slices[i] = (u8) ((!!(shiftReg[0] & mask) << 0) |
+                          (!!(shiftReg[1] & mask) << 1) |
+                          (!!(shiftReg[2] & mask) << 2) |
+                          (!!(shiftReg[3] & mask) << 3) |
+                          (!!(shiftReg[4] & mask) << 4) |
+                          (!!(shiftReg[5] & mask) << 5) );
+    }
+}
+
+void
+Denise::extractSlicesOdd(u8 slices[16])
+{
+    u16 mask = 0x8000;
+    for (isize i = 0; i < 16; i++, mask >>= 1) {
+        
+        slices[i] = (u8) ((!!(shiftReg[0] & mask) << 0) |
+                          (!!(shiftReg[2] & mask) << 2) |
+                          (!!(shiftReg[4] & mask) << 4) );
+    }
+}
+
+void
+Denise::extractSlicesEven(u8 slices[16])
+{
+    u16 mask = 0x8000;
+    for (isize i = 0; i < 16; i++, mask >>= 1) {
+        
+        slices[i] = (u8) ((!!(shiftReg[1] & mask) << 1) |
+                          (!!(shiftReg[3] & mask) << 3) |
+                          (!!(shiftReg[5] & mask) << 5) );
     }
 }
 
 template <bool hiresMode> void
 Denise::drawOdd(Pixel offset)
 {
-    assert(!hiresMode || (agnus.pos.h & 0x3) == agnus.scrollHiresOdd);
-    assert( hiresMode || (agnus.pos.h & 0x7) == agnus.scrollLoresOdd);
-
-    static const u16 masks[7] = {
-       0b000000,         // 0 bitplanes
-       0b000001,         // 1 bitplanes
-       0b000001,         // 2 bitplanes
-       0b000101,         // 3 bitplanes
-       0b000101,         // 4 bitplanes
-       0b010101,         // 5 bitplanes
-       0b010101          // 6 bitplanes
+    static constexpr u16 masks[7] = {
+        
+       0b000000, // 0 bitplanes
+       0b000001, // 1 bitplanes
+       0b000001, // 2 bitplanes
+       0b000101, // 3 bitplanes
+       0b000101, // 4 bitplanes
+       0b010101, // 5 bitplanes
+       0b010101  // 6 bitplanes
     };
     
     u16 mask = masks[bpu()];
     Pixel currentPixel = agnus.ppos() + offset;
     
+    u8 slices[16];
+    extractSlicesOdd(slices);
+    
     for (isize i = 0; i < 16; i++) {
         
-        u8 index = slice[i] & mask;
+        u8 index = slices[i] & mask;
         
         if (hiresMode) {
             
@@ -353,34 +263,34 @@ Denise::drawOdd(Pixel offset)
         }
     }
  
-    // Disarm and clear the shift registers
-    armedOdd = false;
+    // Clear the shift registers
     shiftReg[0] = shiftReg[2] = shiftReg[4] = 0;
 }
 
 template <bool hiresMode> void
 Denise::drawEven(Pixel offset)
-{
-    assert(!hiresMode || (agnus.pos.h & 0x3) == agnus.scrollHiresEven);
-    assert( hiresMode || (agnus.pos.h & 0x7) == agnus.scrollLoresEven);
-    
-    static const u16 masks[7] = {
-       0b000000,         // 0 bitplanes
-       0b000000,         // 1 bitplanes
-       0b000010,         // 2 bitplanes
-       0b000010,         // 3 bitplanes
-       0b001010,         // 4 bitplanes
-       0b001010,         // 5 bitplanes
-       0b101010          // 6 bitplanes
+{    
+    static constexpr u16 masks[7] = {
+        
+       0b000000, // 0 bitplanes
+       0b000000, // 1 bitplanes
+       0b000010, // 2 bitplanes
+       0b000010, // 3 bitplanes
+       0b001010, // 4 bitplanes
+       0b001010, // 5 bitplanes
+       0b101010  // 6 bitplanes
     };
     
     u16 mask = masks[bpu()];
-    i16 currentPixel = agnus.ppos() + offset;
+    Pixel currentPixel = agnus.ppos() + offset;
+    
+    u8 slices[16];
+    extractSlicesEven(slices);
     
     for (isize i = 0; i < 16; i++) {
 
-        u8 index = slice[i] & mask;
-
+        u8 index = slices[i] & mask;
+        
         if (hiresMode) {
             
             // Synthesize one hires pixel
@@ -399,30 +309,37 @@ Denise::drawEven(Pixel offset)
         }
     }
  
-    // Disarm and clear the shift registers
-    armedEven = false;
+    // Clear the shift registers
     shiftReg[1] = shiftReg[3] = shiftReg[5] = 0;
 }
 
 template <bool hiresMode> void
 Denise::drawBoth(Pixel offset)
 {
-    static const u16 masks[7] = {
-        0b000000,         // 0 bitplanes
-        0b000001,         // 1 bitplanes
-        0b000011,         // 2 bitplanes
-        0b000111,         // 3 bitplanes
-        0b001111,         // 4 bitplanes
-        0b011111,         // 5 bitplanes
-        0b111111          // 6 bitplanes
+    drawOdd<hiresMode>(offset);
+    drawEven<hiresMode>(offset);
+    
+    /*
+    static constexpr u16 masks[7] = {
+        
+        0b000000, // 0 bitplanes
+        0b000001, // 1 bitplanes
+        0b000011, // 2 bitplanes
+        0b000111, // 3 bitplanes
+        0b001111, // 4 bitplanes
+        0b011111, // 5 bitplanes
+        0b111111  // 6 bitplanes
     };
     
     u16 mask = masks[bpu()];
-    i16 currentPixel = agnus.ppos() + offset;
+    Pixel currentPixel = agnus.ppos() + offset;
+    
+    u8 slices[16];
+    extractSlices(slices);
     
     for (isize i = 0; i < 16; i++) {
         
-        u8 index = slice[i] & mask;
+        u8 index = slices[i] & mask;
         
         if (hiresMode) {
             
@@ -442,86 +359,82 @@ Denise::drawBoth(Pixel offset)
     // Disarm and clear the shift registers
     armedEven = armedOdd = false;
     for (isize i = 0; i < 6; i++) shiftReg[i] = 0;
+    */
 }
 
 void
 Denise::drawHiresOdd()
 {
-    updateShiftRegisters();
-    
     if (armedOdd) {
         
+        updateShiftRegistersOdd();
         drawOdd <true> (pixelOffsetOdd);
+        armedOdd = false;
     }
 }
 
 void
 Denise::drawHiresEven()
 {
-    updateShiftRegisters();
-    
     if (armedEven) {
         
-        drawEven<true> (pixelOffsetEven);
+        updateShiftRegistersEven();
+        drawEven <true> (pixelOffsetEven);
+        armedEven = false;
     }
 }
 
 void
 Denise::drawHiresBoth()
 {
+    drawHiresOdd();
+    drawHiresEven();
+    
+    /*
     updateShiftRegisters();
 
     if (armedOdd && armedEven && pixelOffsetOdd == pixelOffsetEven) {
 
         assert((agnus.pos.h & 0x3) == agnus.scrollHiresOdd);
         assert((agnus.pos.h & 0x3) == agnus.scrollHiresEven);
-        drawBoth<true>(pixelOffsetOdd);
+        
+        drawBoth <true> (pixelOffsetOdd);
 
     } else {
     
-        drawHiresOdd();
-        drawHiresEven();
+        if (armedOdd) drawOdd <true> (pixelOffsetOdd);
+        if (armedEven) drawEven <true> (pixelOffsetEven);
     }
+    */
 }
 
 void
 Denise::drawLoresOdd()
 {
-    updateShiftRegisters();
-    
     if (armedOdd) {
-        
+
+        updateShiftRegistersOdd();
         drawOdd <false> (pixelOffsetOdd);
+        armedOdd = false;
     }
 }
 
 void
 Denise::drawLoresEven()
 {
-    updateShiftRegisters();
-    
     if (armedEven) {
         
-        drawEven<false> (pixelOffsetEven);
+        updateShiftRegistersEven();
+        drawEven <false> (pixelOffsetEven);
+        armedEven = false;
     }
 }
 
 void
 Denise::drawLoresBoth()
 {
-    updateShiftRegisters();
-
-    if (armedOdd && armedEven && pixelOffsetOdd == pixelOffsetEven) {
-
-        assert((agnus.pos.h & 0x7) == agnus.scrollLoresOdd);
-        assert((agnus.pos.h & 0x7) == agnus.scrollLoresEven);
-        drawBoth<false>(pixelOffsetOdd);
-
-    } else {
-    
-        drawLoresOdd();
-        drawLoresEven();
-    }
+    drawLoresOdd();
+    drawLoresEven();
 }
 
 void
@@ -529,21 +442,29 @@ Denise::translate()
 {
     Pixel pixel = 0;
 
+    // Wipe out some bitplane data if requested
+    if (config.hiddenBitplanes) {
+    
+        for (isize i = 0; i < isizeof(bBuffer); i++) {
+            bBuffer[i] &= ~config.hiddenBitplanes;
+        }
+    }
+    
     // Start with the playfield state as it was at the beginning of the line
     PFState state;
-    state.pf2pri = PF2PRI(initialBplcon2);
-    state.ham    = ham(initialBplcon0);
-    state.prio1  = zPF1(initialBplcon2);
-    state.prio2  = zPF2(initialBplcon2);
-    bool dual    = dbplf(initialBplcon0);
+    state.zpf1 = zPF1(initialBplcon2);
+    state.zpf2 = zPF2(initialBplcon2);
+    state.prio = pf2pri(initialBplcon2);
+    state.ham = ham(initialBplcon0);
+    bool dual = dbplf(initialBplcon0);
 
     // Add a dummy register change to ensure we draw until the line ends
     conChanges.insert(sizeof(bBuffer), RegChange { SET_NONE, 0 });
 
     // Iterate over all recorded register changes
-    for (isize i = conChanges.begin(); i != conChanges.end(); i = conChanges.next(i)) {
+    for (isize i = 0, end = conChanges.end(); i < end; i++) {
 
-        Cycle trigger = conChanges.keys[i];
+        Pixel trigger = (Pixel)conChanges.keys[i];
         RegChange &change = conChanges.elements[i];
 
         // Translate a chunk of bitplane data
@@ -558,17 +479,20 @@ Denise::translate()
         switch (change.addr) {
 
             case SET_BPLCON0_DENISE:
+                
                 dual = dbplf(bplcon0);
                 state.ham = ham(change.value);
                 break;
 
             case SET_BPLCON2:
-                state.pf2pri = PF2PRI(change.value);
-                state.prio1 = zPF1(change.value);
-                state.prio2 = zPF2(change.value);
+                
+                state.prio = pf2pri(change.value);
+                state.zpf1 = zPF1(change.value);
+                state.zpf2 = zPF2(change.value);
                 break;
 
             default:
+                
                 assert(change.addr == SET_NONE);
                 break;
         }
@@ -591,7 +515,7 @@ Denise::translateSPF(Pixel from, Pixel to, PFState &state)
      * Denise/BPLCON0/invprio0 to Denise/BPLCON0/invprio3
      */
     
-    if (unlikely(!state.prio2 && !state.ham)) {
+    if (!state.zpf2 && !state.ham) {
         
         for (Pixel i = from; i < to; i++) {
 
@@ -611,28 +535,28 @@ Denise::translateSPF(Pixel from, Pixel to, PFState &state)
         
         assert(PixelEngine::isRgbaIndex(s));
         iBuffer[i] = mBuffer[i] = s;
-        zBuffer[i] = s ? state.prio2 : 0;
+        zBuffer[i] = s ? state.zpf2 : 0;
     }
 }
 
 void
 Denise::translateDPF(Pixel from, Pixel to, PFState &state)
 {
-    if (state.pf2pri) {
-        translateDPF<true>(from, to, state);
+    if (state.prio) {
+        translateDPF <true> (from, to, state);
     } else {
-        translateDPF<false>(from, to, state);
+        translateDPF <false> (from, to, state);
     }
 }
 
-template <bool pf2pri> void
+template <bool prio> void
 Denise::translateDPF(Pixel from, Pixel to, PFState &state)
 {
-    /* If the priority of a playfield is set to an illegal value (prio1 or
-     * prio2 will be 0 in that case), all pixels are drawn transparent.
+    /* If the priority of a playfield is set to an illegal value (zpf1 or
+     * zpf2 will be 0 in that case), all pixels are drawn transparent.
      */
-    u8 mask1 = state.prio1 ? 0b1111 : 0b0000;
-    u8 mask2 = state.prio2 ? 0b1111 : 0b0000;
+    u8 mask1 = state.zpf1 ? 0b1111 : 0b0000;
+    u8 mask2 = state.zpf2 ? 0b1111 : 0b0000;
 
     for (Pixel i = from; i < to; i++) {
 
@@ -643,30 +567,32 @@ Denise::translateDPF(Pixel from, Pixel to, PFState &state)
         u8 index2 = (((s & 2) >> 1) | ((s & 8) >> 2) | ((s & 32) >> 3));
 
         if (index1) {
+            
             if (index2) {
 
                 // PF1 is solid, PF2 is solid
-                if (pf2pri) {
+                if (prio) {
                     iBuffer[i] = mBuffer[i] = (index2 | 0b1000) & mask2;
-                    zBuffer[i] = state.prio2 | Z_DPF21;
+                    zBuffer[i] = state.zpf2 | Z_DPF21;
                 } else {
                     iBuffer[i] = mBuffer[i] = index1 & mask1;
-                    zBuffer[i] = state.prio1 | Z_DPF12;
+                    zBuffer[i] = state.zpf1 | Z_DPF12;
                 }
 
             } else {
 
                 // PF1 is solid, PF2 is transparent
                 iBuffer[i] = mBuffer[i] = index1 & mask1;
-                zBuffer[i] = state.prio1 | Z_DPF1;
+                zBuffer[i] = state.zpf1 | Z_DPF1;
             }
 
         } else {
+            
             if (index2) {
 
                 // PF1 is transparent, PF2 is solid
                 iBuffer[i] = mBuffer[i] = (index2 | 0b1000) & mask2;
-                zBuffer[i] = state.prio2 | Z_DPF2;
+                zBuffer[i] = state.zpf2 | Z_DPF2;
 
             } else {
 
@@ -683,17 +609,13 @@ Denise::drawSprites()
 {
     if (wasArmed) {
         
-        if (wasArmed & 0b11000000) drawSpritePair<3>();
-        if (wasArmed & 0b00110000) drawSpritePair<2>();
-        if (wasArmed & 0b00001100) drawSpritePair<1>();
-        if (wasArmed & 0b00000011) drawSpritePair<0>();
+        if (wasArmed & 0b11000000) drawSpritePair <3> ();
+        if (wasArmed & 0b00110000) drawSpritePair <2> ();
+        if (wasArmed & 0b00001100) drawSpritePair <1> ();
+        if (wasArmed & 0b00000011) drawSpritePair <0> ();
         
         // Record sprite data in debug mode
-        if (amiga.inDebugMode()) {
-            for (isize i = 0; i < 8; i++) {
-                if (GET_BIT(wasArmed, i)) recordSpriteData(i);
-            }
-        }
+        if (amiga.inDebugMode()) debugger.recordSprites(wasArmed);
     }
     
     /* If a sprite was armed, the code above has been executed which means
@@ -702,98 +624,93 @@ Denise::drawSprites()
      * however, the register change buffers may contain unprocessed entried.
      * We replay those to get the sprite registers up to date.
      */
-    if (!sprChanges[3].isEmpty()) replaySpriteRegChanges<3>();
-    if (!sprChanges[2].isEmpty()) replaySpriteRegChanges<2>();
-    if (!sprChanges[1].isEmpty()) replaySpriteRegChanges<1>();
-    if (!sprChanges[0].isEmpty()) replaySpriteRegChanges<0>();
+    if (!sprChanges[3].isEmpty()) replaySpriteRegChanges <3> ();
+    if (!sprChanges[2].isEmpty()) replaySpriteRegChanges <2> ();
+    if (!sprChanges[1].isEmpty()) replaySpriteRegChanges <1> ();
+    if (!sprChanges[0].isEmpty()) replaySpriteRegChanges <0> ();
 }
 
 template <isize pair> void
 Denise::drawSpritePair()
 {
-    assert(pair < 4);
+    constexpr isize sprite1 = 2 * pair;
+    constexpr isize sprite2 = 2 * pair + 1;
 
-    const isize sprite1 = 2 * pair;
-    const isize sprite2 = 2 * pair + 1;
-
+    Pixel strt = 0;
     Pixel strt1 = sprhppos<sprite1>();
     Pixel strt2 = sprhppos<sprite2>();
-    bool armed1 = GET_BIT(armed, sprite1);
-    bool armed2 = GET_BIT(armed, sprite2);
-    Pixel strt = 0;
     
     // Iterate over all recorded register changes
     if (!sprChanges[pair].isEmpty()) {
-        
-        isize begin = sprChanges[pair].begin();
-        isize end = sprChanges[pair].end();
-        
-        for (isize i = begin; i != end; i = sprChanges[pair].next(i)) {
+                
+        for (isize i = 0, end = sprChanges[pair].end(); i < end; i++) {
             
-            Cycle trigger = sprChanges[pair].keys[i];
+            Pixel trigger = (Pixel)sprChanges[pair].keys[i];
             RegChange &change = sprChanges[pair].elements[i];
             
             // Draw a chunk of pixels
-            drawSpritePair<pair>(strt, trigger, strt1, strt2, armed1, armed2);
+            drawSpritePair <pair> (strt, trigger, strt1, strt2);
             strt = trigger;
             
             // Apply the recorded register change
             switch (change.addr) {
                     
                 case SET_SPR0DATA + sprite1:
+                    
                     sprdata[sprite1] = change.value;
                     SET_BIT(armed, sprite1);
-                    armed1 = true;
                     break;
                     
                 case SET_SPR0DATA + sprite2:
+                    
                     sprdata[sprite2] = change.value;
                     SET_BIT(armed, sprite2);
-                    armed2 = true;
                     break;
                     
                 case SET_SPR0DATB + sprite1:
+                    
                     sprdatb[sprite1] = change.value;
                     break;
                     
                 case SET_SPR0DATB + sprite2:
+                    
                     sprdatb[sprite2] = change.value;
                     break;
                                         
                 case SET_SPR0POS + sprite1:
+                    
                     sprpos[sprite1] = change.value;
                     strt1 = sprhppos<sprite1>();
                     break;
                     
                 case SET_SPR0POS + sprite2:
+                    
                     sprpos[sprite2] = change.value;
                     strt2 = sprhppos<sprite2>();
                     break;
                     
                 case SET_SPR0CTL + sprite1:
+                    
                     sprctl[sprite1] = change.value;
                     strt1 = sprhppos<sprite1>();
                     CLR_BIT(armed, sprite1);
-                    armed1 = false;
                     break;
                     
                 case SET_SPR0CTL + sprite2:
+                    
                     sprctl[sprite2] = change.value;
                     strt2 = sprhppos<sprite2>();
                     CLR_BIT(armed, sprite2);
-                    armed2 = false;
                     break;
 
                 default:
-                    assert(false);
+                    fatalError;
             }
         }
     }
     
     // Draw until the end of the line
-    drawSpritePair<pair>(strt, sizeof(mBuffer) - 1,
-                         strt1, strt2,
-                         armed1, armed2);
+    drawSpritePair <pair> (strt, sizeof(mBuffer) - 1, strt1, strt2);
     
     sprChanges[pair].clear();
 }
@@ -801,15 +718,10 @@ Denise::drawSpritePair()
 template <isize pair> void
 Denise::replaySpriteRegChanges()
 {
-    assert(pair < 4);
-    
-    const isize sprite1 = 2 * pair;
-    const isize sprite2 = 2 * pair + 1;
-    
-    isize begin = sprChanges[pair].begin();
-    isize end = sprChanges[pair].end();
-    
-    for (isize i = begin; i != end; i = sprChanges[pair].next(i)) {
+    constexpr isize sprite1 = 2 * pair;
+    constexpr isize sprite2 = 2 * pair + 1;
+        
+    for (isize i = 0, end = sprChanges[pair].end(); i < end; i++) {
         
         RegChange &change = sprChanges[pair].elements[i];
         
@@ -817,39 +729,47 @@ Denise::replaySpriteRegChanges()
         switch (change.addr) {
                 
             case SET_SPR0DATA + sprite1:
+                
                 sprdata[sprite1] = change.value;
                 break;
                 
             case SET_SPR0DATA + sprite2:
+                
                 sprdata[sprite2] = change.value;
                 break;
                 
             case SET_SPR0DATB + sprite1:
+                
                 sprdatb[sprite1] = change.value;
                 break;
                 
             case SET_SPR0DATB + sprite2:
+                
                 sprdatb[sprite2] = change.value;
                 break;
                 
             case SET_SPR0POS + sprite1:
+                
                 sprpos[sprite1] = change.value;
                 break;
                 
             case SET_SPR0POS + sprite2:
+                
                 sprpos[sprite2] = change.value;
                 break;
                 
             case SET_SPR0CTL + sprite1:
+                
                 sprctl[sprite1] = change.value;
                 break;
                 
             case SET_SPR0CTL + sprite2:
+                
                 sprctl[sprite2] = change.value;
                 break;
                 
             default:
-                assert(false);
+                fatalError;
         }
     }
     
@@ -857,32 +777,33 @@ Denise::replaySpriteRegChanges()
 }
 
 template <isize pair> void
-Denise::drawSpritePair(Pixel hstrt, Pixel hstop, Pixel strt1, Pixel strt2,
-                       bool armed1, bool armed2)
+Denise::drawSpritePair(Pixel hstrt, Pixel hstop, Pixel strt1, Pixel strt2)
 {
     assert(pair < 4);
     
     // Only proceeed if we are outside the VBLANK area
-    if (agnus.pos.v < 26) return;
+    if (agnus.inVBlankArea()) return;
     
-    const isize sprite1 = 2 * pair;
-    const isize sprite2 = 2 * pair + 1;
+    constexpr isize sprite1 = 2 * pair;
+    constexpr isize sprite2 = 2 * pair + 1;
 
     assert(hstrt <= isizeof(mBuffer));
     assert(hstop <= isizeof(mBuffer));
 
-    assert(armed1 == !!GET_BIT(armed, sprite1));
-    assert(armed2 == !!GET_BIT(armed, sprite2));
+    bool armed1 = GET_BIT(armed, sprite1);
+    bool armed2 = GET_BIT(armed, sprite2);
 
     bool attached = GET_BIT(sprctl[sprite2], 7);
 
     for (Pixel hpos = hstrt; hpos < hstop; hpos += 2) {
 
         if (hpos == strt1 && armed1) {
+            
             ssra[sprite1] = sprdata[sprite1];
             ssrb[sprite1] = sprdatb[sprite1];
         }
         if (hpos == strt2 && armed2) {
+            
             ssra[sprite2] = sprdata[sprite2];
             ssrb[sprite2] = sprdatb[sprite2];
         }
@@ -892,10 +813,13 @@ Denise::drawSpritePair(Pixel hstrt, Pixel hstop, Pixel strt1, Pixel strt2,
             if (hpos >= spriteClipBegin && hpos < spriteClipEnd) {
                                 
                 if (attached) {
+                    
                     drawAttachedSpritePixelPair<sprite2>(hpos);
+                    
                 } else {
-                    drawSpritePixel<sprite1>(hpos);
-                    drawSpritePixel<sprite2>(hpos);
+                    
+                    drawSpritePixel <sprite1> (hpos);
+                    drawSpritePixel <sprite2> (hpos);
                 }
             }
             
@@ -908,10 +832,12 @@ Denise::drawSpritePair(Pixel hstrt, Pixel hstop, Pixel strt1, Pixel strt2,
 
     // Perform collision checks (if enabled)
     if (config.clxSprSpr) {
+        
         checkS2SCollisions<2 * pair>(strt1, strt1 + 31);
         checkS2SCollisions<2 * pair + 1>(strt2, strt2 + 31);
     }
     if (config.clxSprPlf) {
+        
         checkS2PCollisions<2 * pair>(strt1, strt1 + 31);
         checkS2PCollisions<2 * pair + 1>(strt2, strt2 + 31);
     }
@@ -929,7 +855,7 @@ Denise::drawSpritePixel(Pixel hpos)
     if (col) {
 
         u16 z = Z_SP[x];
-        int base = 16 + 2 * (x & 6);
+        u8 base = 16 + 2 * (x & 6);
 
         if (z > zBuffer[hpos]) mBuffer[hpos] = base | col;
         if (z > zBuffer[hpos + 1]) mBuffer[hpos + 1] = base | col;
@@ -944,26 +870,23 @@ Denise::drawAttachedSpritePixelPair(Pixel hpos)
     assert(IS_ODD(x));
     assert(hpos >= spriteClipBegin && hpos < spriteClipEnd);
 
-    u8 a1 = !!GET_BIT(ssra[x-1], 15);
-    u8 b1 = !!GET_BIT(ssrb[x-1], 15) << 1;
-    u8 a2 = !!GET_BIT(ssra[x], 15) << 2;
-    u8 b2 = !!GET_BIT(ssrb[x], 15) << 3;
-    assert(a1 == ((ssra[x-1] >> 15)));
-    assert(b1 == ((ssrb[x-1] >> 14) & 0b0010));
-    assert(a2 == ((ssra[x] >> 13) & 0b0100));
-    assert(b2 == ((ssrb[x] >> 12) & 0b1000));
-
-    u8 col = a1 | b1 | a2 | b2;
-
+    u8 col =
+    ((ssra[x-1] >> 15) & 0b0001) |
+    ((ssrb[x-1] >> 14) & 0b0010) |
+    ((ssra[x]   >> 13) & 0b0100) |
+    ((ssrb[x]   >> 12) & 0b1000) ;
+    
     if (col) {
 
         u16 z = Z_SP[x];
 
         if (z > zBuffer[hpos]) {
+            
             mBuffer[hpos] = 0b10000 | col;
             zBuffer[hpos] |= z;
         }
         if (z > zBuffer[hpos+1]) {
+            
             mBuffer[hpos+1] = 0b10000 | col;
             zBuffer[hpos+1] |= z;
         }
@@ -973,13 +896,12 @@ Denise::drawAttachedSpritePixelPair(Pixel hpos)
 void
 Denise::updateBorderColor()
 {
-    if (config.revision != DENISE_OCS && ecsena() && BRDRBLNK()) {
+    if (config.revision != DENISE_OCS && ecsena() && brdrblnk()) {
         borderColor = 64; // Pure black
     } else {
         borderColor = 0;  // Background color
     }
-    
-    if (BORDER_DEBUG) {
+    if constexpr (BORDER_DEBUG) {
         borderColor = 65; // Debug color
     }
 }
@@ -987,31 +909,27 @@ Denise::updateBorderColor()
 void
 Denise::drawBorder()
 {
-    // Check if the horizontal flipflop was set somewhere in this rasterline
-    bool hFlopWasSet = agnus.diwHFlop || agnus.diwHFlopOn != -1;
-
-    // Check if the whole line is blank (drawn in background color)
-    bool lineIsBlank = !agnus.diwVFlop || !hFlopWasSet;
-
-    if (lineIsBlank) {
+    bool hFlopWasSet = hflop || hflopOn != -1;
+    
+    if (agnus.sequencer.lineIsBlank || !hFlopWasSet) {
 
         // Draw blank line
-        for (Pixel i = 0; i <= LAST_PIXEL; i++) {
+        for (Pixel i = 0; i < HPIXELS; i++) {
             bBuffer[i] = iBuffer[i] = mBuffer[i] = borderColor;
         }
 
     } else {
 
         // Draw left border
-        if (!agnus.diwHFlop && agnus.diwHFlopOn != -1) {
-            for (isize i = 0; i < 2 * agnus.diwHFlopOn; i++) {
+        if (!hflop && hflopOn != -1) {
+            for (isize i = 0; i < 2 * hflopOn; i++) {
                 bBuffer[i] = iBuffer[i] = mBuffer[i] = borderColor;
             }
         }
 
         // Draw right border
-        if (agnus.diwHFlopOff != -1) {
-            for (isize i = 2 * agnus.diwHFlopOff; i <= LAST_PIXEL; i++) {
+        if (hflopOff != -1) {
+            for (isize i = 2 * hflopOff; i < HPIXELS; i++) {
                 bBuffer[i] = iBuffer[i] = mBuffer[i] = borderColor;
             }
         }
@@ -1019,18 +937,21 @@ Denise::drawBorder()
 
 #ifdef LINE_DEBUG
     if (LINE_DEBUG) {
-        for (Pixel i = 0; i <= LAST_PIXEL / 2; i++) {
+        for (Pixel i = 0; i < HPIXELS / 2; i++) {
             iBuffer[i] = mBuffer[i] = 64;
         }
     }
+#endif
+#ifdef COLUMN_DEBUG
+    iBuffer[4*COLUMN_DEBUG] = mBuffer[4*COLUMN_DEBUG] = 64;
 #endif
 }
 
 template <int x> void
 Denise::checkS2SCollisions(Pixel start, Pixel end)
 {
-    // For the odd sprites, only proceed if collision detection is enabled
-    if (IS_ODD(x) && !GET_BIT(clxcon, 12 + (x/2))) return;
+    // For odd sprites, only proceed if collision detection is enabled
+    if constexpr (IS_ODD(x)) if (!GET_BIT(clxcon, 12 + (x/2))) return;
 
     // Set up the sprite comparison masks
     u16 comp01 = Z_SP0 | (GET_BIT(clxcon, 12) ? Z_SP1 : 0);
@@ -1057,15 +978,14 @@ Denise::checkS2SCollisions(Pixel start, Pixel end)
         if ((z & comp01) && (z & comp45)) SET_BIT(clxdat, 10);
         if ((z & comp01) && (z & comp23)) SET_BIT(clxdat, 9);
         
-        if (CLX_DEBUG) {
+        if constexpr (CLX_DEBUG) {
             
-            trace((z & comp45) && (z & comp67), "Collision: 45 and 67\n");
-            trace((z & comp45) && (z & comp67), "Collision: 45 and 67\n");
-            trace((z & comp23) && (z & comp67), "Collision: 23 and 67\n");
-            trace((z & comp23) && (z & comp45), "Collision: 23 and 45\n");
-            trace((z & comp01) && (z & comp67), "Collision: 01 and 67\n");
-            trace((z & comp01) && (z & comp45), "Collision: 01 and 45\n");
-            trace((z & comp01) && (z & comp23), "Collision: 01 and 23\n");
+            if ((z & comp45) && (z & comp67)) trace(true, "Coll: 45 and 67\n");
+            if ((z & comp23) && (z & comp67)) trace(true, "Coll: 23 and 67\n");
+            if ((z & comp23) && (z & comp45)) trace(true, "Coll: 23 and 45\n");
+            if ((z & comp01) && (z & comp67)) trace(true, "Coll: 01 and 67\n");
+            if ((z & comp01) && (z & comp45)) trace(true, "Coll: 01 and 45\n");
+            if ((z & comp01) && (z & comp23)) trace(true, "Coll: 01 and 23\n");
         }
     }
 }
@@ -1074,12 +994,12 @@ template <int x> void
 Denise::checkS2PCollisions(Pixel start, Pixel end)
 {
     // For the odd sprites, only proceed if collision detection is enabled
-    if (IS_ODD(x) && !getENSP<x>()) return;
+    if constexpr (IS_ODD(x)) if (!ensp<x>()) return;
     
-    u8 enabled1 = getENBP1();
-    u8 enabled2 = getENBP2();
-    u8 compare1 = getMVBP1() & enabled1;
-    u8 compare2 = getMVBP2() & enabled2;
+    u8 enabled1 = enbp1();
+    u8 enabled2 = enbp2();
+    u8 compare1 = mvbp1() & enabled1;
+    u8 compare2 = mvbp2() & enabled2;
 
     // Check for sprite-playfield collisions
     for (Pixel pos = end; pos >= start; pos -= 2) {
@@ -1089,23 +1009,24 @@ Denise::checkS2PCollisions(Pixel start, Pixel end)
         // Skip if the sprite is transparent at this pixel coordinate
         if (!(z & Z_SP[x])) continue;
 
-        // debug(CLX_DEBUG, "<%d> b[%d] = %X e1 = %X e2 = %X, c1 = %X c2 = %X\n",
-        //     x, pos, bBuffer[pos], enabled1, enabled2, compare1, compare2);
-
         // Check for a collision with playfield 2
         if ((bBuffer[pos] & enabled2) == compare2) {
+            
             trace(CLX_DEBUG, "S%d collides with PF2\n", x);
             SET_BIT(clxdat, 5 + (x / 2));
 
         } else {
-            // There is a hardware oddity in single-playfield mode. If PF2
-            // doesn't match, PF1 doesn't match either. No matter what.
-            // See http://eab.abime.net/showpost.php?p=965074&postcount=2
+            
+            /* There is a hardware oddity in single-playfield mode. If PF2
+             * doesn't match, PF1 doesn't match either. No matter what.
+             * See http://eab.abime.net/showpost.php?p=965074&postcount=2
+             */
             if (!(zBuffer[pos] & Z_DPF)) continue;
         }
 
         // Check for a collision with playfield 1
         if ((bBuffer[pos] & enabled1) == compare1) {
+            
             trace(CLX_DEBUG, "S%d collides with PF1\n", x);
             SET_BIT(clxdat, 1 + (x / 2));
         }
@@ -1119,10 +1040,10 @@ Denise::checkP2PCollisions()
     if (GET_BIT(clxdat, 0)) return;
 
     // Set up comparison masks
-    u8 enabled1 = getENBP1();
-    u8 enabled2 = getENBP2();
-    u8 compare1 = getMVBP1() & enabled1;
-    u8 compare2 = getMVBP2() & enabled2;
+    u8 enabled1 = enbp1();
+    u8 enabled2 = enbp2();
+    u8 compare1 = mvbp1() & enabled1;
+    u8 compare2 = mvbp2() & enabled2;
 
     // Check all pixels one by one
     for (isize pos = 0; pos < HPIXELS; pos++) {
@@ -1137,6 +1058,7 @@ Denise::checkP2PCollisions()
 
         // Set collision bit
         SET_BIT(clxdat, 0);
+        
         return;
     }
 }
@@ -1144,40 +1066,27 @@ Denise::checkP2PCollisions()
 void
 Denise::vsyncHandler()
 {
-    pixelEngine.beginOfFrame();
-    
-    if (amiga.inDebugMode()) {
-        
-        for (isize i = 0; i < 8; i++) {
-            latchedSpriteInfo[i] = spriteInfo[i];
-            spriteInfo[i].height = 0;
-            spriteInfo[i].vstrt  = 0;
-            spriteInfo[i].vstop  = 0;
-            spriteInfo[i].hstrt  = 0;
-            spriteInfo[i].attach = false;
-        }
-        memcpy(latchedSpriteData, spriteData, sizeof(spriteData));
-    }
+    hflop = true;
+    pixelEngine.vsyncHandler();
+    debugger.vsyncHandler();
 }
 
 void
-Denise::beginOfLine(int vpos)
-{
-    // Reset the register change recorders
-    conChanges.clear();
-    pixelEngine.colChanges.clear();
-    
+Denise::beginOfLine(isize vpos)
+{    
     // Save the current values of various Denise registers
     initialBplcon0 = bplcon0;
     initialBplcon1 = bplcon1;
     initialBplcon2 = bplcon2;
     wasArmed = armed;
 
-    // Prepare the bitplane shift registers
-    for (isize i = 0; i < 6; i++) shiftReg[i] = 0;
+    // Update the horizontal DIW flipflop
+    hflop = (hflopOff != -1) ? false : (hflopOn != -1) ? true : hflop;
+    hflopOn = denise.hstrt; 
+    hflopOff = denise.hstop;
 
     // Clear the bBuffer
-    memset(bBuffer, 0, sizeof(bBuffer));
+    std::memset(bBuffer, 0, sizeof(bBuffer));
 
     // Reset the sprite clipping range
     spriteClipBegin = HPIXELS;
@@ -1185,10 +1094,8 @@ Denise::beginOfLine(int vpos)
 }
 
 void
-Denise::endOfLine(int vpos)
+Denise::endOfLine(isize vpos)
 {
-    // debug("endOfLine pixel = %d HPIXELS = %d\n", pixel, HPIXELS);
-
     // Check if we are below the VBLANK area
     if (vpos >= 26) {
 
@@ -1211,12 +1118,16 @@ Denise::endOfLine(int vpos)
         if (config.hiddenLayers) {
             pixelEngine.hide(vpos, config.hiddenLayers, config.hiddenLayerAlpha);
         }
+        
     } else {
         
         drawSprites();
         pixelEngine.endOfVBlankLine();
+        conChanges.clear();
     }
 
+    assert(conChanges.isEmpty());
+    assert(pixelEngine.colChanges.isEmpty());
     assert(sprChanges[0].isEmpty());
     assert(sprChanges[1].isEmpty());
     assert(sprChanges[2].isEmpty());
@@ -1227,43 +1138,6 @@ Denise::endOfLine(int vpos)
     
     // Encode a HIRES / LORES marker in the first HBLANK pixel
     *denise.pixelEngine.pixelAddr(HBLANK_MIN * 4) = hires() ? 0 : -1;
-}
-
-void
-Denise::recordSpriteData(isize nr)
-{
-    assert(nr < 8);
-
-    u16 line = spriteInfo[nr].height;
-
-    // Record data registers
-    spriteData[nr][line] = HI_W_LO_W(sprdatb[nr], sprdata[nr]);
-
-    // Record additional information in sprite line 0
-    if (line == 0) {
-        
-        spriteInfo[nr].hstrt = ((sprpos[nr] & 0xFF) << 1) | (sprctl[nr] & 0x01);
-        spriteInfo[nr].vstrt = agnus.sprVStrt[nr];
-        spriteInfo[nr].vstop = agnus.sprVStop[nr];
-        spriteInfo[nr].attach = IS_ODD(nr) ? GET_BIT(sprctl[nr], 7) : 0;
-        
-        for (isize i = 0; i < 16; i++) {
-            spriteInfo[nr].colors[i] = pixelEngine.getColor(i + 16);
-        }
-    }
-    
-    spriteInfo[nr].height = (line + 1) % VPOS_CNT;
-}
-
-void
-Denise::dumpBuffer(const u8 *buffer, isize length) const
-{
-    const isize cols = 16;
-
-    for (isize i = 0; i < (length + cols - 1) / cols; i++) {
-        for (isize j = 0; j < cols; j++) msg("%2d ", buffer[i * cols + j]);
-        msg("\n");
-    }
 }
 
 template void Denise::drawOdd<false>(Pixel offset);

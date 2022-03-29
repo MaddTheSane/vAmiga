@@ -47,22 +47,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "D396801A-3B4C-4A10-A302-6E86B1BA618A"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Amiga/Memory/Memory.cpp"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "86"
-            endingLineNumber = "86"
-            landmarkName = "Memory::_dump()"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "19B28D21-F435-4EFF-8F1D-DE5F4BB55B5A"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -89,6 +73,34 @@
             startingLineNumber = "450"
             endingLineNumber = "450"
             landmarkName = "AudioUnit::drawWaveform(buffer, width, height, left, highestAmplitude, color)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.RuntimeIssueBreakpoint">
+         <BreakpointContent
+            uuid = "1C34E446-9F03-4ADF-999F-3C4F93560618"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            breakpointStackSelectionBehavior = "1"
+            type = "8"
+            categories = "Metal Diagnostics">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "87D2BC4B-76C1-45A4-B134-9E9B5A95DEC0"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Emulator/Agnus/Blitter/SlowBlitter.cpp"
+            startingColumnNumber = "25"
+            endingColumnNumber = "25"
+            startingLineNumber = "962"
+            endingLineNumber = "962"
+            landmarkName = "Blitter::beginFakeCopyBlit()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

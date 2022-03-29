@@ -37,20 +37,20 @@
  *      REPEAT : Performs a conditional jump back to instruction 0
  */
 
-static const u16 NOTHING   = 0b0000'0000'0000'0000;
-static const u16 BUSIDLE   = 0b0000'0000'0000'0001;
-static const u16 BUS       = 0b0000'0000'0000'0010;
-static const u16 WRITE_D   = 0b0000'0000'0000'0100;
-static const u16 FETCH_A   = 0b0000'0000'0000'1000;
-static const u16 FETCH_B   = 0b0000'0000'0001'0000;
-static const u16 FETCH_C   = 0b0000'0000'0010'0000;
-static const u16 HOLD_A    = 0b0000'0000'0100'0000;
-static const u16 HOLD_B    = 0b0000'0000'1000'0000;
-static const u16 HOLD_D    = 0b0000'0001'0000'0000;
-static const u16 FILL      = 0b0000'0010'0000'0000;
-static const u16 BLTDONE   = 0b0000'0100'0000'0000;
-static const u16 REPEAT    = 0b0000'1000'0000'0000;
-static const u16 FETCH     = FETCH_A | FETCH_B | FETCH_C;
+static constexpr u16 NOTHING   = 0b0000'0000'0000'0000;
+static constexpr u16 BUSIDLE   = 0b0000'0000'0000'0001;
+static constexpr u16 BUS       = 0b0000'0000'0000'0010;
+static constexpr u16 WRITE_D   = 0b0000'0000'0000'0100;
+static constexpr u16 FETCH_A   = 0b0000'0000'0000'1000;
+static constexpr u16 FETCH_B   = 0b0000'0000'0001'0000;
+static constexpr u16 FETCH_C   = 0b0000'0000'0010'0000;
+static constexpr u16 HOLD_A    = 0b0000'0000'0100'0000;
+static constexpr u16 HOLD_B    = 0b0000'0000'1000'0000;
+static constexpr u16 HOLD_D    = 0b0000'0001'0000'0000;
+static constexpr u16 FILL      = 0b0000'0010'0000'0000;
+static constexpr u16 BLTDONE   = 0b0000'0100'0000'0000;
+static constexpr u16 REPEAT    = 0b0000'1000'0000'0000;
+static constexpr u16 FETCH     = FETCH_A | FETCH_B | FETCH_C;
 
 void
 Blitter::initSlowBlitter()
@@ -59,7 +59,7 @@ Blitter::initSlowBlitter()
      *
      * The Copy Blitter micro programs are stored in array
      *
-     *   copyBlitInstr[16][2][2][6]
+     *   copyBlitInstr[ABCD][level][fill][]
      *
      * For each program, four different versions are stored:
      *
@@ -820,66 +820,139 @@ Blitter::initSlowBlitter()
             }
         }
     };
-
-    /* The Line Blitter uses the same micro program in all situations.
+    
+    /* The Line Blitter micro programs are stored in array
      *
-     * -- C0 -- -- -- C1 -- D0 -- C2 -- D1 | -- D2   (???)
-    */
-    void (Blitter::*lineBlitInstr[6])(void) = {
+     *   lineBlitInstr[BC][level][]
+     *
+     * For each program, two different versions are stored:
+     *
+     *   [][0][] : Performs a Line Blit in accuracy level 2
+     *   [][1][] : Performs a Line Blit in accuracy level 1
+     */
+    void (Blitter::*lineBlitInstr[4][2][8])(void) = {
+        
+        // B disabled, C disabled (unusual)
+        {
+            {   // Full execution
+                &Blitter::execLine <BUSIDLE | HOLD_A>,
+                &Blitter::execLine <BUSIDLE | HOLD_B>,
+                &Blitter::execLine <BUSIDLE | HOLD_D>,
+                &Blitter::execLine <BUSIDLE | REPEAT>,
+                
+                &Blitter::execLine <NOTHING>,
+                &Blitter::execLine <BLTDONE>,
+                &Blitter::execLine <BLTDONE>,
+                &Blitter::execLine <BLTDONE>
+            },
+            {   // Fake execution
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUSIDLE | REPEAT>,
+                
+                &Blitter::fakeExecLine <NOTHING>,
+                &Blitter::fakeExecLine <BLTDONE>,
+                &Blitter::fakeExecLine <BLTDONE>,
+                &Blitter::fakeExecLine <BLTDONE>
+            }
+        },
+        
+        // B disabled, C enabled (the standard case)
+        {
+            {   // Full execution
+                &Blitter::execLine <BUSIDLE | HOLD_A>,
+                &Blitter::execLine <FETCH_C | HOLD_B>,
+                &Blitter::execLine <BUSIDLE | HOLD_D>,
+                &Blitter::execLine <WRITE_D | REPEAT>,
+                
+                &Blitter::execLine <NOTHING>,
+                &Blitter::execLine <BLTDONE>,
+                &Blitter::execLine <BLTDONE>,
+                &Blitter::execLine <BLTDONE>
+            },
+            {   // Fake execution
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUS>,
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUS | REPEAT>,
+                
+                &Blitter::fakeExecLine <NOTHING>,
+                &Blitter::fakeExecLine <BLTDONE>,
+                &Blitter::fakeExecLine <BLTDONE>,
+                &Blitter::fakeExecLine <BLTDONE>
+            }
+        },
+    
+        // B enabled, C disabled (unusual)
+        {
+            {
+                // Full execution
+                &Blitter::execLine <BUSIDLE | HOLD_A>,
+                &Blitter::execLine <FETCH_B>,
+                &Blitter::execLine <BUSIDLE | HOLD_B>,
+                &Blitter::execLine <BUSIDLE | HOLD_D>,
+                &Blitter::execLine <BUS>,
+                &Blitter::execLine <BUSIDLE | REPEAT>,
+                
+                &Blitter::execLine <NOTHING>,
+                &Blitter::execLine <BUSIDLE | BLTDONE>
+            },
+            {
+                // Fake execution
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUS>,
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUS>,
+                &Blitter::fakeExecLine <BUSIDLE | REPEAT>,
 
-        // Fake execution
-        &Blitter::fakeExec <BUSIDLE>,
-        &Blitter::fakeExec <FETCH_C>,
-        &Blitter::fakeExec <BUSIDLE>,
-        &Blitter::fakeExec <WRITE_D | REPEAT>,
-
-        &Blitter::fakeExec <NOTHING>,
-        &Blitter::fakeExec <WRITE_D | BLTDONE>
+                &Blitter::fakeExecLine <NOTHING>,
+                &Blitter::fakeExecLine <BUSIDLE | BLTDONE>
+            }
+        },
+        
+        // B enabled, C enabled (unusual)
+        {
+            {
+                // Full execution
+                &Blitter::execLine <BUSIDLE | HOLD_A>,
+                &Blitter::execLine <FETCH_B>,
+                &Blitter::execLine <FETCH_C | HOLD_B>,
+                &Blitter::execLine <BUSIDLE | HOLD_D>,
+                &Blitter::execLine <BUS>,
+                &Blitter::execLine <WRITE_D | REPEAT>,
+                
+                &Blitter::execLine <NOTHING>,
+                &Blitter::execLine <BUSIDLE | BLTDONE>
+            },
+            {
+                // Fake execution
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUS>,
+                &Blitter::fakeExecLine <BUS>,
+                &Blitter::fakeExecLine <BUSIDLE>,
+                &Blitter::fakeExecLine <BUS>,
+                &Blitter::fakeExecLine <BUS | REPEAT>,
+                
+                &Blitter::fakeExecLine <NOTHING>,
+                &Blitter::fakeExecLine <BUSIDLE | BLTDONE>
+            }
+        }
     };
 
     // Copy all programs over
     assert(sizeof(this->copyBlitInstr) == sizeof(copyBlitInstr));
-    memcpy(this->copyBlitInstr, copyBlitInstr, sizeof(copyBlitInstr));
+    std::memcpy(this->copyBlitInstr, copyBlitInstr, sizeof(copyBlitInstr));
 
     assert(sizeof(this->lineBlitInstr) == sizeof(lineBlitInstr));
-    memcpy(this->lineBlitInstr, lineBlitInstr, sizeof(lineBlitInstr));
-}
-
-void
-Blitter::beginFakeLineBlit()
-{
-    // Only call this function in line blit mode
-    assert(bltconLINE());
-
-    // Do the blit
-    doFastLineBlit();
-
-    // Prepare the slow Blitter
-    bltsizeH = 1;
-    resetXCounter();
-    resetYCounter();
-
-    // Schedule the first slow Blitter execution event
-    agnus.scheduleRel<SLOT_BLT>(DMA_CYCLES(1), BLT_LINE_FAKE);
-}
-
-void
-Blitter::beginSlowLineBlit()
-{
-    // Only call this function is line blit mode
-    assert(bltconLINE());
-
-    /* Note: There is no such thing as a slow line Blitter yet. Until such a
-     * thing has been implemented, we call the fast Blitter instead.
-     */
-
-    beginFakeLineBlit();
+    std::memcpy(this->lineBlitInstr, lineBlitInstr, sizeof(lineBlitInstr));
 }
 
 void
 Blitter::beginFakeCopyBlit()
 {
-    // Only call this function in copy blit mode
+    // Only call this function in copy mode
     assert(!bltconLINE());
 
     // Run the fast Blitter
@@ -898,14 +971,8 @@ Blitter::beginFakeCopyBlit()
 void
 Blitter::beginSlowCopyBlit()
 {
-    // Only call this function in copy blit mode
+    // Only call this function in copy mode
     assert(!bltconLINE());
-
-    static bool verbose = true;
-    if (BLT_CHECKSUM && verbose) {
-        verbose = false;
-        msg("Using the slow copy Blitter\n");
-    }
 
     // Set width and height counters
     resetXCounter();
@@ -925,8 +992,65 @@ Blitter::beginSlowCopyBlit()
     agnus.scheduleRel<SLOT_BLT>(DMA_CYCLES(1), BLT_COPY_SLOW);
 
     // In debug mode, we execute the whole micro program immediately.
-    // This let's us compare checksums with the fast Blitter.
-    if (SLOW_BLT_DEBUG) {
+    // This let's us compare checksums with the FastBlitter.
+    if constexpr (SLOW_BLT_DEBUG) {
+        
+        BusOwner owner = agnus.busOwner[agnus.pos.h];
+        agnus.setBLS(false);
+        
+        while (agnus.hasEvent<SLOT_BLT>()) {
+            agnus.busOwner[agnus.pos.h] = BUS_NONE;
+            serviceEvent();
+        }
+        
+        agnus.busOwner[agnus.pos.h] = owner;
+    }
+}
+
+void
+Blitter::beginFakeLineBlit()
+{
+    // Only call this function in line mode
+    assert(bltconLINE());
+
+    // Do the blit
+    doFastLineBlit();
+
+    // Prepare the slow Blitter
+    resetXCounter();
+    resetYCounter();
+    lockD = true;
+    
+    // Schedule the first slow Blitter execution event
+    agnus.scheduleRel<SLOT_BLT>(DMA_CYCLES(1), BLT_LINE_FAKE);
+}
+
+void
+Blitter::beginSlowLineBlit()
+{
+    // Only call this function is line mode
+    assert(bltconLINE());
+
+    // Set width and height counters
+    resetXCounter();
+    resetYCounter();
+
+    // Reset registers
+    aold = 0;
+    bold = 0;
+
+    // Unlock pipeline stage D
+    lockD = false;
+
+    // Used to detect the first dot in a line
+    fillCarry = true;
+    
+    // Schedule the first slow Blitter execution event
+    agnus.scheduleRel<SLOT_BLT>(DMA_CYCLES(1), BLT_LINE_SLOW);
+
+    // In debug mode, we execute the whole micro program immediately.
+    // This let's us compare checksums with the FastBlitter.
+    if constexpr (SLOW_BLT_DEBUG) {
         
         BusOwner owner = agnus.busOwner[agnus.pos.h];
         agnus.setBLS(false);
@@ -947,19 +1071,20 @@ Blitter::exec()
     bool desc = bltconDESC();
     
     // Determine if we need the bus
-    if (instr & WRITE_D) {
+    if constexpr ((bool)(instr & WRITE_D)) {
         bus     = !lockD;
         busidle = lockD;
     } else {
-        bus     = instr & (FETCH | BUS);
-        busidle = instr & BUSIDLE;
+        bus     = (bool)(instr & (FETCH | BUS));
+        busidle = (bool)(instr & BUSIDLE);
     }
 
     // Trigger Blitter interrupt if this is the termination cycle
-    if ((instr & BLTDONE) && !birq) {
-        signalEnd();
-        paula.raiseIrq(INT_BLIT);
-        birq = true;
+    if constexpr ((bool)(instr & BLTDONE)) {
+        if (!birq) {
+            paula.scheduleIrqRel(INT_BLIT, DMA_CYCLES(1));
+            birq = true;
+        }
     }
     
     // Allocate the bus if needed
@@ -970,22 +1095,23 @@ Blitter::exec()
 
     bltpc++;
 
-    if (instr & WRITE_D) {
+    if constexpr ((bool)(instr & WRITE_D)) {
 
         // Only proceed if channel D is unlocked
         if (!lockD) {
 
-            agnus.doBlitterDMA(bltdpt, dhold);
+            agnus.doBlitterDmaWrite(bltdpt, dhold);
 
-            if (BLT_GUARD) {
+            if constexpr (BLT_GUARD) {
                 memguard[bltdpt & agnus.ptrMask & mem.chipMask] = 1;
             }
 
-            if (BLT_CHECKSUM) {
-                check1 = util::fnv_1a_it32(check1, dhold);
-                check2 = util::fnv_1a_it32(check2, bltdpt);
+            if constexpr (BLT_CHECKSUM) {
+                check1 = util::fnvIt32(check1, dhold);
+                check2 = util::fnvIt32(check2, bltdpt);
             }
-            trace(BLT_DEBUG, "D: poke(%X), %X (check: %X %X)\n", bltdpt, dhold, check1, check2);
+            trace(BLT_DEBUG, "    D = %X -> %X\n", dhold, bltdpt);
+            
             bltdpt = U32_ADD(bltdpt, desc ? -2 : 2);
             if (--cntD == 0) {
                 bltdpt = U32_ADD(bltdpt, desc ? -bltdmod : bltdmod);
@@ -995,13 +1121,13 @@ Blitter::exec()
         }
     }
 
-    if (instr & FETCH_A) {
+    if constexpr ((bool)(instr & FETCH_A)) {
 
         trace(BLT_DEBUG, "FETCH_A\n");
 
-        anew = agnus.doBlitterDMA(bltapt);
-        trace(BLT_DEBUG, "    A = peek(%X) = %X\n", bltapt, anew);
-        trace(BLT_DEBUG, "    After fetch: A = %X\n", anew);
+        anew = agnus.doBlitterDmaRead(bltapt);
+        trace(BLT_DEBUG, "    A = %X <- %X\n", anew, bltapt);
+        
         bltapt = U32_ADD(bltapt, desc ? -2 : 2);
         if (--cntA == 0) {
             bltapt = U32_ADD(bltapt, desc ? -bltamod : bltamod);
@@ -1009,13 +1135,13 @@ Blitter::exec()
         }
     }
 
-    if (instr & FETCH_B) {
+    if constexpr ((bool)(instr & FETCH_B)) {
 
         trace(BLT_DEBUG, "FETCH_B\n");
 
-        bnew = agnus.doBlitterDMA(bltbpt);
-        trace(BLT_DEBUG, "    B = peek(%X) = %X\n", bltbpt, bnew);
-        trace(BLT_DEBUG, "    After fetch: B = %X\n", bnew);
+        bnew = agnus.doBlitterDmaRead(bltbpt);
+        trace(BLT_DEBUG, "    B = %X <- %X\n", bnew, bltbpt);
+        
         bltbpt = U32_ADD(bltbpt, desc ? -2 : 2);
         if (--cntB == 0) {
             bltbpt = U32_ADD(bltbpt, desc ? -bltbmod : bltbmod);
@@ -1023,13 +1149,13 @@ Blitter::exec()
         }
     }
 
-    if (instr & FETCH_C) {
+    if constexpr ((bool)(instr & FETCH_C)) {
 
         trace(BLT_DEBUG, "FETCH_C\n");
 
-        chold = agnus.doBlitterDMA(bltcpt);
-        trace(BLT_DEBUG, "    C = peek(%X) = %X\n", bltcpt, chold);
-        trace(BLT_DEBUG, "    After fetch: C = %X\n", chold);
+        chold = agnus.doBlitterDmaRead(bltcpt);
+        trace(BLT_DEBUG, "    C = %X <- %X\n", chold, bltcpt);
+        
         bltcpt = U32_ADD(bltcpt, desc ? -2 : 2);
         if (--cntC == 0) {
             bltcpt = U32_ADD(bltcpt, desc ? -bltcmod : bltcmod);
@@ -1037,53 +1163,39 @@ Blitter::exec()
         }
     }
 
-    if (instr & HOLD_A) {
+    if constexpr ((bool)(instr & HOLD_A)) {
 
         trace(BLT_DEBUG, "HOLD_A\n");
 
-        trace(BLT_DEBUG, "    After masking with %x (%x,%x) %x\n", mask, bltafwm, bltalwm, anew & mask);
-
-        // Run the barrel shifters on data path A
-        trace(BLT_DEBUG, "    ash = %d mask = %X\n", bltconASH(), mask);
-        if (desc) {
-            ahold = (u16)(HI_W_LO_W(anew & mask, aold) >> (16 - bltconASH()));
-        } else {
-            ahold = (u16)(HI_W_LO_W(aold, anew & mask) >> bltconASH());
-        }
+        // Run the barrel shifter on data path A
+        ahold = barrelShifter(anew & mask, aold, bltconASH(), desc);
         aold = anew & mask;
-        trace(BLT_DEBUG, "    After shifting A (%d) A = %x\n", bltconASH(), ahold);
     }
 
-    if (instr & HOLD_B) {
+    if constexpr ((bool)(instr & HOLD_B)) {
 
         trace(BLT_DEBUG, "HOLD_B\n");
 
-        // Run the barrel shifters on data path B
-        trace(BLT_DEBUG, "    bsh = %d\n", bltconBSH());
-        if (desc) {
-            bhold = (u16)(HI_W_LO_W(bnew, bold) >> (16 - bltconBSH()));
-        } else {
-            bhold = (u16)(HI_W_LO_W(bold, bnew) >> bltconBSH());
-        }
+        // Run the barrel shifter on data path B
+        bhold = barrelShifter(bnew, bold, bltconBSH(), desc);
         bold = bnew;
-        trace(BLT_DEBUG, "    After shifting B (%d) B = %x\n", bltconBSH(), bhold);
     }
 
-    if (instr & HOLD_D) {
+    if constexpr ((bool)(instr & HOLD_D)) {
 
         trace(BLT_DEBUG, "HOLD_D\n");
 
         // Run the minterm logic circuit
-        trace(BLT_DEBUG, "    Minterms: ahold = %X bhold = %X chold = %X bltcon0 = %X (hex)\n", ahold, bhold, chold, bltcon0);
-        dhold = doMintermLogicQuick(ahold, bhold, chold, bltcon0 & 0xFF);
-        if (BLT_DEBUG) {
+        dhold = doMintermLogic(ahold, bhold, chold, bltcon0 & 0xFF);
+
+        if constexpr (BLT_DEBUG) {
             assert(dhold == doMintermLogic(ahold, bhold, chold, bltcon0 & 0xFF));
         }
 
         if (!lockD) {
 
             // Run the fill logic circuitry
-            if (instr & FILL) doFill(dhold, fillCarry);
+            if constexpr ((bool)(instr & FILL)) doFill(dhold, fillCarry);
 
             // Update the zero flag
             if (dhold) bzero = false;
@@ -1091,7 +1203,7 @@ Blitter::exec()
         
     }
 
-    if (instr & REPEAT) {
+    if constexpr ((bool)(instr & REPEAT)) {
 
         u16 newpc = 0;
 
@@ -1112,11 +1224,11 @@ Blitter::exec()
 
         } else {
 
-            // signalEnd();
+            clearBusyFlag();
         }
     }
 
-    if (instr & BLTDONE) {
+    if constexpr ((bool)(instr & BLTDONE)) {
 
         trace(BLT_DEBUG, "BLTDONE\n");
         endBlit();
@@ -1129,19 +1241,20 @@ Blitter::fakeExec()
     bool bus, busidle;
 
     // Determine if we need the bus
-    if (instr & WRITE_D) {
+    if constexpr ((bool)(instr & WRITE_D)) {
         bus     = !lockD;
         busidle = lockD;
     } else {
-        bus     = instr & (FETCH | BUS);
-        busidle = instr & BUSIDLE;
+        bus     = (bool)(instr & (FETCH | BUS));
+        busidle = (bool)(instr & BUSIDLE);
     }
 
     // Trigger Blitter interrupt if this is the termination cycle
-    if ((instr & BLTDONE) && !birq) {
-        signalEnd();
-        paula.raiseIrq(INT_BLIT);
-        birq = true;
+    if constexpr ((bool)(instr & BLTDONE)) {
+        if (!birq) {
+            paula.scheduleIrqRel(INT_BLIT, DMA_CYCLES(1));
+            birq = true;
+        }
     }
 
     // Allocate the bus if needed
@@ -1152,14 +1265,14 @@ Blitter::fakeExec()
 
     bltpc++;
 
-    if (instr & (FETCH | WRITE_D)) {
+    if constexpr ((bool)(instr & (FETCH | WRITE_D))) {
 
         // Record some fake data to make the DMA debugger happy
         assert(agnus.pos.h < HPOS_CNT);
         agnus.busValue[agnus.pos.h] = 0x8888;
     }
 
-    if (instr & REPEAT) {
+    if constexpr ((bool)(instr & REPEAT)) {
 
         u16 newpc = 0;
 
@@ -1177,14 +1290,14 @@ Blitter::fakeExec()
             bltpc = newpc;
             resetXCounter();
             decYCounter();
-
+        
         } else {
-
-            // signalEnd();
+            
+            clearBusyFlag();
         }
     }
 
-    if (instr & BLTDONE) {
+    if constexpr ((bool)(instr & BLTDONE)) {
 
         trace(BLT_DEBUG, "BLTDONE\n");
         endBlit();
@@ -1212,27 +1325,179 @@ Blitter::setYCounter(u16 value)
     yCounter = value;
 }
 
-void
-Blitter::doBarrelShifterA()
+template <u16 instr> void
+Blitter::execLine()
 {
-    u16 masked = anew;
+    bool useC = bltcon0 & BLTCON0_USEC;
+    bool sing = bltcon1 & BLTCON1_SING;
+    
+    bool bus, busidle;
+    
+    // Determine if we need the bus
+    if constexpr ((bool)(instr & WRITE_D)) {
+        bus     = true;
+        busidle = false;
+    } else {
+        bus     = (bool)(instr & (FETCH | BUS));
+        busidle = (bool)(instr & BUSIDLE);
+    }
 
-    if (isFirstWord()) masked &= bltafwm;
-    if (isLastWord())  masked &= bltalwm;
+    // Trigger Blitter interrupt if this is the termination cycle
+    if constexpr ((bool)(instr & BLTDONE)) {
+        if (!birq) {
+            paula.scheduleIrqRel(INT_BLIT, DMA_CYCLES(1));
+            birq = true;
+        }
+    }
+    
+    // Allocate the bus if needed
+    if (bus && !agnus.allocateBus<BUS_BLITTER>()) return;
 
-    if(bltconDESC()){
-        ahold = (aold >> (16 - bltconASH())) | (masked << bltconASH());
-    }else{
-        ahold = (aold << (16 - bltconASH())) | (masked >> bltconASH());
+    // Check if the Blitter needs a free bus to continue
+    if (busidle && !agnus.busIsFree<BUS_BLITTER>()) return;
+
+    bltpc++;
+
+    if constexpr ((bool)(instr & WRITE_D)) {
+        
+        // Only proceed if channel D is unlocked
+        if (!lockD) {
+
+            agnus.doBlitterDmaWrite(bltdpt, dhold);
+
+            if constexpr (BLT_GUARD) {
+                memguard[bltdpt & agnus.ptrMask & mem.chipMask] = 1;
+            }
+
+            if constexpr (BLT_CHECKSUM) {
+                check1 = util::fnvIt32(check1, dhold);
+                check2 = util::fnvIt32(check2, bltdpt);
+            }
+        }
+    }
+
+    if constexpr ((bool)(instr & FETCH_B)) {
+
+        // Perform channel B DMA
+        bnew = agnus.doBlitterDmaRead(bltbpt);
+        U32_INC(bltbpt, bltbmod);
+    }
+
+    if constexpr ((bool)(instr & FETCH_C)) {
+
+        // Perform channel C DMA
+        chold = agnus.doBlitterDmaRead(bltcpt);
+    }
+
+    if constexpr ((bool)(instr & HOLD_A)) {
+
+        // Run the barrel shifter on data path A
+        ahold = barrelShifter(anew & bltafwm, 0, bltconASH());
+    }
+
+    if constexpr ((bool)(instr & HOLD_B)) {
+
+        // Run the barrel shifter on data path B
+        bhold = barrelShifter(bnew, bnew, bltconBSH());
+        decBSH();
+    }
+
+    if constexpr ((bool)(instr & HOLD_D)) {
+
+        // Run the minterm logic circuit
+        dhold = doMintermLogic(ahold, (bhold & 1) ? 0xFFFF : 0, chold, bltcon0 & 0xFF);
+                
+        // Determine if we need to lock the D channel in WRITE_D
+        lockD = (sing && !fillCarry) || !useC;
+
+        // Run the line logic circuit
+        doLine();
+
+        // Update the zero flag
+        if (dhold) bzero = false;
+    }
+
+    if constexpr ((bool)(instr & REPEAT)) {
+
+        iteration++;
+        lockD = false;
+
+        if (yCounter > 1) {
+
+            bltpc = 0;
+            resetXCounter();
+            decYCounter();
+
+        } else {
+        
+            clearBusyFlag();
+        }
+        
+        bltdpt = bltcpt;
+    }
+
+    if constexpr ((bool)(instr & BLTDONE)) {
+
+        endBlit();
     }
 }
 
-void
-Blitter::doBarrelShifterB()
+template <u16 instr> void
+Blitter::fakeExecLine()
 {
-    if(bltconDESC()) {
-        bhold = (bold >> (16 - bltconBSH())) | (bnew << bltconBSH());
+    bool bus, busidle;
+
+    // Determine if we need the bus
+    if constexpr ((bool)(instr & WRITE_D)) {
+        bus     = true;
+        busidle = false;
     } else {
-        bhold = (bold << (16 - bltconBSH())) | (bnew >> bltconBSH());
+        bus     = (bool)(instr & (FETCH | BUS));
+        busidle = (bool)(instr & BUSIDLE);
+    }
+    
+    // Trigger Blitter interrupt if this is the termination cycle
+    if constexpr ((bool)(instr & BLTDONE)) {
+        if (!birq) {
+            paula.scheduleIrqRel(INT_BLIT, DMA_CYCLES(1));
+            birq = true;
+        }
+    }
+    
+    // Allocate the bus if needed
+    if (bus && !agnus.allocateBus<BUS_BLITTER>()) return;
+
+    // Check if the Blitter needs a free bus to continue
+    if (busidle && !agnus.busIsFree<BUS_BLITTER>()) return;
+
+    bltpc++;
+
+    if constexpr ((bool)(instr & (FETCH | BUS | WRITE_D))) {
+
+        // Record some fake data to make the DMA debugger happy
+        assert(agnus.pos.h < HPOS_CNT);
+        agnus.busValue[agnus.pos.h] = 0x8888;
+    }
+
+    if constexpr ((bool)(instr & REPEAT)) {
+        
+        iteration++;
+        lockD = false;
+
+        if (yCounter > 1) {
+
+            bltpc = 0;
+            resetXCounter();
+            decYCounter();
+
+        } else {
+            
+            clearBusyFlag();
+        }
+    }
+    
+    if constexpr ((bool)(instr & BLTDONE)) {
+
+        endBlit();
     }
 }

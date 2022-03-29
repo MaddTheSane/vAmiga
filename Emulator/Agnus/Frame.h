@@ -32,17 +32,17 @@ struct Frame
         << prevlof;
     }
     
-    Frame() : nr(0), lof(false) { }
+    Frame() : nr(0), lof(false), prevlof(false) { }
     
     bool isLongFrame() const { return lof; }
     bool isShortFrame() const { return !lof; }
-    int numLines() const { return lof ? 313 : 312; }
-    int lastLine() const { return lof ? 312 : 311; }
+    isize numLines() const { return lof ? 313 : 312; }
+    isize lastLine() const { return lof ? 312 : 311; }
     
     bool wasLongFrame() const { return prevlof; }
     bool wasShortFrame() const { return !prevlof; }
-    int prevNumLines() const { return prevlof ? 313 : 312; }
-    int prevLastLine() const { return prevlof ? 312 : 311; }
+    isize prevNumLines() const { return prevlof ? 313 : 312; }
+    isize prevLastLine() const { return prevlof ? 312 : 311; }
 
     // Advances one frame
     void next(bool laceBit)

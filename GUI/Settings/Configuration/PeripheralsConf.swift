@@ -12,8 +12,8 @@ extension ConfigurationController {
     func refreshPeripheralsTab() {
 
         let poweredOff = amiga.poweredOff
-
-        // Drive
+        
+        // Floppy drives
         perDf1Connect.state = config.df1Connected ? .on : .off
         perDf2Connect.state = config.df2Connected ? .on : .off
         perDf3Connect.state = config.df3Connected ? .on : .off
@@ -22,17 +22,26 @@ extension ConfigurationController {
         perDf2Type.selectItem(withTag: config.df2Type)
         perDf3Type.selectItem(withTag: config.df3Type)
 
-        // Disk
-        perDriveBlankDiskFormat.selectItem(withTag: config.blankDiskFormat)
-        perBootCode.selectItem(withTag: config.bootBlock)
-        perBootCode.isEnabled = config.blankDiskFormat != FSVolumeType.NODOS.rawValue
+        // Hard drives
+        perHd0Connect.state = config.hd0Connected ? .on : .off
+        perHd1Connect.state = config.hd1Connected ? .on : .off
+        perHd2Connect.state = config.hd2Connected ? .on : .off
+        perHd3Connect.state = config.hd3Connected ? .on : .off
+        perHd0Type.selectItem(withTag: config.hd0Type)
+        perHd1Type.selectItem(withTag: config.hd1Type)
+        perHd2Type.selectItem(withTag: config.hd2Type)
+        perHd3Type.selectItem(withTag: config.hd3Type)
 
         // Ports
+        let nullmodem = SerialPortDevice.NULLMODEM.rawValue
         parent.gamePadManager.refresh(popup: perGameDevice1, hide: true)
         parent.gamePadManager.refresh(popup: perGameDevice2, hide: true)
         perGameDevice1.selectItem(withTag: config.gameDevice1)
         perGameDevice2.selectItem(withTag: config.gameDevice2)
         perSerialDevice.selectItem(withTag: config.serialDevice)
+        perSerialPort.integerValue = config.serialDevicePort
+        perSerialPort.isHidden = config.serialDevice != nullmodem
+        perSerialPortText.isHidden = config.serialDevice != nullmodem
         
         // Lock controls if emulator is powered on
         perDf1Connect.isEnabled = poweredOff
@@ -42,12 +51,20 @@ extension ConfigurationController {
         perDf1Type.isEnabled = poweredOff && config.df1Connected
         perDf2Type.isEnabled = poweredOff && config.df2Connected
         perDf3Type.isEnabled = poweredOff && config.df3Connected
+        perHd0Connect.isEnabled = poweredOff
+        perHd1Connect.isEnabled = poweredOff // && perHd0Connect.state == .on
+        perHd2Connect.isEnabled = poweredOff // && perHd1Connect.state == .on
+        perHd3Connect.isEnabled = poweredOff // && perHd2Connect.state == .on
+        perHd0Type.isEnabled = poweredOff
+        perHd1Type.isEnabled = poweredOff // && config.hd1Connected
+        perHd2Type.isEnabled = poweredOff // && config.hd2Connected
+        perHd3Type.isEnabled = poweredOff // && config.hd3Connected
         perFactorySettingsPopup.isEnabled = poweredOff
 
         // Lock symbol and explanation
         perLockImage.isHidden = poweredOff
-        perLockText.isHidden = poweredOff
-        perLockSubText.isHidden = poweredOff
+        perLockInfo1.isHidden = poweredOff
+        perLockInfo2.isHidden = poweredOff
         
         // Buttons
         perPowerButton.isHidden = !bootable
@@ -81,22 +98,26 @@ extension ConfigurationController {
         }
         refresh()
     }
-            
-    @IBAction func perBlankDiskFormatAction(_ sender: NSPopUpButton!) {
+
+    @IBAction func perHdrConnectAction(_ sender: NSButton!) {
         
-        config.blankDiskFormat = sender.selectedTag()
+        switch sender.tag {
+        case 0: config.hd0Connected = sender.state == .on
+        case 1: config.hd1Connected = sender.state == .on
+        case 2: config.hd2Connected = sender.state == .on
+        case 3: config.hd3Connected = sender.state == .on
+        default: fatalError()
+        }
+        
         refresh()
     }
-
-    @IBAction func perBootCodeAction(_ sender: NSPopUpButton!) {
-                
-        config.bootBlock = sender.selectedTag()
+    
+    @IBAction func perHdrTypeAction(_ sender: NSPopUpButton!) {
+        
         refresh()
     }
     
     @IBAction func perGameDeviceAction(_ sender: NSPopUpButton!) {
-
-        track("port: \(sender.tag) device: \(sender.selectedTag())")
         
         switch sender.tag {
         case 1: config.gameDevice1 = sender.selectedTag()
@@ -109,6 +130,14 @@ extension ConfigurationController {
     @IBAction func perSerialDeviceAction(_ sender: NSPopUpButton!) {
 
         config.serialDevice = sender.selectedTag()
+        refresh()
+    }
+
+    @IBAction func perSerialDevicePortAction(_ sender: NSTextField!) {
+        
+        if sender.integerValue > 0 && sender.integerValue < 65536 {
+            config.serialDevicePort = sender.integerValue
+        }
         refresh()
     }
 

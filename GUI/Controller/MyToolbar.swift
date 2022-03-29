@@ -12,8 +12,6 @@ class MyToolbar: NSToolbar {
     var amiga: AmigaProxy { return parent.amiga }
     
     @IBOutlet weak var parent: MyController!
-    
-    // Toolbar items
     @IBOutlet weak var controlPort1: NSPopUpButton!
     @IBOutlet weak var controlPort2: NSPopUpButton!
     @IBOutlet weak var keyboardButton: NSToolbarItem!
@@ -22,7 +20,7 @@ class MyToolbar: NSToolbar {
 
     override func validateVisibleItems() {
 
-        // Disable the keyboard button of the virtual keyboard is open
+        // Disable the keyboard button if the virtual keyboard is open
         let visible = parent.virtualKeyboard?.window?.isVisible ?? false
         let view = keyboardButton.view as? NSButton
         view?.isEnabled = !visible
@@ -47,26 +45,16 @@ class MyToolbar: NSToolbar {
         }
         if amiga.running {
             controlsSegCtrl.setToolTip("Pause", forSegment: 0)
-            controlsSegCtrl.setImage(NSImage.init(named: "pauseTemplate"), forSegment: 0)
+            controlsSegCtrl.setImage(NSImage(named: "pauseTemplate"), forSegment: 0)
         } else {
             controlsSegCtrl.setToolTip("Run", forSegment: 0)
-            controlsSegCtrl.setImage(NSImage.init(named: "runTemplate"), forSegment: 0)
+            controlsSegCtrl.setImage(NSImage(named: "runTemplate"), forSegment: 0)
         }
     }
     
     //
     // Action methods
     //
-    
-    @IBAction func port1Action(_ sender: NSPopUpButton) {
-        
-        parent.config.gameDevice1 = sender.selectedTag()
-    }
- 
-    @IBAction func port2Action(_ sender: NSPopUpButton) {
-        
-        parent.config.gameDevice2 = sender.selectedTag()
-    }
     
     @IBAction func inspectAction(_ sender: NSSegmentedControl) {
 
@@ -76,7 +64,8 @@ class MyToolbar: NSToolbar {
         case 1: parent.monitorAction(sender)
         case 2: parent.consoleAction(sender)
 
-        default: assert(false)
+        default:
+            fatalError()
         }
     }
     
@@ -88,32 +77,55 @@ class MyToolbar: NSToolbar {
         case 1: parent.restoreSnapshotAction(self)
         case 2: parent.browseSnapshotsAction(self)
             
-        default: assert(false)
+        default:
+            fatalError()
         }
     }
     
     @IBAction func screenshotAction(_ sender: NSSegmentedControl) {
-        
-        track()
-        
+                
         switch sender.selectedSegment {
             
         case 0: parent.takeScreenshotAction(self)
         case 1: parent.browseScreenshotsAction(self)
             
-        default: assert(false)
+        default:
+            fatalError()
         }
     }
-    
+
+    @IBAction func port1Action(_ sender: NSPopUpButton) {
+        
+        parent.config.gameDevice1 = sender.selectedTag()
+    }
+ 
+    @IBAction func port2Action(_ sender: NSPopUpButton) {
+        
+        parent.config.gameDevice2 = sender.selectedTag()
+    }
+            
     @IBAction func keyboardAction(_ sender: Any!) {
         
-        // Open the virtual keyboard as a sheet
         if parent.virtualKeyboard == nil {
             parent.virtualKeyboard = VirtualKeyboardController.make(parent: parent)
         }
-        parent.virtualKeyboard?.showSheet()
+        if parent.virtualKeyboard?.window?.isVisible == false {
+            parent.virtualKeyboard?.showSheet()
+        }
     }
     
+    @IBAction func preferencesAction(_ sender: NSSegmentedControl) {
+
+        switch sender.selectedSegment {
+
+        case 0: parent.preferencesAction(sender)
+        case 1: parent.configureAction(sender)
+
+        default:
+            fatalError()
+        }
+    }
+
     @IBAction func controlsAction(_ sender: NSSegmentedControl) {
 
         switch sender.selectedSegment {
@@ -122,18 +134,8 @@ class MyToolbar: NSToolbar {
         case 1: parent.resetAction(self)
         case 2: parent.powerAction(self)
 
-        default: assert(false)
-        }
-    }
-    
-    @IBAction func toolbarPrefAction(_ sender: NSSegmentedControl) {
-
-        switch sender.selectedSegment {
-
-        case 0: parent.preferencesAction(sender)
-        case 1: parent.configureAction(sender)
-
-        default: assert(false)
+        default:
+            fatalError()
         }
     }
 }

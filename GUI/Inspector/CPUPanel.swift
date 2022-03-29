@@ -11,7 +11,7 @@ extension Inspector {
 
     private func cacheCPU() {
 
-        cpuInfo = amiga.cpu.getInfo()
+        cpuInfo = amiga.cpu.info
     }
 
     func refreshCPU(count: Int = 0, full: Bool = false) {
@@ -32,22 +32,6 @@ extension Inspector {
                              cpuUSP: fmt32, cpuSSP: fmt32 ]
 
             for (c, f) in elements { assignFormatter(f, c!) }
-
-            if parent!.amiga.running {
-                cpuStopAndGoButton.image = NSImage.init(named: "pauseTemplate")
-                cpuStepIntoButton.isEnabled = false
-                cpuStepOverButton.isEnabled = false
-                cpuTraceStopAndGoButton.image = NSImage.init(named: "pauseTemplate")
-                cpuTraceStepIntoButton.isEnabled = false
-                cpuTraceStepOverButton.isEnabled = false
-            } else {
-                cpuStopAndGoButton.image = NSImage.init(named: "runTemplate")
-                cpuStepIntoButton.isEnabled = true
-                cpuStepOverButton.isEnabled = true
-                cpuTraceStopAndGoButton.image = NSImage.init(named: "runTemplate")
-                cpuTraceStepIntoButton.isEnabled = true
-                cpuTraceStepOverButton.isEnabled = true
-            }
         }
 
         cpuPC.integerValue = Int(cpuInfo.pc0)
@@ -90,21 +74,6 @@ extension Inspector {
         cpuTraceView.refresh(count: count, full: full)
         cpuBreakView.refresh(count: count, full: full)
         cpuWatchView.refresh(count: count, full: full)
-    }
-
-    @IBAction func cpuStopAndGoAction(_ sender: NSButton!) {
-
-        amiga.stopAndGo()
-    }
-    
-    @IBAction func cpuStepIntoAction(_ sender: NSButton!) {
-
-        amiga.stepInto()
-    }
-    
-    @IBAction func cpuStepOverAction(_ sender: NSButton!) {
-
-        amiga.stepOver()
     }
 
     @IBAction func cpuClearTraceBufferAction(_ sender: NSButton!) {

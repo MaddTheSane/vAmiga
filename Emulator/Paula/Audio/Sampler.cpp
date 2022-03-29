@@ -13,76 +13,63 @@
 void
 Sampler::reset()
 {
-    //Replace the existing samples by a single dummy element
+    // Clear the ringbuffer
     clear();
-    write( TaggedSample { 0, 0 } );
-}
 
-void
-Sampler::clone(Sampler &other)
-{
-    *this = other;
+    // Add a dummy element to ensure the buffer is not empty
+    append(0,0);
 }
 
 template <SamplingMethod method> i16
 Sampler::interpolate(Cycle clock)
 {
+    /* Interploation involves two major steps. In the first step, the function
+     * computes index position r1 with the following property:
+     *
+     *     Cycle of sample at r1 <= Target cycle < Cycle of sample at r1 + 1
+     *
+     * In the second step, the function interpolated between the two samples at
+     * r1 and r1 + 1 based on the requested method.
+     */
+
     assert(!isEmpty());
 
     isize r1 = r;
     isize r2 = next(r1);
 
     // Remove all outdated entries
-    while (r2 != w && elements[r2].tag <= clock) {
-        (void)read();
+    while (r2 != w && keys[r2] <= clock) {
+        
+        skip();
         r1 = r2;
         r2 = next(r1);
     }
+    assert(!isEmpty());
 
-    // If the buffer contains a single element only, return that element
-    if (r2 == w) {
-        return elements[r1].sample;
-    }
+    // If the buffer contains a single element, return that element
+    if (r2 == w) return elements[r1];
+
+    // Make sure that we've selected the right sample pair
+    assert(clock >= keys[r1] && clock < keys[r2]);
 
     // Interpolate between position r1 and r2
-    Cycle c1 = elements[r1].tag;
-    Cycle c2 = elements[r2].tag;
-    i16 s1 = elements[r1].sample;
-    i16 s2 = elements[r2].sample;
-    
-    /*
-    if (!(clock >= c1 && clock < c2)) {
-        warn("WARNING: clock: %lld count: %zu ", clock, count());
-        warn("r: %d w: %d\n", r, w);
-        warn("r1: %d r2: %d c1: %lld c2: %lld\n", r1, r2, c1, c2);
+    if constexpr (method == SMP_NONE) {
+
+        return elements[r1];
     }
-    */
-    assert(clock >= c1 && clock < c2);
+    
+    if constexpr (method == SMP_NEAREST) {
+        
+        return ((clock - keys[r1]) < (keys[r2] - clock)) ? elements[r1] : elements[r2];
+    }
+    
+    if constexpr (method == SMP_LINEAR) {
 
-    switch (method) {
-
-        case SMP_NONE:
-        {
-            return s1;
-        }
-        case SMP_NEAREST:
-        {
-            if (clock - c1 < c2 - clock) {
-                return s1;
-            } else {
-                return s2;
-            }
-        }
-        case SMP_LINEAR:
-        {
-            double dx = (double)(c2 - c1);
-            double dy = (double)(s2 - s1);
-            double weight = (double)(clock - c1) / dx;
-            return (i16)(s1 + weight * dy);
-        }
-        default:
-            assert(false);
-            return 0;
+        double dx = (double)(keys[r2] - keys[r1]);
+        double dy = (double)(elements[r2] - elements[r1]);
+        double weight = (double)(clock - keys[r1]) / dx;
+        
+        return (i16)(elements[r1] + weight * dy);
     }
 }
 

@@ -10,11 +10,34 @@
 #pragma once
 
 #include "RingBuffer.h"
-#include "Event.h"
+#include "AgnusTypes.h"
+
+/* A key role in the architecture of vAmiga is played by two sorted ring
+ * buffers:
+ *
+ * Register change recorder:
+ *
+ *     This buffer keeps track of all upcoming register changes. It is used
+ *     to emulate the proper timing of all custom registers.
+ *
+ * Signal change recorder:
+ *
+ *     This buffer is used to emulate the display logic circuit. It keeps
+ *     track of various signal changes such as the changes on the BPHSTART line
+ *     that indicates a match of the horizontal counter with the DDF start
+ *     position. The buffer is used to set up the bitplane events stored
+ *     in the bplEvent table.
+ */
+
+//
+// Register change recorder
+//
 
 enum RegChangeID : i32
 {
     SET_NONE,
+ 
+    SET_STRHOR,
     
     SET_BLTSIZE,
     SET_BLTSIZV,
@@ -33,26 +56,16 @@ enum RegChangeID : i32
     SET_BPLCON3,
     SET_DMACON,
     
-    SET_DIWSTRT,
-    SET_DIWSTOP,
+    SET_DIWSTRT_AGNUS,
+    SET_DIWSTRT_DENISE,
+    SET_DIWSTOP_AGNUS,
+    SET_DIWSTOP_DENISE,
     SET_DDFSTRT,
     SET_DDFSTOP,
     
     SET_BPL1MOD,
     SET_BPL2MOD,
-    SET_BPL1PTH,
-    SET_BPL2PTH,
-    SET_BPL3PTH,
-    SET_BPL4PTH,
-    SET_BPL5PTH,
-    SET_BPL6PTH,
-    SET_BPL1PTL,
-    SET_BPL2PTL,
-    SET_BPL3PTL,
-    SET_BPL4PTL,
-    SET_BPL5PTL,
-    SET_BPL6PTL,
-
+    
     SET_SPR0DATA,
     SET_SPR1DATA,
     SET_SPR2DATA,
@@ -89,6 +102,20 @@ enum RegChangeID : i32
     SET_SPR6CTL,
     SET_SPR7CTL,
 
+    SET_BPL1PTH,
+    SET_BPL2PTH,
+    SET_BPL3PTH,
+    SET_BPL4PTH,
+    SET_BPL5PTH,
+    SET_BPL6PTH,
+    
+    SET_BPL1PTL,
+    SET_BPL2PTL,
+    SET_BPL3PTL,
+    SET_BPL4PTL,
+    SET_BPL5PTL,
+    SET_BPL6PTL,
+    
     SET_SPR0PTH,
     SET_SPR1PTH,
     SET_SPR2PTH,
@@ -107,28 +134,25 @@ enum RegChangeID : i32
     SET_SPR6PTL,
     SET_SPR7PTL,
 
-    REG_COUNT
+    SET_DSKPTH,
+    SET_DSKPTL
 };
 
-/* Register change recorder
- *
- * For certain registers, Agnus and Denise have to keep track about when a
- * value changes. This information is stored in a sorted ring buffers called
- * a register change recorder.
- */
 struct RegChange
 {
     u32 addr;
     u16 value;
-
+    u16 accessor;
+    
     template <class W>
     void operator<<(W& worker)
     {
-        worker << addr << value;
+        worker << addr << value << accessor;
     }
     
-    RegChange() : addr(0), value(0) { }
-    RegChange(u32 a, u16 v) : addr(a), value(v) { }
+    RegChange() : addr(0), value(0), accessor(0) { }
+    RegChange(u32 a, u16 v) : addr(a), value(v), accessor(0) { }
+    RegChange(u32 a, u16 v, u16 ac) : addr(a), value(v), accessor(ac) { }
 };
 
 template <isize capacity>
@@ -142,5 +166,48 @@ struct RegChangeRecorder : public util::SortedRingBuffer<RegChange, capacity>
     
     Cycle trigger() {
         return this->isEmpty() ? NEVER : this->keys[this->r];
+    }
+};
+
+
+//
+// Signal change recorder
+//
+
+struct SigRecorder : public util::SortedArray<u16, 256>
+{
+    bool modified = false;
+    
+    template <class W>
+    void operator<<(W& worker)
+    {
+        worker << this->modified << this->elements << this->w << this->keys;
+    }
+    
+    void insert(i64 key, u16 signal) {
+    
+        modified = true;
+        
+        for (isize i = 0; i < w; i++) {
+
+            if (keys[i] == key) {
+                elements[i] |= signal;
+                return;
+            }
+        }
+        
+        SortedArray::insert(key, signal);
+    }
+    
+    void invalidate(i64 key, u16 signal) {
+        
+        modified = true;
+        
+        for (isize i = 0; i < w; i++) {
+            
+            if ((elements[i] & signal) && keys[i] >= key) {
+                elements[i] &= ~signal;
+            }
+        }
     }
 };

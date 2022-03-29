@@ -9,10 +9,7 @@
 
 import Cocoa
 
-var myAppDelegate: MyAppDelegate {
-    let delegate = NSApp.delegate as? MyAppDelegate
-    return delegate!
-}
+var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }
 
 @NSApplicationMain
 @objc public class MyAppDelegate: NSObject, NSApplicationDelegate {
@@ -21,7 +18,12 @@ var myAppDelegate: MyAppDelegate {
     @IBOutlet weak var df1Menu: NSMenuItem!
     @IBOutlet weak var df2Menu: NSMenuItem!
     @IBOutlet weak var df3Menu: NSMenuItem!
-        
+    
+    @IBOutlet weak var hd0Menu: NSMenuItem!
+    @IBOutlet weak var hd1Menu: NSMenuItem!
+    @IBOutlet weak var hd2Menu: NSMenuItem!
+    @IBOutlet weak var hd3Menu: NSMenuItem!
+
     // Replace the old document controller by instantiating a custom controller
     let myDocumentController = MyDocumentController()
 
@@ -37,27 +39,30 @@ var myAppDelegate: MyAppDelegate {
     var prefController: PreferencesController?
     
     // Information provider for connected HID devices
-    var database = DeviceDatabase.init()
+    var database = DeviceDatabase()
     
-    // The list of recently inserted disk URLs.
-    var recentlyInsertedDiskURLs: [URL] = [] {
-        didSet { track() }
-    }
+    // List of recently inserted floppy disks (all drives share the same list)
+    var insertedFloppyDisks: [URL] = []
     
-    // The list of recently exported disk URLs.
-    var recentlyExportedDisk0URLs: [URL] = []
-    var recentlyExportedDisk1URLs: [URL] = []
-    var recentlyExportedDisk2URLs: [URL] = []
-    var recentlyExportedDisk3URLs: [URL] = []
+    // List of recently exported floppy disks (one list for each drive)
+    var exportedFloppyDisks: [[URL]] = [[URL]](repeating: [URL](), count: 4)
     
+    // List of recently attached hard drive URLs
+    var attachedHardDrives: [URL] = []
+    
+    // List of recently exported hard drive URLs
+    var exportedHardDrives: [[URL]] = [[URL]](repeating: [URL](), count: 4)
+
     override init() {
-        
+                
         super.init()
-        pref = Preferences.init()
+        pref = Preferences()
     }
     
     public func applicationDidFinishLaunching(_ aNotification: Notification) {
                         
+        log()
+        
         // Make touch bar customizable
         if #available(OSX 10.12.2, *) {
             NSApplication.shared.isAutomaticCustomizeTouchBarMenuItemEnabled = true
@@ -66,20 +71,21 @@ var myAppDelegate: MyAppDelegate {
     
     public func applicationWillTerminate(_ aNotification: Notification) {
 
-        track()
+        log()
     }
     
     //
-    // Handling the lists of recently used URLs
+    // Handling lists of recently used URLs
     //
     
-    func noteRecentlyUsedURL(_ url: URL, to list: inout [URL], size: Int) {
+    private func noteRecentlyUsedURL(_ url: URL, to list: inout [URL], size: Int) {
         
         if !list.contains(url) {
-            track()
-            if list.count == size {
-                list.remove(at: size - 1)
-            }
+
+            // Shorten the list if it is too large
+            if list.count == size { list.remove(at: size - 1) }
+            
+            // Add new item at the beginning
             list.insert(url, at: 0)
         }
     }
@@ -89,47 +95,50 @@ var myAppDelegate: MyAppDelegate {
     }
     
     func noteNewRecentlyInsertedDiskURL(_ url: URL) {
-        noteRecentlyUsedURL(url, to: &recentlyInsertedDiskURLs, size: 10)
+        noteRecentlyUsedURL(url, to: &insertedFloppyDisks, size: 10)
     }
     
     func getRecentlyInsertedDiskURL(_ pos: Int) -> URL? {
-        return getRecentlyUsedURL(pos, from: recentlyInsertedDiskURLs)
+        return getRecentlyUsedURL(pos, from: insertedFloppyDisks)
     }
     
-    func noteNewRecentlyExportedDiskURL(_ url: URL, drive nr: Int) {
-                
-        switch nr {
-            
-        case 0: noteRecentlyUsedURL(url, to: &recentlyExportedDisk0URLs, size: 1)
-        case 1: noteRecentlyUsedURL(url, to: &recentlyExportedDisk1URLs, size: 1)
-        case 2: noteRecentlyUsedURL(url, to: &recentlyExportedDisk2URLs, size: 1)
-        case 3: noteRecentlyUsedURL(url, to: &recentlyExportedDisk3URLs, size: 1)
-        default: fatalError()
-        }
+    func clearRecentlyInsertedDiskURLs() {
+        insertedFloppyDisks = []
+    }
+    func noteNewRecentlyExportedDiskURL(_ url: URL, df n: Int) {
+        noteRecentlyUsedURL(url, to: &exportedFloppyDisks[n], size: 1)
     }
     
-    func getRecentlyExportedDiskURL(_ pos: Int, drive nr: Int) -> URL? {
-        
-        switch nr {
-            
-        case 0: return getRecentlyUsedURL(pos, from: recentlyExportedDisk0URLs)
-        case 1: return getRecentlyUsedURL(pos, from: recentlyExportedDisk1URLs)
-        case 2: return getRecentlyUsedURL(pos, from: recentlyExportedDisk2URLs)
-        case 3: return getRecentlyUsedURL(pos, from: recentlyExportedDisk3URLs)
-        default: fatalError()
-        }
+    func getRecentlyExportedDiskURL(_ pos: Int, df n: Int) -> URL? {
+        return getRecentlyUsedURL(pos, from: exportedFloppyDisks[n])
     }
     
-    func clearRecentlyExportedDiskURLs(drive nr: Int) {
-        
-        switch nr {
-            
-        case 0: recentlyExportedDisk0URLs = []
-        case 1: recentlyExportedDisk1URLs = []
-        case 2: recentlyExportedDisk2URLs = []
-        case 3: recentlyExportedDisk3URLs = []
-        default: fatalError()
-        }
+    func clearRecentlyExportedDiskURLs(df n: Int) {
+        exportedFloppyDisks[n] = [URL]()
+    }
+    
+    func noteNewRecentlyAttachedHdrURL(_ url: URL) {
+        noteRecentlyUsedURL(url, to: &attachedHardDrives, size: 10)
+    }
+    
+    func getRecentlyAttachedHdrURL(_ pos: Int) -> URL? {
+        return getRecentlyUsedURL(pos, from: attachedHardDrives)
+    }
+    
+    func clearRecentlyAttachedHdrURLs() {
+        attachedHardDrives = []
+    }
+    
+    func noteNewRecentlyExportedHdrURL(_ url: URL, hd n: Int) {
+        noteRecentlyUsedURL(url, to: &exportedHardDrives[n], size: 1)
+    }
+    
+    func getRecentlyExportedHdrURL(_ pos: Int, hd n: Int) -> URL? {
+        return getRecentlyUsedURL(pos, from: exportedHardDrives[n])
+    }
+    
+    func clearRecentlyExportedHdrURLs(hd n: Int) {
+        exportedHardDrives[n] = []
     }
 }
 
@@ -203,14 +212,14 @@ extension MyAppDelegate {
         set {
             if newValue == false && eventTap != nil {
                 
-                track("Reenabling keyboard shortcuts...")
+                log("Reenabling keyboard shortcuts...")
                 CGEvent.tapEnable(tap: eventTap!, enable: false)
                 eventTap = nil
             }
             
             if newValue == true && eventTap == nil {
                 
-                track("Trying to disable keyboard shortcuts...")
+                log("Trying to disable keyboard shortcuts...")
                 
                 /* To disable keyboard shortcuts, we are going to filter out the
                  * Command flag from all keyUp and keyDown CGEvents by installing
@@ -227,7 +236,7 @@ extension MyAppDelegate {
                 
                 if !AXIsProcessTrustedWithOptions(privOptions) {
                     
-                    track("Aborting. Access denied")
+                    log(warning: "Aborting. Access denied")
                     return
                 }
                 
@@ -247,7 +256,7 @@ extension MyAppDelegate {
                 
                 if eventTap == nil {
                     
-                    track("Aborting. Failed to create the event tap.")
+                    log(warning: "Aborting. Failed to create the event tap.")
                     return
                 }
                 
@@ -255,18 +264,17 @@ extension MyAppDelegate {
                 let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
                 CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
                 CGEvent.tapEnable(tap: eventTap!, enable: true)
-                track("Success")
+                log("Success")
             }
         }
     }
 }
 
-/* To establish a direct mapping of the Command keys to the Amiga keys, this
- * callback is registered. It intercepts keyDown and keyUp events and filters
- * out the Command key modifier flag. As a result, all keyboard shortcuts are
- * disabled and all keys that are pressed in combination with the Command key
- * will trigger a standard Cocoa key event.
- */
+// To establish a direct mapping of the Command keys to the Amiga keys, this
+// callback is registered. It intercepts keyDown and keyUp events and filters
+// out the Command key modifier flag. As a result, all keyboard shortcuts are
+// disabled and all keys that are pressed in combination with the Command key
+// will trigger a standard Cocoa key event.
 func cgEventCallback(proxy: CGEventTapProxy,
                      type: CGEventType,
                      event: CGEvent,

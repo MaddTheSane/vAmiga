@@ -9,24 +9,18 @@
 
 #include "config.h"
 #include "Copper.h"
+#include "Amiga.h"
 #include "CopperDebugger.h"
-#include "Agnus.h"
 #include "Checksum.h"
-#include "IO.h"
+#include "IOUtils.h"
 #include "PixelEngine.h"
 
-Copper::Copper(Amiga& ref) : AmigaComponent(ref)
+Copper::Copper(Amiga& ref) : SubComponent(ref)
 {
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<AmigaComponent *> {
         
         &debugger
     };
-}
-
-void
-Copper::_initialize()
-{
-
 }
 
 void
@@ -36,69 +30,12 @@ Copper::_reset(bool hard)
 }
 
 void
-Copper::_inspect()
-{    
-    synchronized {
-        
-        info.copList = copList;
-        info.copList1Start = debugger.startOfCopperList(1);
-        info.copList1End = debugger.endOfCopperList(1);
-        info.copList2Start = debugger.startOfCopperList(2);
-        info.copList2End = debugger.endOfCopperList(2);
-        info.active = agnus.isPending<SLOT_COP>();
-        info.cdang = cdang;
-        info.coppc = coppc & agnus.ptrMask;
-        info.cop1lc = cop1lc & agnus.ptrMask;
-        info.cop2lc = cop2lc & agnus.ptrMask;
-        info.cop1ins = cop1ins;
-        info.cop2ins = cop2ins;
-        info.length1 = (cop1end - cop1lc) / 4;
-        info.length2 = (cop2end - cop2lc) / 4;
-    }
-}
-
-void
-Copper::_dump(dump::Category category, std::ostream& os) const
-{
-    using namespace util;
-    
-    if (category & dump::State) {
-        
-        os << tab("Active Copper list");
-        os << dec(copList) << std::endl;
-        os << tab("Skip flag");
-        os << bol(skip) << std::endl;        
-    }
-    
-    if (category & dump::Registers) {
-        
-        os << tab("COPPC");
-        os << hex(coppc) << std::endl;
-        os << tab("COP1LC");
-        os << hex(cop1lc) << std::endl;
-        os << tab("COP1LC");
-        os << hex(cop2lc) << std::endl;
-        os << tab("COPINS1");
-        os << hex(cop1ins) << std::endl;
-        os << tab("COPINS2");
-        os << hex(cop2ins) << std::endl;
-        os << tab("CDANG");
-        os << bol(cdang) << std::endl;
-    }
-    
-    if ((category & dump::List1) || (category & dump::List2)) {
-        
-        debugger.dump(category, os);
-    }
-}
-
-void
 Copper::setPC(u32 addr)
 {
     coppc = addr;
-    
+
     // Notify the debugger
-    if (debugMode) { debugger.jumped(); }
+    if (amiga.inDebugMode()) { debugger.jumped(); }
 }
 
 void
@@ -107,7 +44,7 @@ Copper::advancePC()
     coppc += 2;
     
     // Notify the debugger
-    if (debugMode) { debugger.advanced(); }
+    if (amiga.inDebugMode()) { debugger.advanced(); }
 }
 
 void
@@ -115,116 +52,32 @@ Copper::switchToCopperList(isize nr)
 {
     assert(nr == 1 || nr == 2);
 
-    // coppc = (nr == 1) ? cop1lc : cop2lc;
     copList = nr;
     setPC(nr == 1 ? cop1lc : cop2lc);
     agnus.scheduleRel<SLOT_COP>(0, COP_REQ_DMA);
 }
 
 bool
-Copper::findMatch(Beam &result) const
-{
-    i16 vMatch, hMatch;
-
-    // Get the current beam position
-    Beam b = agnus.pos;
-
-    // Set up the comparison positions
-    i16 vComp = getVP();
-    i16 hComp = getHP();
-
-    // Set up the comparison masks
-    i16 vMask = getVM() | 0x80;
-    i16 hMask = getHM() & 0xFE;
-
-    // Check if the current line is already below the vertical trigger position
-    if ((b.v & vMask) > (vComp & vMask)) {
-
-        // Success. The current position already matches
-        result = b;
-        return true;
-    }
-
-    // Check if the current line matches the vertical trigger position
-    if ((b.v & vMask) == (vComp & vMask)) {
-
-        // Check if we find a horizontal match in this line
-        if (findHorizontalMatch(b.h, hComp, hMask, hMatch)) {
-
-            // Success. We've found a match in the current line
-            result.v = b.v;
-            result.h = hMatch;
-            return true;
-        }
-    }
-
-    // Find the first vertical match below the current line
-    if (!findVerticalMatch(b.v + 1, vComp, vMask, vMatch)) return false;
-
-    // Find the first horizontal match in that line
-    if (!findHorizontalMatch(0, hComp, hMask, hMatch)) return false;
-
-    // Success. We've found a match below the current line
-    result.v = vMatch;
-    result.h = hMatch;
-    return true;
-}
-
-bool
-Copper::findVerticalMatch(i16 vStrt, i16 vComp, i16 vMask, i16 &result) const
-{
-    i16 vStop = agnus.frame.numLines();
-
-    // Iterate through all vertical positions
-    for (isize v = vStrt; v < vStop; v++) {
-
-        // Check if the comparator triggers at this position
-        if ((v & vMask) >= (vComp & vMask)) {
-            result = v;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool
-Copper::findHorizontalMatch(i16 hStrt, i16 hComp, i16 hMask, i16 &result) const
-{
-    i16 hStop = HPOS_CNT;
-
-    // Iterate through all horizontal positions
-    for (isize h = hStrt; h < hStop; h++) {
-
-        // Check if the comparator triggers at this position
-        if ((h & hMask) >= (hComp & hMask)) {
-            result = h;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool
-Copper::findMatchNew(Beam &match) const
+Copper::findMatchOld(Beam &match) const
 {
     // Start searching at the current beam position
-    u32 beam = (agnus.pos.v << 8) | agnus.pos.h;
+    u32 beam = (u32)(agnus.pos.v << 8 | agnus.pos.h);
 
     // Get the comparison position and the comparison mask
     u32 comp = getVPHP();
     u32 mask = getVMHM();
 
     // Iterate through all lines starting from the current position
-    u32 numLines = agnus.frame.numLines();
-    while ((beam >> 8) < numLines) {
+    isize numLines = agnus.frame.numLines();
+    while ((isize)(beam >> 8) < numLines) {
 
         // Check if the vertical components are equal
         if ((beam & mask & ~0xFF) == (comp & mask & ~0xFF)) {
 
-            // debug("Matching vertically: beam = %X comp = %X mask = %X\n", beam, comp, mask);
+            // trace(true, "Matching vertically: beam = %X comp = %X mask = %X\n", beam, comp, mask);
 
             // Try to match the horizontal coordinate as well
-            if (findHorizontalMatchNew(beam, comp, mask)) {
+            if (findHorizontalMatchOld(beam, comp, mask)) {
 
                 // Success
                 match.v = beam >> 8;
@@ -250,10 +103,58 @@ Copper::findMatchNew(Beam &match) const
 }
 
 bool
-Copper::findHorizontalMatchNew(u32 &match, u32 comp, u32 mask) const
+Copper::findMatch(Beam &match) const
 {
+    // Start searching at the current beam position
+    u32 beam = (u32)(agnus.pos.v << 8 | agnus.pos.h);
+
+    // Get the comparison position and the comparison mask
+    u32 comp = getVPHP();
+    u32 mask = getVMHM();
+
+    // Iterate through all lines starting from the current position
+    isize numLines = agnus.frame.numLines();
+    while ((isize)(beam >> 8) < numLines) {
+
+        // Check if the vertical components are equal
+        if ((beam & mask & ~0xFF) == (comp & mask & ~0xFF)) {
+
+            // trace(true, "Matching vertically: beam = %X comp = %X mask = %X\n", beam, comp, mask);
+
+            // Try to match the horizontal coordinate as well
+            if (findHorizontalMatch(beam, comp, mask)) {
+
+                // Success
+                match.v = beam >> 8;
+                match.h = beam & 0xFF;
+                return true;
+            }
+        }
+
+        // Check if the vertical beam position is greater
+        else if ((beam & mask & ~0xFF) > (comp & mask & ~0xFF)) {
+
+            // Success
+            match.v = beam >> 8;
+            match.h = beam & 0xFF;
+            return true;
+        }
+
+        // Jump to the beginning of the next line
+        beam = (beam & ~0xFF) + 0x100;
+    }
+
+    return false;
+}
+
+bool
+Copper::findHorizontalMatchOld(u32 &match, u32 comp, u32 mask) const
+{
+    // The maximum horizontal trigger positon is $E1 in PAL machines
+    const u32 maxhpos = 0xE1;
+    
     // Iterate through all horizontal positions
-    for (u32 beam = match; (beam & 0xFF) < HPOS_CNT; beam++) {
+    for (u32 beam = match; (beam & 0xFF) < maxhpos; beam++) {
 
         // Check if the comparator triggers at this position
         if ((beam & mask) >= (comp & mask)) {
@@ -267,19 +168,51 @@ Copper::findHorizontalMatchNew(u32 &match, u32 comp, u32 mask) const
     return false;
 }
 
+bool
+Copper::findHorizontalMatch(u32 &match, u32 comp, u32 mask) const
+{
+    u32 v = match & 0x1FF00;
+    u32 h = match & 0x000FF;
+        
+    // Iterate through all horizontal positions execept the last three
+    for (auto i = h + 2; i <= 0xE1; i++, h++) {
+
+        // Check if the comparator triggers at this position
+        if (((v | i) & mask) >= (comp & mask)) {
+
+            match = v | h;
+            return true;
+        }
+    }
+    
+    // Iterate through the last three cycles with a wrapped over counter
+    for (auto i = 0; i <= 2; i++, h++) {
+
+        // Check if the comparator triggers at this position
+        if (((v | i) & mask) >= (comp & mask)) {
+
+            match = v | h;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void
 Copper::move(u32 addr, u16 value)
 {
-    trace(COP_DEBUG,
-          "COPPC: %X move(%s, $%X) (%d)\n", coppc, regName(addr), value, value);
-
     assert(IS_EVEN(addr));
     assert(addr < 0x1FF);
+    
+    trace(COP_DEBUG,
+          "COPPC: %X move(%s, $%X) (%d)\n", coppc0, Memory::regName(addr), value, value);
 
     // Catch registers with special timing needs
     if (addr >= 0x180 && addr <= 0x1BE) {
 
-        trace(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, regName(addr), value);
+        trace(OCSREG_DEBUG,
+              "pokeCustom16(%X [%s], %X)\n", addr, Memory::regName(addr), value);
 
         // Color registers
         pixelEngine.colChanges.insert(4 * agnus.pos.h, RegChange { addr, value} );
@@ -287,9 +220,10 @@ Copper::move(u32 addr, u16 value)
     }
 
     // Write the value
-    agnus.doCopperDMA(addr, value);
+    agnus.doCopperDmaWrite(addr, value);
 }
 
+/*
 bool
 Copper::comparator(Beam beam, u16 waitpos, u16 mask) const
 {
@@ -328,45 +262,103 @@ Copper::comparator() const
 {
     return comparator(agnus.pos);
 }
+*/
+
+bool
+Copper::runComparator() const
+{
+    return runComparator(agnus.pos);
+}
+
+bool
+Copper::runComparator(Beam beam) const
+{
+    return runComparator(beam, getVPHP(), getVMHM());
+}
+
+bool
+Copper::runComparator(Beam beam, u16 waitpos, u16 mask) const
+{    
+    // Compare vertical position
+    if ((beam.v & HI_BYTE(mask)) < HI_BYTE(waitpos & mask)) return false;
+    if ((beam.v & HI_BYTE(mask)) > HI_BYTE(waitpos & mask)) return true;
+    
+    // Compare horizontal position
+    return runHorizontalComparator(beam, waitpos, mask);
+}
+
+bool
+Copper::runHorizontalComparator(Beam beam, u16 waitpos, u16 mask) const
+{
+    if (beam.h < 0xE0) {
+        return ((beam.h + 0x02) & mask) >= (waitpos & 0xFF & mask);
+    } else {
+        return ((beam.h - 0xE0) & mask) >= (waitpos & 0xFF & mask);
+    }
+}
 
 void
 Copper::scheduleWaitWakeup(bool bfd)
 {
     Beam trigger;
-
-    // Find the trigger position for this WAIT command
-    if (findMatchNew(trigger)) {
-
-        // In how many cycles do we get there?
-        int delay = trigger - agnus.pos;
-
-        // msg("(%d,%d) matches in %d cycles\n", trigger.v, trigger.h, delay);
-
-        if (delay == 0) {
-
-            // Copper does not stop
-            agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(2), COP_FETCH);
-
-        } else if (delay == 2) {
-
-            // Copper does not stop
-            agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(2), COP_FETCH);
-
-        } else {
-
-            // Wake up 2 cycles earlier with a WAKEUP event
-            delay -= 2;
-            if (bfd) {
-                agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(delay), COP_WAKEUP);
+    
+    if constexpr (LEGACY_COPPER) {
+        
+        // Find the trigger position for this WAIT command
+        if (findMatchOld(trigger)) {
+            
+            // In how many cycles do we get there?
+            isize delay = trigger - agnus.pos;
+            
+            if (delay == 0) {
+                
+                // Copper does not stop
+                agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(2), COP_FETCH);
+                
+            } else if (delay == 2) {
+                
+                // Copper does not stop
+                agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(2), COP_FETCH);
+                
             } else {
-                agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(delay), COP_WAKEUP_BLIT);
+                
+                // Wake up 2 cycles earlier with a WAKEUP event
+                delay -= 2;
+                if (bfd) {
+                    agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(delay), COP_WAKEUP);
+                } else {
+                    agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(delay), COP_WAKEUP_BLIT);
+                }
             }
+            
+        } else {
+            
+            agnus.scheduleAbs<SLOT_COP>(NEVER, COP_REQ_DMA);
         }
-
+        
     } else {
-
-        // msg("(%d,%d) does not match in this frame\n", trigger.v, trigger.h);
-        agnus.scheduleAbs<SLOT_COP>(NEVER, COP_REQ_DMA);
+    
+        // Find the trigger position for this WAIT command
+        if (findMatch(trigger)) {
+            
+            // In how many cycles do we get there?
+            isize delay = trigger - agnus.pos;
+            
+            if (delay == 0) {
+                
+                EventID event = COP_FETCH;
+                agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(2), event);
+                
+            } else {
+                
+                EventID event = bfd ? COP_WAKEUP : COP_WAKEUP_BLIT;
+                agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(delay), event);
+            }
+            
+        } else {
+            
+            agnus.scheduleAbs<SLOT_COP>(NEVER, COP_REQ_DMA);
+        }
     }
 }
 
@@ -398,6 +390,21 @@ bool Copper::isWaitCmd(u32 addr) const
     u16 loword = mem.spypeek16 <ACCESSOR_AGNUS> (addr + 2);
 
     return IS_ODD(hiword) && IS_EVEN(loword);
+}
+
+bool Copper::isSkipCmd() const
+{
+     return (cop1ins & 1) && (cop2ins & 1);
+}
+
+bool Copper::isSkipCmd(u32 addr) const
+{
+    assert(IS_EVEN(addr));
+
+    u16 hiword = mem.spypeek16 <ACCESSOR_AGNUS> (addr);
+    u16 loword = mem.spypeek16 <ACCESSOR_AGNUS> (addr + 2);
+
+    return IS_ODD(hiword) && IS_ODD(loword);
 }
 
 u16
@@ -492,14 +499,14 @@ Copper::vsyncHandler()
      */
     agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(0), COP_VBLANK);
     
-    if (COP_CHECKSUM) {
+    if constexpr (COP_CHECKSUM) {
         
         if (checkcnt) {
             msg("[%lld] Checksum: %x (%lld) lc1 = %x lc2 = %x\n",
                 agnus.frame.nr, checksum, checkcnt, cop1lc, cop2lc);
         }
         checkcnt = 0;
-        checksum = util::fnv_1a_init32();
+        checksum = util::fnvInit32();
     }
 }
 

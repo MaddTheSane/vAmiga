@@ -10,13 +10,16 @@
 #pragma once
 
 #include "CPUTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "Moira.h"
 
 class CPU : public moira::Moira {
 
+    // The current configuration
+    CPUConfig config = {};
+
     // Result of the latest inspection
-    CPUInfo info;
+    mutable CPUInfo info = {};
 
     
     //
@@ -27,13 +30,91 @@ public:
 
     CPU(Amiga& ref);
 
-    const char *getDescription() const override { return "CPU"; }
+    
+    //
+    // Methods from AmigaObject
+    //
     
 private:
     
-    void _initialize() override;
-    void _reset(bool hard) override;
+    const char *getDescription() const override { return "CPU"; }
+    void _dump(Category category, std::ostream& os) const override;
+
     
+    //
+    // Methods from AmigaComponent
+    //
+    
+private:
+    
+    void _reset(bool hard) override;
+    void _inspect() const override;
+    void _debugOn() override;
+    void _debugOff() override;
+    void _inspect(u32 dasmStart) const;
+    
+    template <class T>
+    void applyToPersistentItems(T& worker)
+    {
+        worker
+
+        << config.regResetVal;
+    }
+
+    template <class T>
+    void applyToResetItems(T& worker, bool hard = true)
+    {
+        if (hard) {
+            
+            worker
+            
+            << flags
+            << clock
+            
+            << reg.pc
+            << reg.pc0
+            << reg.sr.t
+            << reg.sr.s
+            << reg.sr.x
+            << reg.sr.n
+            << reg.sr.z
+            << reg.sr.v
+            << reg.sr.c
+            << reg.sr.ipl
+            << reg.r
+            << reg.usp
+            << reg.ssp
+            << reg.ipl
+            
+            << queue.irc
+            << queue.ird
+            
+            << ipl
+            << fcl
+            << exception;
+        }
+    }
+
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize didLoadFromBuffer(const u8 *buffer) override;
+    
+    
+    //
+    // Configuring
+    //
+    
+public:
+    
+    static CPUConfig getDefaultConfig();
+    const CPUConfig &getConfig() const { return config; }
+    void resetConfig() override;
+    
+    i64 getConfigItem(Option option) const;
+    void setConfigItem(Option option, i64 value);
+ 
     
     //
     // Analyzing
@@ -41,115 +122,9 @@ private:
     
 public:
     
-    CPUInfo getInfo() { return HardwareComponent::getInfo(info); }
+    CPUInfo getInfo() const { return AmigaComponent::getInfo(info); }
         
-private:
-    
-    void _inspect() override;
-    void _inspect(u32 dasmStart);
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-        worker
-
-        << flags
-        << clock
-
-        << reg.pc
-        << reg.pc0
-        << reg.sr.t
-        << reg.sr.s
-        << reg.sr.x
-        << reg.sr.n
-        << reg.sr.z
-        << reg.sr.v
-        << reg.sr.c
-        << reg.sr.ipl
-        << reg.r
-        << reg.usp
-        << reg.ssp
-        << reg.ipl
-
-        << queue.irc
-        << queue.ird
-
-        << ipl
-        << fcl
-        << exception;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
-    }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-
-
-    //
-    // Controlling
-    //
-    
-private:
-
-    void _debugOn() override;
-    void _debugOff() override;
-
-        
-    //
-    // Talking to Moira
-    //
-
-private:
-
-    /*
-    void sync(int cycles) override;
-    u8 read8(u32 addr) override;
-    u16 read16(u32 addr) override;
-    u16 read16OnReset(u32 addr) override;
-    u16 read16Dasm(u32 addr) override;
-    void write8 (u32 addr, u8  val) override;
-    void write16 (u32 addr, u16 val) override;
-    u16 readIrqUserVector(u8 level) const override { return 0; }
- 
-    void signalReset() override;
-    void signalStop(u16 op) override;
-    void signalTAS() override;
-    
-    void signalHalt() override;
-    
-    void signalAddressError(moira::AEStackFrame &frame) override;
-    void signalLineAException(u16 opcode) override;
-    void signalLineFException(u16 opcode) override;
-    void signalIllegalOpcodeException(u16 opcode) override;
-    void signalTraceException() override;
-    void signalTrapException() override;
-    void signalPrivilegeViolation() override;
-    void signalInterrupt(u8 level) override;
-    
-    void signalJumpToVector(int nr, u32 addr) override;
-    
-    void breakpointReached(u32 addr) override;
-    void watchpointReached(u32 addr) override;
-    */
-    
     //
     // Working with the clock
     //
@@ -184,4 +159,38 @@ public:
     // Disassembles the currently executed instruction
     const char *disassembleInstr(isize *len);
     const char *disassembleWords(isize len);
+    
+    
+    //
+    // Changing state
+    //
+    
+    // Continues program execution at the specified address
+    void jump(u32 addr);
+    
+    
+    //
+    // Debugging
+    //
+    
+    // Manages the breakpoint list
+    void setBreakpoint(u32 addr) throws;
+    void deleteBreakpoint(isize nr) throws;
+    void enableBreakpoint(isize nr) throws;
+    void disableBreakpoint(isize nr) throws;
+    void ignoreBreakpoint(isize nr, isize count) throws;
+
+    // Manages the watchpoint list
+    void setWatchpoint(u32 addr) throws;
+    void deleteWatchpoint(isize nr) throws;
+    void enableWatchpoint(isize nr) throws;
+    void disableWatchpoint(isize nr) throws;
+    void ignoreWatchpoint(isize nr, isize count) throws;
+
+    // Manages the catchpoint list
+    void setCatchpoint(u8 vector) throws;
+    void deleteCatchpoint(isize nr) throws;
+    void enableCatchpoint(isize nr) throws;
+    void disableCatchpoint(isize nr) throws;
+    void ignoreCatchpoint(isize nr, isize count) throws;
 };

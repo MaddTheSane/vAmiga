@@ -11,7 +11,7 @@
 
 #include "MuxerTypes.h"
 
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "AudioStream.h"
 #include "AudioFilter.h"
 #include "Chrono.h"
@@ -39,22 +39,22 @@
  *           -----------------------------------------------------
  */
 
-class Muxer : public AmigaComponent {
+class Muxer : public SubComponent {
 
     // Current configuration
-    MuxerConfig config;
+    MuxerConfig config = {};
     
     // Underflow and overflow counters
-    MuxerStats stats;
+    MuxerStats stats = {};
 
     // Sample rate in Hz
-    double sampleRate = 0;
+    double sampleRate = 0.0;
     
     // Master clock cycles per audio sample
-    double cyclesPerSample = 0;
+    double cyclesPerSample = 0.0;
 
     // Fraction of a sample that hadn't been generated in synthesize
-    double fraction;
+    double fraction = 0.0;
 
     // Time stamp of the last write pointer alignment
     util::Time lastAlignment;
@@ -78,7 +78,13 @@ class Muxer : public AmigaComponent {
 public:
 
     // Inputs (one Sampler for each of the four channels)
-    Sampler *sampler[4];
+    Sampler sampler[4] = {
+        
+        Sampler(),
+        Sampler(),
+        Sampler(),
+        Sampler()
+    };
 
     // Output
     AudioStream<SampleType> stream;
@@ -95,58 +101,28 @@ public:
 public:
     
     Muxer(Amiga& ref);
-    ~Muxer();
-
-    const char *getDescription() const override { return "Muxer"; }
 
     // Resets the output buffer and the two audio filters
     void clear();
 
+
+    //
+    // Methods from AmigaObject
+    //
+    
 private:
     
-    void _initialize() override;
+    const char *getDescription() const override { return "Muxer"; }
+    void _dump(Category category, std::ostream& os) const override;
+    
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
+private:
+    
     void _reset(bool hard) override;
-    
-    
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    const MuxerConfig &getConfig() const { return config; }
-
-    i64 getConfigItem(Option option) const;
-    i64 getConfigItem(Option option, long id) const;
-    bool setConfigItem(Option option, i64 value) override;
-    bool setConfigItem(Option option, long id, i64 value) override;
-
-    bool isMuted() const { return config.volL == 0 && config.volR == 0; }
-
-    double getSampleRate() const { return sampleRate; }
-    void setSampleRate(double hz);
-
-
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    // Returns information about the gathered statistical information
-    MuxerStats getStats() const { return stats; }
-    
-private:
-    
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-        
-    //
-    // Serializing
-    //
-    
-private:
     
     template <class T>
     void applyToPersistentItems(T& worker)
@@ -165,25 +141,54 @@ private:
         << volL
         << volR;
     }
-    
+        
     template <class T>
-    void applyToHardResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
+        
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
     
     
     //
-    // Controlling the volume
+    // Configuring
+    //
+    
+public:
+    
+    static MuxerConfig getDefaultConfig();
+    const MuxerConfig &getConfig() const { return config; }
+    void resetConfig() override;
+    
+    i64 getConfigItem(Option option) const;
+    i64 getConfigItem(Option option, long id) const;
+    void setConfigItem(Option option, i64 value);
+    void setConfigItem(Option option, long id, i64 value);
+
+    double getSampleRate() const { return sampleRate; }
+    void setSampleRate(double hz);
+
+
+    //
+    // Analyzing
+    //
+    
+public:
+    
+    // Returns information about the gathered statistical information
+    const MuxerStats &getStats() const { return stats; }
+
+    // Returns true if the output volume is zero
+    bool isMuted() const { return config.volL == 0 && config.volR == 0; }
+
+        
+    //
+    // Controlling volume
     //
     
 public:
@@ -238,7 +243,7 @@ public:
      * without copying data. This function has been implemented for speedup.
      * Instead of copying ring buffer data into the target buffer, it returns
      * a pointer into the ringbuffer itself. The caller has to make sure that
-     * the ring buffer buffer read pointer is not closer than n elements to the
+     * the ring buffer's read pointer is not closer than n elements to the
      * buffer end.
      */
     SampleType *nocopy(isize n);

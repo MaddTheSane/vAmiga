@@ -7,6 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+import AppKit
+
 class ConfigurationController: DialogController {
 
     var config: Configuration { return parent.config }
@@ -22,22 +24,29 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var romTitle: NSTextField!
     @IBOutlet weak var romSubtitle: NSTextField!
     @IBOutlet weak var romSubsubtitle: NSTextField!
+    @IBOutlet weak var romModel: NSTextField!
     @IBOutlet weak var romDeleteButton: NSButton!
 
     @IBOutlet weak var extDropView: ExtRomDropView!
     @IBOutlet weak var extTitle: NSTextField!
     @IBOutlet weak var extSubtitle: NSTextField!
     @IBOutlet weak var extSubsubtitle: NSTextField!
+    @IBOutlet weak var extModel: NSTextField!
     @IBOutlet weak var extDeleteButton: NSButton!
     @IBOutlet weak var extMapText: NSTextField!
     @IBOutlet weak var extMapAddr: NSPopUpButton!
 
     @IBOutlet weak var arosButton: NSButton!
 
+    // Explanation
+    @IBOutlet weak var romExpImage: NSButton!
+    @IBOutlet weak var romExpInfo1: NSTextField!
+    @IBOutlet weak var romExpInfo2: NSTextField!
+
     // Lock
     @IBOutlet weak var romLockImage: NSButton!
-    @IBOutlet weak var romLockText: NSTextField!
-    @IBOutlet weak var romLockSubText: NSTextField!
+    @IBOutlet weak var romLockInfo1: NSTextField!
+    @IBOutlet weak var romLockInfo2: NSTextField!
    
     // Buttons
     @IBOutlet weak var romArosButton: NSButton!
@@ -45,42 +54,85 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var romPowerButton: NSButton!
 
     //
-    // Hardware preferences
+    // Chipset preferences
     //
     
-    // Chipset
-    @IBOutlet weak var hwAgnusRevisionPopup: NSPopUpButton!
-    @IBOutlet weak var hwDeniseRevisionPopup: NSPopUpButton!
-    @IBOutlet weak var hwCiaRevisionPopup: NSPopUpButton!
-    @IBOutlet weak var hwRealTimeClock: NSPopUpButton!
+    // CPU
+    @IBOutlet weak var csCpuRevision: NSPopUpButton!
+    @IBOutlet weak var csCpuInfo1: NSTextField!
+    @IBOutlet weak var csCpuInfo2: NSTextField!
+    @IBOutlet weak var csCpuInfo3: NSTextField!
 
-    // Memory
-    @IBOutlet weak var hwChipRamPopup: NSPopUpButton!
-    @IBOutlet weak var hwSlowRamPopup: NSPopUpButton!
-    @IBOutlet weak var hwFastRamPopup: NSPopUpButton!
-    @IBOutlet weak var hwRamInitPattern: NSPopUpButton!
-    @IBOutlet weak var hwBankMap: NSPopUpButton!
-    @IBOutlet weak var hwUnmappingType: NSPopUpButton!
+    // Agnus
+    @IBOutlet weak var csAgnusRevision: NSPopUpButton!
+    @IBOutlet weak var csAgnusInfo1: NSTextField!
+    @IBOutlet weak var csAgnusInfo2: NSTextField!
+    @IBOutlet weak var csAgnusInfo3: NSTextField!
 
-    // Filter
-    @IBOutlet weak var hwFilterType: NSPopUpButton!
-    @IBOutlet weak var hwFilterAlwaysOn: NSButton!
+    // Denise
+    @IBOutlet weak var csDeniseRevision: NSPopUpButton!
+    @IBOutlet weak var csDeniseInfo1: NSTextField!
+    @IBOutlet weak var csDeniseInfo2: NSTextField!
+    @IBOutlet weak var csDeniseInfo3: NSTextField!
+
+    // CIAs
+    @IBOutlet weak var csCiaRevision: NSPopUpButton!
+    @IBOutlet weak var csCiaInfo1: NSTextField!
+    @IBOutlet weak var csCiaInfo2: NSTextField!
+    @IBOutlet weak var csCiaInfo3: NSTextField!
+
+    // RT clock
+    @IBOutlet weak var csRtcRevision: NSPopUpButton!
+    @IBOutlet weak var csRtcInfo1: NSTextField!
+    @IBOutlet weak var csRtcInfo2: NSTextField!
+    @IBOutlet weak var csRtcInfo3: NSTextField!
     
     // Lock
-    @IBOutlet weak var hwLockImage: NSButton!
-    @IBOutlet weak var hwLockText: NSTextField!
-    @IBOutlet weak var hwLockSubText: NSTextField!
+    @IBOutlet weak var csLockImage: NSButton!
+    @IBOutlet weak var csLockInfo1: NSTextField!
+    @IBOutlet weak var csLockInfo2: NSTextField!
 
     // Buttons
-    @IBOutlet weak var hwFactorySettingsPopup: NSPopUpButton!
-    @IBOutlet weak var hwOKButton: NSButton!
-    @IBOutlet weak var hwPowerButton: NSButton!
+    @IBOutlet weak var csFactorySettingsPopup: NSPopUpButton!
+    @IBOutlet weak var csOKButton: NSButton!
+    @IBOutlet weak var csPowerButton: NSButton!
+
+    //
+    // Memory preferences
+    //
+    
+    // RAM
+    @IBOutlet weak var memChipRamPopup: NSPopUpButton!
+    @IBOutlet weak var memSlowRamPopup: NSPopUpButton!
+    @IBOutlet weak var memFastRamPopup: NSPopUpButton!
+    @IBOutlet weak var memRamInitPattern: NSPopUpButton!
+    @IBOutlet weak var memBankMap: NSPopUpButton!
+    @IBOutlet weak var memUnmappingType: NSPopUpButton!
+    
+    // Chipset features
+    @IBOutlet weak var memSlowRamMirror: NSButton!
+    @IBOutlet weak var memSlowRamDelay: NSButton!
+
+    // Warning
+    @IBOutlet weak var memWarnImage: NSButton!
+    @IBOutlet weak var memWarnInfo1: NSTextField!
+    @IBOutlet weak var memWarnInfo2: NSTextField!
+
+    // Lock
+    @IBOutlet weak var memLockImage: NSButton!
+    @IBOutlet weak var memLockInfo1: NSTextField!
+    @IBOutlet weak var memLockInfo2: NSTextField!
+
+    // Buttons
+    @IBOutlet weak var memFactorySettingsPopup: NSPopUpButton!
+    @IBOutlet weak var memOKButton: NSButton!
+    @IBOutlet weak var memPowerButton: NSButton!
 
     //
     // Peripherals preferences
     //
 
-    // Drive
+    // Flopp drives
     @IBOutlet weak var perDf0Type: NSPopUpButton!
     @IBOutlet weak var perDf1Connect: NSButton!
     @IBOutlet weak var perDf1Type: NSPopUpButton!
@@ -89,19 +141,27 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var perDf3Connect: NSButton!
     @IBOutlet weak var perDf3Type: NSPopUpButton!
 
-    // Disks
-    @IBOutlet weak var perDriveBlankDiskFormat: NSPopUpButton!
-    @IBOutlet weak var perBootCode: NSPopUpButton!
-    
+    // Hard drives
+    @IBOutlet weak var perHd0Connect: NSButton!
+    @IBOutlet weak var perHd0Type: NSPopUpButton!
+    @IBOutlet weak var perHd1Connect: NSButton!
+    @IBOutlet weak var perHd1Type: NSPopUpButton!
+    @IBOutlet weak var perHd2Connect: NSButton!
+    @IBOutlet weak var perHd2Type: NSPopUpButton!
+    @IBOutlet weak var perHd3Connect: NSButton!
+    @IBOutlet weak var perHd3Type: NSPopUpButton!
+
     // Ports
     @IBOutlet weak var perGameDevice1: NSPopUpButton!
     @IBOutlet weak var perGameDevice2: NSPopUpButton!
     @IBOutlet weak var perSerialDevice: NSPopUpButton!
+    @IBOutlet weak var perSerialPort: NSTextField!
+    @IBOutlet weak var perSerialPortText: NSTextField!
 
     // Lock
     @IBOutlet weak var perLockImage: NSButton!
-    @IBOutlet weak var perLockText: NSTextField!
-    @IBOutlet weak var perLockSubText: NSTextField!
+    @IBOutlet weak var perLockInfo1: NSTextField!
+    @IBOutlet weak var perLockInfo2: NSTextField!
     
     // Buttons
     @IBOutlet weak var perFactorySettingsPopup: NSPopUpButton!
@@ -123,13 +183,10 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var compBltLevel1: NSTextField!
 
     // Chipset features
-    @IBOutlet weak var compSlowRamMirror: NSButton!
-    @IBOutlet weak var compBorderBlank: NSButton!
     @IBOutlet weak var compTodBug: NSButton!
 
     // Timing
     @IBOutlet weak var compEClockSyncing: NSButton!
-    @IBOutlet weak var compSlowRamDelay: NSButton!
     
     // Disk controller
     @IBOutlet weak var compDriveSpeed: NSPopUpButton!
@@ -139,10 +196,6 @@ class ConfigurationController: DialogController {
 
     // Keyboard
     @IBOutlet weak var compAccurateKeyboard: NSButton!
-
-    // Lock
-    @IBOutlet weak var compLockText: NSTextField!
-    @IBOutlet weak var compLockSubText: NSTextField!
 
     // Buttons
     @IBOutlet weak var compOKButton: NSButton!
@@ -168,14 +221,22 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var audSamplingMethod: NSPopUpButton!
 
     // Drive volumes
-    @IBOutlet weak var audDf0Pan: NSSlider!
-    @IBOutlet weak var audDf1Pan: NSSlider!
-    @IBOutlet weak var audDf2Pan: NSSlider!
-    @IBOutlet weak var audDf3Pan: NSSlider!
     @IBOutlet weak var audStepVolume: NSSlider!
     @IBOutlet weak var audPollVolume: NSSlider!
     @IBOutlet weak var audEjectVolume: NSSlider!
     @IBOutlet weak var audInsertVolume: NSSlider!
+    @IBOutlet weak var audDf0Pan: NSSlider!
+    @IBOutlet weak var audDf1Pan: NSSlider!
+    @IBOutlet weak var audDf2Pan: NSSlider!
+    @IBOutlet weak var audDf3Pan: NSSlider!
+    @IBOutlet weak var audHd0Pan: NSSlider!
+    @IBOutlet weak var audHd1Pan: NSSlider!
+    @IBOutlet weak var audHd2Pan: NSSlider!
+    @IBOutlet weak var audHd3Pan: NSSlider!
+
+    // Filter
+    @IBOutlet weak var audFilterType: NSPopUpButton!
+    @IBOutlet weak var audFilterAlwaysOn: NSButton!
 
     // Buttons
     @IBOutlet weak var audOKButton: NSButton!
@@ -217,6 +278,8 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var vidMisalignmentYSlider: NSSlider!
     
     // Geometry
+    @IBOutlet weak var vidHAutoCenter: NSButton!
+    @IBOutlet weak var vidVAutoCenter: NSButton!
     @IBOutlet weak var vidHCenter: NSSlider!
     @IBOutlet weak var vidVCenter: NSSlider!
     @IBOutlet weak var vidHZoom: NSSlider!
@@ -227,9 +290,9 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var vidPowerButton: NSButton!
 
     var bootable: Bool {
-        let off   = amiga.poweredOff
-        let ready = amiga.isReady()
-        return off && ready
+        
+        do { try amiga.isReady() } catch { return false }
+        return amiga.poweredOff
     }
     
     // The tab to open first
@@ -259,7 +322,8 @@ class ConfigurationController: DialogController {
             
             switch id {
             case "Roms": refreshRomTab()
-            case "Hardware": refreshHardwareTab()
+            case "Chipset": refreshChipsetTab()
+            case "Memory": refreshMemoryTab()
             case "Peripherals": refreshPeripheralsTab()
             case "Compatibility": refreshCompatibilityTab()
             case "Audio": refreshAudioTab()
@@ -284,6 +348,7 @@ class ConfigurationController: DialogController {
     @IBAction func powerAction(_ sender: Any!) {
         
         hideSheet()
+        amiga.powerOn()
         try? amiga.run()
     }
 }

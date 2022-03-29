@@ -31,18 +31,16 @@ enum_long(INT_SOURCE)
     INT_AUD3,
     INT_RBF,
     INT_DSKSYN,
-    INT_EXTER,
-    INT_COUNT
+    INT_EXTER
 };
 typedef INT_SOURCE IrqSource;
 
 #ifdef __cplusplus
-struct IrqSourceEnum : util::Reflection<IrqSourceEnum, IrqSource> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < INT_COUNT;
-    }
+struct IrqSourceEnum : util::Reflection<IrqSourceEnum, IrqSource>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return INT_EXTER; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "INT"; }
     static const char *key(IrqSource value)
@@ -63,7 +61,6 @@ struct IrqSourceEnum : util::Reflection<IrqSourceEnum, IrqSource> {
             case INT_RBF:     return "RBF";
             case INT_DSKSYN:  return "DSKSYN";
             case INT_EXTER:   return "EXTER";
-            case INT_COUNT:   return "???";
         }
         return "???";
     }

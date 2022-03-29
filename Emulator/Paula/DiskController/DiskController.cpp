@@ -10,28 +10,13 @@
 #include "config.h"
 #include "DiskController.h"
 #include "Agnus.h"
-#include "DiskFile.h"
-#include "Drive.h"
-#include "IO.h"
+#include "ADFFile.h"
+#include "FloppyDrive.h"
+#include "IOUtils.h"
 #include "MsgQueue.h"
 #include "Paula.h"
+#include "Thread.h"
 #include <algorithm>
-
-DiskController::DiskController(Amiga& ref) : AmigaComponent(ref)
-{
-}
-
-void
-DiskController::_initialize()
-{
-    config.connected[0] = true;
-    config.connected[1] = false;
-    config.connected[2] = false;
-    config.connected[3] = false;
-    config.speed = 1;
-    config.lockDskSync = false;
-    config.autoDskSync = false;
-}
 
 void
 DiskController::_reset(bool hard)
@@ -40,11 +25,36 @@ DiskController::_reset(bool hard)
     
     prb = 0xFF;
     selected = -1;
-    dsksync = 0x4489;
+    dsksync = 0x4489;    
+}
+
+DiskControllerConfig
+DiskController::getDefaultConfig()
+{
+    DiskControllerConfig defaults;
     
-    if (hard) {
-        assert(diskToInsert == nullptr);
+    defaults.connected[0] = true;
+    defaults.connected[1] = false;
+    defaults.connected[2] = false;
+    defaults.connected[3] = false;
+    defaults.speed = 1;
+    defaults.lockDskSync = false;
+    defaults.autoDskSync = false;
+    
+    return defaults;
+}
+
+void
+DiskController::resetConfig()
+{
+    auto defaults = getDefaultConfig();
+    
+    for (isize i = 0; i < 4; i++) {
+        setConfigItem(OPT_DRIVE_CONNECT, i, defaults.connected[i]);
     }
+    setConfigItem(OPT_DRIVE_SPEED, defaults.speed);
+    setConfigItem(OPT_AUTO_DSKSYNC, defaults.lockDskSync);
+    setConfigItem(OPT_LOCK_DSKSYNC, defaults.autoDskSync);
 }
 
 i64
@@ -55,10 +65,9 @@ DiskController::getConfigItem(Option option) const
         case OPT_DRIVE_SPEED:   return config.speed;
         case OPT_AUTO_DSKSYNC:  return config.autoDskSync;
         case OPT_LOCK_DSKSYNC:  return config.lockDskSync;
-        
+            
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
@@ -70,115 +79,75 @@ DiskController::getConfigItem(Option option, long id) const
         case OPT_DRIVE_CONNECT:  return config.connected[id];
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 DiskController::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_DRIVE_SPEED:
-            
-            #ifdef FORCE_DRIVE_SPEED
-            value = FORCE_DRIVE_SPEED;
-            warn("Overriding drive speed: %lld\n", value);
-            #endif
-            
-            if (!isValidDriveSpeed(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, "-1, 1, 2, 4, 8");
-            }
-            if (config.speed == value) {
-                return false;
+        {
+            if (!isValidDriveSpeed((isize)value)) {
+                throw VAError(ERROR_OPT_INVARG, "-1, 1, 2, 4, 8");
             }
             
+            SUSPENDED
             config.speed = (i32)value;
             scheduleFirstDiskEvent();
-            return true;
-                        
+            return;
+        }
         case OPT_AUTO_DSKSYNC:
-
-            if (config.autoDskSync == value) {
-                return false;
-            }
-
+            
             config.autoDskSync = value;
-            return true;
+            return;
             
         case OPT_LOCK_DSKSYNC:
             
-            if (config.lockDskSync == value) {
-                return false;
-            }
-            
             config.lockDskSync = value;
-            return true;
+            return;
             
         default:
-            return false;
+            fatalError;
     }
 }
 
-bool
+void
 DiskController::setConfigItem(Option option, long id, i64 value)
 {
-    switch (option) {
-            
+    switch (option)
+    {
         case OPT_DRIVE_CONNECT:
             
             assert(id >= 0 && id <= 3);
             
             // We don't allow the internal drive (Df0) to be disconnected
-            if (id == 0 && value == false) return false;
+            if (id == 0 && value == false) return;
             
             // Connect or disconnect the drive
             config.connected[id] = value;
             
             // Inform the GUI
-            messageQueue.put(value ? MSG_DRIVE_CONNECT : MSG_DRIVE_DISCONNECT, id);
-            messageQueue.put(MSG_CONFIG);
-            return true;
+            msgQueue.put(value ? MSG_DRIVE_CONNECT : MSG_DRIVE_DISCONNECT, id);
+            return;
             
         default:
-            return false;
+            fatalError;
     }
 }
 
-const string &
-DiskController::getSearchPath(isize dfn) const
-{
-    assert(dfn >= 0 && dfn <= 3);
-    return searchPath[dfn];
-}
-
 void
-DiskController::setSearchPath(const string &path, isize dfn)
+DiskController::_inspect() const
 {
-    assert(dfn >= 0 && dfn <= 3);
-    searchPath[dfn] = path;
-}
+    {   SYNCHRONIZED
 
-void
-DiskController::setSearchPath(const string &path)
-{
-    searchPath[0] = path;
-    searchPath[1] = path;
-    searchPath[2] = path;
-    searchPath[3] = path;
-}
-
-void
-DiskController::_inspect()
-{
-    synchronized {
-        
         info.selectedDrive = selected;
         info.state = state;
         info.fifoCount = fifoCount;
         info.dsklen = dsklen;
-        info.dskbytr =  computeDSKBYTR();
+        info.dskbytr = computeDSKBYTR();
         info.dsksync = dsksync;
         info.prb = prb;
         
@@ -189,11 +158,11 @@ DiskController::_inspect()
 }
 
 void
-DiskController::_dump(dump::Category category, std::ostream& os) const
+DiskController::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
-        
-    if (category & dump::Config) {
+    
+    if (category == Category::Config) {
         
         os << tab("Drive df0");
         os << bol(config.connected[0], "connected", "disconnected") << std::endl;
@@ -210,8 +179,8 @@ DiskController::_dump(dump::Category category, std::ostream& os) const
         os << tab("autoDskSync");
         os << bol(config.autoDskSync) << std::endl;
     }
-    
-    if (category & dump::State) {
+            
+    if (category == Category::State) {
         
         os << tab("selected");
         os << dec(selected) << std::endl;
@@ -231,18 +200,10 @@ DiskController::_dump(dump::Category category, std::ostream& os) const
         os << hex(prb) << std::endl;
         os << tab("spinning");
         os << bol(spinning()) << std::endl;
-        os << tab("Search paths df0");
-        os << "\"" << searchPath[0] << "\"" << std::endl;
-        os << tab("Search paths df1");
-        os << "\"" << searchPath[1] << "\"" << std::endl;
-        os << tab("Search paths df2");
-        os << "\"" << searchPath[2] << "\"" << std::endl;
-        os << tab("Search paths df3");
-        os << "\"" << searchPath[3] << "\"" << std::endl;
     }
 }
 
-Drive *
+FloppyDrive *
 DiskController::getSelectedDrive()
 {
     assert(selected < 4);
@@ -277,72 +238,57 @@ DiskController::setState(DriveState oldState, DriveState newState)
     state = newState;
     
     switch (state) {
-
+            
         case DRIVE_DMA_OFF:
+            
             dsklen = 0;
             break;
             
         case DRIVE_DMA_WRITE:
-            messageQueue.put(MSG_DRIVE_WRITE, selected);
+            
+            msgQueue.put(MSG_DRIVE_WRITE, selected);
             break;
             
         default:
+            
             if (oldState == DRIVE_DMA_WRITE)
-                messageQueue.put(MSG_DRIVE_READ, selected);
+                msgQueue.put(MSG_DRIVE_READ, selected);
     }
 }
 
+/*
 void
 DiskController::ejectDisk(isize nr, Cycle delay)
 {
     assert(nr >= 0 && nr <= 3);
 
-    suspend();
-    agnus.scheduleRel<SLOT_DCH>(delay, DCH_EJECT, nr);
-    resume();
+    warn("DiskController::ejectDisk(...) has been deprecated.\n");
+    warn("Use Drive::ejectDisk() instead.\n");
+
+    df[nr]->ejectDisk(delay);
 }
 
 void
-DiskController::insertDisk(class Disk *disk, isize nr, Cycle delay)
+DiskController::insertDisk(std::unique_ptr<Disk> disk, isize nr, Cycle delay)
 {
     assert(disk != nullptr);
     assert(nr >= 0 && nr <= 3);
 
-    debug(DSK_DEBUG, "insertDisk(%p, %zd, %lld)\n", disk, nr, delay);
+    warn("DiskController::insertDisk(...) has been deprecated.\n");
+    warn("Use Drive::insertDisk(...) instead.\n");
 
-    // The easy case: The emulator is not running
-    if (!isRunning()) {
-
-        df[nr]->ejectDisk();
-        df[nr]->insertDisk(disk);
-        return;
-    }
-
-    // The not so easy case: The emulator is running
-    suspend();
-
-    if (df[nr]->hasDisk()) {
-
-        // Eject the old disk first
-        df[nr]->ejectDisk();
-
-        // Make sure there is enough time between ejecting and inserting.
-        // Otherwise, the Amiga might not detect the change.
-        delay = std::max((Cycle)SEC(1.5), delay);
-    }
-
-    diskToInsert = disk;
-    agnus.scheduleRel<SLOT_DCH>(delay, DCH_INSERT, nr);
-    
-    resume();
+    df[nr]->insertDisk(std::move(disk), delay);
 }
 
 void
-DiskController::insertDisk(class DiskFile *file, isize nr, Cycle delay)
+DiskController::insertDisk(class FloppyFile &file, isize nr, Cycle delay)
 {
-    if (Disk *disk = Disk::makeWithFile(file)) {
-        insertDisk(disk, nr, delay);
-    }
+    assert(nr >= 0 && nr <= 3);
+    
+    warn("DiskController::insertDisk(...) has been deprecated.\n");
+    warn("Use Drive::swapDisk(...) instead.\n");
+
+    df[nr]->swapDisk(file);
 }
 
 void
@@ -350,19 +296,29 @@ DiskController::insertDisk(const string &name, isize nr, Cycle delay)
 {
     assert(nr >= 0 && nr <= 3);
     
-    bool append = !util::isAbsolutePath(name) && searchPath[nr] != "";
-    string path = append ? searchPath[nr] + "/" + name : name;
-            
-    if (DiskFile *file = DiskFile::make(path)) {
-        insertDisk(file, nr, delay);
-    }
+    warn("DiskController::insertDisk(...) has been deprecated.\n");
+    warn("Use Drive::swapDisk(...) instead.\n");
+
+    df[nr]->swapDisk(name);
 }
+
+void
+DiskController::insertNew(isize nr, Cycle delay)
+{
+    assert(nr >= 0 && nr <= 3);
+    
+    warn("DiskController::insertNew(...) has been deprecated.\n");
+    warn("Use Drive::swapDisk(...) instead.\n");
+    
+    df[nr]->insertNew();
+}
+*/
 
 void
 DiskController::setWriteProtection(isize nr, bool value)
 {
     assert(nr >= 0 && nr <= 3);
-    df[nr]->setWriteProtection(value);
+    df[nr]->setProtectionFlag(value);
 }
 
 void
@@ -401,7 +357,7 @@ DiskController::writeFifo(u8 byte)
     if (fifoCount == 6) fifoCount -= 2;
     
     // Add the new byte
-    fifo = (fifo << 8) | byte;
+    fifo = (fifo & 0x00FF'FFFF'FFFF'FFFF) << 8 | byte;
     fifoCount++;
 }
 
@@ -409,20 +365,20 @@ bool
 DiskController::compareFifo(u16 word) const
 {
     if (fifoHasWord()) {
+        
         for (isize i = 0; i < 8; i++) {
             if ((fifo >> i & 0xFFFF) == word) return true;
         }
     }
     return false;
-    // return fifoHasWord() && (fifo & 0xFFFF) == word;
 }
 
 void
 DiskController::executeFifo()
 {
     // Only proceed if a drive is selected
-    Drive *drive = getSelectedDrive();
-
+    FloppyDrive *drive = getSelectedDrive();
+    
     switch (state) {
             
         case DRIVE_DMA_OFF:
@@ -433,22 +389,23 @@ DiskController::executeFifo()
             incoming = drive ? drive->readByteAndRotate() : 0;
             
             // Write byte into the FIFO buffer
-            writeFifo(incoming);
+            writeFifo((u8)incoming);
             incoming |= 0x8000;
             
             // Check if we've reached a SYNC mark
             if (compareFifo(dsksync) ||
                 (config.autoDskSync && syncCounter++ > 20000)) {
-
+                
                 // Save time stamp
                 syncCycle = agnus.clock;
-
+                
                 // Trigger a word SYNC interrupt
                 trace(DSK_DEBUG, "SYNC IRQ (dsklen = %d)\n", dsklen);
                 paula.raiseIrq(INT_DSKSYN);
-
+                
                 // Enable DMA if the controller was waiting for it
-                if (state == DRIVE_DMA_WAIT) {
+                if (state == DRIVE_DMA_WAIT)
+                {
                     setState(DRIVE_DMA_READ);
                     clearFifo();
                 }
@@ -460,9 +417,7 @@ DiskController::executeFifo()
             
         case DRIVE_DMA_WRITE:
         case DRIVE_DMA_FLUSH:
-            
-            // debug("DRIVE_DMA_WRITE\n");
-            
+                        
             if (fifoIsEmpty()) {
                 
                 // Switch off DMA if the last byte has been flushed out
@@ -483,99 +438,107 @@ DiskController::executeFifo()
 void
 DiskController::performDMA()
 {
-    Drive *drive = getSelectedDrive();
+    FloppyDrive *drive = getSelectedDrive();
     
     // Only proceed if there are remaining bytes to process
     if ((dsklen & 0x3FFF) == 0) return;
-
+    
     // Only proceed if DMA is enabled
     if (state != DRIVE_DMA_READ && state != DRIVE_DMA_WRITE) return;
-
+    
     // How many words shall we read in?
     u32 count = drive ? config.speed : 1;
-
+    
     // Perform DMA
     switch (state) {
             
         case DRIVE_DMA_READ:
+            
             performDMARead(drive, count);
             break;
             
         case DRIVE_DMA_WRITE:
+            
             performDMAWrite(drive, count);
             break;
             
-        default: assert(false);
+        default:
+            fatalError;
     }
 }
 
 void
-DiskController::performDMARead(Drive *drive, u32 remaining)
+DiskController::performDMARead(FloppyDrive *drive, u32 remaining)
 {
     // Only proceed if the FIFO contains enough data
     if (!fifoHasWord()) return;
-
+    
     do {
+        
         // Read next word from the FIFO buffer
         u16 word = readFifo16();
         
         // Write word into memory
-        if (DSK_CHECKSUM) {
+        if constexpr (DSK_CHECKSUM) {
+            
             checkcnt++;
-            check1 = util::fnv_1a_it32(check1, word);
-            check2 = util::fnv_1a_it32(check2, agnus.dskpt & agnus.ptrMask);
+            check1 = util::fnvIt32(check1, word);
+            check2 = util::fnvIt32(check2, agnus.dskpt & agnus.ptrMask);
         }
-        agnus.doDiskDMA(word);
-
+        agnus.doDiskDmaWrite(word);
+        
         // Finish up if this was the last word to transfer
         if ((--dsklen & 0x3FFF) == 0) {
-
+            
             paula.raiseIrq(INT_DSKBLK);
             setState(DRIVE_DMA_OFF);
-
+            
             debug(DSK_CHECKSUM,
                   "read: cnt = %llu check1 = %x check2 = %x\n", checkcnt, check1, check2);
-
+            
             return;
         }
         
         // If the loop repeats, fill the Fifo with new data
         if (--remaining) {
+            
             executeFifo();
             executeFifo();
         }
         
-    } while (remaining);
+    }
+    while (remaining);
 }
 
 void
-DiskController::performDMAWrite(Drive *drive, u32 remaining)
+DiskController::performDMAWrite(FloppyDrive *drive, u32 remaining)
 {
     // Only proceed if the FIFO has enough free space
     if (!fifoCanStoreWord()) return;
-
+    
     do {
+
         // Read next word from memory
-        if (DSK_CHECKSUM) {
+        if constexpr (DSK_CHECKSUM) {
             checkcnt++;
-            check2 = util::fnv_1a_it32(check2, agnus.dskpt & agnus.ptrMask);
+            check2 = util::fnvIt32(check2, agnus.dskpt & agnus.ptrMask);
         }
-        u16 word = agnus.doDiskDMA();
-
-        if (DSK_CHECKSUM) {
-            check1 = util::fnv_1a_it32(check1, word);
+        u16 word = agnus.doDiskDmaRead();
+        
+        if constexpr (DSK_CHECKSUM) {
+            check1 = util::fnvIt32(check1, word);
         }
-
+        
         // Write word into FIFO buffer
         assert(fifoCount <= 4);
         writeFifo(HI_BYTE(word));
         writeFifo(LO_BYTE(word));
-
+        
         // Finish up if this was the last word to transfer
         if ((--dsklen & 0x3FFF) == 0) {
-
+            
             paula.raiseIrq(INT_DSKBLK);
-
+            
             /* The timing-accurate approach: Set state to DRIVE_DMA_FLUSH.
              * The event handler recognises this state and switched to
              * DRIVE_DMA_OFF once the FIFO has been emptied.
@@ -589,19 +552,21 @@ DiskController::performDMAWrite(Drive *drive, u32 remaining)
              * Hence, we play safe here and flush the FIFO immediately.
              */
             while (!fifoIsEmpty()) {
+                
                 u8 value = readFifo();
                 if (drive) drive->writeByteAndRotate(value);
             }
             setState(DRIVE_DMA_OFF);
             
-            debug(DSK_CHECKSUM,
-                  "write: cnt = %llu check1 = %x check2 = %x\n", checkcnt, check1, check2);
+            debug(DSK_CHECKSUM, "write: cnt = %llu ", checkcnt);
+            debug(DSK_CHECKSUM, "check1 = %x check2 = %x\n", check1, check2);
 
             return;
         }
         
         // If the loop repeats, do what the event handler would do in between.
         if (--remaining) {
+            
             executeFifo();
             executeFifo();
             assert(fifoCanStoreWord());
@@ -611,19 +576,19 @@ DiskController::performDMAWrite(Drive *drive, u32 remaining)
 }
 
 void
-DiskController::performTurboDMA(Drive *drive)
+DiskController::performTurboDMA(FloppyDrive *drive)
 {
     // Only proceed if there is anything to read or write
     if ((dsklen & 0x3FFF) == 0) return;
-
+    
     // Perform action depending on DMA state
     switch (state) {
-
+            
         case DRIVE_DMA_WAIT:
-
+            
             drive->findSyncMark();
             [[fallthrough]];
-
+            
         case DRIVE_DMA_READ:
             
             if (drive) performTurboRead(drive);
@@ -642,12 +607,12 @@ DiskController::performTurboDMA(Drive *drive)
     // Trigger disk interrupt with some delay
     Cycle delay = MIMIC_UAE ? 2 * HPOS_CNT - agnus.pos.h + 30 : 512;
     paula.scheduleIrqRel(INT_DSKBLK, DMA_CYCLES(delay));
-
+    
     setState(DRIVE_DMA_OFF);
 }
 
 void
-DiskController::performTurboRead(Drive *drive)
+DiskController::performTurboRead(FloppyDrive *drive)
 {
     for (isize i = 0; i < (dsklen & 0x3FFF); i++) {
         
@@ -655,19 +620,20 @@ DiskController::performTurboRead(Drive *drive)
         u16 word = drive->readWordAndRotate();
         
         // Write word into memory
-        if (DSK_CHECKSUM) {
+        if constexpr (DSK_CHECKSUM) {
+            
             checkcnt++;
-            check1 = util::fnv_1a_it32(check1, word);
-            check2 = util::fnv_1a_it32(check2, agnus.dskpt & agnus.ptrMask);
+            check1 = util::fnvIt32(check1, word);
+            check2 = util::fnvIt32(check2, agnus.dskpt & agnus.ptrMask);
         }
         mem.poke16 <ACCESSOR_AGNUS> (agnus.dskpt, word);
         agnus.dskpt += 2;
     }
     
-    debug(DSK_CHECKSUM, "Turbo read %s: cyl: %d side: %d offset: %d ",
+    debug(DSK_CHECKSUM, "Turbo read %s: cyl: %ld side: %ld offset: %ld ",
           drive->getDescription(),
           drive->head.cylinder,
-          drive->head.side,
+          drive->head.head,
           drive->head.offset);
     
     debug(DSK_CHECKSUM, "checkcnt = %llu check1 = %x check2 = %x\n",
@@ -675,21 +641,22 @@ DiskController::performTurboRead(Drive *drive)
 }
 
 void
-DiskController::performTurboWrite(Drive *drive)
+DiskController::performTurboWrite(FloppyDrive *drive)
 {
     for (isize i = 0; i < (dsklen & 0x3FFF); i++) {
         
         // Read word from memory
         u16 word = mem.peek16 <ACCESSOR_AGNUS> (agnus.dskpt);
         
-        if (DSK_CHECKSUM) {
+        if constexpr (DSK_CHECKSUM) {
+            
             checkcnt++;
-            check1 = util::fnv_1a_it32(check1, word);
-            check2 = util::fnv_1a_it32(check2, agnus.dskpt & agnus.ptrMask);
+            check1 = util::fnvIt32(check1, word);
+            check2 = util::fnvIt32(check2, agnus.dskpt & agnus.ptrMask);
         }
-
+        
         agnus.dskpt += 2;
-
+        
         // Write word to disk
         drive->writeWordAndRotate(word);
     }

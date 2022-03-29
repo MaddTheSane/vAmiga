@@ -10,7 +10,7 @@
 extension ConfigurationController {
 
     func refreshCompatibilityTab() {
-        
+
         // Graphics
         compClxSprSpr.state = config.clxSprSpr ? .on : .off
         compClxSprPlf.state = config.clxSprPlf ? .on : .off
@@ -23,9 +23,6 @@ extension ConfigurationController {
         compBltLevel2.textColor = (level >= 2) ? .labelColor : .tertiaryLabelColor
         
         // Chipset features
-        let ocsAgnus = config.agnusRev == AgnusRevision.OCS.rawValue
-        compSlowRamMirror.state = config.slowRamMirror ? .on : .off
-        compSlowRamMirror.isEnabled = !ocsAgnus
         compTodBug.state = config.todBug ? .on : .off
 
         // Floppy drives
@@ -37,7 +34,6 @@ extension ConfigurationController {
 
         // Timing
         compEClockSyncing.state = config.eClockSyncing ? .on : .off
-        compSlowRamDelay.state = config.slowRamDelay ? .on : .off
 
         // Keyboard
         compAccurateKeyboard.state = config.accurateKeyboard ? .on : .off
@@ -69,13 +65,7 @@ extension ConfigurationController {
         config.blitterAccuracy = sender.integerValue
         refresh()
     }
-    
-    @IBAction func compSlowRamMirrorAction(_ sender: NSButton!) {
-
-        config.slowRamMirror = sender.state == .on
-        refresh()
-    }
-    
+        
     @IBAction func compTodBugAction(_ sender: NSButton!) {
 
         config.todBug = sender.state == .on
@@ -109,12 +99,6 @@ extension ConfigurationController {
     @IBAction func compEClockSyncingAction(_ sender: NSButton!) {
         
         config.eClockSyncing = sender.state == .on
-        refresh()
-    }
-
-    @IBAction func compSlowRamDelayAction(_ sender: NSButton!) {
-
-        config.slowRamDelay = sender.state == .on
         refresh()
     }
 

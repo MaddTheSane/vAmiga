@@ -14,6 +14,18 @@ class MyFormatter: Formatter {
     var maxValue: Int
     var format: String
     
+    func toBinary(value: Int, digits: Int) -> String {
+        
+        var result = ""
+        
+        for i in (0 ..< digits).reversed() {
+        
+            result += (value & (1 << i)) != 0 ? "1" : "0"
+        }
+        
+        return result
+    }
+    
     init(radix: Int, min: Int, max: Int) {
 
         self.radix = radix
@@ -76,7 +88,10 @@ class MyFormatter: Formatter {
         }
         
         switch radix {
-        case 2:
+        case 2 where maxValue == 0xFF:
+            return toBinary(value: number, digits: 8)
+            
+            /*
             let bits: [Character] = [number & 0x80 != 0 ? "1" : "0",
                                      number & 0x40 != 0 ? "1" : "0",
                                      number & 0x20 != 0 ? "1" : "0",
@@ -85,14 +100,17 @@ class MyFormatter: Formatter {
                                      number & 0x04 != 0 ? "1" : "0",
                                      number & 0x02 != 0 ? "1" : "0",
                                      number & 0x01 != 0 ? "1" : "0"]
-            return String.init(bits)
+            return String(bits)
+            */
+            
+        case 2 where maxValue == 0xFFFF:
+            return toBinary(value: number, digits: 16)
             
         case 10, 16:
-            return String.init(format: format, number)
+            return String(format: format, number)
 
         default:
-            assert(false)
-            return "?"
+            fatalError()
         }
     }
 }

@@ -11,18 +11,19 @@
 #include "Blitter.h"
 #include "Agnus.h"
 #include "Checksum.h"
-#include "IO.h"
+#include "IOUtils.h"
+#include "Thread.h"
 
-Blitter::Blitter(Amiga& ref) : AmigaComponent(ref)
+Blitter::Blitter(Amiga& ref) : SubComponent(ref)
 {
-    // Initialize fill pattern tables    
+    // Initialize the fill pattern tables    
     for (isize carryIn = 0; carryIn < 2; carryIn++) {
         
         for (isize byte = 0; byte < 256; byte++) {
             
-            u8 carry = carryIn;
-            u8 inclPattern = byte;
-            u8 exclPattern = byte;
+            u8 carry = (u8)carryIn;
+            u8 inclPattern = (u8)byte;
+            u8 exclPattern = (u8)byte;
             
             for (isize bit = 0; bit < 8; bit++) {
                 
@@ -40,7 +41,9 @@ Blitter::Blitter(Amiga& ref) : AmigaComponent(ref)
 
 void
 Blitter::_initialize()
-{    
+{
+    AmigaComponent::_initialize();
+    
     initFastBlitter();
     initSlowBlitter();    
 }
@@ -56,6 +59,34 @@ Blitter::_reset(bool hard)
     }
 }
 
+void
+Blitter::_run()
+{
+    if constexpr (BLT_GUARD) {
+
+        memguard.resize(mem.getConfig().chipSize);
+        memguard.clear();
+    }
+}
+
+BlitterConfig
+Blitter::getDefaultConfig()
+{
+    BlitterConfig defaults;
+    
+    defaults.accuracy = 2;
+
+    return defaults;
+}
+
+void
+Blitter::resetConfig()
+{
+    auto defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_BLITTER_ACCURACY, defaults.accuracy);
+}
+
 i64
 Blitter::getConfigItem(Option option) const
 {
@@ -64,191 +95,60 @@ Blitter::getConfigItem(Option option) const
         case OPT_BLITTER_ACCURACY: return config.accuracy;
         
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 Blitter::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_BLITTER_ACCURACY:
-            
-            #ifdef FORCE_BLT_LEVEL
-            value = FORCE_BLT_LEVEL;
-            warn("Overriding Blitter accuracy level: %lld\n", value);
-            #endif
-            
+        {
             if (value < 0 || value > 2) {
-                warn("Invalid Blitter accuracy level: %lld\n", value);
-                return false;
-            }
-            if (config.accuracy == value) {
-                return false;
+                throw VAError(ERROR_OPT_INVARG, "0, 1, 2");
             }
             
-            suspend();
-            config.accuracy = (int)value;
-            resume();
-
-            return true;
-            
+            SUSPENDED
+            config.accuracy = (isize)value;
+            return;
+        }
         default:
-            return false;
+            fatalError;
     }
 }
 
-void
-Blitter::_inspect()
+u16
+Blitter::barrelShifter(u16 anew, u16 aold, u16 shift, bool desc) const
 {
-    synchronized {
-        
-        info.bltcon0 = bltcon0;
-        info.bltcon1 = bltcon1;
-        info.ash = bltconASH();
-        info.bsh = bltconBSH();
-        info.minterm = bltconLF();
-        info.bltapt  = bltapt;
-        info.bltbpt  = bltbpt;
-        info.bltcpt  = bltcpt;
-        info.bltdpt  = bltdpt;
-        info.bltafwm = bltafwm;
-        info.bltalwm = bltalwm;
-        info.bltamod = bltamod;
-        info.bltbmod = bltbmod;
-        info.bltcmod = bltcmod;
-        info.bltdmod = bltdmod;
-        info.aold = aold;
-        info.bold = bold;
-        info.anew = anew;
-        info.bnew = bnew;
-        info.ahold = ahold;
-        info.bhold = bhold;
-        info.chold = chold;
-        info.dhold = dhold;
-        info.bbusy = bbusy;
-        info.bzero = bzero;
-        info.firstWord = isFirstWord();
-        info.lastWord = isLastWord();
-        info.fci = bltconFCI();
-        info.fco = fillCarry;
-        info.fillEnable = bltconFE();
-        info.storeToDest = bltconUSED() && !lockD;
+    if (desc) {
+        return (u16)(HI_W_LO_W(anew, aold) >> (16 - shift));
+    } else {
+        return (u16)(HI_W_LO_W(aold, anew) >> shift);
     }
-}
-
-void
-Blitter::_dump(dump::Category category, std::ostream& os) const
-{
-    using namespace util;
-    
-    if (category & dump::Config) {
-    
-        os << tab("Accuracy level") << config.accuracy << std::endl;
-    }
-    
-    if (category & dump::State) {
-
-        os << tab("Iteration") << dec(iteration) << std::endl;
-        os << tab("Micro instruction PC") << dec(bltpc) << std::endl;
-        os << tab("X counter") << dec(xCounter) << std::endl;
-        os << tab("Y counter") << dec(yCounter) << std::endl;
-        os << tab("A channel counter") << dec(cntA) << std::endl;
-        os << tab("B channel counter") << dec(cntB) << std::endl;
-        os << tab("C channel counter") << dec(cntC) << std::endl;
-        os << tab("D channel counter") << dec(cntD) << std::endl;
-        os << tab("D channel lock") << bol(lockD) << std::endl;
-        os << tab("Fill carry") << dec(fillCarry) << std::endl;
-        os << tab("Mask") << hex(mask) << std::endl;
-        os << std::endl;
-        os << tab("ANEW") << hex(anew) << std::endl;
-        os << tab("BNEW") << hex(bnew) << std::endl;
-        os << tab("AHOLD") << hex(ahold) << std::endl;
-        os << tab("BHOLD") << hex(bhold) << std::endl;
-        os << tab("CHOLD") << hex(chold) << std::endl;
-        os << tab("DHOLD") << hex(dhold) << std::endl;
-        os << tab("SHIFT") << hex(ashift) << std::endl;
-        os << tab("BBUSY") << bol(bbusy) << std::endl;
-        os << tab("BZERO") << bol(bzero) << std::endl;
-
-    }
-    
-    if (category & dump::Registers) {
-        
-        os << tab("BLTCON0") << hex(bltcon0) << std::endl;
-        os << tab("ASH") << hex(bltconASH()) << std::endl;
-        os << tab("USEA") << bol(bltconUSEA()) << std::endl;
-        os << tab("USEB") << bol(bltconUSEB()) << std::endl;
-        os << tab("USEC") << bol(bltconUSEC()) << std::endl;
-        os << tab("USED") << bol(bltconUSED()) << std::endl;
-        os << std::endl;
-        os << tab("BLTCON1") << hex(bltcon1) << std::endl;
-        os << tab("BSH") << hex(bltconBSH()) << std::endl;
-        os << tab("EFE") << bol(bltconEFE()) << std::endl;
-        os << tab("IFE") << bol(bltconIFE()) << std::endl;
-        os << tab("FCI") << bol(bltconFCI()) << std::endl;
-        os << tab("DESC") << bol(bltconDESC()) << std::endl;
-        os << tab("LINE") << bol(bltconLINE()) << std::endl;
-        os << std::endl;
-        os << tab("BLTSIZEH") << hex(bltsizeV) << std::endl;
-        os << tab("BLTSIZEW") << hex(bltsizeH) << std::endl;
-        os << std::endl;
-        os << tab("BLTAPT") << hex(bltapt) << std::endl;
-        os << tab("BLTBPT") << hex(bltbpt) << std::endl;
-        os << tab("BLTCPT") << hex(bltcpt) << std::endl;
-        os << tab("BLTDPT") << hex(bltdpt) << std::endl;
-        os << tab("BLTAFWM") << hex(bltafwm) << std::endl;
-        os << tab("BLTALWM") << hex(bltalwm) << std::endl;
-        os << tab("BLTAMOD") << dec(bltamod) << std::endl;
-        os << tab("BLTBMOD") << dec(bltbmod) << std::endl;
-        os << tab("BLTCMOD") << dec(bltcmod) << std::endl;
-        os << tab("BLTDMOD") << dec(bltdmod) << std::endl;
-    }
-}
-
-void
-Blitter::doBarrelA(u16 aNew, u16 *aOld, u16 *aHold) const
-{
-    *aHold = (u16)(HI_W_LO_W(*aOld, aNew) >> bltconASH());
-    *aOld  = aNew;
-}
-
-void
-Blitter::doBarrelAdesc(u16 aNew, u16 *aOld, u16 *aHold) const
-{
-    *aHold = (u16)(HI_W_LO_W(aNew, *aOld) >> (16 - bltconASH()));
-    *aOld  = aNew;
-}
-
-void
-Blitter::doBarrelB(u16 bNew, u16 *bOld, u16 *bHold) const
-{
-    *bHold = (u16)(HI_W_LO_W(*bOld, bNew) >> bltconBSH());
-    *bOld  = bNew;
-}
-
-void
-Blitter::doBarrelBdesc(u16 bNew, u16 *bOld, u16 *bHold) const
-{
-    *bHold = (u16)(HI_W_LO_W(bNew, *bOld) >> (16 - bltconBSH()));
-    *bOld  = bNew;
 }
 
 u16
 Blitter::doMintermLogic(u16 a, u16 b, u16 c, u8 minterm) const
 {
-    u16 result = 0;
+    u16 result = doMintermLogicQuick(a, b, c, minterm);
 
-    if (minterm & 0b10000000) result |=  a &  b &  c;
-    if (minterm & 0b01000000) result |=  a &  b & ~c;
-    if (minterm & 0b00100000) result |=  a & ~b &  c;
-    if (minterm & 0b00010000) result |=  a & ~b & ~c;
-    if (minterm & 0b00001000) result |= ~a &  b &  c;
-    if (minterm & 0b00000100) result |= ~a &  b & ~c;
-    if (minterm & 0b00000010) result |= ~a & ~b &  c;
-    if (minterm & 0b00000001) result |= ~a & ~b & ~c;
+    if constexpr (BLT_DEBUG) {
+        
+        u16 result2 = 0;
+        
+        if (minterm & 0b10000000) result2 |=  a &  b &  c;
+        if (minterm & 0b01000000) result2 |=  a &  b & ~c;
+        if (minterm & 0b00100000) result2 |=  a & ~b &  c;
+        if (minterm & 0b00010000) result2 |=  a & ~b & ~c;
+        if (minterm & 0b00001000) result2 |= ~a &  b &  c;
+        if (minterm & 0b00000100) result2 |= ~a &  b & ~c;
+        if (minterm & 0b00000010) result2 |= ~a & ~b &  c;
+        if (minterm & 0b00000001) result2 |= ~a & ~b & ~c;
+    
+        if (result != result2) fatal("Blitter minterm error\n");
+    }
     
     return result;
 }
@@ -517,7 +417,7 @@ Blitter::doMintermLogicQuick(u16 a, u16 b, u16 c, u8 minterm) const
 }
 
 void
-Blitter::doFill(u16 &data, bool &carry)
+Blitter::doFill(u16 &data, bool &carry) const
 {
     assert(carry == 0 || carry == 1);
 
@@ -534,6 +434,55 @@ Blitter::doFill(u16 &data, bool &carry)
     carry = nextCarryIn[carry][dataHi];
     
     data = HI_LO(resultHi, resultLo);
+}
+
+void
+Blitter::doLine()
+{
+    auto incx = [&]() { if (incASH()) U32_INC(bltcpt, 2); };
+    auto decx = [&]() { if (decASH()) U32_INC(bltcpt, -2); };
+    auto incy = [&]() { U32_INC(bltcpt, bltcmod); fillCarry = true; };
+    auto decy = [&]() { U32_INC(bltcpt, -bltcmod); fillCarry = true; };
+ 
+    bool sign = bltcon1 & BLTCON1_SIGN;
+    fillCarry = false;
+        
+    if (bltcon1 & BLTCON1_SUD) {
+        
+        if (bltcon1 & BLTCON1_AUL) {
+            decx();
+        } else {
+            incx();
+        }
+        if (bltcon1 & BLTCON1_SUL) {
+            if (!sign) decy();
+        } else {
+            if (!sign) incy();
+        }
+        
+    } else {
+        
+        if (bltcon1 & BLTCON1_AUL) {
+            decy();
+        } else {
+            incy();
+        }
+        if (bltcon1 & BLTCON1_SUL) {
+            if (!sign) decx();
+        } else {
+            if (!sign) incx();
+        }
+    }
+    
+    if (bltcon0 & BLTCON0_USEA) {
+        if (sign)
+            U32_INC(bltapt, bltbmod);
+        else
+            U32_INC(bltapt, bltamod);
+    }
+        
+    // Update the SIGN bit in BPLCON1
+    REPLACE_BIT(bltcon1, 6, (i16)bltapt < 0);
 }
 
 void
@@ -554,17 +503,17 @@ Blitter::prepareBlit()
 void
 Blitter::beginBlit()
 {
-    int level = config.accuracy;
+    auto level = config.accuracy;
 
-    if (BLT_GUARD) memset(memguard, 0, sizeof(memguard));
-    
+    if constexpr (BLT_GUARD) memguard.clear();
+
     if (bltconLINE()) {
 
-        if (BLT_CHECKSUM) {
+        if constexpr (BLT_CHECKSUM) {
             
             linecount++;
-            check1 = check2 = util::fnv_1a_init32();
-            msg("Line %d (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x\n",
+            check1 = check2 = util::fnvInit32();
+            msg("Line %ld (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x\n",
                 linecount, bltsizeH, bltsizeV,
                 bltconUSEA(), bltconUSEB(), bltconUSEC(), bltconUSED(),
                 bltcon0,
@@ -579,11 +528,11 @@ Blitter::beginBlit()
 
     } else {
 
-        if (BLT_CHECKSUM) {
+        if constexpr (BLT_CHECKSUM) {
             
             copycount++;
-            check1 = check2 = util::fnv_1a_init32();
-            msg("Blit %d (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x %s%s\n",
+            check1 = check2 = util::fnvInit32();
+            msg("Blit %ld (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x %s%s\n",
                 copycount,
                 bltsizeH, bltsizeV,
                 bltconUSEA(), bltconUSEB(), bltconUSEC(), bltconUSED(),
@@ -601,45 +550,55 @@ Blitter::beginBlit()
 }
 
 void
-Blitter::beginLineBlit(int level)
+Blitter::beginLineBlit(isize level)
 {
-    static bool verbose = true;
+    static u64 verbose = 0;
 
-    if (BLT_CHECKSUM && verbose) {
-        verbose = false;
-        msg("Performing level %d line blits.\n", level);
+    if (verbose++ == 0) {
+        debug(BLT_CHECKSUM, "Performing level %ld line blits.\n", level);
     }
-
+    if (bltcon0 & BLTCON0_USEB) {
+        trace(XFILES, "Performing line blit with channel B enabled\n");
+    }
+    if (bltsizeH != 2) {
+        trace(XFILES, "Performing line blit with WIDTH = %d\n", bltsizeH);
+    }
+    
     switch (level) {
+            
         case 0: beginFastLineBlit(); break;
         case 1: beginFakeLineBlit(); break;
         case 2: beginSlowLineBlit(); break;
-        default: assert(false);
+            
+        default:
+            fatalError;
     }
 }
 
 void
-Blitter::beginCopyBlit(int level)
+Blitter::beginCopyBlit(isize level)
 {
-    static bool verbose = true;
+    static u64 verbose = 0;
 
-    if (BLT_CHECKSUM && verbose) {
-        verbose = false;
-        msg("Performing level %d copy blits.\n", level);
+    if (verbose++ == 0) {
+        debug(BLT_CHECKSUM, "Performing level %ld copy blits.\n", level);
     }
 
     switch (level) {
+            
         case 0: beginFastCopyBlit(); break;
         case 1: beginFakeCopyBlit(); break;
         case 2: beginSlowCopyBlit(); break;
-        default: assert(false);
+            
+        default:
+            fatalError;
     }
 }
 
 void
-Blitter::signalEnd()
+Blitter::clearBusyFlag()
 {
-    debug(BLTTIM_DEBUG, "(%d,%d) Blitter bbusy\n", agnus.pos.v, agnus.pos.h);
+    debug(BLTTIM_DEBUG, "(%ld,%ld) Blitter bbusy\n", agnus.pos.v, agnus.pos.h);
 
     // Clear the Blitter busy flag
     bbusy = false;
@@ -648,11 +607,11 @@ Blitter::signalEnd()
 void
 Blitter::endBlit()
 {
-    debug(BLTTIM_DEBUG, "(%d,%d) Blitter terminates\n", agnus.pos.v, agnus.pos.h);
+    debug(BLTTIM_DEBUG, "(%ld,%ld) Blitter terminates\n", agnus.pos.v, agnus.pos.h);
     
     running = false;
     
-    if (BLT_GUARD) memset(memguard, 0, sizeof(memguard));
+    if constexpr (BLT_GUARD) memguard.clear();
     
     // Clear the Blitter slot
     agnus.cancel<SLOT_BLT>();

@@ -7,46 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-extension NSError {
-
-    /*
-    static func snapshotVersionError(filename: String) -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
-            [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The snapshot was created with a different version of vAmiga."])
-    }
-    */
-    
-    static func unsupportedFormatError(filename: String) -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
-            [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The format of this file is not supported."])
-    }
-
-    static func corruptedFileError(filename: String) -> NSError {        
-        return NSError(domain: "vAmiga", code: 0, userInfo:
-            [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The file appears to be corrupt. It's contents does not match the purported format."])
-    }
-
-    static func fileAccessError(filename: String) -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
-            [NSLocalizedDescriptionKey: "The document \"\(filename)\" could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "Unable to access file."])
-    }
-
-    static func fileAccessError() -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
-            [NSLocalizedDescriptionKey: "The document could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "Unable to access file."])
-    }
-
-    static func extendedAdfError() -> NSError {
-        return NSError(domain: "vAmiga", code: 0, userInfo:
-            [NSLocalizedDescriptionKey: "The document could not be opened.",
-                NSLocalizedRecoverySuggestionErrorKey: "The file is encoded in extended ADF format which is not supported by the emulator."])
-    }
-}
+// DEPRECATED
+// TODO: MOVE TO VAError as static functions
 
 extension MyDocument {
     
@@ -54,7 +16,7 @@ extension MyDocument {
         
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.icon = NSImage.init(named: "metal")
+        alert.icon = NSImage(named: "metal")
         alert.messageText = "No suitable GPU hardware found"
         alert.informativeText = "vAmiga can only run on machines supporting the Metal graphics technology (2012 models and above)."
         alert.addButton(withTitle: "Exit")
@@ -66,7 +28,7 @@ extension MyDocument {
        
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.icon = NSImage.init(named: "adf")
+        alert.icon = NSImage(named: "adf")
         alert.messageText = messageText
         alert.informativeText = "Your changes will be lost if you proceed."
         alert.addButton(withTitle: "Proceed")
@@ -74,9 +36,9 @@ extension MyDocument {
         return alert.runModal()
     }
 
-    func proceedWithUnexportedDisk(drives: [DriveProxy]) -> Bool {
+    func proceedWithUnexportedDisk(drives: [FloppyDriveProxy]) -> Bool {
         
-        let modified = drives.filter { $0.isModifiedDisk }
+        let modified = drives.filter { $0.hasModifiedDisk }
         
         if modified.isEmpty || parent.pref.ejectWithoutAsking {
             return true
@@ -88,7 +50,7 @@ extension MyDocument {
         return showDiskIsUnexportedAlert(messageText: text) == .alertFirstButtonReturn
     }
     
-    func proceedWithUnexportedDisk(drive: DriveProxy) -> Bool {
+    func proceedWithUnexportedDisk(drive: FloppyDriveProxy) -> Bool {
         
         return proceedWithUnexportedDisk(drives: [drive])
     }
@@ -98,6 +60,7 @@ extension MyDocument {
         return proceedWithUnexportedDisk(drive: amiga.df(nr)!)
     }
     
+    /*
     func proceedWithUnexportedDisk() -> Bool {
     
         return proceedWithUnexportedDisk(drives: [ amiga.df0,
@@ -105,59 +68,44 @@ extension MyDocument {
                                                    amiga.df2,
                                                    amiga.df3 ])
     }
+    */
     
-    func showConfigurationAltert(_ error: ErrorCode) {
-
-        var msg: String
-
-        switch error {
-        case .ROM_MISSING:
-            msg = "A Kickstart Rom or Boot Rom is required to power up."
-        case .CHIP_RAM_LIMIT:
-            msg = "The selected Agnus revision does not support the selected amout of Chip Ram."
-        case .AROS_RAM_LIMIT:
-            msg = "The Aros Kickstart replacement requires at least 1 MB of memory to boot."
-        case .AROS_NO_EXTROM:
-            msg = "The Aros Kickstart replacement requires an extension Rom."
-        default:
-            msg = ""
-        }
-
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.icon = NSImage.init(named: "pref_transparent")
-        alert.messageText = "Configuration error"
-        alert.informativeText = msg
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
-    
-    /*
     @discardableResult
-    func showDecryptionAlert(error: FileError) -> NSApplication.ModalResponse {
+    func showHdrIsUnexportedAlert(messageText: String) -> NSApplication.ModalResponse {
        
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.icon = NSImage.init(named: "rom_alert")
-        alert.messageText = "Failed to decrypt Rom image"
-        alert.addButton(withTitle: "OK")
+        alert.icon = NSImage(named: "hdf")
+        alert.messageText = messageText
+        alert.informativeText = "Your changes will be lost if you proceed."
+        alert.addButton(withTitle: "Proceed")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal()
+    }
+
+    func proceedWithUnexportedHdr(drives: [HardDriveProxy]) -> Bool {
         
-        switch error {
-        case .ERR_MISSING_ROM_KEY:
-            alert.informativeText = "A rom.key file is required to decrypt the image."
-            return alert.runModal()
-            
-        case .ERR_INVALID_ROM_KEY:
-            alert.informativeText = "Decryption didn't produce a valid ROM."
-            return alert.runModal()
-            
-        default:
-            break
+        let modified = drives.filter { $0.hasModifiedDisk }
+        
+        if modified.isEmpty || parent.pref.ejectWithoutAsking {
+            return true
         }
         
-        return NSApplication.ModalResponse.OK
+        let names = drives.map({ "dh" + String($0.nr) }).joined(separator: ", ")
+        let text = "Hard drive \(names) contains an unexported disk."
+
+        return showHdrIsUnexportedAlert(messageText: text) == .alertFirstButtonReturn
     }
-    */
+    
+    func proceedWithUnexportedHdr(drive: HardDriveProxy) -> Bool {
+        
+        return proceedWithUnexportedHdr(drives: [drive])
+    }
+        
+    func proceedWithUnexportedHdr(drive nr: Int) -> Bool {
+        
+        return proceedWithUnexportedHdr(drive: amiga.hd(nr)!)
+    }    
 }
 
 extension MyController {
@@ -176,56 +124,130 @@ extension MyController {
         
         let alert = NSAlert()
         alert.alertStyle = style
-        if icon != nil { alert.icon = NSImage.init(named: icon!) }
+        if icon != nil { alert.icon = NSImage(named: icon!) }
         alert.messageText = msg1
         alert.informativeText = msg2
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
     
-    func proceedWithUnexportedDisk(drive: DriveProxy) -> Bool {
+    func proceedWithUnexportedDisk(drive: FloppyDriveProxy) -> Bool {
         return mydocument.proceedWithUnexportedDisk(drive: drive)
     }
     
+    /*
     func proceedWithUnexportedDisk(drive nr: Int) -> Bool {
         return mydocument.proceedWithUnexportedDisk(drive: nr)
     }
-
+    */
+    /*
     func proceedWithUnexportedDisk() -> Bool {
         return mydocument.proceedWithUnexportedDisk()
     }
+    */
+    
+    func proceedWithUnexportedHdr(drive: HardDriveProxy) -> Bool {
+        return mydocument.proceedWithUnexportedHdr(drive: drive)
+    }
+    
+    /*
+    func proceedWithUnexportedHdr(drive nr: Int) -> Bool {
+        return mydocument.proceedWithUnexportedHdr(drive: nr)
+    }
+    */
+    /*
+    func proceedWithUnexportedHdr() -> Bool {
+        return mydocument.proceedWithUnexportedHdr()
+    }
+    */
 
+    @discardableResult
+    func askToPowerOffAlert() -> NSApplication.ModalResponse {
+       
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.icon = NSImage(named: "powerSwitch")
+        alert.messageText = "The emulator must be powered off to perform this operation."
+        alert.informativeText = "Your changes will be lost if you proceed."
+        alert.addButton(withTitle: "Proceed")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal()
+    }
+
+    func askToPowerOff() -> Bool {
+        
+        if amiga.poweredOn {
+            
+            if askToPowerOffAlert() != .alertFirstButtonReturn { return false }
+            amiga.powerOff()
+        }
+        
+        return true
+    }
+    
+    @discardableResult
+    func askToRebootAlert() -> NSApplication.ModalResponse {
+       
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.icon = NSImage(named: "powerSwitch")
+        alert.messageText = "The Amiga must be restarted to perform this operation."
+        alert.informativeText = "Your changes will be lost if you proceed."
+        alert.addButton(withTitle: "Proceed")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal()
+    }
+
+    func askToReboot() -> Bool {
+            
+        return amiga.poweredOff || askToRebootAlert() == .alertFirstButtonReturn
+    }
+    
     func showMissingFFmpegAlert() {
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.icon = NSImage.init(named: "FFmpegIcon")
-        alert.messageText = "Screen recording requires FFmpeg to be installed in /usr/local/bin."
-        alert.informativeText = "Visit FFmpeg.org for installation instructions."
+        alert.icon = NSImage(named: "FFmpegIcon")
+
+        if pref.ffmpegPath == "" {
+
+            alert.messageText = "Screen recording requires FFmpeg to be installed."
+            alert.informativeText = "Visit FFmpeg.org for installation instructions."
+
+        } else {
+
+            alert.messageText = "Unable to locate FFmpeg."
+            alert.informativeText = "\(pref.ffmpegPath) not found."
+        }
+        
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
 
+    /*
     func showFailedToLaunchFFmpegAlert() {
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.icon = NSImage.init(named: "FFmpegIcon")
+        alert.icon = NSImage(named: "FFmpegIcon")
         alert.messageText = "Failed to launch the screen recorder."
         alert.informativeText = "No content will be recorded."
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
-
+    */
+    
+    /*
     func showScreenRecorderAlert(url: URL) {
 
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.icon = NSImage.init(named: "FFmpegIcon")
+        alert.icon = NSImage(named: "FFmpegIcon")
         alert.messageText = "\"\(url.lastPathComponent)\" cannot be opened."
         alert.informativeText = "The screen recorder failed to open this file for output."
         alert.addButton(withTitle: "OK")
         
         alert.beginSheetModal(for: self.window!) { (_: NSApplication.ModalResponse) -> Void in }
     }
+    */
 }

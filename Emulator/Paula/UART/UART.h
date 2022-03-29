@@ -10,15 +10,16 @@
 #pragma once
 
 #include "UARTTypes.h"
-#include "AmigaComponent.h"
-#include "Event.h"
+#include "Constants.h"
+#include "SubComponent.h"
+#include "AgnusTypes.h"
 
-class UART : public AmigaComponent {
-
-    friend class Amiga;
+class UART : public SubComponent {
+    
+    friend class SerServer;
     
     // Result of the latest inspection
-    UARTInfo info;
+    mutable UARTInfo info = {};
 
     // Port period and control register
     u16 serper;
@@ -31,7 +32,7 @@ class UART : public AmigaComponent {
     u16 transmitBuffer;
     u16 transmitShiftReg;
 
-    // Bit that is currently outputted on the TXD line
+    // The bit which is currently seen on the TXD line
     bool outBit; 
 
     // Overrun bit
@@ -47,48 +48,36 @@ class UART : public AmigaComponent {
 
 public:
     
-    UART(Amiga& ref);
+    using SubComponent::SubComponent;
+    
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
     
     const char *getDescription() const override { return "UART"; }
+    void _dump(Category category, std::ostream& os) const override;
 
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override;
-
-    
-    //
-    // Analyzing
-    //
-
-public:
-
-    UARTInfo getInfo() { return HardwareComponent::getInfo(info); }
-
-private:
-    
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Serializing
-    //
-
-private:
+    void _inspect() const override;
     
     template <class T>
     void applyToPersistentItems(T& worker)
     {
+        
     }
     
     template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
 
@@ -103,10 +92,20 @@ private:
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    
+    
+    //
+    // Analyzing
+    //
 
+public:
 
+    UARTInfo getInfo() const { return AmigaComponent::getInfo(info); }
+
+ 
     //
     // Accessing
     //
@@ -115,20 +114,24 @@ public:
     
     // Serial port data and status read
     u16 peekSERDATR();
-    
+    u16 spypeekSERDATR() const;
+
     // Serial port data and stop bits write
     void pokeSERDAT(u16 value);
 
     // Serial port period and control
     void pokeSERPER(u16 value);
 
-    // Returns the baud rate (converted to DMA cycles)
-    int rate() const { return DMA_CYCLES((serper & 0x7FFF) + 1); }
+    // Returns the pulse width measured in master cylces
+    Cycle pulseWidth() const { return DMA_CYCLES((serper & 0x7FFF) + 1); }
 
+    // Returns the baud rate
+    isize baudRate() const { return MASTER_FREQUENCY / (isize)pulseWidth(); }
+    
 private:
 
     // Returns the length of a received packet (8 or 9 bits)
-    int packetLength() const { return GET_BIT(serper, 15) ? 9 : 8; }
+    isize packetLength() const { return GET_BIT(serper, 15) ? 9 : 8; }
 
     // Returns true if the shift register is empty
     bool shiftRegEmpty() const { return transmitShiftReg == 0; }
@@ -154,7 +157,7 @@ public:
 
 
     //
-    // Serving events
+    // Serving events (UARTEvents.cpp)
     //
 
 public:

@@ -11,17 +11,34 @@ extension PreferencesController {
     
     func refreshGeneralTab() {
         
+        // Initialize combo boxes
+        if genFFmpegPath.tag == 0 {
+            
+            genFFmpegPath.tag = 1
+            
+            for i in 0...5 {
+                if let path = amiga.recorder.findFFmpeg(i) {
+                    genFFmpegPath.addItem(withObjectValue: path)
+                } else {
+                    break
+                }
+            }
+        }
+        
         // Snapshots
         genAutoSnapshots.state = pref.autoSnapshots ? .on : .off
         genSnapshotInterval.integerValue = pref.snapshotInterval
+        genSnapshotInterval.isEnabled = pref.autoSnapshots
 
         // Screenshots
-        genSnapshotInterval.isEnabled = pref.autoSnapshots
         genScreenshotSourcePopup.selectItem(withTag: pref.screenshotSource)
         genScreenshotTargetPopup.selectItem(withTag: pref.screenshotTargetIntValue)
                 
         // Screen captures
         let hasFFmpeg = amiga.recorder.hasFFmpeg
+        genFFmpegPath.stringValue = amiga.recorder.path
+        genFFmpegPath.textColor = hasFFmpeg ? .textColor : .warningColor
+        genFFmpegIcon.isHidden = !hasFFmpeg
         genSource.selectItem(withTag: pref.captureSource)
         genBitRate.stringValue = "\(pref.bitRate)"
         genAspectX.integerValue = pref.aspectX
@@ -30,29 +47,23 @@ extension PreferencesController {
         genBitRate.isEnabled = hasFFmpeg
         genAspectX.isEnabled = hasFFmpeg
         genAspectY.isEnabled = hasFFmpeg
-        if hasFFmpeg {
-            genFFmpegIcon.isHidden = false
-            genFFmpegText.isHidden = false
-            genFFmpegPath.textColor = .textColor
-            genFFmpegPath.stringValue = "/usr/local/bin/ffmpeg"
-        } else {
-            genFFmpegIcon.isHidden = true
-            genFFmpegText.isHidden = true
-            genFFmpegPath.textColor = .warningColor
-            genFFmpegPath.stringValue = "Requires /usr/local/bin/ffmpeg"
-        }
         
         // Fullscreen
         genAspectRatioButton.state = pref.keepAspectRatio ? .on : .off
         genExitOnEscButton.state = pref.exitOnEsc ? .on : .off
                 
-        // Drive
+        // Warp mode
         genWarpMode.selectItem(withTag: pref.warpModeIntValue)
 
         // Miscellaneous
         genEjectWithoutAskingButton.state = pref.ejectWithoutAsking ? .on : .off
         genPauseInBackground.state = pref.pauseInBackground ? .on : .off
         genCloseWithoutAskingButton.state = pref.closeWithoutAsking ? .on : .off
+    }
+
+    func selectGeneralTab() {
+
+        refreshGeneralTab()
     }
 
     //
@@ -93,9 +104,22 @@ extension PreferencesController {
     // Action methods (Screen captures)
     //
     
+    @IBAction func genPathAction(_ sender: NSComboBox!) {
+
+        pref.ffmpegPath = sender.stringValue
+        refresh()
+        
+        // Display a warning if the recorder is inaccessible
+        let fm = FileManager.default
+        if fm.fileExists(atPath: sender.stringValue),
+           !fm.isExecutableFile(atPath: sender.stringValue) {
+
+            VAError.recorderSanboxed(name: sender.stringValue)
+        }
+    }
+        
     @IBAction func capSourceAction(_ sender: NSPopUpButton!) {
         
-        track("tag = \(sender.selectedTag())")
         pref.captureSource = sender.selectedTag()
         refresh()
     }
@@ -106,7 +130,6 @@ extension PreferencesController {
         if input == nil { input = sender.integerValue }
         
         if let bitrate = input {
-            track("bitrate = \(bitrate)")
             pref.bitRate = bitrate
         }
         refresh()
@@ -114,14 +137,12 @@ extension PreferencesController {
 
     @IBAction func genAspectXAction(_ sender: NSTextField!) {
         
-        track("value = \(sender.integerValue)")
         pref.aspectX = sender.integerValue
         refresh()
     }
 
     @IBAction func genAspectYAction(_ sender: NSTextField!) {
         
-        track("value = \(sender.integerValue)")
         pref.aspectY = sender.integerValue
         refresh()
     }
@@ -149,6 +170,7 @@ extension PreferencesController {
     @IBAction func genWarpModeAction(_ sender: NSPopUpButton!) {
         
         pref.warpMode = WarpMode(rawValue: sender.selectedTag())!
+        parent.refreshStatusBar()
         refresh()
     }
     

@@ -16,28 +16,29 @@ extension Inspector {
     private func cachePorts() {
 
         if amiga != nil {
-            port1Info = amiga.controlPort1.getInfo()
-            port2Info = amiga.controlPort2.getInfo()
-            serInfo   = amiga.serialPort.getInfo()
-            uartInfo  = amiga.paula.getUARTInfo()
+            port1Info = amiga.controlPort1.info
+            port2Info = amiga.controlPort2.info
+            serInfo   = amiga.serialPort.info
+            uartInfo  = amiga.paula.uartInfo
         }
     }
 
     func refreshPorts(count: Int = 0, full: Bool = false) {
 
         cachePorts()
-
+        
         if full {
-            let elements = [ poPOTGO: fmt16,
+            let elements = [  poPOTGO: fmt16,
                              poPOTGOR: fmt16,
-                             po0JOYDAT: fmt16,
-                             po0POTDAT: fmt16,
-                             po1JOYDAT: fmt16,
-                             po1POTDAT: fmt16,
-                             poRecShift: fmt16,
-                             poRecBuffer: fmt16,
-                             poTransShift: fmt16,
-                             poTransBuffer: fmt16
+                            po0JOYDAT: fmt16,
+                            po0POTDAT: fmt16,
+                            po1JOYDAT: fmt16,
+                            po1POTDAT: fmt16,
+                             poSERPER: fmt16,
+                           poRecShift: fmt16,
+                          poRecBuffer: fmt16,
+                         poTransShift: fmt16,
+                        poTransBuffer: fmt16
             ]
 
             for (c, f) in elements { assignFormatter(f, c!) }
@@ -80,6 +81,9 @@ extension Inspector {
         po1POTDAT.integerValue = Int(port2Info.potdat)
 
         // Serial port
+        poSERPER.integerValue = Int(uartInfo.serper)
+        poBaud.stringValue = "\(uartInfo.baudRate) Baud"
+        poLONG.state = (uartInfo.serper & 0x8000) != 0 ? .on : .off
         poTXD.state = serInfo.txd ? .on : .off
         poRXD.state = serInfo.rxd ? .on : .off
         poCTS.state = serInfo.cts ? .on : .off
@@ -90,7 +94,7 @@ extension Inspector {
         poRecBuffer.integerValue = Int(uartInfo.receiveBuffer)
         poTransShift.integerValue = Int(uartInfo.transmitShiftReg)
         poTransBuffer.integerValue = Int(uartInfo.transmitBuffer)
-
+        
         // Logging windows
         if count % 2 == 0 {
 

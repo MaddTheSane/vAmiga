@@ -10,13 +10,13 @@
 #pragma once
 
 #include "MsgQueueTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "RingBuffer.h"
 
-class MsgQueue : public AmigaComponent {
+class MsgQueue : public SubComponent {
         
     // Ring buffer storing all pending messages
-    util::RingBuffer<Message, 64> queue;
+    util::RingBuffer <Message, 128> queue;
                 
     // The registered listener
     const void *listener = nullptr;
@@ -31,24 +31,28 @@ class MsgQueue : public AmigaComponent {
     
 public:
     
-    using AmigaComponent::AmigaComponent;
-    // MsgQueue(Amiga& ref) : AmigaComponent(ref) { }
-
+    using SubComponent::SubComponent;
+    
     
     //
-    // Methods from HardwareComponent
+    // Methods from AmigaObject
     //
     
-public:
-        
-    const char *getDescription() const override { return "MsgQueue"; }
-
 private:
     
-    void _initialize() override;
-    void _reset(bool hard) override { };
+    const char *getDescription() const override { return "MsgQueue"; }
+    void _dump(Category category, std::ostream& os) const override { }
     
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
+private:
+    
+    void _reset(bool hard) override { };
     isize _size() override { return 0; }
+    u64 _checksum() override { return 0; }
     isize _load(const u8 *buffer) override { return 0; }
     isize _save(u8 *buffer) override { return 0; }
     
@@ -63,5 +67,6 @@ public:
     void setListener(const void *listener, Callback *func);
             
     // Sends a message
-    void put(MsgType type, long data = 0);
+    void put(MsgType type, isize data1 = 0, isize data2 = 0);
+    void put(MsgType type, u16 v1, u16 v2, u16 v3, u16 v4);
 };

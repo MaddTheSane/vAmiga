@@ -10,18 +10,27 @@
 #pragma once
 
 #include "AudioFilterTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 
-class AudioFilter : public AmigaComponent {
+class AudioFilter : public SubComponent {
+    
+    friend class Muxer;
     
     // The currently set filter type
     FilterType type = FILTER_BUTTERWORTH;
     
     // Coefficients of the butterworth filter
-    double a1, a2, b0, b1, b2;
+    double a1 = 0.0;
+    double a2 = 0.0;
+    double b0 = 0.0;
+    double b1 = 0.0;
+    double b2 = 0.0;
     
     // The butterworth filter pipeline
-    double x1, x2, y1, y2;
+    double x1 = 0.0;
+    double x2 = 0.0;
+    double y1 = 0.0;
+    double y2 = 0.0;
     
     
     //
@@ -30,35 +39,26 @@ class AudioFilter : public AmigaComponent {
     
 public:
     
-    AudioFilter(Amiga& ref);
-
+    using SubComponent::SubComponent;
+    
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override { return "AudioFilter"; }
+    void _dump(Category category, std::ostream& os) const override { }
+
+    
+    //
+    // Methods from AmigaComponent
+    //
     
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override { RESET_SNAPSHOT_ITEMS(hard) }
-    
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    // Filter type
-    FilterType getFilterType() const { return type; }
-    void setFilterType(FilterType type);
-    
-    // Sample rate
-    void setSampleRate(double sampleRate);
-    
-    
-    //
-    // Serializing
-    //
-    
-private:
     
     template <class T>
     void applyToPersistentItems(T& worker)
@@ -67,21 +67,28 @@ private:
 
         << type;
     }
-
-    template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-    }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
+        
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-
+    
+    
+    //
+    // Configuring
+    //
+    
+private:
+        
+    // Sets the sample rate (only to be called by the Muxer)
+    void setSampleRate(double sampleRate);
+    
 
     //
     // Using

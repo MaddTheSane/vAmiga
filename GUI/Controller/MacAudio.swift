@@ -10,7 +10,15 @@
 import AVFoundation
 
 public class MacAudio: NSObject {
-
+    
+    struct Sounds {
+        
+        static let step = "drive_head"
+        static let insert = "insert"
+        static let eject = "eject"
+        static let move = "hdr_click"
+    }
+    
     var parent: MyController!
     var audiounit: AUAudioUnit!
     var paula: PaulaProxy!
@@ -44,7 +52,8 @@ public class MacAudio: NSObject {
 
         // Create AudioUnit
         do { try audiounit = AUAudioUnit(componentDescription: compDesc) } catch {
-            track("Failed to create AUAudioUnit")
+            
+            log(warning: "Failed to create AUAudioUnit")
             return
         }
         
@@ -58,7 +67,8 @@ public class MacAudio: NSObject {
         let renderFormat = AVAudioFormat(standardFormatWithSampleRate: sampleRate,
                                          channels: (stereo ? 2 : 1))
         do { try audiounit.inputBusses[0].setFormat(renderFormat!) } catch {
-            track("Failed to set render format on input bus")
+            
+            log(warning: "Failed to set render format on input bus")
             return
         }
         
@@ -92,14 +102,14 @@ public class MacAudio: NSObject {
         
         // Allocate render resources
         do { try audiounit.allocateRenderResources() } catch {
-            track("Failed to allocate RenderResources")
+            
+            log(warning: "Failed to allocate RenderResources")
             return nil
         }
     }
 
     func shutDown() {
 
-        track()
         stopPlayback()
         paula = nil
     }
@@ -131,8 +141,10 @@ public class MacAudio: NSObject {
     func startPlayback() -> Bool {
 
         if !isRunning {
+            
             do { try audiounit.startHardware() } catch {
-                track("Failed to start audio hardware")
+                
+                log(warning: "Failed to start audio hardware")
                 return false
             }
         }
@@ -151,47 +163,15 @@ public class MacAudio: NSObject {
     }
     
     // Plays a sound file
-    func playStepSound(drive id: Int) {
-        
-        playSound(name: "drive_head",
-                  volume: parent.amiga.getConfig(.STEP_VOLUME, drive: id),
-                  pan: parent.amiga.getConfig(.DRIVE_PAN, drive: id))
-    }
-
-    func playPollSound(drive id: Int) {
-                
-        playSound(name: "drive_head",
-                  volume: parent.amiga.getConfig(.POLL_VOLUME, drive: id),
-                  pan: parent.amiga.getConfig(.DRIVE_PAN, drive: id))
-    }
-
-    func playInsertSound(drive id: Int) {
-        
-        playSound(name: "insert",
-                  volume: parent.amiga.getConfig(.INSERT_VOLUME, drive: id),
-                  pan: parent.amiga.getConfig(.DRIVE_PAN, drive: id))
-    }
- 
-    func playEjectSound(drive id: Int) {
-        
-        playSound(name: "eject",
-                  volume: parent.amiga.getConfig(.EJECT_VOLUME, drive: id),
-                  pan: parent.amiga.getConfig(.DRIVE_PAN, drive: id))
-    }
-    
-    func playSound(name: String, volume: Int, pan: Int) {
-        
-        let p = pan <= 100 ? pan : pan <= 300 ? 200 - pan : -400 + pan
+    func playSound(_ name: String, volume: Int, pan: Int) {
         
         let scaledVolume = Float(volume) / 100.0
-        let scaledPan = Float(p) / 100.0
+        let p = 0.5 * (sin(Double(pan) * Double.pi / 200.0) + 1)
         
-        // track("\(name) \(scaledVolume) \(scaledPan)")
-        
-        playSound(name: name, volume: scaledVolume, pan: scaledPan)
+        playSound(name, volume: scaledVolume, pan: Float(p))
     }
     
-    func playSound(name: String, volume: Float = 1.0, pan: Float = 0.0) {
+    func playSound(_ name: String, volume: Float = 1.0, pan: Float = 0.0) {
         
         // Only proceed if the volume is greater 0
         if volume == 0.0 { return }
@@ -201,7 +181,8 @@ public class MacAudio: NSObject {
             
             // Lookup sound file in bundle
             guard let url = Bundle.main.url(forResource: name, withExtension: "aiff") else {
-                track("Cannot open sound file \(name)")
+
+                log(warning: "Cannot open sound file \(name)")
                 return
             }
             

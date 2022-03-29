@@ -70,7 +70,7 @@ public extension MetalView {
             if DispatchTime.diffMilliSec(lastShake) > UInt64(500) {
                 retainMouse()
             } else {
-                track("Last shake too recent")
+                log("Last shake too recent", level: 2)
             }
         }
     }
@@ -139,7 +139,7 @@ public extension MetalView {
         // Make coordinate independent of the actual window size
         let scaleX = (256.0 * 400.0) / frame.width / 128.0
         let scaleY = (256.0 * 300.0) / frame.height / 128.0
-        let dxdy = NSPoint.init(x: dx * scaleX, y: dy * scaleY)
+        let dxdy = NSPoint(x: dx * scaleX, y: dy * scaleY)
         
         // Report the new location to the Amiga mouse
         if mouse2 == nil || event.deviceID != 0 {
@@ -159,7 +159,7 @@ public extension MetalView {
         mouseMoved(with: event)
     }
     
-    func checkForMouseKeys(with event: NSEvent) {
+    func checkForMouseKeys(with event: NSEvent) -> Bool {
                 
         if !gotMouse && prefs.retainMouseWithKeys {
             
@@ -168,8 +168,8 @@ public extension MetalView {
             case 0 where event.modifierFlags.contains([.option, .command]),
                  1 where event.modifierFlags.contains([.option, .control]):
                 
-                track()
                 retainMouse()
+                return true
                 
             default: break
             }
@@ -181,11 +181,12 @@ public extension MetalView {
             case 0 where event.modifierFlags.contains([.option, .command]),
                  1 where event.modifierFlags.contains([.option, .control]):
                 
-                track()
                 releaseMouse()
+                return true
                 
             default: break
             }
         }
+        return false
     }
 }

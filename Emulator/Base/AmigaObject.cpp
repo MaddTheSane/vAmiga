@@ -9,9 +9,37 @@
 
 #include "config.h"
 #include "AmigaObject.h"
+#include <iostream>
+
+bool
+AmigaObject::verbose = true;
 
 void
 AmigaObject::prefix() const
 {
     fprintf(stderr, "%s: ", getDescription());
+}
+
+void
+AmigaObject::dump(Category category, std::ostream& ss) const
+{
+    _dump(category, ss);
+}
+
+void
+AmigaObject::dump(Category category) const
+{
+    dump(category, std::cout);
+}
+
+void
+AmigaObject::dump(std::ostream& ss) const
+{
+    dump((Category)(-1), ss);
+}
+
+void
+AmigaObject::dump() const
+{
+    dump((Category)(-1));
 }

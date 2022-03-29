@@ -33,7 +33,7 @@ class VirtualKeyboardWindow: DialogWindow {
  
 }
 
-class VirtualKeyboardController: DialogController, NSWindowDelegate {
+class VirtualKeyboardController: DialogController {
 
     // Array holding a reference to the view of each key
     var keyView = Array(repeating: nil as NSButton?, count: 128)
@@ -55,7 +55,7 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
         let style = kbStyle(parent)
         let layout = kbLayout(parent)
 
-        track("Virtual keyboard (style: \(style) layout: \(layout))")
+        log("Virtual keyboard (style: \(style) layout: \(layout))")
 
         var xibName = ""
         let ansi = (layout == .us)
@@ -66,7 +66,7 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
             xibName = ansi ? "A500ANSI" : "A500ISO"
         }
 
-        let keyboard = VirtualKeyboardController.init(windowNibName: xibName)
+        let keyboard = VirtualKeyboardController(windowNibName: xibName)
         keyboard.parent = parent
         keyboard.amiga = parent.amiga
 
@@ -86,9 +86,7 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
     }
     
     override func windowDidLoad() {
-        
-        track()
-        
+                
         // Setup key references
         for tag in 0 ... 127 {
             keyView[tag] = window!.contentView!.viewWithTag(tag) as? NSButton
@@ -101,15 +99,9 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
     
     override func sheetDidShow() {
         
-        track()
         refresh()
     }
-    
-    func windowWillClose(_ notification: Notification) {
-
-        track()
-    }
-    
+        
     func windowDidBecomeMain(_ notification: Notification) {
         
         refresh()
@@ -142,7 +134,7 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
         let layout = VirtualKeyboardController.kbLayout(parent)
 
         for keycode in 0 ... 127 {
-            let key = AmigaKey.init(keyCode: keycode)
+            let key = AmigaKey(keyCode: keycode)
             if let image = key.image(style: style, layout: layout) {
                 keyImage[keycode] = image
                 pressedKeyImage[keycode] = image.copy() as? NSImage
@@ -172,7 +164,7 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
         
         guard let keyboard = amiga.keyboard else { return }
         
-        keyboard.pressKey(keyCode)
+        keyboard.toggleKey(keyCode)
         refresh()
     }
         
@@ -183,8 +175,6 @@ class VirtualKeyboardController: DialogController, NSWindowDelegate {
     
     override func mouseDown(with event: NSEvent) {
                 
-        track()
-
         // If opened as a sheet, close if the user clicked inside unsued area
         if autoClose { cancelAction(self) }
     }

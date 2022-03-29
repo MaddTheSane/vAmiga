@@ -9,25 +9,7 @@
 
 #include "config.h"
 #include "AudioFilter.h"
-#include "math.h"
-
-AudioFilter::AudioFilter(Amiga& ref) : AmigaComponent(ref)
-{
-    a1 = a2 = b0 = b1 = b2 = 0.0;
-}
-
-void
-AudioFilter::_initialize()
-{
-    type = FILTER_BUTTERWORTH;
-}
-
-void
-AudioFilter::setFilterType(FilterType type)
-{
-    assert_enum(FilterType, type);
-    this->type = type;
-}
+#include <cmath>
 
 void
 AudioFilter::setSampleRate(double sampleRate)
@@ -45,7 +27,7 @@ AudioFilter::setSampleRate(double sampleRate)
     const double ff = f_cutoff / sampleRate;
     
     // Compute coefficients
-    const double ita = 1.0/ tan(M_PI*ff);
+    const double ita = 1.0/ tan(M_PI * ff);
     const double q = sqrt(2.0);
     
     b0 = 1.0 / (1.0 + q * ita + ita * ita);

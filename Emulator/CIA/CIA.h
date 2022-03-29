@@ -10,82 +10,78 @@
 #pragma once
 
 #include "CIATypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
+#include "AgnusTypes.h"
 #include "TOD.h"
 
-#define CIACountA0     (1ULL << 0) // Decrements timer A
-#define CIACountA1     (1ULL << 1)
-#define CIACountA2     (1ULL << 2)
-#define CIACountA3     (1ULL << 3)
-#define CIACountB0     (1ULL << 4) // Decrements timer B
-#define CIACountB1     (1ULL << 5)
-#define CIACountB2     (1ULL << 6)
-#define CIACountB3     (1ULL << 7)
-#define CIALoadA0      (1ULL << 8) // Loads timer A
-#define CIALoadA1      (1ULL << 9)
-#define CIALoadA2      (1ULL << 10)
-#define CIALoadB0      (1ULL << 11) // Loads timer B
-#define CIALoadB1      (1ULL << 12)
-#define CIALoadB2      (1ULL << 13)
-#define CIAPB6Low0     (1ULL << 14) // Sets pin PB6 low
-#define CIAPB6Low1     (1ULL << 15)
-#define CIAPB7Low0     (1ULL << 16) // Sets pin PB7 low
-#define CIAPB7Low1     (1ULL << 17)
-#define CIASetInt0     (1ULL << 18) // Triggers an interrupt
-#define CIASetInt1     (1ULL << 19)
-#define CIAClearInt0   (1ULL << 20) // Releases the interrupt line
-#define CIAOneShotA0   (1ULL << 21)
-#define CIAOneShotB0   (1ULL << 22)
-#define CIAReadIcr0    (1ULL << 23) // Indicates that ICR was read recently
-#define CIAReadIcr1    (1ULL << 24)
-#define CIAClearIcr0   (1ULL << 25) // Clears bit 8 in ICR register
-#define CIAClearIcr1   (1ULL << 26)
-#define CIAClearIcr2   (1ULL << 27)
-#define CIAAckIcr0     (1ULL << 28) // Clears bit 0 - 7 in ICR register
-#define CIAAckIcr1     (1ULL << 29)
-#define CIASetIcr0     (1ULL << 30) // Sets bit 8 in ICR register
-#define CIASetIcr1     (1ULL << 31)
-#define CIATODInt0     (1ULL << 32) // Triggers an IRQ with TOD as source
-#define CIASerInt0     (1ULL << 33) // Triggers an IRQ with serial reg as source
-#define CIASerInt1     (1ULL << 34)
-#define CIASerInt2     (1ULL << 35)
-#define CIASdrToSsr0   (1ULL << 36) // Move serial data reg to serial shift reg
-#define CIASdrToSsr1   (1ULL << 37)
-#define CIASsrToSdr0   (1ULL << 38) // Move serial shift reg to serial data reg
-#define CIASsrToSdr1   (1ULL << 39)
-#define CIASsrToSdr2   (1ULL << 40)
-#define CIASsrToSdr3   (1ULL << 41)
-#define CIASerClk0     (1ULL << 42) // Clock signal driving the serial register
-#define CIASerClk1     (1ULL << 43)
-#define CIASerClk2     (1ULL << 44)
-#define CIASerClk3     (1ULL << 45)
+constexpr u64 CIACountA0 =   (1ULL << 0); // Decrements timer A
+constexpr u64 CIACountA1 =   (1ULL << 1);
+constexpr u64 CIACountA2 =   (1ULL << 2);
+constexpr u64 CIACountA3 =   (1ULL << 3);
+constexpr u64 CIACountB0 =   (1ULL << 4); // Decrements timer B
+constexpr u64 CIACountB1 =   (1ULL << 5);
+constexpr u64 CIACountB2 =   (1ULL << 6);
+constexpr u64 CIACountB3 =   (1ULL << 7);
+constexpr u64 CIALoadA0 =    (1ULL << 8); // Loads timer A
+constexpr u64 CIALoadA1 =    (1ULL << 9);
+constexpr u64 CIALoadA2 =    (1ULL << 10);
+constexpr u64 CIALoadB0 =    (1ULL << 11); // Loads timer B
+constexpr u64 CIALoadB1 =    (1ULL << 12);
+constexpr u64 CIALoadB2 =    (1ULL << 13);
+constexpr u64 CIAPB6Low0 =   (1ULL << 14); // Sets pin PB6 low
+constexpr u64 CIAPB6Low1 =   (1ULL << 15);
+constexpr u64 CIAPB7Low0 =   (1ULL << 16); // Sets pin PB7 low
+constexpr u64 CIAPB7Low1 =   (1ULL << 17);
+constexpr u64 CIASetInt0 =   (1ULL << 18); // Triggers an interrupt
+constexpr u64 CIASetInt1 =   (1ULL << 19);
+constexpr u64 CIAClearInt0 = (1ULL << 20); // Releases the interrupt line
+constexpr u64 CIAOneShotA0 = (1ULL << 21);
+constexpr u64 CIAOneShotB0 = (1ULL << 22);
+constexpr u64 CIAReadIcr0 =  (1ULL << 23); // Indicates that ICR was read recently
+constexpr u64 CIAReadIcr1 =  (1ULL << 24);
+constexpr u64 CIAClearIcr0 = (1ULL << 25); // Clears bit 8 in ICR register
+constexpr u64 CIAClearIcr1 = (1ULL << 26);
+constexpr u64 CIAClearIcr2 = (1ULL << 27);
+constexpr u64 CIAAckIcr0 =   (1ULL << 28); // Clears bit 0 - 7 in ICR register
+constexpr u64 CIAAckIcr1 =   (1ULL << 29);
+constexpr u64 CIASetIcr0 =   (1ULL << 30); // Sets bit 8 in ICR register
+constexpr u64 CIASetIcr1 =   (1ULL << 31);
+constexpr u64 CIATODInt0 =   (1ULL << 32); // Triggers an IRQ with TOD as source
+constexpr u64 CIASerInt0 =   (1ULL << 33); // Triggers an IRQ with serial reg as source
+constexpr u64 CIASerInt1 =   (1ULL << 34);
+constexpr u64 CIASerInt2 =   (1ULL << 35);
+constexpr u64 CIASdrToSsr0 = (1ULL << 36); // Move serial data reg to serial shift reg
+constexpr u64 CIASdrToSsr1 = (1ULL << 37);
+constexpr u64 CIASsrToSdr0 = (1ULL << 38); // Move serial shift reg to serial data reg
+constexpr u64 CIASsrToSdr1 = (1ULL << 39);
+constexpr u64 CIASsrToSdr2 = (1ULL << 40);
+constexpr u64 CIASsrToSdr3 = (1ULL << 41);
+constexpr u64 CIASerClk0 =   (1ULL << 42); // Clock signal driving the serial register
+constexpr u64 CIASerClk1 =   (1ULL << 43);
+constexpr u64 CIASerClk2 =   (1ULL << 44);
+constexpr u64 CIASerClk3 =   (1ULL << 45);
+constexpr u64 CIALast =      (1ULL << 46);
 
-#define CIADelayMask ~((1ULL << 46) \
-| CIACountA0 | CIACountB0 \
-| CIALoadA0 | CIALoadB0 \
-| CIAPB6Low0 | CIAPB7Low0 \
-| CIASetInt0 | CIAClearInt0 \
-| CIAOneShotA0 | CIAOneShotB0 \
-| CIAReadIcr0 | CIAClearIcr0 \
-| CIAAckIcr0 | CIASetIcr0 \
-| CIATODInt0 | CIASerInt0 \
-| CIASdrToSsr0 | CIASsrToSdr0 \
-| CIASerClk0)
+constexpr u64 CIADelayMask = ~CIALast
+& ~CIACountA0 & ~CIACountB0 & ~CIALoadA0 & ~CIALoadB0 & ~CIAPB6Low0
+& ~CIAPB7Low0 & ~CIASetInt0 & ~CIAClearInt0 & ~CIAOneShotA0 & ~CIAOneShotB0
+& ~CIAReadIcr0 & ~CIAClearIcr0 & ~CIAAckIcr0 & ~CIASetIcr0 & ~CIATODInt0
+& ~CIASerInt0 & ~CIASdrToSsr0 & ~CIASsrToSdr0 & ~CIASerClk0;
 
-class CIA : public AmigaComponent {
+class CIA : public SubComponent {
     
     friend class TOD;
     
 protected:
 
     // Identification number (0 = CIA A, 1 = CIA B)
-    int nr;
+    const int nr;
 
     // Current configuration
-    CIAConfig config;
+    CIAConfig config = {};
 
     // Result of the latest inspection
-    CIAInfo info;
+    mutable CIAInfo info = {};
 
 
     //
@@ -94,88 +90,101 @@ protected:
 
 public:
     
-    TOD tod = TOD(this, amiga);
+    TOD tod = TOD(*this, amiga);
 
 
     //
     // Internals
     //
     
+protected:
+    
     // The CIA has been executed up to this master clock cycle
     Cycle clock;
 
-protected:
-
     // Total number of skipped cycles (used by the debugger, only)
     Cycle idleCycles;
-    
-    // Timer A counter
-    u16 counterA;
-    
-    // Timer B counter
-    u16 counterB;
-        
-    // Timer A latch
-    u16 latchA;
-    
-    // Timer B latch
-    u16 latchB;
 
-
-    //
-    // Control
-    //
-    
     // Action flags
     u64 delay;
     u64 feed;
+
     
-    // Control registers
-    u8 CRA;
-    u8 CRB;
+    //
+    // Timers
+    //
     
+protected:
+    
+    // Timer counters
+    u16 counterA;
+    u16 counterB;
+        
+    // Timer latches
+    u16 latchA;
+    u16 latchB;
+
+    // Timer control registers
+    u8 cra;
+    u8 crb;
+
+    
+    //
+    // Interrupts
+    //
+    
+    // Interrupt mask register
+    u8 imr;
+
     // Interrupt control register
     u8 icr;
     
     // ICR bits that need to deleted when CIAAckIcr1 hits
     u8 icrAck;
-    
-    // Interrupt mask register
-    u8 imr;
-    
-protected:
-    
-    // Bit mask for PB outputs (0 = port register, 1 = timer)
-    u8 PB67TimerMode;
-    
-    // PB output bits 6 and 7 in timer mode
-    u8 PB67TimerOut;
-    
-    // PB output bits 6 and 7 in toggle mode
-    u8 PB67Toggle;
-    
+        
     
     //
-    // Port registers
+    // Peripheral ports
     //
     
 protected:
     
-    // Peripheral data registers
-    u8 PRA;
-    u8 PRB;
+    // Data registers
+    u8 pra;
+    u8 prb;
     
     // Data directon registers
-    u8 DDRA;
-    u8 DDRB;
+    u8 ddra;
+    u8 ddrb;
     
-    // Peripheral ports
-    u8 PA;
-    u8 PB;
+    // Bit mask for PB outputs (0 = port register, 1 = timer)
+    u8 pb67TimerMode;
+    
+    // PB output bits 6 and 7 in timer mode
+    u8 pb67TimerOut;
+    
+    // PB output bits 6 and 7 in toggle mode
+    u8 pb67Toggle;
+
+    
+    //
+    // Port values (chip pins)
+    //
+    
+    // Peripheral port pins
+    u8 pa;
+    u8 pb;
+
+    // Serial port pins
+    bool sp;
+    bool cnt;
+    
+    // Interrupt request pin
+    bool irq;
     
     
     //
-    // Shift register logic
+    // Shift register
     //
     
 protected:
@@ -217,25 +226,11 @@ protected:
      */
     i8 serCounter;
     
-    //
-    // Port pins
-    //
-    
-    bool SP;
-    bool CNT;
-    bool INT;
-    
     
     //
-    // Speeding up emulation (sleep logic)
+    // Sleep logic
     //
-    
-    /* Idle counter. When the CIA's state does not change during execution,
-     * this variable is increased by one. If it exceeds a certain threshhold,
-     * the chip is put into idle state via sleep().
-     */
-    u8 tiredness;
-    
+
 public:
     
     // Indicates if the CIA is currently idle
@@ -251,7 +246,15 @@ public:
      */
     Cycle wakeUpCycle;
 
-
+protected:
+    
+    /* Idle counter. When the CIA's state does not change during execution,
+     * this variable is increased by one. If it exceeds a certain threshhold,
+     * the chip is put into idle state via sleep().
+     */
+    u8 tiredness;
+    
+    
     //
     // Initializing
     //
@@ -263,32 +266,23 @@ public:
     bool isCIAA() const { return nr == 0; }
     bool isCIAB() const { return nr == 1; }
 
+    
+    //
+    // Methods from AmigaObject
+    //
+    
 private:
     
+    void _dump(Category category, std::ostream& os) const override;
+    
+    
+    //
+    // Methods from AmigaComponent
+    //
+
     void _initialize() override;
     void _reset(bool hard) override;
-    
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    const CIAConfig &getConfig() const { return config; }
-    
-    i64 getConfigItem(Option option) const;
-    bool setConfigItem(Option option, i64 value) override;
-    
-    bool getEClockSyncing() const { return config.eClockSyncing; }
 
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
     template <class T>
     void applyToPersistentItems(T& worker)
     {
@@ -300,55 +294,69 @@ private:
     }
 
     template <class T>
-    void applyToHardResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
+        if (hard) {
+            
+            worker
+            
+            << clock
+            << idleCycles
+            << tiredness
+            << sleeping
+            << sleepCycle
+            << wakeUpCycle;
+        }
 
-        << clock
-        << idleCycles
-        << tiredness
-        << sleeping
-        << sleepCycle
-        << wakeUpCycle;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
-    {
         worker
         
+        << delay
+        << feed
         << counterA
         << counterB
         << latchA
         << latchB
-        << delay
-        << feed
-        << CRA
-        << CRB
+        << cra
+        << crb
+        << imr
         << icr
         << icrAck
-        << imr
-        << PB67TimerMode
-        << PB67TimerOut
-        << PB67Toggle
-        << PRA
-        << PRB
-        << DDRA
-        << DDRB
-        << PA
-        << PB
+        << pra
+        << prb
+        << ddra
+        << ddrb
+        << pb67TimerMode
+        << pb67TimerOut
+        << pb67Toggle
+        << pa
+        << pb
+        << sp
+        << cnt
+        << irq
         << sdr
         << ssr
-        << serCounter
-        << SP
-        << CNT
-        << INT;
+        << serCounter;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-
+    
+    
+    //
+    // Configuring
+    //
+    
+public:
+    
+    static CIAConfig getDefaultConfig();
+    
+    void resetConfig() override;
+    const CIAConfig &getConfig() const { return config; }
+    i64 getConfigItem(Option option) const;
+    void setConfigItem(Option option, i64 value);
+    
     
     //
     // Analyzing
@@ -356,12 +364,12 @@ private:
     
 public:
     
-    CIAInfo getInfo() { return HardwareComponent::getInfo(info); }
-
+    CIAInfo getInfo() const { return AmigaComponent::getInfo(info); }
+    Cycle getClock() const { return clock; }
+    
 protected:
     
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
+    void _inspect() const override;
 
     
     //
@@ -374,7 +382,6 @@ public:
     u8 peek(u16 addr);
     
     // Reads a value from a CIA register without causing side effects
-    u8 spypeek(u16 addr);
     u8 spypeek(u16 addr) const;
 
     // Writes a value into a CIA register
@@ -388,26 +395,28 @@ public:
 public:
     
     // Returns the data registers (call updatePA() or updatePB() first)
-    u8 getPA() const { return PA; }
-    u8 getPB() const { return PB; }
+    u8 getPA() const { return pa; }
+    u8 getPB() const { return pb; }
 
 private:
 
     // Returns the data direction register
-    u8 getDDRA() const { return DDRA; }
-    u8 getDDRB() const { return DDRB; }
-    
-    // Computes the values we currently see at port A
+    u8 getDDRA() const { return ddra; }
+    u8 getDDRB() const { return ddrb; }
+        
+    // Updates variable pa with the value we currently see at port A
     virtual void updatePA() = 0;
-    
+    virtual u8 computePA() const = 0;
+
     // Returns the value driving port A from inside the chip
     virtual u8 portAinternal() const = 0;
     
     // Returns the value driving port A from outside the chip
     virtual u8 portAexternal() const = 0;
     
-    // Computes the value we currently see at port B
+    // Updates variable pa with the value we currently see at port B
     virtual void updatePB() = 0;
+    virtual u8 computePB() const = 0;
     
     // Values driving port B from inside the chip
     virtual u8 portBinternal() const = 0;
@@ -417,12 +426,14 @@ private:
     
 protected:
     
-    // Action method for poking the PA register
-    virtual void pokePA(u8 value) { PRA = value; updatePA(); }
-    
-    // Action method for poking the DDRA register
-    virtual void pokeDDRA(u8 value) { DDRA = value; updatePA(); }
-    
+    // Action method for poking the PA or PB register
+    virtual void pokePA(u8 value) { pra = value; updatePA(); }
+    virtual void pokePB(u8 value) { prb = value; updatePB(); }
+
+    // Action method for poking the DDRA or DDRB register
+    virtual void pokeDDRA(u8 value) { ddra = value; updatePA(); }
+    virtual void pokeDDRB(u8 value) { ddrb = value; updatePB(); }
+
     
     //
     // Accessing port pins
@@ -431,7 +442,7 @@ protected:
 public:
     
     // Getter for the interrupt line
-    bool irqPin() const { return INT; }
+    bool getIrq() const { return irq; }
 
     // Simulates an edge edge on the flag pin
     void emulateRisingEdgeOnFlagPin();
@@ -442,12 +453,17 @@ public:
     void emulateFallingEdgeOnCntPin();
 
     // Sets the serial port pin
-    void setSP(bool value) { SP = value; }
+    void setSP(bool value) { sp = value; }
     
     
     //
     // Handling interrupts
     //
+
+public:
+    
+    // Handles an interrupt request from TOD
+    void todInterrupt();
 
 private:
 
@@ -458,24 +474,24 @@ private:
     virtual void releaseInterruptLine() = 0;
     
     // Loads a latched value into timer
-    void reloadTimerA();
-    void reloadTimerB();
+    void reloadTimerA(u64 *delay);
+    void reloadTimerB(u64 *delay);
     
     // Triggers an interrupt (invoked inside executeOneCycle())
-    void triggerTimerIrq();
-    void triggerTodIrq();
-    void triggerFlagPinIrq();
-    void triggerSerialIrq();
+    void triggerTimerIrq(u64 *delay);
+    void triggerTodIrq(u64 *delay);
+    void triggerFlagPinIrq(u64 *delay);
+    void triggerSerialIrq(u64 *delay);
     
-public:
-    
-    // Handles an interrupt request from TOD
-    void todInterrupt();
-
     
     //
     // Handling events
     //
+    
+public:
+    
+    // Services an event in the CIA slot
+    void serviceEvent(EventID id);
     
     // Schedules the next execution event
     void scheduleNextExecution();
@@ -489,10 +505,7 @@ public:
     //
     
 public:
-    
-    // Advances the 24-bit counter by one tick
-    // void incrementTOD();
-    
+        
     // Executes the CIA for one CIA cycle
     void executeOneCycle();
     
@@ -512,16 +525,14 @@ public:
     void wakeUp();
     void wakeUp(Cycle targetCycle);
     
-    // Returns true if the CIA is in idle state
+    // Returns true if the CIA is in idle state or not
     bool isSleeping() const { return sleeping; }
-    
-    // Returns true if the CIA is awake
     bool isAwake() const { return !sleeping; }
         
-    // The CIA is idle since this number of cycles
+    // Returns the number of cycles the CIA is idle since
     CIACycle idleSince() const;
     
-    // Total number of cycles the CIA was idle
+    // Retruns the total number of cycles the CIA was idle
     CIACycle idleTotal() const { return idleCycles; }
 };
 
@@ -534,11 +545,11 @@ class CIAA : public CIA {
     
 public:
     
-    CIAA(Amiga& ref);
+    CIAA(Amiga& ref) : CIA(0, ref) { };
     
-    const char *getDescription() const override { return "CIAA"; }
-
 private:
+
+    const char *getDescription() const override { return "CIAA"; }
     
     void _powerOn() override;
     void _powerOff() override;
@@ -549,14 +560,17 @@ private:
     u8 portAinternal() const override;
     u8 portAexternal() const override;
     void updatePA() override;
+    u8 computePA() const override;
+
     u8 portBinternal() const override;
     u8 portBexternal() const override;
     void updatePB() override;
+    u8 computePB() const override;
     
 public:
 
     // Indicates if the power LED is currently on or off
-    bool powerLED() const { return (PA & 0x2) == 0; }
+    bool powerLED() const { return (pa & 0x2) == 0; }
 
     // Emulates the reception of a keycode from the keyboard
     void setKeyCode(u8 keyCode);
@@ -571,11 +585,11 @@ class CIAB : public CIA {
     
 public:
     
-    CIAB(Amiga& ref);
+    CIAB(Amiga& ref) : CIA(1, ref) { };
     
-    const char *getDescription() const override { return "CIAB"; }
-
 private:
+
+    const char *getDescription() const override { return "CIAB"; }
         
     void pullDownInterruptLine() override;
     void releaseInterruptLine() override;
@@ -583,7 +597,10 @@ private:
     u8 portAinternal() const override;
     u8 portAexternal() const override;
     void updatePA() override;
+    u8 computePA() const override;
+
     u8 portBinternal() const override;
     u8 portBexternal() const override;
     void updatePB() override;
+    u8 computePB() const override;
 };

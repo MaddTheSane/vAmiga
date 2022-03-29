@@ -12,23 +12,18 @@ class MyDocument: NSDocument {
     // The window controller for this document
     var parent: MyController { return windowControllers.first as! MyController }
     
-    /* Emulator proxy. This object is an Objective-C bridge between the Swift
-     * GUI an the core emulator which is written in C++.
-     */
+    // Gateway to the core emulator
     var amiga: AmigaProxy!
 
     /* An optional media object attached to this document. This variable is
      * checked in mountAttachment() which is called in windowDidLoad(). If an
-     * attachment is present, e.g., an ADF archive, it is automatically
-     * attached to the emulator.
+     * attachment is present, e.g., an ADF, it is automatically attached to the
+     * emulator.
      */
     var attachment: AmigaFileProxy?
     
     // Snapshots
-    private(set) var snapshots = ManagedArray<SnapshotProxy>.init(capacity: 32)
-
-    // Fingerprint of the first disk inserted into df0 after reset
-    var bootDiskID = UInt64(0)
+    private(set) var snapshots = ManagedArray<SnapshotProxy>(capacity: 32)
         
     //
     // Initializing
@@ -48,14 +43,15 @@ class MyDocument: NSDocument {
         // Register standard user defaults
         UserDefaults.registerUserDefaults()
         
-        // Create emulator instance
+        // Create an emulator instance
         amiga = AmigaProxy()
     }
  
     override open func makeWindowControllers() {
                 
-        let nibName = NSNib.Name("MyDocument")
-        let controller = MyController.init(windowNibName: nibName)
+        log()
+        
+        let controller = MyController(windowNibName: "MyDocument")
         controller.amiga = amiga
         self.addWindowController(controller)
     }
@@ -73,22 +69,20 @@ class MyDocument: NSDocument {
     }
     
     func createAttachment(from url: URL, allowedTypes: [FileType]) throws {
-        
-        track("Creating attachment from URL: \(url.lastPathComponent)")
-        
+                        
         try attachment = createFileProxy(from: url, allowedTypes: allowedTypes)
         myAppDelegate.noteNewRecentlyInsertedDiskURL(url)
         
-        track("Attachment created successfully")
+        log("Attachment created successfully")
     }
     
     fileprivate
     func createFileProxy(from url: URL, allowedTypes: [FileType]) throws -> AmigaFileProxy? {
             
-        track("Creating proxy object from URL: \(url.lastPathComponent)")
+        log("Creating proxy object from URL: \(url.lastPathComponent)")
         
         // If the provided URL points to compressed file, decompress it first
-        let newUrl = url.unpacked
+        let newUrl = url.unpacked(maxSize: 2048 * 1024)
         
         // Iterate through all allowed file types
         for type in allowedTypes {
@@ -134,96 +128,94 @@ class MyDocument: NSDocument {
             }
         }
         
-        // None of the allowed typed matched the file
-        throw VAError(.FILE_TYPE_MISMATCH, url.lastPathComponent)
+        // None of the allowed types matched the file
+        throw VAError(.FILE_TYPE_MISMATCH,
+                      "The type of this file is not known to the emulator.")
     }
-
-    @discardableResult
-    func mountAttachment() -> Bool {
+            
+    func mountAttachment(destination: FloppyDriveProxy? = nil) throws {
         
         // Only proceed if an attachment is present
-        if attachment == nil { return false }
+        if attachment == nil { return }
         
-        switch attachment {
-
-        case _ as SnapshotProxy:
-            
-            let proxy = attachment as! SnapshotProxy
-            parent.load(snapshot: proxy)
+        if let proxy = attachment as? SnapshotProxy {
+            try amiga.loadSnapshot(proxy)
             snapshots.append(proxy)
-
-        case _ as ScriptProxy:
-            
-            let proxy = attachment as! ScriptProxy
-            parent.renderer.console.runScript(script: proxy)
-            
-        case _ as HDFFileProxy:
-            
-            track()
-            
-            parent.warning("This file is a hard drive image (HDF)",
-                           "Hard drive emulation is not supported yet.",
-                           icon: "hdf")
-        
-        // Experimental code: The current version of vAmiga does not
-        // support hard drives. If a HDF file is dragged in, we open the
-        // disk export dialog for debugging purposes. It enables us to
-        // examine the contents of the HDF and to check for file system
-        // errors.
-        /*
-            if let vol = FSDeviceProxy.make(withHDF: attachment as? HDFFileProxy) {
-
-                vol.dump()
-            
-                let nibName = NSNib.Name("ExporterDialog")
-                let exportPanel = ExporterDialog.make(parent: parent, nibName: nibName)
-                exportPanel?.showSheet(forVolume: vol)
-            }
-        */
-
-        case _ as DiskFileProxy:
-
-            if let df = parent.dragAndDropDrive?.nr {
-                amiga.diskController.insert(df, file: attachment as? DiskFileProxy)
-            } else {
-                runImporterDialog()
-            }
-                    
-        default:
-            break
+            return
         }
         
-        return true
+        if let proxy = attachment as? ScriptProxy {
+            parent.renderer.console.runScript(script: proxy)
+            return
+        }
+        
+        if let proxy = attachment as? HDFFileProxy {
+            
+            // TODO: CLEAN THIS CASE UP
+            log("HDF with \(proxy.numBlocks) blocks")
+            return
+        }
+        
+        // Try to mount the attachment as a disk in df0
+        try mountAttachment(drive: 0)
     }
     
-    func runImporterDialog() {
-        let name = NSNib.Name("ImporterDialog")
-        let controller = ImporterDialog.make(parent: parent, nibName: name)
-        controller?.showSheet()
-    }
+    func mountAttachment(drive: Int) throws {
 
+        if let proxy = attachment as? FloppyFileProxy {
+            
+            do {
+                try amiga.df(drive)!.swap(file: proxy)
+            } catch {
+                (error as? VAError)?.cantInsert()
+            }
+        }
+        
+        if let proxy = attachment as? HDFFileProxy {
+            
+            do {
+                
+                if parent.askToReboot() {
+                    
+                    amiga.powerOff()
+                    amiga.configure(.HDR_CONNECT, drive: drive, enable: true)
+                    try amiga.hd(drive)?.attach(hdf: proxy)
+                    amiga.powerOn()
+                    try amiga.run()
+                }
+                
+            } catch {
+                (error as? VAError)?.cantAttach()
+            }
+        }
+    }
+    
     //
     // Loading
     //
     
     override open func read(from url: URL, ofType typeName: String) throws {
-        
+                
         do {
             try createAttachment(from: url)
+            
         } catch let error as VAError {
-            error.warning("Operation failed")
+            
+            throw NSError(error: error)
         }
     }
     
     override open func revert(toContentsOf url: URL, ofType typeName: String) throws {
         
-        track()
+        log()
         
         do {
             try createAttachment(from: url)
-            mountAttachment()
+            try mountAttachment()
+            
         } catch let error as VAError {
-            error.warning("Operation failed")
+            
+            throw NSError(error: error)
         }
     }
     
@@ -233,18 +225,19 @@ class MyDocument: NSDocument {
     
     override func write(to url: URL, ofType typeName: String) throws {
             
-        track()
+        log()
         
         if typeName == "vAmiga" {
             
             // Take snapshot
             if let snapshot = SnapshotProxy.make(withAmiga: amiga) {
 
-                // Write to data buffer
                 do {
-                    _ = try snapshot.writeToFile(url: url)
-                } catch {
-                    throw NSError(domain: NSOSStatusErrorDomain, code: unimpErr, userInfo: nil)
+                    try snapshot.writeToFile(url: url)
+                    
+                } catch let error as VAError {
+                    
+                    throw NSError(error: error)
                 }
             }
         }
@@ -256,71 +249,46 @@ class MyDocument: NSDocument {
     
     func export(drive nr: Int, to url: URL) throws {
                         
-        var df: DiskFileProxy?
+        var df: FloppyFileProxy?
         switch url.pathExtension.uppercased() {
         case "ADF":
             df = try Proxy.make(drive: amiga.df(nr)!) as ADFFileProxy
         case "IMG", "IMA":
             df = try Proxy.make(drive: amiga.df(nr)!) as IMGFileProxy
         default:
-            break
+            log(warning: "Invalid path extension")
+            return
         }
         
-        try export(diskFileProxy: df!, to: url)
+        try export(fileProxy: df!, to: url)
+        amiga.df(nr)!.markDiskAsUnmodified()
+        myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: nr)
         
-        // Mark disk as "not modified"
-        amiga.df(nr)!.isModifiedDisk = false
-        
-        // Remember export URL
-        myAppDelegate.noteNewRecentlyExportedDiskURL(url, drive: nr)
-    }
-    
-    func export(diskFileProxy df: DiskFileProxy, to url: URL) throws {
-        
-        track("Exporting disk to \(url)")
-        
-        try df.writeToFile(url: url)        
-    }
-    
-    //
-    // Snapshots
-    //
-        
-    private func thinOut(numItems: Int, counter: inout Int) -> Int? {
-        
-        if numItems < 32 { return nil }
-              
-        var itemToDelete = 0
-        
-        if counter % 2 == 0 {
-            itemToDelete = 24
-        } else if (counter >> 1) % 2 == 0 {
-            itemToDelete = 16
-        } else if (counter >> 2) % 2 == 0 {
-            itemToDelete = 8
-        }
-        counter += 1
-        
-        return itemToDelete
-    }
-    
-    //
-    // Screenshots
-    //
-    
-    func deleteBootDiskID() {
-     
-        bootDiskID = 0
+        log("Disk exported successfully")
     }
 
-    @discardableResult
-    func setBootDiskID(_ id: UInt64) -> Bool {
+    func export(hardDrive nr: Int, to url: URL) throws {
+                        
+        var dh: HDFFileProxy?
+        switch url.pathExtension.uppercased() {
+        case "HDF":
+            dh = try Proxy.make(hdr: amiga.hd(nr)!) as HDFFileProxy
+        default:
+            log(warning: "Invalid path extension")
+            return
+        }
         
-        // Only proceed if no disk has been inserted, yet
-        if bootDiskID != 0 { return false }
-        
-        // Remember the disk ID
-        bootDiskID = id
-        return true
+        try export(fileProxy: dh!, to: url)
+
+        amiga.hd(nr)!.markDiskAsUnmodified()
+        myAppDelegate.noteNewRecentlyExportedHdrURL(url, hd: nr)
+
+        log("Hard Drive exported successfully")
     }
+    
+    func export(fileProxy: AmigaFileProxy, to url: URL) throws {
+        
+        log("Exporting to \(url)")
+        try fileProxy.writeToFile(url: url)        
+    }        
 }

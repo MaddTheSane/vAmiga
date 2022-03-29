@@ -16,38 +16,24 @@
 
 #include <fstream>
 
-PixelEngine::PixelEngine(Amiga& ref) : AmigaComponent(ref)
+ScreenBuffer::ScreenBuffer()
 {
-    // Allocate frame buffers
-    emuTexture[0].data = new u32[PIXELS];
-    emuTexture[1].data = new u32[PIXELS];
-    
-    // Create random background noise pattern
-    const isize noiseSize = 2 * VPIXELS * HPIXELS;
-    noise = new u32[noiseSize];
-    for (isize i = 0; i < noiseSize; i++) {
-        noise[i] = rand() % 2 ? 0xFF000000 : 0xFFFFFFFF;
-    }
+    alloc(PIXELS);
 }
 
-PixelEngine::~PixelEngine()
+PixelEngine::PixelEngine(Amiga& ref) : SubComponent(ref)
 {
-    delete[] emuTexture[0].data;
-    delete[] emuTexture[1].data;
-    delete[] noise;
+    // Create random background noise pattern
+    noise.alloc(2 * VPIXELS * HPIXELS);
+    for (isize i = 0; i < noise.size; i++) {
+        noise[i] = rand() % 2 ? 0xFF000000 : 0xFFFFFFFF;
+    }
 }
 
 void
 PixelEngine::_initialize()
 {
-    config.palette = PALETTE_COLOR;
-    config.brightness = 50;
-    config.contrast = 100;
-    config.saturation = 50;
-    
-    // Start with a long frame
-    emuTexture[0].longFrame = true;
-    emuTexture[1].longFrame = true;
+    AmigaComponent::_initialize();
     
     // Setup ECS BRDRBLNK color
     indexedRgba[64] = GpuColor(0x00, 0x00, 0x00).rawValue;
@@ -60,7 +46,7 @@ PixelEngine::_initialize()
     indexedRgba[69] = GpuColor(0x00, 0xD0, 0xD0).rawValue;
     indexedRgba[70] = GpuColor(0x00, 0xA0, 0xA0).rawValue;
     indexedRgba[71] = GpuColor(0x00, 0x90, 0x90).rawValue;
-    indexedRgba[72] = GpuColor(0xFF, 0x00, 0x00).rawValue;
+    indexedRgba[72] = GpuColor(0xFF, 0x00, 0x00).rawValue;    
 }
 
 void
@@ -68,7 +54,13 @@ PixelEngine::_reset(bool hard)
 {
     RESET_SNAPSHOT_ITEMS(hard)
     
-    frameBuffer = & emuTexture[0];
+    if (hard) {
+        
+        emuTexture[0].longFrame = true;
+        emuTexture[1].longFrame = true;
+    }
+    
+    frameBuffer = emuTexture[0].ptr;
     updateRGBA();
 }
 
@@ -88,10 +80,35 @@ PixelEngine::_powerOn()
 
             isize pos = line * HPIXELS + i;
             u32 col = (line / 4) % 2 == (i / 8) % 2 ? 0xFF222222 : 0xFF444444;
-            emuTexture[0].data[pos] = col;
-            emuTexture[1].data[pos] = col;
+            emuTexture[0].ptr[pos] = col;
+            emuTexture[1].ptr[pos] = col;
         }
     }
+}
+
+PixelEngineConfig
+PixelEngine::getDefaultConfig()
+{
+    PixelEngineConfig defaults;
+
+    defaults.palette = PALETTE_COLOR;
+    defaults.brightness = 50;
+    defaults.contrast = 100;
+    defaults.saturation = 50;
+    
+    return defaults;
+}
+
+void
+PixelEngine::resetConfig()
+{
+    
+    auto defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_PALETTE, defaults.palette);
+    setConfigItem(OPT_BRIGHTNESS, defaults.brightness);
+    setConfigItem(OPT_CONTRAST, defaults.contrast);
+    setConfigItem(OPT_SATURATION, defaults.saturation);
 }
 
 i64
@@ -105,12 +122,11 @@ PixelEngine::getConfigItem(Option option) const
         case OPT_SATURATION:  return config.saturation;
 
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 PixelEngine::setConfigItem(Option option, i64 value)
 {
     switch (option) {
@@ -118,53 +134,45 @@ PixelEngine::setConfigItem(Option option, i64 value)
         case OPT_PALETTE:
             
             if (!PaletteEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, PaletteEnum::keyList());
+                throw VAError(ERROR_OPT_INVARG, PaletteEnum::keyList());
             }
-            if (config.palette == value) {
-                return false;
-            }
-            config.palette = value;
+            
+            config.palette = (Palette)value;
             updateRGBA();
-            return true;
+            return;
 
         case OPT_BRIGHTNESS:
             
-            if (config.brightness < 0 || config.brightness > 100) {
-                throw VAError(ERROR_OPT_INVALID_ARG, "Expected 0...100");
+            if (value < 0 || value > 100) {
+                throw VAError(ERROR_OPT_INVARG, "0...100");
             }
-            if (config.brightness == value) {
-                return false;
-            }
-            config.brightness = value;
+            
+            config.brightness = (isize)value;
             updateRGBA();
-            return true;
+            return;
             
         case OPT_CONTRAST:
 
-            if (config.contrast < 0 || config.contrast > 100) {
-                throw VAError(ERROR_OPT_INVALID_ARG, "Expected 0...100");
+            if (value < 0 || value > 100) {
+                throw VAError(ERROR_OPT_INVARG, "0...100");
             }
-            if (config.contrast == value) {
-                return false;
-            }
-            config.contrast = value;
+            
+            config.contrast = (isize)value;
             updateRGBA();
-            return true;
+            return;
 
         case OPT_SATURATION:
         
-            if (config.saturation < 0 || config.saturation > 100) {
-                throw VAError(ERROR_OPT_INVALID_ARG, "Expected 0...100");
+            if (value < 0 || value > 100) {
+                throw VAError(ERROR_OPT_INVARG, "0...100");
             }
-            if (config.saturation == value) {
-                return false;
-            }
-            config.saturation = value;
+            
+            config.saturation = (isize)value;
             updateRGBA();
-            return true;
+            return;
 
         default:
-            return false;
+            fatalError;
     }
 }
 
@@ -282,24 +290,43 @@ PixelEngine::adjustRGB(u8 &r, u8 &g, u8 &b)
     b = u8(newB);
 }
 
-ScreenBuffer
+const ScreenBuffer &
 PixelEngine::getStableBuffer()
 {
-    ScreenBuffer result;
+    if (frameBuffer == emuTexture[0].ptr) {
+        return emuTexture[1];
+    } else {
+        return emuTexture[0];
+    }
+}
+
+void
+PixelEngine::swapBuffers()
+{
+    lockStableBuffer();
     
-    synchronized {
-        result = (frameBuffer == &emuTexture[0]) ? emuTexture[1] : emuTexture[0];
+    if (frameBuffer == emuTexture[0].ptr) {
+
+        frameBuffer = emuTexture[1].ptr;
+        emuTexture[1].longFrame = agnus.frame.lof;
+        
+    } else {
+
+        frameBuffer = emuTexture[0].ptr;
+        emuTexture[0].longFrame = agnus.frame.lof;
+
     }
     
-    assert(result.data);
-    return result;
+    unlockStableBuffer();
 }
 
 u32 *
 PixelEngine::getNoise() const
 {
-    int offset = rand() % (VPIXELS * HPIXELS);
-    return noise + offset;
+    static u32 offset = 0;
+    
+    offset = (offset + 100) % PIXELS;
+    return noise.ptr + offset;
 }
 
 u32 *
@@ -310,18 +337,13 @@ PixelEngine::pixelAddr(isize pixel) const
     assert(pixel < HPIXELS);
     assert(offset < PIXELS);
 
-    return frameBuffer->data + offset;
+    return frameBuffer + offset;
 }
 
 void
-PixelEngine::beginOfFrame()
+PixelEngine::vsyncHandler()
 {
-    // Switch the working buffer
-    synchronized {
-        frameBuffer = (frameBuffer == &emuTexture[0]) ? &emuTexture[1] : &emuTexture[0];
-        frameBuffer->longFrame = agnus.frame.lof;
-    }
-    
+    swapBuffers();
     dmaDebugger.vSyncHandler();
 }
 
@@ -329,9 +351,10 @@ void
 PixelEngine::endOfVBlankLine()
 {
     // Apply all color register changes that happened in this line
-    for (isize i = colChanges.begin(); i != colChanges.end(); i = colChanges.next(i)) {
+    for (isize i = 0, end = colChanges.end(); i < end; i++) {
         applyRegisterChange(colChanges.elements[i]);
     }
+    colChanges.clear();
 }
 
 void
@@ -340,13 +363,16 @@ PixelEngine::applyRegisterChange(const RegChange &change)
     switch (change.addr) {
 
         case 0:
+            
             break;
 
-        case BPLCON0:
+        case 0x100: // BPLCON0
+            
             hamMode = Denise::ham(change.value);
             break;
             
         default: // It must be a color register then
+            
             assert(change.addr >= 0x180 && change.addr <= 0x1BE);
             setColor((change.addr - 0x180) >> 1, change.value);
             break;
@@ -357,7 +383,7 @@ void
 PixelEngine::colorize(isize line)
 {
     // Jump to the first pixel in the specified line in the active frame buffer
-    u32 *dst = frameBuffer->data + line * HPIXELS;
+    u32 *dst = frameBuffer + line * HPIXELS;
     Pixel pixel = 0;
 
     // Initialize the HAM mode hold register with the current background color
@@ -367,7 +393,7 @@ PixelEngine::colorize(isize line)
     colChanges.insert(HPIXELS, RegChange { SET_NONE, 0 } );
 
     // Iterate over all recorded register changes
-    for (isize i = colChanges.begin(); i != colChanges.end(); i = colChanges.next(i)) {
+    for (isize i = 0, end = colChanges.end(); i < end; i++) {
 
         Pixel trigger = (Pixel)colChanges.keys[i];
         RegChange &change = colChanges.elements[i];
@@ -384,13 +410,13 @@ PixelEngine::colorize(isize line)
         applyRegisterChange(change);
     }
 
-    // Wipe out the HBLANK area
-    for (Pixel pixel = 4 * HBLANK_MIN; pixel <= 4 * HBLANK_MAX; pixel++) {
-        dst[pixel] = rgbaHBlank;
-    }
-
     // Clear the history cache
     colChanges.clear();
+
+    // Wipe out the HBLANK area
+    for (pixel = 4 * HBLANK_MIN; pixel <= 4 * HBLANK_MAX; pixel++) {
+        dst[pixel] = rgbaHBlank;
+    }
 }
 
 void
@@ -415,7 +441,6 @@ PixelEngine::colorizeHAM(u32 *dst, Pixel from, Pixel to, u16& ham)
         u8 index = ibuf[i];
         assert(isRgbaIndex(index));
 
-        // switch ((index >> 4) & 0b11) {
         switch ((bbuf[i] >> 4) & 0b11) {
 
             case 0b00: // Get color from register
@@ -442,7 +467,7 @@ PixelEngine::colorizeHAM(u32 *dst, Pixel from, Pixel to, u16& ham)
                 break;
 
             default:
-                assert(false);
+                fatalError;
         }
 
         // Synthesize pixel
@@ -457,7 +482,7 @@ PixelEngine::colorizeHAM(u32 *dst, Pixel from, Pixel to, u16& ham)
 void
 PixelEngine::hide(isize line, u16 layers, u8 alpha)
 {
-    u32 *p = frameBuffer->data + line * HPIXELS;
+    u32 *p = frameBuffer + line * HPIXELS;
 
     for (Pixel i = 0; i < HPIXELS; i++) {
 

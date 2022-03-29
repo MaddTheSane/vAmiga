@@ -37,7 +37,23 @@ Blitter::initFastBlitter()
     };
 
     assert(sizeof(this->blitfunc) == sizeof(blitfunc));
-    memcpy(this->blitfunc, blitfunc, sizeof(blitfunc));
+    std::memcpy(this->blitfunc, blitfunc, sizeof(blitfunc));
+}
+
+void
+Blitter::beginFastCopyBlit()
+{
+    // Only call this function in copy blit mode
+    assert(!bltconLINE());
+
+    // Run the fast copy Blitter
+    isize nr = ((bltcon0 >> 7) & 0b11110) | (bltconDESC() ? 1 : 0);
+    (this->*blitfunc[nr])();
+
+    // Terminate immediately
+    clearBusyFlag();
+    paula.raiseIrq(INT_BLIT);
+    endBlit();
 }
 
 void
@@ -50,23 +66,7 @@ Blitter::beginFastLineBlit()
     doFastLineBlit();
 
     // Terminate immediately
-    signalEnd();
-    paula.raiseIrq(INT_BLIT);
-    endBlit();
-}
-
-void
-Blitter::beginFastCopyBlit()
-{
-    // Only call this function in copy blit mode
-    assert(!bltconLINE());
-
-    // Run the fast copy Bliter
-    int nr = ((bltcon0 >> 7) & 0b11110) | bltconDESC();
-    (this->*blitfunc[nr])();
-
-    // Terminate immediately
-    signalEnd();
+    clearBusyFlag();
     paula.raiseIrq(INT_BLIT);
     endBlit();
 }
@@ -83,8 +83,6 @@ void Blitter::doFastCopyBlit()
     bool fillCarry;
 
     int incr = desc ? -2 : 2;
-    [[maybe_unused]] int ash  = desc ? 16 - bltconASH() : bltconASH();
-    [[maybe_unused]] int bsh  = desc ? 16 - bltconBSH() : bltconBSH();
     i32 amod = desc ? -bltamod : bltamod;
     i32 bmod = desc ? -bltbmod : bltbmod;
     i32 cmod = desc ? -bltcmod : bltcmod;
@@ -109,55 +107,36 @@ void Blitter::doFastCopyBlit()
             // Fetch A
             if (useA) {
                 anew = mem.peek16 <ACCESSOR_AGNUS> (apt);
-                trace(BLT_DEBUG, "    A = peek(%X) = %X\n", apt, anew);
+                trace(BLT_DEBUG, "    A = %X <- %X\n", anew, apt);
                 apt = U32_ADD(apt, incr);
             }
 
             // Fetch B
             if (useB) {
                 bnew = mem.peek16 <ACCESSOR_AGNUS> (bpt);
-                trace(BLT_DEBUG, "    B = peek(%X) = %X\n", bpt, bnew);
+                trace(BLT_DEBUG, "    B = %X <- %X\n", bnew, bpt);
                 bpt = U32_ADD(bpt, incr);
             }
 
             // Fetch C
             if (useC) {
                 chold = mem.peek16 <ACCESSOR_AGNUS> (cpt);
-                trace(BLT_DEBUG, "    C = peek(%X) = %X\n", cpt, chold);
+                trace(BLT_DEBUG, "    C = %X <- %X\n", chold, cpt);
                 cpt = U32_ADD(cpt, incr);
             }
             
-            trace(BLT_DEBUG, "    After fetch: A = %x B = %x C = %x\n",
-                  anew, bnew, chold);
-            trace(BLT_DEBUG, "    After masking with %x (%x,%x) %x\n",
-                  mask, bltafwm, bltalwm, anew & mask);
-            trace(BLT_DEBUG, "    ash = %d bsh = %d mask = %X\n",
-                  bltconASH(), bltconBSH(), mask);
-
-            // Run the barrel shifter on path A (even if A channel is disabled)
-            if (desc) {
-                doBarrelAdesc(anew & mask, &aold, &ahold);
-            } else {
-                doBarrelA(anew & mask, &aold, &ahold);
-            }
-            
-            // Run the barrel shifter on path B (if B channel enabled)
+            // Run the barrel shifter on path A (even if channel A is disabled)
+            ahold = barrelShifter(anew & mask, aold, bltconASH(), desc);
+            aold = anew & mask;
+                        
+            // Run the barrel shifter on path B (if channel B is enabled)
             if (useB) {
-                if (desc) {
-                    doBarrelBdesc(bnew, &bold, &bhold);
-                } else {
-                    doBarrelB(bnew, &bold, &bhold);
-                }
+                bhold = barrelShifter(bnew, bold, bltconBSH(), desc);
+                bold = bnew;
             }
-
-            trace(BLT_DEBUG, "    After shifting (%d,%d) A = %x B = %x\n", ash, bsh, ahold, bhold);
             
-            // Run the minterm logic circuit
-            trace(BLT_DEBUG, "    Minterms: ahold = %X bhold = %X chold = %X bltcon0 = %X (hex)\n", ahold, bhold, chold, bltcon0);
-            dhold = doMintermLogicQuick(ahold, bhold, chold, bltcon0 & 0xFF);
-            if (BLT_DEBUG) {
-                assert(dhold == doMintermLogic(ahold, bhold, chold, bltcon0 & 0xFF));
-            }
+            // Run the minterm circuit
+            dhold = doMintermLogic(ahold, bhold, chold, bltcon0 & 0xFF);
 
             // Run the fill logic circuit
             if (fill) doFill(dhold, fillCarry);
@@ -170,10 +149,11 @@ void Blitter::doFastCopyBlit()
                 mem.poke16 <ACCESSOR_AGNUS> (dpt, dhold);
 
                 if (BLT_CHECKSUM) {
-                    check1 = util::fnv_1a_it32(check1, dhold);
-                    check2 = util::fnv_1a_it32(check2, dpt & agnus.ptrMask);
+                    check1 = util::fnvIt32(check1, dhold);
+                    check2 = util::fnvIt32(check2, dpt & agnus.ptrMask);
                 }
-                trace(BLT_DEBUG, "D: poke(%X), %X  (check: %X %X)\n", dpt, dhold, check1, check2);
+                trace(BLT_DEBUG, "    D = %X -> %X\n", dhold, dpt);
+                
                 dpt = U32_ADD(dpt, incr);
             }
 
@@ -194,6 +174,141 @@ void Blitter::doFastCopyBlit()
     bltcpt = cpt;
     bltdpt = dpt;
 }
+
+void
+Blitter::doFastLineBlit()
+{
+    bool firstPixel = true;
+    bool useB = bltcon0 & BLTCON0_USEB;
+    bool useC = bltcon0 & BLTCON0_USEC;
+    bool sing = bltcon1 & BLTCON1_SING;
+    bool sign = bltcon1 & BLTCON1_SIGN;
+    auto ash = bltconASH();
+    auto bsh = bltconBSH();
+
+    auto incx = [&]() {
+        if (++ash == 16) {
+            ash = 0;
+            U32_INC(bltcpt, 2);
+        }
+    };
+    
+    auto decx = [&]() {
+        if (ash-- == 0) {
+            ash = 15;
+            U32_INC(bltcpt, -2);
+        }
+    };
+    
+    auto incy = [&]() {
+        U32_INC(bltcpt, bltcmod);
+        firstPixel = true;
+    };
+    
+    auto decy = [&]() {
+        U32_INC(bltcpt, -bltcmod);
+        firstPixel = true;
+    };
+    
+    auto doLineLogic = [&]() {
+        
+        firstPixel = false;
+        
+        if (!sign) {
+            if (bltcon1 & BLTCON1_SUD) {
+                if (bltcon1 & BLTCON1_SUL)
+                    decy();
+                else
+                    incy();
+            } else {
+                if (bltcon1 & BLTCON1_SUL)
+                    decx();
+                else
+                    incx();
+            }
+        }
+        
+        if (bltcon1 & BLTCON1_SUD) {
+            if (bltcon1 & BLTCON1_AUL)
+                decx();
+            else
+                incx();
+        } else {
+            if (bltcon1 & BLTCON1_AUL)
+                decy();
+            else
+                incy();
+        }
+        
+        if (bltcon0 & BLTCON0_USEA) {
+            if (sign)
+                U32_INC(bltapt, bltbmod);
+            else
+                U32_INC(bltapt, bltamod);
+        }
+        
+        sign = (i16)bltapt < 0;
+    };
+            
+    // Fallback to the old implementation (WinFellow) if requested
+    if constexpr (OLD_LINE_BLIT) {
+        doLegacyFastLineBlit();
+        return;
+    }
+                                    
+    for (isize i = 0; i < bltsizeV; i++) {
+        
+        // Fetch B
+        if (useB) {
+            bnew = mem.peek16 <ACCESSOR_AGNUS> (bltbpt);
+            U32_INC(bltbpt, bltbmod);
+        }
+        
+        // Fetch C
+        if (useC) {
+            chold = mem.peek16 <ACCESSOR_AGNUS> (bltcpt);
+        }
+        
+        // Run the barrel shifters
+        ahold = barrelShifter(anew & bltafwm, 0, ash);
+        bhold = barrelShifter(bnew, bnew, bsh);
+        if (bsh-- == 0) bsh = 15;
+        
+        // Run the minterm circuit
+        dhold = doMintermLogic(ahold, (bhold & 1) ? 0xFFFF : 0, chold, bltcon0 & 0xFF);
+                
+        bool writeEnable = (!sing || firstPixel) && useC;
+
+        // Run the line logic circuit
+        doLineLogic();
+                
+        // Update the zero flag
+        if (dhold) bzero = false;
+
+        // Write D
+        if (writeEnable) {
+                        
+            mem.poke16 <ACCESSOR_AGNUS> (bltdpt, dhold);
+            
+            if (BLT_CHECKSUM) {
+                check1 = util::fnvIt32(check1, dhold);
+                check2 = util::fnvIt32(check2, bltdpt & agnus.ptrMask);
+            }
+        }
+        
+        bltdpt = bltcpt;
+    }
+
+    // Write back local values
+    setASH(ash);
+    setBSH(bsh);
+    REPLACE_BIT(bltcon1, 6, sign);
+}
+
+/* Below is the old LineBlitter code which had been adapted from WinFellow.
+ * The code can be deleted once the new LineBlitter code has proven to be
+ * stable.
+ */
 
 #define blitterLineIncreaseX(a_shift, cpt) \
 if (a_shift < 15) a_shift++; \
@@ -217,7 +332,7 @@ a_shift--; \
 #define blitterLineDecreaseY(cpt, cmod) cpt -= cmod;
 
 void
-Blitter::doFastLineBlit()
+Blitter::doLegacyFastLineBlit()
 {
     bltapt &= agnus.ptrMask;
     bltcpt &= agnus.ptrMask;
@@ -283,15 +398,15 @@ Blitter::doFastLineBlit()
         bltbdat_local = (mask & 1) ? 0xFFFF : 0;
         
         // Calculate result
-        bltddat_local = doMintermLogicQuick(bltadat_local, bltbdat_local, bltcdat_local, minterm);
+        bltddat_local = doMintermLogic(bltadat_local, bltbdat_local, bltcdat_local, minterm);
         
         // Save result to D-channel, same as the C ptr after first pixel.
         if (c_enabled) { // C-channel must be enabled
             mem.poke16 <ACCESSOR_AGNUS> (bltdpt_local, bltddat_local);
 
             if (BLT_CHECKSUM) {
-                check1 = util::fnv_1a_it32(check1, bltddat_local);
-                check2 = util::fnv_1a_it32(check2, bltdpt_local & agnus.ptrMask);
+                check1 = util::fnvIt32(check1, bltddat_local);
+                check2 = util::fnvIt32(check2, bltdpt_local & agnus.ptrMask);
             }
         }
         
@@ -356,8 +471,7 @@ Blitter::doFastLineBlit()
     bltcon = bltcon & 0x0FFFFFFBF;
     if (decision_is_signed) bltcon |= 0x00000040;
     
-    setBLTCON0ASH(blit_a_shift_local);
-    bnew   = bltbdat_local;
+    setASH((u16)blit_a_shift_local);
     
     bltapt = decision_variable & agnus.ptrMask;
     bltcpt = bltcpt_local & agnus.ptrMask;

@@ -15,37 +15,36 @@
 u8
 CIA::peek(u16 addr)
 {
-    u8 result;
+    assert(addr <= 0xF);
 
-    trace(CIAREG_DEBUG, "Peek(%d [%s])\n", addr, ciaRegName(addr));
+    u8 result;
 
     wakeUp();
 
-    assert(addr <= 0x000F);
     switch(addr) {
             
         case 0x00: // CIA_DATA_PORT_A
 
             updatePA();
-            result = PA;
+            
+            result = pa;
             break;
 
         case 0x01: // CIA_DATA_PORT_B
 
             updatePB();
-            result = PB;
+            
+            result = pb;
             break;
 
         case 0x02: // CIA_DATA_DIRECTION_A
 
-            result = DDRA;
-            // debug(DSKREG_DEBUG, "read DDRA = %X\n", DDRA);
+            result = ddra;
             break;
 
         case 0x03: // CIA_DATA_DIRECTION_B
 
-            result = DDRB;
-            // debug(DSKREG_DEBUG, "read DDRB = %X\n", DDRB);
+            result = ddrb;
             break;
             
         case 0x04: // CIA_TIMER_A_LOW
@@ -54,6 +53,7 @@ CIA::peek(u16 addr)
             break;
             
         case 0x05: // CIA_TIMER_A_HIGH
+            
             result = HI_BYTE(counterA);
             break;
             
@@ -80,7 +80,7 @@ CIA::peek(u16 addr)
             
         case 0x0A: // EVENT_16_23
 
-            if (!(CRB & 0x80)) tod.freeze();
+            if (!(crb & 0x80)) tod.freeze();
             result = tod.getCounterHi(clock - DMA_CYCLES(isCIAA() ? 95 : 210));
             break;
             
@@ -105,9 +105,7 @@ CIA::peek(u16 addr)
             result = icr;
             
             // Release interrupt request
-            if (INT == 0) {
-                delay |= CIAClearInt0;
-            }
+            if (irq == 0) delay |= CIAClearInt0;
             
             // Discard pending interrupts
             delay &= ~(CIASetInt0 | CIASetInt1);
@@ -123,50 +121,43 @@ CIA::peek(u16 addr)
 
         case 0x0E: // CIA_CONTROL_REG_A
 
-            result = (u8)(CRA & ~0x90); // Bit 4 and 7 always read as 0
+            result = (u8)(cra & ~0x90); // Bit 4 and 7 always read as 0
             break;
             
         case 0x0F: // CIA_CONTROL_REG_B
             
-            result = (u8)(CRB & ~0x10); // Bit 4 always reads as 0
+            result = (u8)(crb & ~0x10); // Bit 4 always reads as 0
             break;
             
         default:
-            assert(false);
-            result = 0;
-            break;
+            fatalError;
     }
     
-    // debug("Peek %d (hex: %02X) = %d\n", addr, addr, result);
+    trace(CIAREG_DEBUG, "Peek(%d [%s]) = %02x\n", addr, CIARegEnum::key(addr), result);
     
     return result;
 }
 
 u8
-CIA::spypeek(u16 addr)
-{
-    return const_cast<const CIA*>(this)->spypeek(addr);
-}
-
-u8
 CIA::spypeek(u16 addr) const
 {
+    assert(addr <= 0xF);
+
     bool running;
 
-    assert(addr <= 0x000F);
     switch(addr) {
           
         case 0x00: // CIA_DATA_PORT_A
-            return PA;
+            return pa;
             
         case 0x01: // CIA_DATA_PORT_B
-            return PB;
+            return pb;
             
         case 0x02: // CIA_DATA_DIRECTION_A
-            return DDRA;
+            return ddra;
             
         case 0x03: // CIA_DATA_DIRECTION_B
-            return DDRB;
+            return ddrb;
             
         case 0x04: // CIA_TIMER_A_LOW
             running = delay & CIACountA3;
@@ -203,21 +194,20 @@ CIA::spypeek(u16 addr) const
             return icr;
             
         case 0x0E: // CIA_CONTROL_REG_A
-            return CRA & ~0x10;
+            return cra & ~0x10;
             
         case 0x0F: // CIA_CONTROL_REG_B
-            return CRB & ~0x10;
+            return crb & ~0x10;
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
 void
 CIA::poke(u16 addr, u8 value)
 {
-    trace(CIAREG_DEBUG, "Poke(%d [%s],$%X)\n", addr, ciaRegName(addr), value);
+    trace(CIAREG_DEBUG, "Poke(%d [%s], %02x)\n", addr, CIARegEnum::key(addr), value);
     
     wakeUp();
     
@@ -225,20 +215,16 @@ CIA::poke(u16 addr, u8 value)
         
         case 0x00: // CIA_DATA_PORT_A
 
-            // debug("%s poke(0, %X)\n", getDescription(), value);
             pokePA(value);
             return;
             
         case 0x01: // CIA_DATA_PORT_B
             
-            // if (isCIAB()) debug("poke(1, %X)\n", value);
-            PRB = value;
-            updatePB();
+            pokePB(value);
             return;
             
         case 0x02: // CIA_DATA_DIRECTION_A
         
-            // debug("%s poke(DDRA, %X)\n", getDescription(), value);
             if ((isCIAA() && value != 0x03) || (isCIAB() && value != 0xC0)) {
                 trace(XFILES, "XFILES (DDRA) Setting unusual value %x\n", value);
             }
@@ -247,17 +233,16 @@ CIA::poke(u16 addr, u8 value)
             
         case 0x03: // CIA_DATA_DIRECTION_B
         
-            // debug("%s poke(DDRB, %X)\n", getDescription(), value);
             if (isCIAB() && value != 0xFF) {
                 trace(XFILES, "XFILES (DDRB) Setting unusual value %x\n", value);
             }
-            DDRB = value;
-            updatePB();
+            pokeDDRB(value);
             return;
             
         case 0x04: // CIA_TIMER_A_LOW
             
             latchA = (latchA & 0xFF00) | value;
+            
             if (delay & CIALoadA2) {
                 counterA = (counterA & 0xFF00) | value;
             }
@@ -265,37 +250,39 @@ CIA::poke(u16 addr, u8 value)
             
         case 0x05: // CIA_TIMER_A_HIGH
             
-            latchA = (latchA & 0x00FF) | (value << 8);
+            latchA = (u16)((latchA & 0x00FF) | value << 8);
+            
             if (delay & CIALoadA2) {
-                counterA = (counterA & 0x00FF) | (value << 8);
+                counterA = (u16)((counterA & 0x00FF) | value << 8);
             }
             
             // Load counter if timer is stopped
-            if (!(CRA & 0x01)) {
-                delay |= CIALoadA0;
-            }
+            if (!(cra & 0x01)) delay |= CIALoadA0;
             
             /* MOS 8520 only feature:
              * "In one-shot mode, a write to timer-high (register 5 for timer A,
              *  register 7 for Timer B) will transfer the timer latch to the
              *  counter and initiate counting regardless of the start bit." [HRM]
              */
-            if (CRA & 0x08) {
-                if (!(CRA & 0x01)) {
-                    PB67Toggle |= 0x40;
+            if (cra & 0x08) {
+                
+                if (!(cra & 0x01)) {
+                    
+                    pb67Toggle |= 0x40;
                 }
-                if (!(CRA & 0x20)) {
+                if (!(cra & 0x20)) {
+                    
                     delay |= CIACountA1 | CIALoadA0 | CIACountA0;
                     feed |= CIACountA0;
                 }
-                CRA |= 0x01;
+                cra |= 0x01;
             }
-            
             return;
             
         case 0x06: // CIA_TIMER_B_LOW
 
             latchB = (latchB & 0xFF00) | value;
+            
             if (delay & CIALoadB2) {
                 counterB = (counterB & 0xFF00) | value;
             }
@@ -303,38 +290,39 @@ CIA::poke(u16 addr, u8 value)
             
         case 0x07: // CIA_TIMER_B_HIGH
             
-            // debug("CIA7: %x\n", value);
-            latchB = (latchB & 0x00FF) | (value << 8);
+            latchB = (u16)((latchB & 0x00FF) | value << 8);
+            
             if (delay & CIALoadB2) {
-                counterB = (counterB & 0x00FF) | (value << 8);
+                counterB = (u16)((counterB & 0x00FF) | value << 8);
             }
             
             // Load counter if timer is stopped
-            if ((CRB & 0x01) == 0) {
-                delay |= CIALoadB0;
-            }
+            if ((crb & 0x01) == 0) delay |= CIALoadB0;
             
             /* MOS 8520 only feature:
              * "In one-shot mode, a write to timer-high (register 5 for timer A,
              *  register 7 for Timer B) will transfer the timer latch to the
              *  counter and initiate counting regardless of the start bit." [HRM]
              */
-            if (CRB & 0x08) {
-                if (!(CRB & 0x01)) {
-                    PB67Toggle |= 0x80;
+            if (crb & 0x08) {
+                
+                if (!(crb & 0x01)) {
+                    
+                    pb67Toggle |= 0x80;
                 }
-                if (!(CRB & 0x60)) {
+                if (!(crb & 0x60)) {
+                    
                     delay |= CIACountB1 | CIALoadB0 | CIACountB0;
                     feed |= CIACountB0;
                 }
-                CRB |= 0x01;
+                crb |= 0x01;
             }
             
             return;
             
         case 0x08: // CIA_EVENT_0_7
             
-            if (CRB & 0x80) {
+            if (crb & 0x80) {
                 tod.setAlarmLo(value);
             } else {
                 tod.setCounterLo(value);
@@ -344,7 +332,7 @@ CIA::poke(u16 addr, u8 value)
             
         case 0x09: // CIA_EVENT_8_15
             
-            if (CRB & 0x80) {
+            if (crb & 0x80) {
                 tod.setAlarmMid(value);
             } else {
                 tod.setCounterMid(value);
@@ -353,7 +341,7 @@ CIA::poke(u16 addr, u8 value)
             
         case 0x0A: // CIA_EVENT_16_23
             
-            if (CRB & 0x80) {
+            if (crb & 0x80) {
                 tod.setAlarmHi(value);
             } else {
                 tod.setCounterHi(value);
@@ -380,10 +368,9 @@ CIA::poke(u16 addr, u8 value)
             } else {
                 imr &= ~(value & 0x1F);
             }
-            // debug("imr = %d (hex: %X) icr = %d (hex: %X) INT = %d\n", imr, imr, icr, icr, INT);
             
             // Raise an interrupt in the next cycle if conditions match
-            if ((imr & icr & 0x1F) && INT && !(delay & CIAReadIcr1)) {
+            if ((imr & icr & 0x1F) && irq && !(delay & CIAReadIcr1)) {
                 delay |= (CIASetInt1 | CIASetIcr1);
             }
             return;
@@ -392,31 +379,39 @@ CIA::poke(u16 addr, u8 value)
         
             // -------0 : Stop timer
             // -------1 : Start timer
+            
             if (value & 0x01) {
+                
                 delay |= CIACountA1 | CIACountA0;
                 feed |= CIACountA0;
-                if (!(CRA & 0x01))
-                    PB67Toggle |= 0x40; // Toggle is high on start
+                
+                if (!(cra & 0x01))
+                    pb67Toggle |= 0x40; // Toggle is high on start
+                
             } else {
+                
                 delay &= ~(CIACountA1 | CIACountA0);
                 feed &= ~CIACountA0;
             }
             
             // ------0- : Don't indicate timer underflow on port B
             // ------1- : Indicate timer underflow on port B bit 6
+            
             if (value & 0x02) {
-                PB67TimerMode |= 0x40;
+                
+                pb67TimerMode |= 0x40;
+                
                 if (!(value & 0x04)) {
                     if ((delay & CIAPB7Low1) == 0) {
-                        PB67TimerOut &= ~0x40;
+                        pb67TimerOut &= ~0x40;
                     } else {
-                        PB67TimerOut |= 0x40;
+                        pb67TimerOut |= 0x40;
                     }
                 } else {
-                    PB67TimerOut = (PB67TimerOut & ~0x40) | (PB67Toggle & 0x40);
+                    pb67TimerOut = (pb67TimerOut & ~0x40) | (pb67Toggle & 0x40);
                 }
             } else {
-                PB67TimerMode &= ~0x40;
+                pb67TimerMode &= ~0x40;
             }
             
             // -----0-- : Upon timer underflow, invert port B bit 6
@@ -425,6 +420,7 @@ CIA::poke(u16 addr, u8 value)
 
             // ----0--- : Timer restarts upon underflow
             // ----1--- : Timer stops upon underflow (One shot mode)
+            
             if (value & 0x08) {
                 feed |= CIAOneShotA0;
             } else {
@@ -433,12 +429,14 @@ CIA::poke(u16 addr, u8 value)
             
             // ---0---- : Nothing to do
             // ---1---- : Load start value into timer
+            
             if (value & 0x10) {
                 delay |= CIALoadA0;
             }
 
             // --0----- : Timer counts system cycles
             // --1----- : Timer counts positive edges on CNT pin
+            
             if (value & 0x20) {
                 delay &= ~(CIACountA1 | CIACountA0);
                 feed &= ~CIACountA0;
@@ -446,7 +444,8 @@ CIA::poke(u16 addr, u8 value)
     
             // -0------ : Serial shift register in input mode (read)
             // -1------ : Serial shift register in output mode (write)
-            if ((value ^ CRA) & 0x40) {
+            
+            if ((value ^ cra) & 0x40) {
 
                 // Serial direction changing
                 trace(CIASER_DEBUG, "Serial register: %s\n", (value & 0x40) ? "output" : "input");
@@ -465,7 +464,7 @@ CIA::poke(u16 addr, u8 value)
             }
             
             updatePB(); // Because PB67timerMode and PB6TimerOut may have changed
-            CRA = value;
+            cra = value;
             
             return;
             
@@ -473,11 +472,12 @@ CIA::poke(u16 addr, u8 value)
         {
             // -------0 : Stop timer
             // -------1 : Start timer
+            
             if (value & 0x01) {
                 delay |= CIACountB1 | CIACountB0;
                 feed |= CIACountB0;
-                if (!(CRB & 0x01))
-                    PB67Toggle |= 0x80; // Toggle is high on start
+                if (!(crb & 0x01))
+                    pb67Toggle |= 0x80; // Toggle is high on start
             } else {
                 delay &= ~(CIACountB1 | CIACountB0);
                 feed &= ~CIACountB0;
@@ -485,19 +485,20 @@ CIA::poke(u16 addr, u8 value)
             
             // ------0- : Don't indicate timer underflow on port B
             // ------1- : Indicate timer underflow on port B bit 7
+            
             if (value & 0x02) {
-                PB67TimerMode |= 0x80;
+                pb67TimerMode |= 0x80;
                 if ((value & 0x04) == 0) {
                     if ((delay & CIAPB7Low1) == 0) {
-                        PB67TimerOut &= ~0x80;
+                        pb67TimerOut &= ~0x80;
                     } else {
-                        PB67TimerOut |= 0x80;
+                        pb67TimerOut |= 0x80;
                     }
                 } else {
-                    PB67TimerOut = (PB67TimerOut & ~0x80) | (PB67Toggle & 0x80);
+                    pb67TimerOut = (pb67TimerOut & ~0x80) | (pb67Toggle & 0x80);
                 }
             } else {
-                PB67TimerMode &= ~0x80;
+                pb67TimerMode &= ~0x80;
             }
             
             // -----0-- : Upon timer underflow, invert port B bit 7
@@ -506,6 +507,7 @@ CIA::poke(u16 addr, u8 value)
             
             // ----0--- : Timer restarts upon underflow
             // ----1--- : Timer stops upon underflow (One shot mode)
+            
             if (value & 0x08) {
                 feed |= CIAOneShotB0;
             } else {
@@ -514,6 +516,7 @@ CIA::poke(u16 addr, u8 value)
             
             // ---0---- : Nothing to do
             // ---1---- : Load start value into timer
+            
             if (value & 0x10) {
                 delay |= CIALoadB0;
             }
@@ -523,6 +526,7 @@ CIA::poke(u16 addr, u8 value)
             // -10----- : Timer counts underflows of timer A
             // -11----- : Timer counts underflows of timer A occurring along with a
             //            positive edge on CNT pin
+            
             if (value & 0x60) {
                 delay &= ~(CIACountB1 | CIACountB0);
                 feed &= ~CIACountB0;
@@ -532,12 +536,12 @@ CIA::poke(u16 addr, u8 value)
             // 1------- : Writing into TOD registers sets alarm time
             
             updatePB(); // Because PB67timerMode and PB6TimerOut may have changed
-            CRB = value;
+            crb = value;
             
             return;
         }
             
         default:
-            assert(false);
+            fatalError;
     }
 }

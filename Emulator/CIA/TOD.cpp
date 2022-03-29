@@ -10,23 +10,17 @@
 #include "config.h"
 #include "TOD.h"
 #include "CIA.h"
-#include "IO.h"
+#include "IOUtils.h"
 
-TOD::TOD(CIA *cia, Amiga& ref) : AmigaComponent(ref)
+TOD::TOD(CIA &ciaref, Amiga& ref) : SubComponent(ref), cia(ciaref)
 {
-    this->cia = cia;
+
 }
 
 const char *
 TOD::getDescription() const
 {
-    return cia->isCIAA() ? "TODA" : "TODB";
-}
-
-void
-TOD::_initialize()
-{
-    
+    return cia.isCIAA() ? "TODA" : "TODB";
 }
 
 void
@@ -34,15 +28,18 @@ TOD::_reset(bool hard)
 {
     RESET_SNAPSHOT_ITEMS(hard)
     
-    if (hard) stopped = true;
-    if (hard) matching = true;
-    if (hard) tod.hi = 0x1;
+    if (hard) {
+        
+        stopped = true;
+        matching = true;
+        tod.hi = 0x1;
+    }
 }
 
 void
-TOD::_inspect()
+TOD::_inspect() const
 {
-    synchronized {
+    {   SYNCHRONIZED
         
         info.value = tod.value;
         info.latch = latch.value;
@@ -51,20 +48,23 @@ TOD::_inspect()
 }
 
 void 
-TOD::_dump(dump::Category category, std::ostream& os) const
+TOD::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
-    os << tab("Counter");
-    os << hex(tod.hi) << ":" << hex(tod.mid) << ":" << hex(tod.lo) << std::endl;
-    os << tab("Alarm");
-    os << hex(alarm.hi) << ":" << hex(alarm.mid) << ":" << hex(alarm.lo) << std::endl;
-    os << tab("Latch");
-    os << hex(latch.hi) << ":" << hex(latch.mid) << ":" << hex(latch.lo) << std::endl;
-    os << tab("Frozen");
-    os << bol(frozen) << std::endl;
-    os << tab("Stopped");
-    os << bol(stopped) << std::endl;
+    if (category == Category::State) {
+        
+        os << tab("Counter");
+        os << hex(tod.hi) << ":" << hex(tod.mid) << ":" << hex(tod.lo) << std::endl;
+        os << tab("Alarm");
+        os << hex(alarm.hi) << ":" << hex(alarm.mid) << ":" << hex(alarm.lo) << std::endl;
+        os << tab("Latch");
+        os << hex(latch.hi) << ":" << hex(latch.mid) << ":" << hex(latch.lo) << std::endl;
+        os << tab("Frozen");
+        os << bol(frozen) << std::endl;
+        os << tab("Stopped");
+        os << bol(stopped) << std::endl;
+    }
 }
 
 u8
@@ -120,6 +120,7 @@ TOD::setCounterHi(u8 value)
 {
     trace(TOD_DEBUG, "setCounterHi(%x)\n", value);
     tod.hi = value;
+    
     checkIrq();
 }
 
@@ -128,6 +129,7 @@ TOD::setCounterMid(u8 value)
 {
     trace(TOD_DEBUG, "setCounterMid(%x)\n", value);
     tod.mid = value;
+    
     checkIrq();
 }
 
@@ -136,6 +138,7 @@ TOD::setCounterLo(u8 value)
 {
     trace(TOD_DEBUG, "setCounterLo(%x)\n", value);
     tod.lo = value;
+    
     checkIrq();
 }
 
@@ -144,6 +147,7 @@ TOD::setAlarmHi(u8 value)
 {
     trace(TOD_DEBUG, "setAlarmHi(%x)\n", value);
     alarm.hi = value;
+    
     checkIrq();
 }
 
@@ -152,6 +156,7 @@ TOD::setAlarmMid(u8 value)
 {
     trace(TOD_DEBUG, "setAlarmMid(%x)\n", value);
     alarm.mid = value;
+    
     checkIrq();
 }
 
@@ -160,6 +165,7 @@ TOD::setAlarmLo(u8 value)
 {
     trace(TOD_DEBUG, "setAlarmLo(%x)\n", value);
     alarm.lo = value;
+    
     checkIrq();
 }
 
@@ -169,7 +175,7 @@ TOD::increment()
     if (stopped) return;
 
     preTod = tod;
-    lastInc = cia->clock;
+    lastInc = cia.clock;
         
     if (!incLoNibble(tod.lo))  goto check;
     if (!incHiNibble(tod.lo))  goto check;
@@ -179,7 +185,7 @@ TOD::increment()
         trace(TOD_DEBUG, "TOD bug hits: %x:%x:%x (%d,%d)\n",
               tod.hi, tod.mid, tod.lo, frozen, stopped);
     }
-    if (cia->config.todBug) checkIrq();
+    if (cia.config.todBug) checkIrq();
 
     if (!incHiNibble(tod.mid)) goto check;
     if (!incLoNibble(tod.hi))  goto check;
@@ -213,8 +219,9 @@ void
 TOD::checkIrq()
 {
     if (!matching && tod.value == alarm.value) {
+        
         trace(TOD_DEBUG, "TOD IRQ (%02x:%02x:%02x)\n", tod.hi, tod.mid, tod.lo);
-        cia->todInterrupt();
+        cia.todInterrupt();
     }
     matching = (tod.value == alarm.value);
 }

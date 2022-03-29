@@ -20,19 +20,16 @@ enum_long(RTC_REVISION)
 {
     RTC_NONE,
     RTC_OKI,
-    RTC_RICOH,
-    
-    RTC_COUNT
+    RTC_RICOH
 };
 typedef RTC_REVISION RTCRevision;
 
 #ifdef __cplusplus
-struct RTCRevisionEnum : util::Reflection<RTCRevisionEnum, RTCRevision> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < RTC_COUNT;
-    }
+struct RTCRevisionEnum : util::Reflection<RTCRevisionEnum, RTCRevision>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return RTC_RICOH; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "RTC"; }
     static const char *key(RTCRevision value)
@@ -42,7 +39,6 @@ struct RTCRevisionEnum : util::Reflection<RTCRevisionEnum, RTCRevision> {
             case RTC_NONE:   return "NONE";
             case RTC_OKI:    return "OKI";
             case RTC_RICOH:  return "RICOH";
-            case RTC_COUNT:  return "???";
         }
         return "???";
     }

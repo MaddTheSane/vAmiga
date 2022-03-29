@@ -7,20 +7,20 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#include "config.h"
+#import "config.h"
 #import "AmigaProxy.h"
 #import "Amiga.h"
 #import "vAmiga-Swift.h"
-#include "DMSFile.h"
-#include "EXEFile.h"
-#include "ExtendedRomFile.h"
-#include "EXTFile.h"
-#include "Folder.h"
-#include "FSDevice.h"
-#include "IMGFile.h"
-#include "RomFile.h"
-#include "Script.h"
-#include "Snapshot.h"
+#import "DMSFile.h"
+#import "EXEFile.h"
+#import "ExtendedRomFile.h"
+#import "EXTFile.h"
+#import "Folder.h"
+#import "MutableFileSystem.h"
+#import "IMGFile.h"
+#import "RomFile.h"
+#import "Script.h"
+#import "Snapshot.h"
 
 using namespace moira;
 
@@ -67,24 +67,14 @@ using namespace moira;
 @end
 
 //
-// HardwareComponent proxy
+// AmigaComponent proxy
 //
 
-@implementation HardwareComponentProxy
+@implementation AmigaComponentProxy
 
--(HardwareComponent *)hwc
+-(AmigaComponent *)component
 {
-    return (HardwareComponent *)obj;
-}
-
--(void)dump
-{
-    [self hwc]->dump();
-}
-
-- (void)dumpConfig
-{
-    [self hwc]->dump(dump::Config);
+    return (AmigaComponent *)obj;
 }
 
 @end
@@ -107,27 +97,23 @@ using namespace moira;
 
 - (NSInteger)addr:(NSInteger)nr
 {
-    return [self guards]->guardAddr(nr);
+    auto addr = [self guards]->guardAddr(nr);
+    return addr ? *addr : 0;
 }
 
-- (BOOL)isEnabled:(NSInteger)nr
+- (BOOL)isSet:(NSInteger)nr
 {
-    return [self guards]->isEnabled(nr);
+    return [self guards]->isSet(nr);
 }
 
-- (BOOL)isDisabled:(NSInteger)nr
+- (BOOL)isSetAt:(NSInteger)addr
 {
-    return [self guards]->isDisabled(nr);
+    return [self guards]->isSetAt(u32(addr));
 }
 
-- (void)enable:(NSInteger)nr
+- (void)setAt:(NSInteger)addr
 {
-    [self guards]->enable(nr);
-}
-
-- (void)disable:(NSInteger)nr
-{
-    [self guards]->disable(nr);
+    [self guards]->setAt((u32)addr);
 }
 
 - (void)remove:(NSInteger)nr
@@ -135,24 +121,44 @@ using namespace moira;
     return [self guards]->remove(nr);
 }
 
+- (void)removeAt:(NSInteger)addr
+{
+    [self guards]->removeAt((u32)addr);
+}
+
+- (void)removeAll
+{
+    return [self guards]->removeAll();
+}
+
 - (void)replace:(NSInteger)nr addr:(NSInteger)addr
 {
     [self guards]->replace(nr, (u32)addr);
 }
 
-- (BOOL)isSetAt:(NSInteger)addr
+- (BOOL)isEnabled:(NSInteger)nr
 {
-    return [self guards]->isSetAt((u32)addr);
+    return [self guards]->isEnabled(nr);
 }
 
-- (BOOL)isSetAndEnabledAt:(NSInteger)addr
+- (BOOL)isEnabledAt:(NSInteger)addr
 {
-    return [self guards]->isSetAndEnabledAt((u32)addr);
+    return [self guards]->isEnabledAt(u32(addr));
 }
 
-- (BOOL)isSetAndDisabledAt:(NSInteger)addr
+- (BOOL)isDisabled:(NSInteger)nr
 {
-    return [self guards]->isSetAndDisabledAt((u32)addr);
+    return [self guards]->isDisabled(nr);
+}
+
+- (BOOL)isDisabledAt:(NSInteger)addr
+{
+    return [self guards]->isDisabledAt(u32(addr));
+}
+
+- (void)enable:(NSInteger)nr
+{
+    [self guards]->enable(nr);
 }
 
 - (void)enableAt:(NSInteger)addr
@@ -160,19 +166,14 @@ using namespace moira;
     [self guards]->enableAt((u32)addr);
 }
 
+- (void)disable:(NSInteger)nr
+{
+    [self guards]->disable(nr);
+}
+
 - (void)disableAt:(NSInteger)addr
 {
     [self guards]->disableAt((u32)addr);
-}
-
-- (void)addAt:(NSInteger)addr
-{
-    [self guards]->addAt((u32)addr);
-}
-
-- (void)removeAt:(NSInteger)addr
-{
-    [self guards]->removeAt((u32)addr);
 }
 
 @end
@@ -188,22 +189,17 @@ using namespace moira;
     return (CPU *)obj;
 }
 
-- (CPUInfo)getInfo
+- (CPUInfo)info
 {
     return [self cpu]->getInfo();
 }
 
 - (i64)clock
 {
-    return [self cpu]->getMasterClock();
-}
-
-- (i64)cycles
-{
     return [self cpu]->getCpuClock();
 }
 
-- (bool)isHalted
+- (BOOL)halted
 {
     return [self cpu]->isHalted();
 }
@@ -224,25 +220,25 @@ using namespace moira;
     const char *str = [self cpu]->disassembleRecordedInstr((int)i, &result);
     *len = (NSInteger)result;
     
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleRecordedBytes:(NSInteger)i length:(NSInteger)len
 {
     const char *str = [self cpu]->disassembleRecordedWords(i, len);
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleRecordedFlags:(NSInteger)i
 {
     const char *str = [self cpu]->disassembleRecordedFlags((int)i);
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleRecordedPC:(NSInteger)i
 {
     const char *str = [self cpu]->disassembleRecordedPC((int)i);
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleInstr:(NSInteger)addr length:(NSInteger *)len
@@ -251,19 +247,25 @@ using namespace moira;
     const char *str = [self cpu]->disassembleInstr((u32)addr, &result);
     *len = result;
     
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleWords:(NSInteger)addr length:(NSInteger)len
 {
     const char *str = [self cpu]->disassembleWords((u32)addr, len);
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleAddr:(NSInteger)addr
 {
     const char *str = [self cpu]->disassembleAddr((u32)addr);
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
+}
+
+- (NSString *)vectorName:(NSInteger)nr
+{
+    auto name = [self cpu]->debugger.vectorName(u8(nr));
+    return @(name.c_str());
 }
 
 @end
@@ -280,7 +282,7 @@ using namespace moira;
     return (CIA *)obj;
 }
 
-- (CIAInfo)getInfo
+- (CIAInfo)info
 {
     return [self cia]->getInfo();
 }
@@ -299,7 +301,7 @@ using namespace moira;
     return (Memory *)obj;
 }
 
-- (MemoryConfig)getConfig
+- (MemoryConfig)config
 {
     return [self mem]->getConfig();
 }
@@ -334,6 +336,11 @@ using namespace moira;
     return RomFile::isHyperionRom(rev);
 }
 
+- (BOOL)isPatchedRom:(RomIdentifier)rev
+{
+    return RomFile::isPatchedRom(rev);
+}
+
 - (BOOL)hasRom
 {
     return [self mem]->hasKickRom();
@@ -359,25 +366,25 @@ using namespace moira;
     return RomFile::isRomFile([url fileSystemRepresentation]);
 }
 
-- (void)loadRom:(RomFileProxy *)proxy exception:(ExceptionWrapper *)exc
+- (void)loadRom:(RomFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->loadRom((RomFile *)proxy->obj); }
-    catch (VAError &error) { [exc save:error]; }
+    try { return [self mem]->loadRom(*(RomFile *)proxy->obj); }
+    catch (VAError &error) { [ex save:error]; }
 }
 
-- (void)loadRomFromBuffer:(NSData *)data exception:(ExceptionWrapper *)exc
+- (void)loadRomFromBuffer:(NSData *)data exception:(ExceptionWrapper *)ex
 {
     assert(data);
     const u8 *bytes = (const u8 *)[data bytes];
     
     try { return [self mem]->loadRom(bytes, [data length]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
-- (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)exc
+- (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->loadRom([url fileSystemRepresentation]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
 - (u64)romFingerprint
@@ -393,19 +400,25 @@ using namespace moira;
 - (NSString *)romTitle
 {
     const char *str = [self mem]->romTitle();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)romVersion
 {
     const char *str = [self mem]->romVersion();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)romReleased
 {
     const char *str = [self mem]->romReleased();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
+}
+
+- (NSString *)romModel
+{
+    const char *str = [self mem]->romModel();
+    return str ? @(str) : nullptr;
 }
 
 - (BOOL)hasExt
@@ -425,28 +438,28 @@ using namespace moira;
 
 - (void)loadExt:(ExtendedRomFileProxy *)proxy
 {
-    [self mem]->loadExt((ExtendedRomFile *)proxy->obj);
+    [self mem]->loadExt(*(ExtendedRomFile *)proxy->obj);
 }
 
-- (void)loadExt:(ExtendedRomFileProxy *)proxy exception:(ExceptionWrapper *)exc
+- (void)loadExt:(ExtendedRomFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->loadExt((ExtendedRomFile *)proxy->obj); }
-    catch (VAError &error) { [exc save:error]; }
+    try { return [self mem]->loadExt(*(ExtendedRomFile *)proxy->obj); }
+    catch (VAError &error) { [ex save:error]; }
 }
 
-- (void)loadExtFromBuffer:(NSData *)data exception:(ExceptionWrapper *)exc
+- (void)loadExtFromBuffer:(NSData *)data exception:(ExceptionWrapper *)ex
 {
     assert(data);
     const u8 *bytes = (const u8 *)[data bytes];
     
     try { return [self mem]->loadExt(bytes, [data length]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
-- (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)exc
+- (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->loadExt([url fileSystemRepresentation]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
 - (u64)extFingerprint
@@ -462,19 +475,25 @@ using namespace moira;
 - (NSString *)extTitle
 {
     const char *str = [self mem]->extTitle();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)extVersion
 {
     const char *str = [self mem]->extVersion();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)extReleased
 {
     const char *str = [self mem]->extReleased();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
+}
+
+- (NSString *)extModel
+{
+    const char *str = [self mem]->extModel();
+    return str ? @(str) : nullptr;
 }
 
 - (NSInteger)extStart
@@ -482,22 +501,22 @@ using namespace moira;
     return [self mem]->getConfigItem(OPT_EXT_START);
 }
 
-- (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)exc
+- (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->saveRom([url fileSystemRepresentation]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
-- (void)saveWom:(NSURL *)url exception:(ExceptionWrapper *)exc
+- (void)saveWom:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->saveWom([url fileSystemRepresentation]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
-- (void)saveExt:(NSURL *)url exception:(ExceptionWrapper *)exc
+- (void)saveExt:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->saveExt([url fileSystemRepresentation]); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
 - (MemorySource)memSrc:(Accessor)accessor addr:(NSInteger)addr
@@ -533,7 +552,7 @@ using namespace moira;
         str = [self mem]->ascii <ACCESSOR_AGNUS> ((u32)addr);
     }
     
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (NSString *)hex:(Accessor)accessor addr: (NSInteger)addr bytes:(NSInteger)bytes
@@ -547,7 +566,7 @@ using namespace moira;
         str = [self mem]->hex <ACCESSOR_AGNUS> ((u32)addr, bytes);
     }
     
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 @end
@@ -569,19 +588,29 @@ using namespace moira;
     return [self agnus]->chipRamLimit();
 }
 
-- (AgnusInfo)getInfo
+- (AgnusInfo)info
 {
     return [self agnus]->getInfo();
 }
 
-- (EventSlotInfo)getEventSlotInfo:(NSInteger)slot
-{
-    return [self agnus]->getEventSlotInfo(slot);
-}
-
-- (EventInfo)getEventInfo
+- (EventInfo)eventInfo
 {
     return [self agnus]->getEventInfo();
+}
+
+- (EventSlotInfo)getEventSlotInfo:(NSInteger)slot
+{
+    return [self agnus]->getSlotInfo(slot);
+}
+
+- (BOOL)isOCS
+{
+    return [self agnus]->isOCS();
+}
+
+- (BOOL)isECS
+{
+    return [self agnus]->isECS();
 }
 
 - (AgnusStats)getStats
@@ -603,7 +632,7 @@ using namespace moira;
     return (Copper *)obj;
 }
 
-- (CopperInfo)getInfo
+- (CopperInfo)info
 {
     return [self copper]->getInfo();
 }
@@ -613,16 +642,16 @@ using namespace moira;
     return [self copper]->isIllegalInstr((u32)addr);
 }
 
-- (NSString *)disassemble:(NSInteger)addr
+- (NSString *)disassemble:(NSInteger)addr symbolic:(BOOL)sym
 {
-    string str = [self copper]->debugger.disassemble((u32)addr);
-    return [NSString stringWithUTF8String:str.c_str()];
+    string str = [self copper]->debugger.disassemble((u32)addr, sym);
+    return @(str.c_str());
 }
 
-- (NSString *)disassemble:(NSInteger)list instr:(NSInteger)offset
+- (NSString *)disassemble:(NSInteger)list instr:(NSInteger)offset symbolic:(BOOL)sym
 {
-    string str = [self copper]->debugger.disassemble(list, offset);
-    return [NSString stringWithUTF8String:str.c_str()];
+    string str = [self copper]->debugger.disassemble(list, offset, sym);
+    return @(str.c_str());
 }
 
 @end
@@ -639,7 +668,7 @@ using namespace moira;
     return (Blitter *)obj;
 }
 
-- (BlitterInfo)getInfo
+- (BlitterInfo)info
 {
     return [self blitter]->getInfo();
 }
@@ -658,7 +687,7 @@ using namespace moira;
     return (DmaDebugger *)obj;
 }
 
-- (DMADebuggerInfo)getInfo
+- (DmaDebuggerInfo)info
 {
     return [self debugger]->getInfo();
 }
@@ -677,34 +706,49 @@ using namespace moira;
     return (Denise *)obj;
 }
 
-- (DeniseInfo)getInfo
+- (DeniseInfo)info
 {
     return [self denise]->getInfo();
 }
 
 - (SpriteInfo)getSpriteInfo:(NSInteger)nr
 {
-    return [self denise]->getSpriteInfo(nr);
+    return [self denise]->debugger.getSpriteInfo(nr);
 }
 
 - (NSInteger)sprDataLines:(NSInteger)nr
 {
-    return [self denise]->getSpriteHeight(nr);
+    return [self denise]->debugger.getSpriteHeight(nr);
 }
 
 - (u64)sprData:(NSInteger)nr line:(NSInteger)line
 {
-    return [self denise]->getSpriteData(nr, line);
+    return [self denise]->debugger.getSpriteData(nr, line);
 }
 
 - (u16)sprColor:(NSInteger)nr reg:(NSInteger)reg
 {
-    return [self denise]->getSpriteColor(nr, reg);
+    return [self denise]->debugger.getSpriteColor(nr, reg);
 }
 
-- (ScreenBuffer)stableBuffer
+- (void)lockStableBuffer
 {
-    return [self denise]->pixelEngine.getStableBuffer();
+    [self denise]->pixelEngine.lockStableBuffer();
+}
+
+- (void)unlockStableBuffer
+{
+    [self denise]->pixelEngine.unlockStableBuffer();
+}
+
+- (BOOL)longFrame
+{
+    return [self denise]->pixelEngine.getStableBuffer().longFrame;
+}
+
+- (u32 *)stableBuffer
+{
+    return [self denise]->pixelEngine.getStableBuffer().ptr;
 }
 
 - (u32 *)noise
@@ -726,9 +770,33 @@ using namespace moira;
     return (Recorder *)obj;
 }
 
+- (NSString *)path
+{
+    auto path = FFmpeg::getExecPath();
+    return @(path.c_str());
+}
+
+- (void)setPath:(NSString *)path
+{
+    if ([path length] == 0) {
+        FFmpeg::setExecPath("");
+    } else {
+        FFmpeg::setExecPath(string([path fileSystemRepresentation]));
+    }
+}
+
+- (NSString *)findFFmpeg:(NSInteger)nr
+{
+    if (nr < (NSInteger)FFmpeg::paths.size()) {
+        return @(FFmpeg::paths[nr].c_str());
+    } else {
+        return nil;
+    }
+}
+
 - (BOOL)hasFFmpeg
 {
-    return [self recorder]->hasFFmpeg();
+    return FFmpeg::available();
 }
 
 - (BOOL)recording
@@ -756,20 +824,19 @@ using namespace moira;
     return [self recorder]->getSampleRate();
 }
 
-- (BOOL)startRecording:(NSRect)rect
+- (void)startRecording:(NSRect)rect
                bitRate:(NSInteger)rate
                aspectX:(NSInteger)aspectX
                aspectY:(NSInteger)aspectY
+             exception:(ExceptionWrapper *)ex
 {
     int x1 = (int)rect.origin.x;
     int y1 = (int)rect.origin.y;
     int x2 = x1 + (int)rect.size.width;
     int y2 = y1 + (int)rect.size.height;
     
-    return [self recorder]->startRecording(x1, y1, x2, y2,
-                                           rate,
-                                           aspectX,
-                                           aspectY);
+    try { return [self recorder]->startRecording(x1, y1, x2, y2, rate, aspectX, aspectY); }
+    catch (VAError &error) { [ex save:error]; }
 }
 
 - (void)stopRecording
@@ -796,24 +863,39 @@ using namespace moira;
     return (Paula *)obj;
 }
 
-- (PaulaInfo)getInfo
+- (PaulaInfo)info
 {
     return [self paula]->getInfo();
 }
 
-- (AudioInfo)getAudioInfo
+- (StateMachineInfo)audioInfo0
 {
-    return [self paula]->getAudioInfo();
+    return [self paula]->channel0.getInfo();
 }
 
-- (MuxerStats)getMuxerStats
+- (StateMachineInfo)audioInfo1
 {
-    return [self paula]->muxer.getStats();
+    return [self paula]->channel1.getInfo();
 }
 
-- (UARTInfo)getUARTInfo
+- (StateMachineInfo)audioInfo2
+{
+    return [self paula]->channel2.getInfo();
+}
+
+- (StateMachineInfo)audioInfo3
+{
+    return [self paula]->channel3.getInfo();
+}
+
+- (UARTInfo)uartInfo
 {
     return [self paula]->uart.getInfo();
+}
+
+- (MuxerStats)muxerStats
+{
+    return [self paula]->muxer.getStats();
 }
 
 - (double)sampleRate
@@ -985,7 +1067,7 @@ using namespace moira;
     return (ControlPort *)obj;
 }
 
-- (ControlPortInfo)getInfo
+- (ControlPortInfo)info
 {
     return [self cp]->getInfo();
 }
@@ -1004,7 +1086,7 @@ using namespace moira;
     return (SerialPort *)obj;
 }
 
-- (SerialPortInfo)getInfo
+- (SerialPortInfo)info
 {
     return [self serial]->getInfo();
 }
@@ -1025,17 +1107,22 @@ using namespace moira;
 
 - (BOOL)keyIsPressed:(NSInteger)keycode
 {
-    return [self kb]->keyIsPressed(keycode);
+    return [self kb]->keyIsPressed((KeyCode)keycode);
 }
 
 - (void)pressKey:(NSInteger)keycode
 {
-    [self kb]->pressKey(keycode);
+    [self kb]->pressKey((KeyCode)keycode);
 }
 
 - (void)releaseKey:(NSInteger)keycode
 {
-    [self kb]->releaseKey(keycode);
+    [self kb]->releaseKey((KeyCode)keycode);
+}
+
+- (void)toggleKey:(NSInteger)keycode
+{
+    [self kb]->toggleKey((KeyCode)keycode);
 }
 
 - (void)releaseAllKeys
@@ -1062,7 +1149,7 @@ using namespace moira;
     return [self dc]->getConfig();
 }
 
-- (DiskControllerInfo)getInfo
+- (DiskControllerInfo)info
 {
     return [self dc]->getInfo();
 }
@@ -1082,21 +1169,6 @@ using namespace moira;
     return [self dc]->spinning();
 }
 
-- (void)eject:(NSInteger)nr
-{
-    [self dc]->ejectDisk(nr);
-}
-
-- (void)insert:(NSInteger)nr file:(DiskFileProxy *)fileProxy
-{
-    [self dc]->insertDisk((DiskFile *)fileProxy->obj, nr);
-}
-
-- (void)setWriteProtection:(NSInteger)nr value:(BOOL)value
-{
-    [self dc]->setWriteProtection(nr, value);
-}
-
 @end
 
 
@@ -1111,69 +1183,29 @@ using namespace moira;
     return (Drive *)obj;
 }
 
-- (DriveInfo)getInfo
-{
-    return [self drive]->getInfo();
-}
-
 - (NSInteger)nr
 {
     return [self drive]->getNr();
 }
 
-- (BOOL)hasDisk
+- (BOOL)isConnected
 {
-    return [self drive]->hasDisk();
+    return [self drive]->isConnected();
 }
 
-- (BOOL)hasDDDisk
+- (NSInteger)currentCyl
 {
-    return [self drive]->hasDDDisk();
+    return [self drive]->currentCyl();
 }
 
-- (BOOL)hasHDDisk
+- (NSInteger)currentHead
 {
-    return [self drive]->hasHDDisk();
+    return [self drive]->currentHead();
 }
 
-- (BOOL)hasWriteProtectedDisk
+- (NSInteger)currentOffset
 {
-    return [self drive]->hasWriteProtectedDisk();
-}
-
-- (void)setWriteProtection:(BOOL)value
-{
-    [self drive]->setWriteProtection(value);
-}
-
-- (void)toggleWriteProtection
-{
-    [self drive]->toggleWriteProtection();
-}
-
-- (BOOL)isInsertable:(DiskDiameter)type density:(DiskDensity)density
-{
-    return [self drive]->isInsertable(type, density);
-}
-
-- (BOOL)isModifiedDisk
-{
-    return [self drive]->hasModifiedDisk();
-}
-
-- (void)setModifiedDisk:(BOOL)value
-{
-    [self drive]->setModifiedDisk(value);
-}
-
-- (BOOL)motor
-{
-    return [self drive]->getMotor();
-}
-
-- (NSInteger)cylinder
-{
-    return [self drive]->getCylinder();
+    return [self drive]->currentOffset();
 }
 
 - (u64)fnv
@@ -1181,70 +1213,384 @@ using namespace moira;
     return [self drive]->fnv();
 }
 
+- (BOOL)hasDisk
+{
+    return [self drive]->hasDisk();
+}
+
+- (BOOL)modified
+{
+    return [self drive]->hasModifiedDisk();
+}
+
+- (BOOL)hasProtectedDisk
+{
+    return [self drive]->hasProtectedDisk();
+}
+
+- (BOOL)hasUnmodifiedDisk
+{
+    return [self drive]->hasUnmodifiedDisk();
+}
+
+- (BOOL)hasUnprotectedDisk
+{
+    return [self drive]->hasUnprotectedDisk();
+}
+
+- (void)setModificationFlag:(BOOL)value
+{
+    [self drive]->setModificationFlag(value);
+}
+
+- (void)setProtectionFlag:(BOOL)value
+{
+    [self drive]->setProtectionFlag(value);
+}
+
+- (void)markDiskAsModified
+{
+    [self drive]->markDiskAsModified();
+}
+
+- (void)markDiskAsUnmodified
+{
+    [self drive]->markDiskAsUnmodified();
+}
+- (void)toggleWriteProtection
+{
+    [self drive]->toggleWriteProtection();
+}
+
 @end
 
+
+//
+// FloppyDrive proxy
+//
+
+@implementation FloppyDriveProxy
+
+- (FloppyDrive *)drive
+{
+    return (FloppyDrive *)obj;
+}
+
+- (FloppyDriveInfo)info
+{
+    return [self drive]->getInfo();
+}
+
+- (BOOL)isInsertable:(Diameter)type density:(Density)density
+{
+    return [self drive]->isInsertable(type, density);
+}
+
+- (void)eject
+{
+    [self drive]->ejectDisk();
+}
+
+- (void)swap:(FloppyFileProxy *)fileProxy exception:(ExceptionWrapper *)ex
+{
+    try { return [self drive]->swapDisk(*(FloppyFile *)fileProxy->obj); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (void)insertNew:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex
+{
+    try { return [self drive]->insertNew(fs, bb, [name UTF8String]); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (BOOL)motor
+{
+    return [self drive]->getMotor();
+}
+
+- (BOOL)selected
+{
+    return [self drive]->isSelected();
+}
+
+- (BOOL)writing
+{
+    return [self drive]->isWriting();
+}
+
+- (NSString *)readTrackBits:(NSInteger)track
+{
+    if (![self drive]->hasDisk()) return @("");
+    return @([self drive]->disk->readTrackBits(track).c_str());
+}
+
+@end
+
+//
+// HardDrive proxy
+//
+
+@implementation HardDriveProxy
+
+- (HardDrive *)drive
+{
+    return (HardDrive *)obj;
+}
+
+- (HardDriveInfo)info
+{
+    return [self drive]->getInfo();
+}
+
+- (NSInteger)capacity
+{
+    return [self drive]->getGeometry().numBytes();
+}
+
+- (NSInteger)partitions
+{
+    return [self drive]->numPartitions();
+}
+
+- (NSInteger)cylinders
+{
+    return [self drive]->getGeometry().cylinders;
+}
+
+- (NSInteger)heads
+{
+    return [self drive]->getGeometry().heads;
+}
+
+- (NSInteger)sectors
+{
+    return [self drive]->getGeometry().sectors;
+}
+
+- (NSInteger)bsize
+{
+    return [self drive]->getGeometry().bsize;
+}
+
+- (BOOL)uniqueGeometry
+{
+    return [self drive]->getGeometry().unique();
+}
+
+- (NSString *)nameOfPartition:(NSInteger)nr
+{
+    auto &info = [self drive]->getPartitionInfo(nr);
+    return @(info.name.c_str());
+}
+
+- (NSInteger)lowerCylOfPartition:(NSInteger)nr
+{
+    auto &info = [self drive]->getPartitionInfo(nr);
+    return info.lowCyl;
+}
+
+- (NSInteger)upperCylOfPartition:(NSInteger)nr
+{
+    auto &info = [self drive]->getPartitionInfo(nr);
+    return info.highCyl;
+}
+
+- (HardDriveState)state
+{
+    return [self drive]->getState();
+}
+
+- (void)attach:(HDFFileProxy *)hdf exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->init(*(HDFFile *)hdf->obj);
+    }  catch (VAError &error) {
+        [ex save:error];
+    }
+}
+
+- (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b
+        exception:(ExceptionWrapper *)ex
+{
+    GeometryDescriptor geometry;
+    geometry.cylinders = c;
+    geometry.heads = h;
+    geometry.sectors = s;
+    geometry.bsize = b;
+    
+    try {
+        [self drive]->init(geometry);
+    }  catch (VAError &error) {
+        [ex save:error];
+    }
+}
+
+- (void)format:(FSVolumeType)fs name:(NSString *)name exception:(ExceptionWrapper *)ex
+{
+    auto str = string([name UTF8String]);
+    
+    try {
+        [self drive]->format(fs, str);
+    }  catch (VAError &error) {
+        [ex save:error];
+    }
+}
+
+- (void)changeGeometry:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->changeGeometry(c, h, s, b);
+    }  catch (VAError &error) {
+        [ex save:error];
+    }
+}
+
+- (NSMutableArray *)geometries
+{
+    NSMutableArray *data = [[NSMutableArray alloc] init];
+    
+    auto geometry = [self drive]->getGeometry();
+    auto geometries = GeometryDescriptor::driveGeometries(geometry.numBytes());
+        
+    for (auto &g : geometries) {
+        
+        NSInteger encoded = g.cylinders << 32 | g.heads << 16 | g.sectors;
+        [data addObject: [NSNumber numberWithInteger:encoded]];
+    }
+    
+    return data;
+}
+
+@end
 
 //
 // FSDevice proxy
 //
 
-@implementation FSDeviceProxy
+@implementation FileSystemProxy
 
-- (FSDevice *)fs
+- (MutableFileSystem *)fs
 {
-    return (FSDevice *)obj;
+    return (MutableFileSystem *)obj;
 }
 
-+ (instancetype)make:(FSDevice *)volume
++ (instancetype)make:(MutableFileSystem *)volume
 {
     if (volume == nullptr) { return nil; }
     
-    FSDeviceProxy *proxy = [[self alloc] initWith: volume];
+    FileSystemProxy *proxy = [[self alloc] initWith: volume];
     return proxy;
 }
 
-+ (instancetype)makeWithADF:(ADFFileProxy *)proxy
++ (instancetype)makeWithADF:(ADFFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    ErrorCode error;
-    FSDevice *volume = FSDevice::makeWithADF((ADFFile *)(proxy->obj), &error);
-    return [self make:volume];
+    try {
+        
+        auto adf = (ADFFile *)(proxy->obj);
+        auto dev = new MutableFileSystem(*adf);
+        return [self make:dev];
+        
+    }  catch (VAError &error) {
+        
+        [ex save:error];
+        return nil;
+    }
 }
 
-+ (instancetype)makeWithHDF:(HDFFileProxy *)proxy
++ (instancetype)makeWithHDF:(HDFFileProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
 {
-    ErrorCode error;
-    FSDevice *volume = FSDevice::makeWithHDF((HDFFile *)(proxy->obj), &error);
-    return [self make:volume];
+    try {
+        
+        auto hdf = (HDFFile *)(proxy->obj);
+        auto dev = new MutableFileSystem(*hdf, nr);
+        return [self make:dev];
+                
+    }  catch (VAError &error) {
+        
+        [ex save:error];
+        return nil;
+    }
+}
+
+- (NSString *)name
+{
+    auto str = [self fs]->getName();
+    return @(str.c_str());
+}
+
+- (NSString *)creationDate
+{
+    auto str = [self fs]->getCreationDate();
+    return @(str.c_str());
+}
+
+- (NSString *)modificationDate
+{
+    auto str = [self fs]->getModificationDate();
+    return @(str.c_str());
+}
+
+- (NSString *)bootBlockName
+{
+    auto str = [self fs]->getBootBlockName();
+    return @(str.c_str());
+}
+
+- (NSString *)capacityString
+{
+    auto str = util::byteCountAsString([self fs]->numBytes());
+    return @(str.c_str());
+}
+
+- (NSString *)fillLevelString
+{
+    auto str = util::fillLevelAsString([self fs]->fillLevel());
+    return @(str.c_str());
 }
 
 - (FSVolumeType)dos
 {
-    return [self fs]->dos();
+    return [self fs]->getDos();
 }
 
-- (NSInteger)numCyls
+- (BOOL)isOFS
 {
-    return [self fs]->getNumCyls();
+    return [self fs]->isOFS();
 }
 
-- (NSInteger)numHeads
+- (BOOL)isFFS
 {
-    return [self fs]->getNumHeads();
+    return [self fs]->isFFS();
 }
 
-- (NSInteger)numTracks
+- (NSInteger)blockSize
 {
-    return [self fs]->getNumTracks();
-}
-
-- (NSInteger)numSectors
-{
-    return [self fs]->getNumSectors();
+    return [self fs]->blockSize();
 }
 
 - (NSInteger)numBlocks
 {
-    return [self fs]->getNumBlocks();
+    return [self fs]->numBlocks();
+}
+
+- (NSInteger)numBytes
+{
+    return [self fs]->numBytes();
+}
+
+- (NSInteger)usedBlocks
+{
+    return [self fs]->usedBlocks();
+}
+
+- (double)fillLevel
+{
+    return [self fs]->fillLevel();
+}
+
+- (BOOL)hasVirus
+{
+    return [self fs]->hasVirus();
 }
 
 - (void)killVirus
@@ -1305,9 +1651,35 @@ using namespace moira;
     return [self fs]->readByte((u32)block, offset);
 }
 
-- (ErrorCode)export:(NSString *)path
+- (NSString *)ascii:(NSInteger)block offset:(NSInteger)offset length:(NSInteger)len
 {
-    return [self fs]->exportDirectory(string([path fileSystemRepresentation]));
+    return @([self fs]->ascii(Block(block), offset, len).c_str());
+}
+
+- (void)export:(NSString *)path exception:(ExceptionWrapper *)ex
+{
+    try { return [self fs]->exportDirectory(string([path fileSystemRepresentation])); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (FSBlockType)getDisplayType:(NSInteger)column
+{
+    return [self fs]->getDisplayType(column);
+}
+
+- (NSInteger)diagnoseImageSlice:(NSInteger)column
+{
+    return [self fs]->diagnoseImageSlice(column);
+}
+
+- (NSInteger)nextBlockOfType:(FSBlockType)type after:(NSInteger)after
+{
+    return [self fs]->nextBlockOfType(type, after);
+}
+
+- (NSInteger)nextCorruptedBlock:(NSInteger)after
+{
+    return [self fs]->nextCorruptedBlock(after);
 }
 
 @end
@@ -1331,70 +1703,118 @@ using namespace moira;
     return proxy;
 }
 
--(NSInteger)cposRel
+/*
+-(NSInteger)cpos
 {
-    return [self shell]->cposRel();
+    return [self shell]->cposAbs();
+}
+*/
+
+-(NSInteger)cursorRel
+{
+    return [self shell]->cursorRel();
 }
 
 -(NSString *)getText
 {
     const char *str = [self shell]->text();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (void)pressUp
 {
-    [self shell]->pressUp();
+    [self shell]->press(RSKEY_UP);
 }
 
 - (void)pressDown
 {
-    [self shell]->pressDown();
+    [self shell]->press(RSKEY_DOWN);
 }
 
 - (void)pressLeft
 {
-    [self shell]->pressLeft();
+    [self shell]->press(RSKEY_LEFT);
 }
 
 - (void)pressRight
 {
-    [self shell]->pressRight();
+    [self shell]->press(RSKEY_RIGHT);
 }
 
 - (void)pressHome
 {
-    [self shell]->pressHome();
+    [self shell]->press(RSKEY_HOME);
 }
 
 - (void)pressEnd
 {
-    [self shell]->pressEnd();
+    [self shell]->press(RSKEY_END);
 }
 
 - (void)pressBackspace
 {
-    [self shell]->pressBackspace();
+    [self shell]->press(RSKEY_BACKSPACE);
 }
 
 - (void)pressDelete
 {
-    [self shell]->pressDelete();
+    [self shell]->press(RSKEY_DEL);
 }
 
 - (void)pressReturn
 {
-    [self shell]->pressReturn();
+    [self shell]->press(RSKEY_RETURN);
 }
 
 - (void)pressTab
 {
-    [self shell]->pressTab();
+    [self shell]->press(RSKEY_TAB);
 }
 
 - (void)pressKey:(char)c
 {
-    [self shell]->pressKey(c);
+    [self shell]->press(c);
+}
+
+@end
+
+//
+// RemoteManager proxy
+//
+
+@implementation RemoteManagerProxy
+
+- (RemoteManager *)manager
+{
+    return (RemoteManager *)obj;
+}
+
++ (instancetype)make:(RemoteManager *)manager
+{
+    if (manager == nullptr) { return nil; }
+    
+    RemoteManagerProxy *proxy = [[self alloc] initWith: manager];
+    return proxy;
+}
+
+-(NSInteger)numLaunching
+{
+    return [self manager]->numLaunching();
+}
+
+-(NSInteger)numListening
+{
+    return [self manager]->numListening();
+}
+
+-(NSInteger)numConnected
+{
+    return [self manager]->numConnected();
+}
+
+-(NSInteger)numErroneous
+{
+    return [self manager]->numErroneous();
 }
 
 @end
@@ -1415,20 +1835,9 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-- (void)setPath:(NSString *)path
++ (FileType)typeOfUrl:(NSURL *)url
 {
-    [self file]->path = [path fileSystemRepresentation];
-}
-
-- (NSInteger)writeToFile:(NSString *)path exception:(ExceptionWrapper *)exc
-{
-    try { return [self file]->writeToFile([path fileSystemRepresentation]); }
-    catch (VAError &error) { [exc save:error]; return 0; }
-}
-
-- (NSInteger)writeToFile:(NSString *)path error:(ErrorCode *)err
-{
-    return [self file]->writeToFile([path fileSystemRepresentation], err);
+    return AmigaFile::type([url fileSystemRepresentation]);
 }
 
 - (FileType)type
@@ -1436,9 +1845,26 @@ using namespace moira;
     return [self file]->type();
 }
 
+- (NSString *)sizeAsString
+{
+    const string &str = [self file]->sizeAsString();
+    return @(str.c_str());
+}
+
 - (u64)fnv
 {
     return [self file]->fnv();
+}
+
+- (void)setPath:(NSString *)path
+{
+    [self file]->path = [path fileSystemRepresentation];
+}
+
+- (NSInteger)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex
+{
+    try { return [self file]->writeToFile([path fileSystemRepresentation]); }
+    catch (VAError &error) { [ex save:error]; return 0; }
 }
 
 - (void)dealloc
@@ -1467,28 +1893,16 @@ using namespace moira;
     return proxy;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <Snapshot> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new Snapshot([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)err
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    Snapshot *snapshot = AmigaFile::make <Snapshot> ([path fileSystemRepresentation], err);
-    return [self make:snapshot];
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <Snapshot> ((u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)err
-{
-    Snapshot *snapshot = AmigaFile::make <Snapshot> ((u8 *)buf, len, err);
-    return [self make:snapshot];
+    try { return [self make: new Snapshot((u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 + (instancetype)makeWithAmiga:(AmigaProxy *)proxy
@@ -1496,7 +1910,7 @@ using namespace moira;
     Amiga *amiga = (Amiga *)proxy->obj;
     
     amiga->suspend();
-    Snapshot *snapshot = Snapshot::makeWithAmiga(amiga);
+    Snapshot *snapshot = new Snapshot(*amiga);
     amiga->resume();
     
     return [self make:snapshot];
@@ -1504,8 +1918,9 @@ using namespace moira;
 
 - (NSImage *)previewImage
 {
-    if (preview != nullptr) { return preview; }
-    
+    // Return cached image (if any)
+    if (preview) { return preview; }
+
     // Create preview image
     const Thumbnail &thumbnail = [self snapshot]->getThumbnail();
     unsigned char *data = (unsigned char *)thumbnail.screen;
@@ -1554,26 +1969,16 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <Script> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new Script([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)err
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    return [self make: AmigaFile::make <Script> ([path fileSystemRepresentation], err)];
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <Script> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)err
-{
-    return [self make: AmigaFile::make <Script> ((const u8 *)buf, len, err)];
+    try { return [self make: new Script((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 - (void)execute:(AmigaProxy *)proxy
@@ -1597,26 +2002,16 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <RomFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new RomFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)err
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    return [self make: AmigaFile::make <RomFile> ([path fileSystemRepresentation], err)];
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <RomFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)err
-{
-    return [self make: AmigaFile::make <RomFile> ((const u8 *)buf, len, err)];
+    try { return [self make: new RomFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -1633,26 +2028,16 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <ExtendedRomFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new ExtendedRomFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)err
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    return [self make: AmigaFile::make <ExtendedRomFile> ([path fileSystemRepresentation], err)];
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <ExtendedRomFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)err
-{
-    return [self make: AmigaFile::make <ExtendedRomFile> ((const u8 *)buf, len, err)];
+    try { return [self make: new ExtendedRomFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -1669,34 +2054,19 @@ using namespace moira;
     return (DiskFile *)obj;
 }
 
-+ (instancetype)make:(DiskFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-- (FSVolumeType)dos
-{
-    return [self file]->getDos();
-}
-
-- (DiskDiameter)diskType
-{
-    return [self file]->getDiskDiameter();
-}
-
-- (DiskDensity)diskDensity
-{
-    return [self file]->getDiskDensity();
-}
-
 - (NSInteger)numCyls
 {
     return [self file]->numCyls();
 }
 
-- (NSInteger)numSides
+- (NSInteger)numHeads
 {
-    return [self file]->numSides();
+    return [self file]->numHeads();
+}
+
+- (NSInteger)bsize
+{
+    return [self file]->bsize();
 }
 
 - (NSInteger)numTracks
@@ -1714,6 +2084,85 @@ using namespace moira;
     return [self file]->numBlocks();
 }
 
+- (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset
+{
+    return [self file]->readByte(b, offset);
+}
+
+- (void)readSector:(NSInteger)b destination:(unsigned char *)buf
+{
+    [self file]->readSector(buf, b);
+}
+
+- (NSString *) describeGeometry
+{
+    return @([self file]->describeGeometry().c_str());
+}
+
+- (NSString *) describeCapacity
+{
+    return @([self file]->describeCapacity().c_str());
+}
+
+- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
+{
+    return @([self file]->hexdump(b, offset, len).c_str());
+}
+
+- (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
+{
+    return @([self file]->asciidump(b, offset, len).c_str());
+}
+
+@end
+
+
+//
+// FloppyFileProxy
+//
+
+@implementation FloppyFileProxy
+
+- (FloppyFile *)file
+{
+    return (FloppyFile *)obj;
+}
+
++ (instancetype)make:(FloppyFile *)file
+{
+    return file ? [[self alloc] initWith:file] : nil;
+}
+
+- (FSVolumeType)dos
+{
+    return [self file]->getDos();
+}
+
+- (Diameter)diskType
+{
+    return [self file]->getDiameter();
+}
+
+- (Density)diskDensity
+{
+    return [self file]->getDensity();
+}
+
+- (BOOL)isSD
+{
+    return [self file]->isSD();
+}
+
+- (BOOL)isDD
+{
+    return [self file]->isDD();
+}
+
+- (BOOL)isHD
+{
+    return [self file]->isHD();
+}
+
 - (BootBlockType)bootBlockType
 {
     return [self file]->bootBlockType();
@@ -1722,7 +2171,7 @@ using namespace moira;
 - (NSString *)bootBlockName
 {
     const char *str = [self file]->bootBlockName();
-    return str ? [NSString stringWithUTF8String:str] : nullptr;
+    return str ? @(str) : nullptr;
 }
 
 - (BOOL)hasVirus
@@ -1733,21 +2182,6 @@ using namespace moira;
 - (void)killVirus
 {
     [self file]->killVirus();
-}
-
-- (NSInteger)readByte:(NSInteger)block offset:(NSInteger)offset
-{
-    return [self file]->readByte(block, offset);
-}
-
-- (void)readSector:(unsigned char *)dst block:(NSInteger)nr
-{
-    [self file]->readSector(dst, nr);
-}
-
-- (void)readSectorHex:(char *)dst block:(NSInteger)block count:(NSInteger)count
-{
-    [self file]->readSectorHex(dst, block, count);
 }
 
 @end
@@ -1769,34 +2203,34 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <ADFFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new ADFFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <ADFFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new ADFFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithDrive:(DriveProxy *)proxy exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    Drive *drive = [proxy drive];
-    ADFFile *archive = ADFFile::makeWithDrive(drive);
-    return archive ? [self make: archive] : nil;
+    try { return [self make: new ADFFile(*[proxy drive])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithDiameter:(DiskDiameter)type density:(DiskDensity)density
++ (instancetype)makeWithDiameter:(Diameter)dia density:(Density)den exception:(ExceptionWrapper *)ex
 {
-    ADFFile *archive = ADFFile::makeWithType(type, density);
-    return [self make: archive];
+    try { return [self make: new ADFFile(dia, den)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-- (void)formatDisk:(FSVolumeType)fs bootBlock:(NSInteger)bootBlockID
+- (void)format:(FSVolumeType)fs bootBlock:(NSInteger)bb name:(NSString *)name
 {
-    [self adf]->formatDisk(fs, bootBlockID);
+    auto str = string([name UTF8String]);
+    [self adf]->formatDisk(fs, bb, str);
 }
 
 @end
@@ -1818,33 +2252,38 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <HDFFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new HDFFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)ec
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    HDFFile *archive = AmigaFile::make <HDFFile> ([path fileSystemRepresentation], ec);
-    return [self make: archive];
+    try { return [self make: new HDFFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <HDFFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new HDFFile(*[proxy drive])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)ec
+- (BOOL)hasRDB
 {
-    HDFFile *archive = AmigaFile::make <HDFFile> ((const u8 *)buf, len, ec);
-    return [self make: archive];
+    return [self hdf]->hasRDB();
 }
 
-- (NSInteger)numBlocks
+- (NSInteger)numPartitions
 {
-    return [self hdf]->numBlocks();
+    return [self hdf]->numPartitions();
+}
+
+- (NSInteger)writeToFile:(NSString *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
+{
+    try { return [self hdf]->writePartitionToFile([path fileSystemRepresentation], nr); }
+    catch (VAError &error) { [ex save:error]; return 0; }
 }
 
 @end
@@ -1866,28 +2305,22 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <EXTFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new EXTFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)ec
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    EXTFile *archive = AmigaFile::make <EXTFile> ([path fileSystemRepresentation], ec);
-    return [self make: archive];
+    try { return [self make: new EXTFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <EXTFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)ec
-{
-    EXTFile *archive = AmigaFile::make <EXTFile> ((const u8 *)buf, len, ec);
-    return [self make: archive];
+    try { return [self make: new EXTFile(*[proxy drive])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -1909,38 +2342,22 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <IMGFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new IMGFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-/*
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)ec
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    IMGFile *archive = AmigaFile::make <IMGFile> ([path fileSystemRepresentation], ec);
-    return [self make: archive];
-}
-*/
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <IMGFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new IMGFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-/*
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)ec
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    IMGFile *archive = AmigaFile::make <IMGFile> ((const u8 *)buf, len, ec);
-    return [self make: archive];
-}
-*/
-
-+ (instancetype)makeWithDrive:(DriveProxy *)proxy exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: IMGFile::makeWithDisk([proxy drive]->disk)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new IMGFile(*[proxy drive]->disk)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -1962,33 +2379,16 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <DMSFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new DMSFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)err
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    DMSFile *archive = AmigaFile::make <DMSFile> ([path fileSystemRepresentation], err);
-    return [self make: archive];
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <DMSFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)ec
-{
-    DMSFile *archive = AmigaFile::make <DMSFile> ((const u8 *)buf, len, ec);
-    return [self make: archive];
-}
-
-- (ADFFileProxy *)adf
-{
-    return [ADFFileProxy make:[self dms]->adf];
+    try { return [self make: new DMSFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -2010,33 +2410,16 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: AmigaFile::make <EXEFile> ([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
+    try { return [self make: new EXEFile([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)ec
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
 {
-    EXEFile *archive = AmigaFile::make <EXEFile> ([path fileSystemRepresentation], ec);
-    return [self make: archive];
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)exc
-{
-    try { return [self make: AmigaFile::make <EXEFile> ((const u8 *)buf, len)]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len error:(ErrorCode *)ec
-{
-    EXEFile *archive = AmigaFile::make <EXEFile> ((const u8 *)buf, len);
-    return [self make: archive];
-}
-
-- (ADFFileProxy *)adf
-{
-    return [ADFFileProxy make:[self exe]->adf];
+    try { return [self make: new EXEFile((const u8 *)buf, len)]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -2058,16 +2441,10 @@ using namespace moira;
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)exc
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
-    try { return [self make: Folder::makeWithFolder([path fileSystemRepresentation])]; }
-    catch (VAError &error) { [exc save:error]; return nil; }
-}
-
-+ (instancetype)makeWithFile:(NSString *)path error:(ErrorCode *)ec
-{
-    string str = string([path fileSystemRepresentation]);
-    return [self make: Folder::makeWithFolder(str, ec)];
+    try { return [self make: new Folder([path fileSystemRepresentation])]; }
+    catch (VAError &error) { [ex save:error]; return nil; }
 }
 
 - (ADFFileProxy *)adf
@@ -2079,12 +2456,11 @@ using namespace moira;
 
 
 //
-// Amiga
+// AmigaProxy
 //
 
 @implementation AmigaProxy
 
-// @synthesize wrapper;
 @synthesize agnus;
 @synthesize blitter;
 @synthesize breakpoints;
@@ -2099,11 +2475,16 @@ using namespace moira;
 @synthesize df1;
 @synthesize df2;
 @synthesize df3;
+@synthesize hd0;
+@synthesize hd1;
+@synthesize hd2;
+@synthesize hd3;
 @synthesize diskController;
 @synthesize dmaDebugger;
 @synthesize keyboard;
 @synthesize mem;
 @synthesize paula;
+@synthesize remoteManager;
 @synthesize retroShell;
 @synthesize rtc;
 @synthesize serialPort;
@@ -2112,8 +2493,6 @@ using namespace moira;
 
 - (instancetype) init
 {
-    // NSLog(@"AmigaProxy::init");
-    
     if (!(self = [super init]))
         return self;
     
@@ -2131,10 +2510,14 @@ using namespace moira;
     copper = [[CopperProxy alloc] initWith:&amiga->agnus.copper];
     cpu = [[CPUProxy alloc] initWith:&amiga->cpu];
     denise = [[DeniseProxy alloc] initWith:&amiga->denise];
-    df0 = [[DriveProxy alloc] initWith:&amiga->df0];
-    df1 = [[DriveProxy alloc] initWith:&amiga->df1];
-    df2 = [[DriveProxy alloc] initWith:&amiga->df2];
-    df3 = [[DriveProxy alloc] initWith:&amiga->df3];
+    df0 = [[FloppyDriveProxy alloc] initWith:&amiga->df0];
+    df1 = [[FloppyDriveProxy alloc] initWith:&amiga->df1];
+    df2 = [[FloppyDriveProxy alloc] initWith:&amiga->df2];
+    df3 = [[FloppyDriveProxy alloc] initWith:&amiga->df3];
+    hd0 = [[HardDriveProxy alloc] initWith:&amiga->hd0];
+    hd1 = [[HardDriveProxy alloc] initWith:&amiga->hd1];
+    hd2 = [[HardDriveProxy alloc] initWith:&amiga->hd2];
+    hd3 = [[HardDriveProxy alloc] initWith:&amiga->hd3];
     diskController = [[DiskControllerProxy alloc] initWith:&amiga->paula.diskController];
     dmaDebugger = [[DmaDebuggerProxy alloc] initWith:&amiga->agnus.dmaDebugger];
     keyboard = [[KeyboardProxy alloc] initWith:&amiga->keyboard];
@@ -2143,6 +2526,7 @@ using namespace moira;
     retroShell = [[RetroShellProxy alloc] initWith:&amiga->retroShell];
     rtc = [[RtcProxy alloc] initWith:&amiga->rtc];
     recorder = [[RecorderProxy alloc] initWith:&amiga->denise.screenRecorder];
+    remoteManager = [[RemoteManagerProxy alloc] initWith:&amiga->remoteManager];
     serialPort = [[SerialPortProxy alloc] initWith:&amiga->serialPort];
     watchpoints = [[GuardsProxy alloc] initWith:&amiga->cpu.debugger.watchpoints];
 
@@ -2168,17 +2552,17 @@ using namespace moira;
     obj = NULL;
 }
 
-- (BOOL)isReleaseBuild
+- (AmigaInfo)info
 {
-    return releaseBuild;
+    return [self amiga]->getInfo();
 }
 
-- (BOOL)warp
+- (BOOL)warpMode
 {
     return [self amiga]->inWarpMode();
 }
 
-- (void)setWarp:(BOOL)value
+- (void)setWarpMode:(BOOL)value
 {
     if (value) {
         [self amiga]->warpOn();
@@ -2201,49 +2585,25 @@ using namespace moira;
     }
 }
 
-- (EventID)inspectionTarget
+- (NSInteger)cpuLoad
+{
+    double load = [self amiga]->getCpuLoad();
+    return (NSInteger)(100 * load);
+}
+
+- (InspectionTarget)inspectionTarget
 {
     return [self amiga]->getInspectionTarget();
 }
 
-- (void)setInspectionTarget:(EventID)id
+- (void)setInspectionTarget:(InspectionTarget)target
 {
-    [self amiga]->setInspectionTarget(id);
+    [self amiga]->setInspectionTarget(target);
 }
 
 - (void) removeInspectionTarget
 {
     [self amiga]->removeInspectionTarget();
-}
-
-- (BOOL)isReady:(ErrorCode *)error
-{
-    try {
-        *error = ERROR_OK;
-        [self amiga]->isReady();
-        return true;
-    } catch (const VAError &exc) {
-        *error = exc.data;
-        return false;
-    }
-}
-
-- (BOOL)isReady
-{
-    ErrorCode ec;
-    return [self isReady:&ec];
-}
-
-- (void)powerOn:(ErrorCode *)ec
-{
-    *ec = ERROR_OK;
-    try { [self amiga]->powerOn(); }
-    catch (VAError &error) { *ec = (ErrorCode)error.data; }
-}
-
-- (void)powerOff
-{
-    [self amiga]->powerOff();
 }
 
 - (void)hardReset
@@ -2254,16 +2614,6 @@ using namespace moira;
 - (void)softReset
 {
     [self amiga]->reset(false);
-}
-
-- (void)shutdown
-{
-    [self amiga]->shutdown();
-}
-
-- (AmigaInfo)getInfo
-{
-    return [self amiga]->getInfo();
 }
 
 - (BOOL)poweredOn
@@ -2286,24 +2636,51 @@ using namespace moira;
     return [self amiga]->isPaused();
 }
 
-/*
-- (void)run:(ErrorCode *)ec
+- (void)isReady:(ExceptionWrapper *)ex
 {
-    *ec = ERROR_OK;
-    try { [self amiga]->run(); }
-    catch (VAError &error) { *ec = (ErrorCode)error.data; }
+    try { [self amiga]->isReady(); }
+    catch (VAError &error) { [ex save:error]; }
 }
-*/
 
-- (void)run:(ExceptionWrapper *)exc
+- (void)powerOn
+{
+    [self amiga]->powerOn();
+}
+
+- (void)powerOff
+{
+    [self amiga]->powerOff();
+}
+
+- (void)run:(ExceptionWrapper *)ex
 {
     try { [self amiga]->run(); }
-    catch (VAError &error) { [exc save:error]; }
+    catch (VAError &error) { [ex save:error]; }
 }
 
 - (void)pause
 {
     [self amiga]->pause();
+}
+
+- (void)halt
+{
+    [self amiga]->halt();
+}
+
+- (void)stopAndGo
+{
+    [self amiga]->stopAndGo();
+}
+
+- (void)stepInto
+{
+    [self amiga]->stepInto();
+}
+
+- (void)stepOver
+{
+    [self amiga]->stepOver();
 }
 
 - (void)suspend
@@ -2343,9 +2720,10 @@ using namespace moira;
     return [SnapshotProxy make:snapshot];
 }
 
-- (void)loadFromSnapshot:(SnapshotProxy *)proxy
+- (void)loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    [self amiga]->loadFromSnapshotSafe([proxy snapshot]);
+    try { [self amiga]->loadSnapshot(*[proxy snapshot]); }
+    catch (VAError &error) { [ex save:error]; }
 }
 
 - (NSInteger)getConfig:(Option)opt
@@ -2366,7 +2744,8 @@ using namespace moira;
 - (BOOL)configure:(Option)opt value:(NSInteger)val
 {
     try {
-        return [self amiga]->configure(opt, val);
+        [self amiga]->configure(opt, val);
+        return true;
     } catch (VAError &exception) {
         return false;
     }
@@ -2375,7 +2754,8 @@ using namespace moira;
 - (BOOL)configure:(Option)opt enable:(BOOL)val
 {
     try {
-        return [self amiga]->configure(opt, val ? 1 : 0);
+        [self amiga]->configure(opt, val ? 1 : 0);
+        return true;
     } catch (VAError &exception) {
         return false;
     }
@@ -2384,7 +2764,8 @@ using namespace moira;
 - (BOOL)configure:(Option)opt id:(NSInteger)id value:(NSInteger)val
 {
     try {
-        return [self amiga]->configure(opt, id, val);
+        [self amiga]->configure(opt, id, val);
+        return true;
     } catch (VAError &exception) {
         return false;
     }
@@ -2393,7 +2774,8 @@ using namespace moira;
 - (BOOL)configure:(Option)opt id:(NSInteger)id enable:(BOOL)val
 {
     try {
-        return [self amiga]->configure(opt, id, val ? 1 : 0);
+        [self amiga]->configure(opt, id, val ? 1 : 0);
+        return true;
     } catch (VAError &exception) {
         return false;
     }
@@ -2402,7 +2784,8 @@ using namespace moira;
 - (BOOL)configure:(Option)opt drive:(NSInteger)id value:(NSInteger)val
 {
     try {
-        return [self amiga]->configure(opt, (long)id, val);
+        [self amiga]->configure(opt, (long)id, val);
+        return true;
     } catch (VAError &exception) {
         return false;
     }
@@ -2411,7 +2794,8 @@ using namespace moira;
 - (BOOL)configure:(Option)opt drive:(NSInteger)id enable:(BOOL)val
 {
     try {
-        return [self amiga]->configure(opt, (long)id, val ? 1 : 0);
+        [self amiga]->configure(opt, (long)id, val ? 1 : 0);
+        return true;
     } catch (VAError &exception) {
         return false;
     }
@@ -2420,21 +2804,6 @@ using namespace moira;
 - (void)setListener:(const void *)sender function:(Callback *)func
 {
     [self amiga]->msgQueue.setListener(sender, func);
-}
-
-- (void)stopAndGo
-{
-    [self amiga]->stopAndGo();
-}
-
-- (void)stepInto
-{
-    [self amiga]->stepInto();
-}
-
-- (void)stepOver
-{
-    [self amiga]->stepOver();
 }
 
 @end

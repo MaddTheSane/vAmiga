@@ -30,22 +30,20 @@ enum_long(MEM_SOURCE)
     MEM_CUSTOM,
     MEM_CUSTOM_MIRROR,
     MEM_AUTOCONF,
+    MEM_ZOR,
     MEM_ROM,
     MEM_ROM_MIRROR,
     MEM_WOM,
-    MEM_EXT,
-    
-    MEM_COUNT
+    MEM_EXT
 };
 typedef MEM_SOURCE MemorySource;
 
 #ifdef __cplusplus
-struct MemorySourceEnum : util::Reflection<MemorySourceEnum, MemorySource> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < MEM_COUNT;
-    }
+struct MemorySourceEnum : util::Reflection<MemorySourceEnum, MemorySource>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return MEM_EXT; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "MEM"; }
     static const char *key(MemorySource value)
@@ -64,11 +62,11 @@ struct MemorySourceEnum : util::Reflection<MemorySourceEnum, MemorySource> {
             case MEM_CUSTOM:         return "CUSTOM";
             case MEM_CUSTOM_MIRROR:  return "CUSTOM_MIRROR";
             case MEM_AUTOCONF:       return "AUTOCONF";
+            case MEM_ZOR:            return "ZOR";
             case MEM_ROM:            return "ROM";
             case MEM_ROM_MIRROR:     return "ROM_MIRROR";
             case MEM_WOM:            return "WOM";
             case MEM_EXT:            return "EXT";
-            case MEM_COUNT:          return "???";
         }
         return "???";
     }
@@ -78,19 +76,16 @@ struct MemorySourceEnum : util::Reflection<MemorySourceEnum, MemorySource> {
 enum_long(ACCESSOR_TYPE)
 {
     ACCESSOR_CPU,
-    ACCESSOR_AGNUS,
-    
-    ACCESSOR_COUNT
+    ACCESSOR_AGNUS
 };
 typedef ACCESSOR_TYPE Accessor;
 
 #ifdef __cplusplus
-struct AccessorEnum : util::Reflection<AccessorEnum, Accessor> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < ACCESSOR_COUNT;
-    }
+struct AccessorEnum : util::Reflection<AccessorEnum, Accessor>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return ACCESSOR_AGNUS; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "ACCESSOR"; }
     static const char *key(Accessor value)
@@ -99,7 +94,6 @@ struct AccessorEnum : util::Reflection<AccessorEnum, Accessor> {
                 
             case ACCESSOR_CPU:    return "CPU";
             case ACCESSOR_AGNUS:  return "AGNUS";
-            case ACCESSOR_COUNT:  return "???";
         }
         return "???";
     }
@@ -111,19 +105,16 @@ enum_long(BANK_MAP)
     BANK_MAP_A500,
     BANK_MAP_A1000,
     BANK_MAP_A2000A,
-    BANK_MAP_A2000B,
-    
-    BANK_MAP_COUNT
+    BANK_MAP_A2000B
 };
 typedef BANK_MAP BankMap;
 
 #ifdef __cplusplus
-struct BankMapEnum : util::Reflection<BankMapEnum, BankMap> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < BANK_MAP_COUNT;
-    }
+struct BankMapEnum : util::Reflection<BankMapEnum, BankMap>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return BANK_MAP_A2000B; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "BANK_MAP"; }
     static const char *key(BankMap value)
@@ -134,7 +125,6 @@ struct BankMapEnum : util::Reflection<BankMapEnum, BankMap> {
             case BANK_MAP_A1000:   return "A1000";
             case BANK_MAP_A2000A:  return "A2000A";
             case BANK_MAP_A2000B:  return "A2000B";
-            case BANK_MAP_COUNT:   return "???";
         }
         return "???";
     }
@@ -143,31 +133,27 @@ struct BankMapEnum : util::Reflection<BankMapEnum, BankMap> {
 
 enum_long(RAM_INIT_PATTERN)
 {
-    RAM_INIT_RANDOMIZED,
     RAM_INIT_ALL_ZEROES,
     RAM_INIT_ALL_ONES,
-    
-    RAM_INIT_COUNT
+    RAM_INIT_RANDOMIZED
 };
 typedef RAM_INIT_PATTERN RamInitPattern;
 
 #ifdef __cplusplus
-struct RamInitPatternEnum : util::Reflection<RamInitPatternEnum, RamInitPattern> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < RAM_INIT_COUNT;
-    }
+struct RamInitPatternEnum : util::Reflection<RamInitPatternEnum, RamInitPattern>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return RAM_INIT_RANDOMIZED; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "RAM_INIT"; }
     static const char *key(RamInitPattern value)
     {
         switch (value) {
                 
+            case RAM_INIT_ALL_ZEROES:  return "ALL_ZEROES";
+            case RAM_INIT_ALL_ONES:    return "ALL_ONES";
             case RAM_INIT_RANDOMIZED:  return "RANDOMIZED";
-            case RAM_INIT_ALL_ZEROES:  return "ZEROES";
-            case RAM_INIT_ALL_ONES:    return "ONES";
-            case RAM_INIT_COUNT:       return "???";
         }
         return "???";
     }
@@ -178,19 +164,16 @@ enum_long(UNMAPPED_MEMORY)
 {
     UNMAPPED_FLOATING,
     UNMAPPED_ALL_ZEROES,
-    UNMAPPED_ALL_ONES,
-
-    UNMAPPED_COUNT
+    UNMAPPED_ALL_ONES
 };
 typedef UNMAPPED_MEMORY UnmappedMemory;
 
 #ifdef __cplusplus
-struct UnmappedMemoryEnum : util::Reflection<UnmappedMemoryEnum, UnmappedMemory> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < UNMAPPED_COUNT;
-    }
+struct UnmappedMemoryEnum : util::Reflection<UnmappedMemoryEnum, UnmappedMemory>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return UNMAPPED_ALL_ONES; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
 
     static const char *prefix() { return "UNMAPPED"; }
     static const char *key(UnmappedMemory value)
@@ -200,7 +183,6 @@ struct UnmappedMemoryEnum : util::Reflection<UnmappedMemoryEnum, UnmappedMemory>
             case UNMAPPED_FLOATING:    return "FLOATING";
             case UNMAPPED_ALL_ZEROES:  return "ALL_ZEROES";
             case UNMAPPED_ALL_ONES:    return "ALL_ONES";
-            case UNMAPPED_COUNT:       return "???";
         }
         return "???";
     }
@@ -223,6 +205,12 @@ typedef struct
     i32 womSize;
     i32 extSize;
 
+    // First memory page where the extended ROM is blended it
+    u32 extStart;
+
+    // Indicates if snapshots should contain Roms
+    bool saveRoms;
+    
     // Indicates if slow Ram accesses need a free bus
     bool slowRamDelay;
     
@@ -234,21 +222,18 @@ typedef struct
     
     // Specifies how to deal with unmapped memory
     UnmappedMemory unmappingType;
-    
-    // First memory page where the extended ROM is blended it
-    u32 extStart;
 }
 MemoryConfig;
 
 typedef struct
 {
-    struct { long raw; double accumulated; } chipReads;
-    struct { long raw; double accumulated; } chipWrites;
-    struct { long raw; double accumulated; } slowReads;
-    struct { long raw; double accumulated; } slowWrites;
-    struct { long raw; double accumulated; } fastReads;
-    struct { long raw; double accumulated; } fastWrites;
-    struct { long raw; double accumulated; } kickReads;
-    struct { long raw; double accumulated; } kickWrites;
+    struct { isize raw; double accumulated; } chipReads;
+    struct { isize raw; double accumulated; } chipWrites;
+    struct { isize raw; double accumulated; } slowReads;
+    struct { isize raw; double accumulated; } slowWrites;
+    struct { isize raw; double accumulated; } fastReads;
+    struct { isize raw; double accumulated; } fastWrites;
+    struct { isize raw; double accumulated; } kickReads;
+    struct { isize raw; double accumulated; } kickWrites;
 }
 MemoryStats;

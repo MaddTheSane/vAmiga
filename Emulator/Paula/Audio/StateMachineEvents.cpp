@@ -13,8 +13,9 @@
 template <isize nr> void
 StateMachine<nr>::serviceEvent()
 {
-    trace(AUD_DEBUG, "CHX_PERFIN state = %d\n", state);
-    assert(agnus.slot[SLOT_CH0+nr].id == CHX_PERFIN);
+    assert(agnus.id[SLOT_CH0+nr] == CHX_PERFIN);
+
+    trace(AUD_DEBUG, "CHX_PERFIN state = %ld\n", state);
 
     switch (state) {
 
@@ -29,7 +30,7 @@ StateMachine<nr>::serviceEvent()
             return;
 
         default:
-            assert(false);
+            fatalError;
     }
 }
 

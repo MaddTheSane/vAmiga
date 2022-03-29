@@ -22,8 +22,9 @@ struct AnimatedFloat {
     var delta = Float(0.0)
     var steps = 1 { didSet { delta = (target - current) / Float(steps) } }
     var target: Float { didSet { delta = (target - current) / Float(steps) } }
+    var animates: Bool { return current != target }
     var clamped: Float { return current < 0.0 ? 0.0 : current > 1.0 ? 1.0 : current }
-
+    
     init(current: Float = 0.0, target: Float = 0.0) {
 
         self.current = current
@@ -48,11 +49,6 @@ struct AnimatedFloat {
         self.steps = steps
     }
     
-    func animates() -> Bool {
-
-        return current != target
-    }
-
     mutating func move() {
 
         if abs(current - target) < abs(delta) {
@@ -73,12 +69,12 @@ extension Renderer {
             angleX.move()
             angleY.move()
             angleZ.move()
-            var cont = angleX.animates() || angleY.animates() || angleZ.animates()
+            var cont = angleX.animates || angleY.animates || angleZ.animates
                     
             shiftX.move()
             shiftY.move()
             shiftZ.move()
-            cont = cont || shiftX.animates() || shiftY.animates() || shiftZ.animates()
+            cont = cont || shiftX.animates || shiftY.animates || shiftZ.animates
             
             // Check if animation has terminated
             if !cont {
@@ -96,7 +92,7 @@ extension Renderer {
 
             white.move()
          
-            let cont = white.animates()
+            let cont = white.animates
          
             if !cont {
                 animates -= AnimationType.color
@@ -111,7 +107,7 @@ extension Renderer {
             cutoutX2.move()
             cutoutY2.move()
             
-            let cont = cutoutX1.animates() || cutoutY1.animates() || cutoutX2.animates() || cutoutY2.animates()
+            let cont = cutoutX1.animates || cutoutY1.animates || cutoutX2.animates || cutoutY2.animates
             
             let x = CGFloat(cutoutX1.current)
             let y = CGFloat(cutoutY1.current)
@@ -119,7 +115,7 @@ extension Renderer {
             let h = CGFloat(cutoutY2.current - cutoutY1.current)
             
             // Update texture cutout
-            canvas.textureRect = CGRect.init(x: x, y: y, width: w, height: h)
+            canvas.textureRect = CGRect(x: x, y: y, width: w, height: h)
          
             if !cont {
                 animates -= AnimationType.texture
@@ -132,8 +128,6 @@ extension Renderer {
     //
 
     func zoomTextureIn(steps: Int = 30) {
-
-        track("Zooming texture in...")
 
         let target = canvas.visibleNormalized
         
@@ -151,8 +145,6 @@ extension Renderer {
     }
 
     func zoomTextureOut(steps: Int = 30) {
-
-        track("Zooming texture out...")
         
         let current = canvas.textureRect
         let target = canvas.entireNormalized
@@ -181,8 +173,6 @@ extension Renderer {
 
     func zoomIn(steps: Int = 60) {
 
-        track("Zooming in...")
-
         shiftZ.current = 6.0
         shiftZ.target = 0.0
         angleX.target = 0.0
@@ -199,8 +189,6 @@ extension Renderer {
 
     func zoomOut(steps: Int = 40) {
 
-        track("Zooming out...")
-
         shiftZ.target = 6.0
         angleX.target = 0.0
         angleY.target = 0.0
@@ -215,8 +203,6 @@ extension Renderer {
     }
 
     func rotate(x: Float = 0.0, y: Float = 0.0, z: Float = 0.0) {
-
-        track("Rotating x: \(x) y: \(y) z: \(z)...")
 
         angleX.target = x
         angleY.target = y
@@ -237,8 +223,6 @@ extension Renderer {
 
     func scroll(steps: Int = 120) {
 
-        track("Scrolling...")
-
         shiftY.current = -1.5
         shiftY.target = 0
         angleX.target = 0.0
@@ -255,8 +239,6 @@ extension Renderer {
 
     func snapToFront() {
 
-        track("Snapping to front...")
-
         shiftZ.current = -0.05
         shiftZ.target = 0
         shiftZ.steps = 10
@@ -269,9 +251,7 @@ extension Renderer {
     //
     
     func flash() {
-        
-        track("Flashing...")
-        
+                
         white.current = 1.0
         white.target = 0.0
         white.steps = 20

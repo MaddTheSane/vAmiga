@@ -10,27 +10,20 @@
 #pragma once
 
 #include "DiskControllerTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "Reflection.h"
+#include "FloppyDisk.h"
 
-class DiskController : public AmigaComponent {
-
-    friend class Drive;
-    
+class DiskController : public SubComponent
+{
     // Current configuration
-    DiskControllerConfig config;
+    DiskControllerConfig config = {};
 
     // Result of the latest inspection
-    DiskControllerInfo info;
-
-    // Temorary storage for a disk waiting to be inserted
-    class Disk *diskToInsert = nullptr;
-
-    // Search path for disk files, one for each drive
-    string searchPath[4];
+    mutable DiskControllerInfo info = {};
     
     // The currently selected drive (-1 if no drive is selected)
-    i8 selected = -1;
+    isize selected = -1;
 
     // The current drive state (off, read, or write)
     DriveState state;
@@ -97,55 +90,22 @@ class DiskController : public AmigaComponent {
     
 public:
     
-    DiskController(Amiga& ref);
+    using SubComponent::SubComponent;
 
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override { return "DiskController"; }
+    void _dump(Category category, std::ostream& os) const override;
     
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override;
-    
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    const DiskControllerConfig &getConfig() const { return config; }
-    bool turboMode() const { return config.speed == -1; }
-
-    i64 getConfigItem(Option option) const;
-    i64 getConfigItem(Option option, long id) const;
-    
-    bool setConfigItem(Option option, i64 value) override;
-    bool setConfigItem(Option option, long id, i64 value) override;
-
-    const string &getSearchPath(isize dfn) const;
-    void setSearchPath(const string &path, isize dfn);
-    void setSearchPath(const string &path);
-
-    
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    DiskControllerInfo getInfo() { return HardwareComponent::getInfo(info); }
-    
-private:
-    
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Serializing
-    //
-    
-private:
+    void _inspect() const override;
     
     template <class T>
     void applyToPersistentItems(T& worker)
@@ -159,12 +119,7 @@ private:
     }
 
     template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
 
@@ -182,8 +137,37 @@ private:
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+
+    
+    //
+    // Configuring
+    //
+    
+public:
+    
+    static DiskControllerConfig getDefaultConfig();
+    const DiskControllerConfig &getConfig() const { return config; }
+    void resetConfig() override;
+    
+    bool turboMode() const { return config.speed == -1; }
+
+    i64 getConfigItem(Option option) const;
+    i64 getConfigItem(Option option, long id) const;
+    
+    void setConfigItem(Option option, i64 value);
+    void setConfigItem(Option option, long id, i64 value);
+
+    
+    //
+    // Analyzing
+    //
+    
+public:
+    
+    DiskControllerInfo getInfo() const { return AmigaComponent::getInfo(info); }
 
 
     //
@@ -193,11 +177,10 @@ private:
 public:
     
     // Returns the number of the currently selected drive
-    i8 getSelected() const { return selected; }
+    isize getSelected() const { return selected; }
 
     // Returns the currently selected (nullptr if none is selected)
-    // TODO: Return reference
-    class Drive *getSelectedDrive();
+    class FloppyDrive *getSelectedDrive();
 
     // Indicates if the motor of the specified drive is switched on
     bool spinning(isize driveNr) const;
@@ -233,7 +216,7 @@ public:
     
     // OCR register 0x01A (r)
     u16 peekDSKBYTR();
-    u16 computeDSKBYTR();
+    u16 computeDSKBYTR() const;
     
     // OCR register 0x07E (w)
     void pokeDSKSYNC(u16 value);
@@ -249,14 +232,6 @@ public:
     // Handling disks
     //
 
-    // Ejects a disk from the specified drive
-    void ejectDisk(isize nr, Cycle delay = 0);
-
-    // Inserts a disk into the specified drive
-    void insertDisk(class Disk *disk, isize nr, Cycle delay = 0);
-    void insertDisk(class DiskFile *file, isize nr, Cycle delay = 0);
-    void insertDisk(const string &name, isize nr, Cycle delay = 0) throws;
-    
     // Write protects or unprotects a disk
     void setWriteProtection(isize nr, bool value);
 
@@ -273,9 +248,6 @@ public:
     // Schedules the first or next event in the disk controller slot
     void scheduleFirstDiskEvent();
     void scheduleNextDiskEvent();
-
-    // Services an event in the disk change slot
-    void serviceDiskChangeEvent();
 
     
     //
@@ -355,16 +327,15 @@ public:
      * register is written to. This mode is fast, but far from being accurate.
      * Neither does it uses the disk DMA slots, nor does it interact with
      * the FIFO buffer.
-
      */
   
     // Performs DMA in standard mode
     void performDMA();
-    void performDMARead(Drive *drive, u32 count);
-    void performDMAWrite(Drive *drive, u32 count);
+    void performDMARead(FloppyDrive *drive, u32 count);
+    void performDMAWrite(FloppyDrive *drive, u32 count);
      
     // Performs DMA in turbo mode
-    void performTurboDMA(Drive *d);
-    void performTurboRead(Drive *drive);
-    void performTurboWrite(Drive *drive);
+    void performTurboDMA(FloppyDrive *d);
+    void performTurboRead(FloppyDrive *drive);
+    void performTurboWrite(FloppyDrive *drive);
 };

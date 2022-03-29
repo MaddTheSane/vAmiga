@@ -7,25 +7,25 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-struct MemColors {
-
-    static let unmapped = NSColor.gray
-
-    static let chip = NSColor.init(r: 0x80, g: 0xFF, b: 0x00, a: 0xFF)
-    static let slow = NSColor.init(r: 0x66, g: 0xCC, b: 0x00, a: 0xFF)
-    static let fast = NSColor.init(r: 0x4C, g: 0x99, b: 0x00, a: 0xFF)
-
-    static let rom = NSColor.init(r: 0xFF, g: 0x00, b: 0x00, a: 0xFF)
-    static let wom = NSColor.init(r: 0xCC, g: 0x00, b: 0x00, a: 0xFF)
-    static let ext = NSColor.init(r: 0x99, g: 0x00, b: 0x00, a: 0xFF)
-
-    static let cia = NSColor.init(r: 0x66, g: 0xB2, b: 0xFF, a: 0xFF)
-    static let rtc = NSColor.init(r: 0xB2, g: 0x66, b: 0xFF, a: 0xFF)
-    static let cust = NSColor.init(r: 0xFF, g: 0xFF, b: 0x66, a: 0xFF)
-    static let auto = NSColor.init(r: 0xFF, g: 0x66, b: 0xB2, a: 0xFF)
-}
-
 extension Inspector {
+    
+    struct MemColors {
+        
+        static let unmapped = NSColor.gray
+        
+        static let chip = NSColor(r: 0x80, g: 0xFF, b: 0x00, a: 0xFF)
+        static let slow = NSColor(r: 0x66, g: 0xCC, b: 0x00, a: 0xFF)
+        static let fast = NSColor(r: 0x4C, g: 0x99, b: 0x00, a: 0xFF)
+        
+        static let rom = NSColor(r: 0xFF, g: 0x00, b: 0x00, a: 0xFF)
+        static let wom = NSColor(r: 0xCC, g: 0x00, b: 0x00, a: 0xFF)
+        static let ext = NSColor(r: 0x99, g: 0x00, b: 0x00, a: 0xFF)
+        
+        static let cia = NSColor(r: 0x66, g: 0xB2, b: 0xFF, a: 0xFF)
+        static let rtc = NSColor(r: 0xB2, g: 0x66, b: 0xFF, a: 0xFF)
+        static let cust = NSColor(r: 0xFF, g: 0xFF, b: 0x66, a: 0xFF)
+        static let auto = NSColor(r: 0xFF, g: 0x66, b: 0xB2, a: 0xFF)
+    }
 
     var accessor: Accessor {
         return memBankMap.selectedTag() == 0 ? .CPU : .AGNUS
@@ -40,7 +40,7 @@ extension Inspector {
         // Create image representation in memory
         let width = 512
         let height = 16
-        let size = CGSize.init(width: width, height: height)
+        let size = CGSize(width: width, height: height)
         let cap = Int(size.width) * Int(size.height)
         let mask = calloc(cap, MemoryLayout<UInt32>.size)!
         let ptr = mask.bindMemory(to: UInt32.self, capacity: cap)
@@ -55,19 +55,20 @@ extension Inspector {
             case .NONE:          color = MemColors.unmapped
             case .CHIP:          color = MemColors.chip
             case .CHIP_MIRROR:   color = MemColors.chip;     mirror = true
-            case .FAST:          color = MemColors.fast
             case .SLOW:          color = MemColors.slow
             case .SLOW_MIRROR:   color = MemColors.slow;     mirror = true
-            case .ROM:           color = MemColors.rom
-            case .ROM_MIRROR:    color = MemColors.rom;      mirror = true
-            case .WOM:           color = MemColors.wom
-            case .EXT:           color = MemColors.ext
+            case .FAST:          color = MemColors.fast
             case .CIA:           color = MemColors.cia
             case .CIA_MIRROR:    color = MemColors.cia;      mirror = true
             case .RTC:           color = MemColors.rtc
             case .CUSTOM:        color = MemColors.cust
             case .CUSTOM_MIRROR: color = MemColors.cust;     mirror = true
             case .AUTOCONF:      color = MemColors.auto
+            case .ZOR:           color = MemColors.auto
+            case .ROM:           color = MemColors.rom
+            case .ROM_MIRROR:    color = MemColors.rom;      mirror = true
+            case .WOM:           color = MemColors.wom
+            case .EXT:           color = MemColors.ext
             default:             fatalError()
             }
             let ciBgColor = CIColor(color: MemColors.unmapped)!
@@ -110,16 +111,16 @@ extension Inspector {
         let size = NSSize(width: 16, height: 16)
 
         memLayoutButton.image   = memLayoutImage
-        memChipRamButton.image  = NSImage.init(color: MemColors.chip, size: size)
-        memFastRamButton.image  = NSImage.init(color: MemColors.fast, size: size)
-        memSlowRamButton.image  = NSImage.init(color: MemColors.slow, size: size)
-        memRomButton.image      = NSImage.init(color: MemColors.rom, size: size)
-        memWomButton.image      = NSImage.init(color: MemColors.wom, size: size)
-        memExtButton.image      = NSImage.init(color: MemColors.ext, size: size)
-        memCIAButton.image      = NSImage.init(color: MemColors.cia, size: size)
-        memRTCButton.image      = NSImage.init(color: MemColors.rtc, size: size)
-        memOCSButton.image      = NSImage.init(color: MemColors.cust, size: size)
-        memAutoConfButton.image = NSImage.init(color: MemColors.auto, size: size)
+        memChipRamButton.image  = NSImage(color: MemColors.chip, size: size)
+        memFastRamButton.image  = NSImage(color: MemColors.fast, size: size)
+        memSlowRamButton.image  = NSImage(color: MemColors.slow, size: size)
+        memRomButton.image      = NSImage(color: MemColors.rom, size: size)
+        memWomButton.image      = NSImage(color: MemColors.wom, size: size)
+        memExtButton.image      = NSImage(color: MemColors.ext, size: size)
+        memCIAButton.image      = NSImage(color: MemColors.cia, size: size)
+        memRTCButton.image      = NSImage(color: MemColors.rtc, size: size)
+        memOCSButton.image      = NSImage(color: MemColors.cust, size: size)
+        memAutoConfButton.image = NSImage(color: MemColors.auto, size: size)
 
         let chipKB = config.chipSize / 1024
         let fastKB = config.fastSize / 1024
@@ -127,12 +128,12 @@ extension Inspector {
         let romKB = config.romSize / 1024
         let womKB = config.womSize / 1024
         let extKB = config.extSize / 1024
-        memChipRamText.stringValue = String.init(format: "%d KB", chipKB)
-        memFastRamText.stringValue = String.init(format: "%d KB", fastKB)
-        memSlowRamText.stringValue = String.init(format: "%d KB", slowKB)
-        memRomText.stringValue = String.init(format: "%d KB", romKB)
-        memWomText.stringValue = String.init(format: "%d KB", womKB)
-        memExtText.stringValue = String.init(format: "%d KB", extKB)
+        memChipRamText.stringValue = String(format: "%d KB", chipKB)
+        memFastRamText.stringValue = String(format: "%d KB", fastKB)
+        memSlowRamText.stringValue = String(format: "%d KB", slowKB)
+        memRomText.stringValue = String(format: "%d KB", romKB)
+        memWomText.stringValue = String(format: "%d KB", womKB)
+        memExtText.stringValue = String(format: "%d KB", extKB)
     }
 
     func refreshMemory(count: Int = 0, full: Bool = false) {

@@ -10,8 +10,9 @@
 class PreferencesController: DialogController {
 
     var pref: Preferences { return parent.pref }
-    var gamePadManager: GamePadManager { return parent.gamePadManager! }
-    
+    var gamePadManager: GamePadManager { return parent.gamePadManager }
+    var firstTab: String? // The tab to open first
+
     @IBOutlet weak var tabView: NSTabView!
         
     //
@@ -28,8 +29,7 @@ class PreferencesController: DialogController {
 
     // Screen captures
     @IBOutlet weak var genFFmpegIcon: NSButton!
-    @IBOutlet weak var genFFmpegText: NSTextField!
-    @IBOutlet weak var genFFmpegPath: NSTextField!
+    @IBOutlet weak var genFFmpegPath: NSComboBox!
     @IBOutlet weak var genSource: NSPopUpButton!
     @IBOutlet weak var genAspectX: NSTextField!
     @IBOutlet weak var genAspectY: NSTextField!
@@ -131,9 +131,10 @@ class PreferencesController: DialogController {
     @IBOutlet weak var devRightScheme: NSPopUpButton!
     @IBOutlet weak var devHatScheme: NSPopUpButton!
         
-    // The tab to open first
-    var firstTab: String?
-
+    //
+    // Methods
+    //
+    
     func showSheet(tab: String) {
         
         firstTab = tab
@@ -155,7 +156,6 @@ class PreferencesController: DialogController {
 
     override func cleanup() {
      
-        track()
         parent.gamePadManager.gamePads[3]?.notify = false
         parent.gamePadManager.gamePads[4]?.notify = false
     }
@@ -173,23 +173,22 @@ class PreferencesController: DialogController {
         }
     }
     
-    func selectTab(_ id: String) {
+    func select() {
         
-        track("selectTab(\(id))")
-        
-        switch id {
-        case "General": tabView.selectTabViewItem(at: 0)
-        case "Controls": tabView.selectTabViewItem(at: 1)
-        case "Devices": tabView.selectTabViewItem(at: 2)
-        default: fatalError()
+        if let id = tabView.selectedTabViewItem?.identifier as? String {
+            
+            switch id {
+            case "General": selectGeneralTab()
+            case "Controls": selectControlsTab()
+            case "Devices": selectDevicesTab()
+            default: fatalError()
+            }
         }
     }
 
     @discardableResult
     func keyDown(with key: MacKey) -> Bool {
-        
-        track()
-        
+                
         if let id = tabView.selectedTabViewItem?.identifier as? String {
             
             switch id {
@@ -214,33 +213,28 @@ extension PreferencesController: NSTabViewDelegate {
 
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
 
-        track()
-        if let id = tabViewItem?.identifier as? String {
-            
-            switch id {
-            case "General": refreshGeneralTab()
-            case "Controls": refreshControlsTab()
-            case "Devices": selectDevicesTab(); refreshDevicesTab()
-            default: fatalError()
-            }
-        }
+        select()
     }
 }
 
-extension PreferencesController: NSWindowDelegate {
+extension PreferencesController {
     
-    func windowWillClose(_ notification: Notification) {
-         
+    override func windowWillClose(_ notification: Notification) {
+
+        super.windowWillClose(notification)
         cleanup()
+    }
+    
+    func windowDidBecomeKey(_ notification: Notification) {
+        
+        select()
     }
 }
     
 extension PreferencesController: NSTextFieldDelegate {
     
     func controlTextDidChange(_ obj: Notification) {
-        
-        track()
-        
+                
         if let view = obj.object as? NSTextField {
             
             let formatter = view.formatter as? NumberFormatter

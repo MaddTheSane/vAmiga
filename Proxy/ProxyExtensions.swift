@@ -7,6 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+import Darwin
+
 //
 // Factory extensions
 //
@@ -14,9 +16,7 @@
 extension Proxy {
     
     static func make<T: MakeWithBuffer>(buffer: UnsafeRawPointer, length: Int) throws -> T {
-        
-        track()
-        
+                
         let exc = ExceptionWrapper()
         let obj = T.make(withBuffer: buffer, length: length, exception: exc)
         if exc.errorCode != ErrorCode.OK { throw VAError(exc) }
@@ -31,7 +31,7 @@ extension Proxy {
         return obj!
     }
 
-    static func make<T: MakeWithDrive>(drive: DriveProxy) throws -> T {
+    static func make<T: MakeWithDrive>(drive: FloppyDriveProxy) throws -> T {
         
         let exc = ExceptionWrapper()
         let obj = T.make(withDrive: drive, exception: exc)
@@ -39,7 +39,15 @@ extension Proxy {
         return obj!
     }
 
-    static func make<T: MakeWithFileSystem>(fs: FSDeviceProxy) throws -> T {
+    static func make<T: MakeWithHardDrive>(hdr: HardDriveProxy) throws -> T {
+        
+        let exc = ExceptionWrapper()
+        let obj = T.make(withHardDrive: hdr, exception: exc)
+        if exc.errorCode != ErrorCode.OK { throw VAError(exc) }
+        return obj!
+    }
+
+    static func make<T: MakeWithFileSystem>(fs: FileSystemProxy) throws -> T {
         
         let exc = ExceptionWrapper()
         let obj = T.make(withFileSystem: fs, exception: exc)
@@ -54,17 +62,24 @@ extension Proxy {
 
 extension AmigaProxy {
 
-    func powerOn() throws {
+    func isReady() throws {
         
-        var err = ErrorCode.OK
-        power(on: &err)
-        if err != .OK { throw VAError(err) }
+        let exception = ExceptionWrapper()
+        isReady(exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
     }
-
+    
     func run() throws {
         
         let exception = ExceptionWrapper()
         run(exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+    
+    func loadSnapshot(_ proxy: SnapshotProxy) throws {
+
+        let exception = ExceptionWrapper()
+        loadSnapshot(proxy, exception: exception)
         if exception.errorCode != .OK { throw VAError(exception) }
     }
 }
@@ -135,39 +150,138 @@ extension MemProxy {
     }
 }
 
+extension FloppyDriveProxy {
+
+    func swap(file: FloppyFileProxy) throws {
+        
+        let exception = ExceptionWrapper()
+        swap(file, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+    
+    func insertNew(fileSystem: FSVolumeType, bootBlock: BootBlockId, name: String) throws {
+        
+        let exception = ExceptionWrapper()
+        insertNew(fileSystem, bootBlock: bootBlock, name: name, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+}
+
+extension HardDriveProxy {
+
+    func attach(hdf: HDFFileProxy) throws {
+        
+        let exception = ExceptionWrapper()
+        attach(hdf, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+
+    func attach(c: Int, h: Int, s: Int, b: Int) throws {
+        
+        let exception = ExceptionWrapper()
+        attach(c, h: h, s: s, b: b, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+
+    func format(fs: FSVolumeType, name: String) throws {
+        
+        let exception = ExceptionWrapper()
+        format(fs, name: name, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+
+    func changeGeometry(c: Int, h: Int, s: Int, b: Int = 512) throws {
+        
+        let exception = ExceptionWrapper()
+        changeGeometry(c, h: h, s: s, b: b, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+}
+
 extension AmigaFileProxy {
     
     @discardableResult
     func writeToFile(url: URL) throws -> Int {
         
-        var err = ErrorCode.OK
-        let result = write(toFile: url.path, error: &err)
-        if err != .OK { throw VAError(err) }
+        let exception = ExceptionWrapper()
+        let result = write(toFile: url.path, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
         
         return result
     }
 }
 
-extension FSDeviceProxy {
+extension ADFFileProxy {
+
+    static func make (diameter: Diameter, density: Density) throws -> ADFFileProxy {
+
+        let exception = ExceptionWrapper()
+        let result = ADFFileProxy.make(with: diameter, density: density, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
         
-    /*
-    func exportDirectory(url: URL) throws {
-            
-        var err = ErrorCode.OK
-        if exportDirectory(url.path, error: &err) == false {
-            throw VAError(err)
-        }
+        return result!
+
     }
-    */
+}
+
+extension HDFFileProxy {
+    
+    @discardableResult
+    func writeToFile(url: URL, partition nr: Int) throws -> Int {
+        
+        let exception = ExceptionWrapper()
+        let result = write(toFile: url.path, partition: nr, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+        
+        return result
+    }
+}
+
+extension FileSystemProxy {
+            
+    static func make(withADF adf: ADFFileProxy) throws -> FileSystemProxy {
+        
+        let exception = ExceptionWrapper()
+        let result = FileSystemProxy.make(withADF: adf, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+        
+        return result!
+    }
+
+    static func make(withHDF hdf: HDFFileProxy, partition nr: Int) throws -> FileSystemProxy {
+        
+        let exception = ExceptionWrapper()
+        let result = FileSystemProxy.make(withHDF: hdf, partition: nr, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+        
+        return result!
+    }
+
+    func export(url: URL) throws {
+            
+        let exception = ExceptionWrapper()
+        export(url.path, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+}
+
+extension RecorderProxy {
+    
+    func startRecording(rect: NSRect, rate: Int, ax: Int, ay: Int) throws {
+        
+        let exception = ExceptionWrapper()
+        startRecording(rect, bitRate: rate, aspectX: ax, aspectY: ay, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
 }
 
 //
-//
+// Other extensions
 //
 
 public extension AmigaProxy {
     
-    func df(_ nr: Int) -> DriveProxy? {
+    func df(_ nr: Int) -> FloppyDriveProxy? {
         
         switch nr {
             
@@ -175,19 +289,31 @@ public extension AmigaProxy {
         case 1: return df1
         case 2: return df2
         case 3: return df3
-        default:return nil
+            
+        default:
+            return nil
         }
     }
-    
-    func df(_ item: NSButton!) -> DriveProxy? {
+
+    func df(_ item: NSButton!) -> FloppyDriveProxy? { return df(item.tag) }
+    func df(_ item: NSMenuItem!) -> FloppyDriveProxy? { return df(item.tag) }
+
+    func hd(_ nr: Int) -> HardDriveProxy? {
         
-        return df(item.tag)
+        switch nr {
+
+        case 0: return hd0
+        case 1: return hd1
+        case 2: return hd2
+        case 3: return hd3
+
+        default:
+            return nil
+        }
     }
-    
-    func df(_ item: NSMenuItem!) -> DriveProxy? {
-        
-        return df(item.tag)
-    }
+
+    func hd(_ item: NSButton!) -> HardDriveProxy? { return hd(item.tag) }
+    func hd(_ item: NSMenuItem!) -> HardDriveProxy? { return hd(item.tag) }
     
     func image(data: UnsafeMutablePointer<UInt8>?, size: NSSize) -> NSImage {
         
@@ -203,7 +329,7 @@ public extension AmigaProxy {
                                         hasAlpha: true,
                                         isPlanar: false,
                                         colorSpaceName: NSColorSpaceName.calibratedRGB,
-                                        bytesPerRow: 4*width,
+                                        bytesPerRow: 4 * width,
                                         bitsPerPixel: 32)
         
         let image = NSImage(size: (imageRep?.size)!)
@@ -214,54 +340,111 @@ public extension AmigaProxy {
     }
 }
 
-public extension DriveProxy {
+extension FloppyDriveProxy {
     
-    var icon: NSImage {
+    var templateIcon: NSImage? {
 
         var name: String
-
-        if hasWriteProtectedDisk() {
-            name = isModifiedDisk ? "diskUPTemplate" : "diskPTemplate"
+        
+        if !hasDisk { return nil }
+        
+        if hasProtectedDisk {
+            name = hasModifiedDisk ? "diskUPTemplate" : "diskPTemplate"
         } else {
-            name = isModifiedDisk ? "diskUTemplate" : "diskTemplate"
+            name = hasModifiedDisk ? "diskUTemplate" : "diskTemplate"
         }
-
+        
         return NSImage(named: name)!
+    }
+    
+    var ledIcon: NSImage? {
+        
+        if !isConnected { return nil }
+
+        if motor {
+            if writing {
+                return NSImage(named: "ledRed")
+            } else {
+                return NSImage(named: "ledGreen")
+            }
+        } else {
+            return NSImage(named: "driveLedOff")
+        }
     }
 }
 
-extension DiskFileProxy {
+extension HardDriveProxy {
+    
+    var templateIcon: NSImage? {
+        
+        return NSImage(named: "hdrTemplate")!
+    }
+    
+    var ledIcon: NSImage? {
+        
+        if !isConnected { return nil }
+        
+        switch state {
+            
+        case .IDLE: return NSImage(named: "ledGrey")
+        case .READING: return NSImage(named: "ledGreen")
+        case .WRITING: return NSImage(named: "ledRed")
+            
+        default: fatalError()
+        }
+    }
+}
+
+extension FloppyFileProxy {
     
     func icon(protected: Bool) -> NSImage {
         
-        let density = diskDensity
-        
-        var name: String
-        switch type {
-        case .ADF, .DMS, .EXE, .DIR:
-            name = density == .HD ? "hd_adf" : "dd_adf"
-        case .IMG:
-            name = "dd_dos"
-        default:
-            name = ""
-        }
-        
-        if protected { name += "_protected" }
+        let name = (diskDensity == .HD ? "hd" : "dd") +
+        (type == .IMG ? "_dos" : dos == .NODOS ? "_other" : "_adf") +
+        (protected ? "_protected" : "")
+
         return NSImage(named: name)!
+    }
+
+    var typeInfo: String {
+
+        var result = ""
+
+        if diskType == .INCH_35 { result += "3.5\"" }
+        if diskType == .INCH_525 { result += "5.25\"" }
+        
+        return result
     }
     
     var layoutInfo: String {
+                
+        var result = ""
+
+        if numHeads == 1 { result += "Single sided, " }
+        if numHeads == 2 { result += "Double sided, " }
+        if diskDensity == .SD { result += "Single density" }
+        if diskDensity == .DD { result += "Double density" }
+        if diskDensity == .HD { result += "High density" }
         
-        var result = numSides == 1 ? "Single sided" : "Double sided"
+        return result
+    }
+
+    /*
+    var layoutInfo: String {
+                
+        var result = numHeads == 1 ? "Single sided" : "Double sided"
 
         if diskDensity == .SD { result += ", single density" }
         if diskDensity == .DD { result += ", double density" }
         if diskDensity == .HD { result += ", high density" }
 
-        result += " disk, \(numTracks) tracks with \(numSectors) sectors each"
+        result += " disk, \(numTracks) tracks"
+        if numSectors > 0 { result += " with \(numSectors) sectors each" }
+        
         return result
     }
-    
+    */
+        
     var bootInfo: String {
         
         let name = bootBlockName!
@@ -283,8 +466,8 @@ extension HDFFileProxy {
     
     var layoutInfo: String {
         
-        let capacity = numBlocks / 2000
-        return "\(capacity) MB (\(numBlocks) sectors)"
+        let capacity = sizeAsString!
+        return "\(capacity), \(numBlocks) sectors"
     }
     
     var bootInfo: String {
@@ -293,107 +476,23 @@ extension HDFFileProxy {
     }
 }
 
-extension NSError {
+public extension RemoteManagerProxy {
     
-    static func fileError(_ ec: ErrorCode, url: URL) -> NSError {
-        
-        let str = "\"" + url.lastPathComponent + "\""
-        var info1, info2: String
+    var icon: NSImage? {
 
-        switch ec {
-                    
-        case .OK:
-            fatalError()
-        
-        case .FILE_NOT_FOUND:
-            info1 = "File " + str + " could not be opened."
-            info2 = "The file does not exist."
-            
-        case .FILE_TYPE_MISMATCH:
-            info1 = "File " + str + " could not be opened."
-            info2 = "The file format does not match."
-            
-        case .FILE_CANT_READ:
-            info1 = "Can't read from file " + str + "."
-            info2 = "The file cannot be opened."
-            
-        case .FILE_CANT_WRITE:
-            info1 = "Can't write to file " + str + "."
-            info2 = "The file cannot be opened."
-            
-        case .OUT_OF_MEMORY:
-            info1 = "The file operation cannot be performed."
-            info2 = "Not enough memory."
-                        
-        case .MISSING_ROM_KEY:
-            info1 = "Failed to decrypt the selected Rom image."
-            info2 = "A rom.key file is required to process this file."
-            
-        case .INVALID_ROM_KEY:
-            info1 = "Failed to decrypt the selected Rom image."
-            info2 = "Decrypting the Rom with the provided rom.key file did not produce a valid Rom image."
-            
-        default:
-            info1 = "The operation cannot be performed."
-            info2 = "An uncategorized error exception has been thrown."
+        if numConnected > 0 {
+            return NSImage(named: "srvConnectTemplate")!
         }
-        
-        return NSError(domain: "vAmiga", code: ec.rawValue,
-                       userInfo: [NSLocalizedDescriptionKey: info1,
-                                  NSLocalizedRecoverySuggestionErrorKey: info2])
-    }
-}
+        if numListening > 0 {
+            return NSImage(named: "srvListenTemplate")!
+        }
+        if numLaunching > 0 {
+            return NSImage(named: "srvLaunchTemplate")!
+        }
+        if numErroneous > 0 {
+            return NSImage(named: "srvErrorTemplate")!
+        }
 
-extension NSAlert {
-
-    convenience init(fileError ec: ErrorCode, url: URL) {
-        
-        self.init()
-     
-        let err = NSError.fileError(ec, url: url)
-        
-        let msg1 = err.userInfo[NSLocalizedDescriptionKey] as! String
-        let msg2 = err.userInfo[NSLocalizedRecoverySuggestionErrorKey] as! String
-
-        alertStyle = .warning
-        messageText = msg1
-        informativeText = msg2
-        addButton(withTitle: "OK")
-    }
-            
-    /// DEPRECATED
-    @available(macOS, deprecated)
-    static func warning(_ msg1: String, _ msg2: String, icon: String? = nil) {
-
-        alert(msg1, msg2, style: .warning, icon: icon)
-    }
-
-    /// DEPRECATED
-    @available(macOS, deprecated)
-    static func critical(_ msg1: String, _ msg2: String, icon: String? = nil) {
-        
-        alert(msg1, msg2, style: .critical, icon: icon)
-    }
-    
-    /// DEPRECATED
-    @available(macOS, deprecated)
-    static func alert(_ msg1: String, _ msg2: String, style: NSAlert.Style, icon: String?) {
-        
-        let alert = NSAlert()
-        alert.alertStyle = style
-        if let icon = icon { alert.icon = NSImage(named: icon) }
-        alert.messageText = msg1
-        alert.informativeText = msg2
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
-}
-
-extension ErrorCode {
-    
-    func showAlert(url: URL) {
-        
-        let alert = NSAlert(fileError: self, url: url)
-        alert.runModal()
+        return nil
     }
 }

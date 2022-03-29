@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include <map>
 
 struct CopperList {
@@ -18,7 +18,7 @@ struct CopperList {
     u32 end;
 };
 
-class CopperDebugger: public AmigaComponent {
+class CopperDebugger: public SubComponent {
                 
     // Cached Copper lists
     std::map<u32, CopperList> cache;
@@ -36,31 +36,29 @@ class CopperDebugger: public AmigaComponent {
     
 public:
     
-    using AmigaComponent::AmigaComponent;
+    using SubComponent::SubComponent;
+
+
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override { return "CopperDebugger"; }
+    void _dump(Category category, std::ostream& os) const override;
+    
+    
+    //
+    // Methods from AmigaComponent
+    //
 
 private:
     
-    void _initialize() override;
     void _reset(bool hard) override;
     
-    
-    //
-    // Analyzing
-    //
-
-private:
-
-    void _dump(dump::Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Serialization
-    //
-    
-private:
-    
     isize _size() override { return 0; }
+    u64 _checksum() override { return 0; }
     isize _load(const u8 *buffer) override { return 0; }
     isize _save(u8 *buffer) override { return 0; }
     
@@ -72,8 +70,8 @@ private:
 public:
     
     // Returns the start or end address of the currently processed Copper list
-    u32 startOfCopperList(isize nr);
-    u32 endOfCopperList(isize nr);
+    u32 startOfCopperList(isize nr) const;
+    u32 endOfCopperList(isize nr) const;
 
     // Notifies the debugger that the Copper has advanced the program counter
     void advanced();
@@ -87,6 +85,6 @@ public:
     //
     
     // Disassembles a single Copper command
-    string disassemble(u32 addr) const;
-    string disassemble(isize list, isize offset) const;    
+    string disassemble(isize list, isize offset, bool symbolic) const;
+    string disassemble(u32 addr, bool symbolic) const;
 };

@@ -48,9 +48,10 @@ class Renderer: NSObject, MTKViewDelegate {
     var metalLayer: CAMetalLayer! = nil
     var splashScreen: SplashScreen! = nil
     var canvas: Canvas! = nil
-    var monitors: Monitors! = nil
     var console: Console! = nil
-    
+    var dropZone: DropZone! = nil
+    var monitors: Monitors! = nil
+
     //
     // Ressources
     //
@@ -83,10 +84,10 @@ class Renderer: NSObject, MTKViewDelegate {
     var white = AnimatedFloat(0.0)
     
     // Texture animation parameters
-    var cutoutX1 = AnimatedFloat.init(0.0)
-    var cutoutY1 = AnimatedFloat.init(0.0)
-    var cutoutX2 = AnimatedFloat.init(0.0)
-    var cutoutY2 = AnimatedFloat.init(0.0)
+    var cutoutX1 = AnimatedFloat(0.0)
+    var cutoutY1 = AnimatedFloat(0.0)
+    var cutoutX2 = AnimatedFloat(0.0)
+    var cutoutY2 = AnimatedFloat(0.0)
             
     // Indicates if fullscreen mode is enabled
     var fullscreen = false
@@ -107,6 +108,12 @@ class Renderer: NSObject, MTKViewDelegate {
         self.view.delegate = self
 
         setup()
+    }
+    
+    func halt() {
+
+        // Wait until the current frame has been completed
+        semaphore.wait()
     }
     
     //
@@ -172,6 +179,7 @@ class Renderer: NSObject, MTKViewDelegate {
         if animates != 0 { animate() }
 
         splashScreen.update(frames: frames)
+        dropZone.update(frames: frames)
         console.update(frames: frames)
         canvas.update(frames: frames)
         monitors.update(frames: frames)
@@ -192,6 +200,8 @@ class Renderer: NSObject, MTKViewDelegate {
         update(frames: frames)
 
         semaphore.wait()
+        canvas.updateTexture()
+        
         if let drawable = metalLayer.nextDrawable() {
 
             // Create the command buffer
@@ -212,11 +222,15 @@ class Renderer: NSObject, MTKViewDelegate {
 
             // Commit the command buffer
             buffer.addCompletedHandler { _ in
-                self.canvas.updateTexture()
+                // self.canvas.updateTexture()
                 self.semaphore.signal()
             }
             buffer.present(drawable)
             buffer.commit()
+            // buffer.waitUntilCompleted()
         }
+        
+        // Perform periodic events inside the controller
+        if frames % 5 == 0 { parent.timerFunc() }
     }
 }

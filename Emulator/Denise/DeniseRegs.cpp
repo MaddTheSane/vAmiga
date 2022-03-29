@@ -13,22 +13,103 @@
 #include "ControlPort.h"
 
 void
-Denise::pokeDMACON(u16 oldValue, u16 newValue)
+Denise::setDIWSTRT(u16 value)
 {
-    if (Agnus::bpldma(newValue)) {
-
-        // Bitplane DMA on
-        trace(DMA_DEBUG, "Bitplane DMA switched on\n");
-
-    } else {
-
-        // Bitplane DMA off
-        trace(DMA_DEBUG, "Bitplane DMA switched off\n");
+    trace(DIW_DEBUG, "setDIWSTRT(%X)\n", value);
+    
+    // 15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
+    // -- -- -- -- -- -- -- -- H7 H6 H5 H4 H3 H2 H1 H0  and  H8 = 0
+    
+    diwstrt = value;
+    isize newDiwHstrt = LO_BYTE(value);
+        
+    // Invalidate the horizontal coordinate if it is out of range
+    if (newDiwHstrt < 2) {
+        
+        trace(DIW_DEBUG, "newDiwHstrt is too small\n");
+        newDiwHstrt = -1;
     }
+    
+    /* Check if the change takes effect in the current rasterline.
+     *
+     *     old: Old trigger coordinate (diwHstrt)
+     *     new: New trigger coordinate (newDiwHstrt)
+     *     cur: Position of the electron beam (derivable from pos.h)
+     *
+     * The following cases have to be taken into accout:
+     *
+     *    1) cur < old < new : Change takes effect in this rasterline.
+     *    2) cur < new < old : Change takes effect in this rasterline.
+     *    3) new < cur < old : Neither the old nor the new trigger hits.
+     *    4) new < old < cur : Already triggered. Nothing to do in this line.
+     *    5) old < cur < new : Already triggered. Nothing to do in this line.
+     *    6) old < new < cur : Already triggered. Nothing to do in this line.
+     */
+    
+    isize cur = 2 * agnus.pos.h;
+    
+    // (1) and (2)
+    if (cur < denise.hstrt && cur < newDiwHstrt) {
+        
+        trace(DIW_DEBUG, "Updating DIW hflop immediately at %ld\n", cur);
+        hflopOn = newDiwHstrt;
+    }
+    
+    // (3)
+    if (newDiwHstrt < cur && cur < hstrt) {
+        
+        trace(DIW_DEBUG, "DIW hflop not switched on in current line\n");
+        hflopOn = -1;
+    }
+    
+    hstrt = newDiwHstrt;
+
+    // Let the debugger know about the register change
+    debugger.updateDIW(diwstrt, diwstop);
+}
+
+void
+Denise::setDIWSTOP(u16 value)
+{
+    trace(DIW_DEBUG, "setDIWSTOP(%X)\n", value);
+    
+    // 15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
+    // -- -- -- -- -- -- -- -- H7 H6 H5 H4 H3 H2 H1 H0  and  H8 = 1
+        
+    diwstop = value;
+    isize newDiwHstop = LO_BYTE(value) | 0x100;
+        
+    // Invalidate the coordinate if it is out of range
+    if (newDiwHstop > 0x1C7) {
+        trace(DIW_DEBUG, "newDiwHstop is too large\n");
+        newDiwHstop = -1;
+    }
+    
+    // Check if the change already takes effect in the current rasterline.
+    isize cur = 2 * agnus.pos.h;
+    
+    // (1) and (2) (see setDIWSTRT)
+    if (cur < hstop && cur < newDiwHstop) {
+        
+        trace(DIW_DEBUG, "Updating hFlopOff immediately at %ld\n", cur);
+        hflopOff = newDiwHstop;
+    }
+    
+    // (3) (see setDIWSTRT)
+    if (newDiwHstop < cur && cur < hstop) {
+        
+        trace(DIW_DEBUG, "hFlop not switched off in current line\n");
+        hflopOff = -1;
+    }
+    
+    hstop = newDiwHstop;
+    
+    // Let the debugger know about the register change
+    debugger.updateDIW(diwstrt, diwstop);
 }
 
 u16
-Denise::peekJOY0DATR()
+Denise::peekJOY0DATR() const
 {
     u16 result = controlPort1.joydat();
     trace(JOYREG_DEBUG, "peekJOY0DATR() = $%04X (%d)\n", result, result);
@@ -37,7 +118,7 @@ Denise::peekJOY0DATR()
 }
 
 u16
-Denise::peekJOY1DATR()
+Denise::peekJOY1DATR() const
 {
     u16 result = controlPort2.joydat();
     trace(JOYREG_DEBUG, "peekJOY1DATR() = $%04X (%d)\n", result, result);
@@ -69,7 +150,13 @@ Denise::peekDENISEID()
     return result;
 }
 
-void
+u16
+Denise::spypeekDENISEID() const
+{
+    return config.revision == DENISE_ECS ? 0xFFFC : 0;
+}
+
+template <Accessor s> void
 Denise::pokeBPLCON0(u16 value)
 {
     trace(BPLREG_DEBUG, "pokeBPLCON0(%X)\n", value);
@@ -83,12 +170,12 @@ Denise::setBPLCON0(u16 oldValue, u16 newValue)
     trace(BPLREG_DEBUG, "setBPLCON0(%X,%X)\n", oldValue, newValue);
 
     // Record the register change
-    i64 pixel = std::max(4 * agnus.pos.h - 4, 0);
+    i64 pixel = std::max(4 * agnus.pos.h - 4, (isize)0);
     conChanges.insert(pixel, RegChange { SET_BPLCON0_DENISE, newValue });
     
     // Check if the HAM bit has changed
     if (ham(oldValue) ^ ham(newValue)) {
-        pixelEngine.colChanges.insert(pixel, RegChange { BPLCON0, newValue } );
+        pixelEngine.colChanges.insert(pixel, RegChange { 0x100, newValue } );
     }
     
     // Update value
@@ -98,19 +185,15 @@ Denise::setBPLCON0(u16 oldValue, u16 newValue)
     updateBorderColor();
     
     // Check if the BPU bits have changed
-    u16 oldBpuBits = (oldValue >> 12) & 0b111;
     u16 newBpuBits = (newValue >> 12) & 0b111;
-
-    if (oldBpuBits != newBpuBits) {
-        // trace("Changing BPU bits from %d to %d\n", oldBpuBits, newBpuBits);
-    }
     
     // Report a suspicious BPU value
-    trace(XFILES && newBpuBits > (hires(bplcon0) ? 4 : 6),
-          "XFILES (BPLCON0): BPU = %d\n", newBpuBits);
+    if (newBpuBits > (hires(bplcon0) ? 4 : 6)) {
+        trace(XFILES, "XFILES (BPLCON0): BPU = %d\n", newBpuBits);
+    }
 }
 
-void
+template <Accessor s> void
 Denise::pokeBPLCON1(u16 value)
 {
     trace(BPLREG_DEBUG, "pokeBPLCON1(%X)\n", value);
@@ -120,17 +203,17 @@ Denise::pokeBPLCON1(u16 value)
 }
 
 void
-Denise::setBPLCON1(u16 value)
+Denise::setBPLCON1(u16 oldValue, u16 newValue)
 {
-    trace(BPLREG_DEBUG, "setBPLCON1(%X)\n", value);
+    trace(BPLREG_DEBUG, "setBPLCON1(%X)\n", newValue);
 
-    bplcon1 = value & 0xFF;
+    bplcon1 = newValue & 0xFF;
 
-    pixelOffsetOdd  = (bplcon1 & 0b00000001) << 1;
-    pixelOffsetEven = (bplcon1 & 0b00010000) >> 3;
+    pixelOffsetOdd  = (i8)((bplcon1 & 0b00000001) << 1);
+    pixelOffsetEven = (i8)((bplcon1 & 0b00010000) >> 3);
 }
 
-void
+template <Accessor s> void
 Denise::pokeBPLCON2(u16 value)
 {
     trace(BPLREG_DEBUG, "pokeBPLCON2(%X)\n", value);
@@ -144,16 +227,16 @@ Denise::setBPLCON2(u16 newValue)
     trace(BPLREG_DEBUG, "setBPLCON2(%X)\n", newValue);
 
     bplcon2 = newValue;
-    
-    debug(XFILES && PF1Px() > 4, "XFILES (BPLCON2): PF1P = %d\n", PF1Px());
-    debug(XFILES && PF2Px() > 4, "XFILES (BPLCON2): PF2P = %d\n", PF2Px());
+
+    if (pf1px() > 4) { trace(XFILES, "XFILES (BPLCON2): PF1P = %d\n", pf1px()); }
+    if (pf2px() > 4) { trace(XFILES, "XFILES (BPLCON2): PF2P = %d\n", pf2px()); }
     
     // Record the register change
     i64 pixel = 4 * agnus.pos.h + 4;
     conChanges.insert(pixel, RegChange { SET_BPLCON2, newValue });    
 }
 
-void
+template <Accessor s> void
 Denise::pokeBPLCON3(u16 value)
 {
     trace(BPLREG_DEBUG, "pokeBPLCON3(%X)\n", value);
@@ -182,6 +265,12 @@ Denise::peekCLXDAT()
     return result;
 }
 
+u16
+Denise::spypeekCLXDAT() const
+{
+    return clxdat | 0x8000;
+}
+
 void
 Denise::pokeCLXCON(u16 value)
 {
@@ -193,9 +282,9 @@ template <isize x, Accessor s> void
 Denise::pokeBPLxDAT(u16 value)
 {
     assert(x < 6);
-    trace(BPLREG_DEBUG, "pokeBPL%zdDAT(%X)\n", x + 1, value);
+    trace(BPLREG_DEBUG, "pokeBPL%ldDAT(%X)\n", x + 1, value);
 
-    if (s == ACCESSOR_AGNUS) {
+    if constexpr (s == ACCESSOR_AGNUS) {
         /*
         debug("BPL%dDAT written by Agnus (%x)\n", x, value);
         */
@@ -208,24 +297,20 @@ template <isize x> void
 Denise::setBPLxDAT(u16 value)
 {
     assert(x < 6);
-    trace(BPLDAT_DEBUG, "setBPL%zdDAT(%X)\n", x + 1, value);
+    trace(BPLDAT_DEBUG, "setBPL%ldDAT(%X)\n", x + 1, value);
 
     bpldat[x] = value;
 
-    if (x == 0) {
-        
-        updateShiftRegisters();
+    if constexpr (x == 0) {
         
         // Feed data registers into pipe
         for (isize i = 0; i < 6; i++) bpldatPipe[i] = bpldat[i];
+
+        armedOdd = true;
+        armedEven = true;
         
-        if (hires()) {
-            fillPos = agnus.pos.h + (agnus.ddfstrt & 0b11) + 1;
-        } else {
-            fillPos = agnus.pos.h + (agnus.ddfstrt & 0b111) + 1;
-        }
         spriteClipBegin = std::min(spriteClipBegin,
-                                   (Pixel)(agnus.ppos(fillPos) - 2));
+                                   (Pixel)((agnus.pos.h + 1) * 4));
     }
 }
 
@@ -233,7 +318,7 @@ template <isize x> void
 Denise::pokeSPRxPOS(u16 value)
 {
     assert(x < 8);
-    trace(SPRREG_DEBUG, "pokeSPR%zdPOS(%X)\n", x, value);
+    trace(SPRREG_DEBUG, "pokeSPR%ldPOS(%X)\n", x, value);
 
     // 15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0  (Ex = VSTART)
     // E7 E6 E5 E4 E3 E2 E1 E0 H8 H7 H6 H5 H4 H3 H2 H1  (Hx = HSTART)
@@ -247,7 +332,7 @@ template <isize x> void
 Denise::pokeSPRxCTL(u16 value)
 {
     assert(x < 8);
-    trace(SPRREG_DEBUG, "pokeSPR%zdCTL(%X)\n", x, value);
+    trace(SPRREG_DEBUG, "pokeSPR%ldCTL(%X)\n", x, value);
 
     // 15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
     // L7 L6 L5 L4 L3 L2 L1 L0 AT  -  -  -  - E8 L8 H0  (Lx = VSTOP)
@@ -264,7 +349,7 @@ template <isize x> void
 Denise::pokeSPRxDATA(u16 value)
 {
     assert(x < 8);
-    trace(SPRREG_DEBUG, "pokeSPR%zdDATA(%X)\n", x, value);
+    trace(SPRREG_DEBUG, "pokeSPR%ldDATA(%X)\n", x, value);
     
     // If requested, let this sprite disappear by making it transparent
     if (GET_BIT(config.hiddenSprites, x)) value = 0;
@@ -281,7 +366,7 @@ template <isize x> void
 Denise::pokeSPRxDATB(u16 value)
 {
     assert(x < 8);
-    trace(SPRREG_DEBUG, "pokeSPR%zdDATB(%X)\n", x, value);
+    trace(SPRREG_DEBUG, "pokeSPR%ldDATB(%X)\n", x, value);
     
     // If requested, let this sprite disappear by making it transparent
     if (GET_BIT(config.hiddenSprites, x)) value = 0;
@@ -294,17 +379,54 @@ Denise::pokeSPRxDATB(u16 value)
 template <Accessor s, isize xx> void
 Denise::pokeCOLORxx(u16 value)
 {
-    trace(COLREG_DEBUG, "pokeCOLOR%02zd(%X)\n", xx, value);
+    trace(COLREG_DEBUG, "pokeCOLOR%02ld(%X)\n", xx, value);
 
     u32 reg = 0x180 + 2*xx;
-    i16 pos = agnus.pos.h;
+    isize pos = agnus.pos.h;
 
-    // If the CPU modifies color, the change takes effect one DMA cycle earlier
-    if (s != ACCESSOR_AGNUS && agnus.pos.h != 0) pos--;
+    if constexpr (s == ACCESSOR_CPU) {
+
+        // If the CPU writes, the change takes effect one DMA cycle earlier
+        if (agnus.pos.h != 0) pos--;
+    }
     
     // Record the color change
     pixelEngine.colChanges.insert(4 * pos, RegChange { reg, value } );
 }
+
+u16
+Denise::zPF(u16 prioBits)
+{
+    switch (prioBits) {
+
+        case 0: return Z_0;
+        case 1: return Z_1;
+        case 2: return Z_2;
+        case 3: return Z_3;
+        case 4: return Z_4;
+    }
+
+    return 0;
+}
+
+u8
+Denise::bpu(u16 v)
+{
+    // Extract the three BPU bits
+    u8 bpu = (v >> 12) & 0b111;
+    
+    // An invalid value enables all 6 planes
+    return  bpu < 7 ? bpu : 6;
+}
+
+template void Denise::pokeBPLCON0<ACCESSOR_CPU>(u16 value);
+template void Denise::pokeBPLCON0<ACCESSOR_AGNUS>(u16 value);
+template void Denise::pokeBPLCON1<ACCESSOR_CPU>(u16 value);
+template void Denise::pokeBPLCON1<ACCESSOR_AGNUS>(u16 value);
+template void Denise::pokeBPLCON2<ACCESSOR_CPU>(u16 value);
+template void Denise::pokeBPLCON2<ACCESSOR_AGNUS>(u16 value);
+template void Denise::pokeBPLCON3<ACCESSOR_CPU>(u16 value);
+template void Denise::pokeBPLCON3<ACCESSOR_AGNUS>(u16 value);
 
 template void Denise::pokeBPLxDAT<0,ACCESSOR_CPU>(u16 value);
 template void Denise::pokeBPLxDAT<0,ACCESSOR_AGNUS>(u16 value);

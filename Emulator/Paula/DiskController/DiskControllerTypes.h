@@ -28,20 +28,18 @@ enum_long(DRIVE_DMA_STATE)
 };
 typedef DRIVE_DMA_STATE DriveState;
 
-inline bool isDriveState(long value)
-{
-    return (unsigned long)value <= DRIVE_DMA_FLUSH;
-}
-
 #ifdef __cplusplus
-struct DriveStateEnum : util::Reflection<DriveStateEnum, DriveState> {
+struct DriveStateEnum : util::Reflection<DriveStateEnum, DriveState>
+{
+    static long minVal() { return 0; }
+    static long maxVal() { return DRIVE_DMA_FLUSH; }
+    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
     
-    static bool isValid(long value)
+    static const char *prefix()
     {
-        return (unsigned long)value <= DRIVE_DMA_FLUSH;
+        return "DRIVE_DMA";
     }
-
-    static const char *prefix() { return "DRIVE_DMA"; }
+    
     static const char *key(DriveState value)
     {
         switch (value) {
@@ -66,7 +64,7 @@ struct DriveStateEnum : util::Reflection<DriveStateEnum, DriveState> {
 typedef struct
 {
     bool connected[4];
-    
+
     /* Acceleration factor. This value equals the number of words that get
      * transfered into memory during a single disk DMA cycle. This value must
      * be 1 to emulate a real Amiga. If it set to, e.g., 2, the drive loads
@@ -80,9 +78,10 @@ typedef struct
 }
 DiskControllerConfig;
 
-inline bool isValidDriveSpeed(i16 speed)
+inline bool isValidDriveSpeed(isize speed)
 {
     switch (speed) {
+            
         case -1: case 1: case 2: case 4: case 8: return true;
     }
     return false;
@@ -90,7 +89,7 @@ inline bool isValidDriveSpeed(i16 speed)
 
 typedef struct
 {
-    i8 selectedDrive;
+    isize selectedDrive;
     DriveState state;
     i32 fifo[6];
     u8 fifoCount;

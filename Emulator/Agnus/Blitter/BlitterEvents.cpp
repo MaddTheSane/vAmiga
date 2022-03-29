@@ -14,7 +14,13 @@
 void
 Blitter::serviceEvent()
 {
-    switch (agnus.slot[SLOT_BLT].id) {
+    serviceEvent(agnus.id[SLOT_BLT]);
+}
+
+void
+Blitter::serviceEvent(EventID id)
+{
+    switch (id) {
 
         case BLT_STRT1:
 
@@ -29,7 +35,7 @@ Blitter::serviceEvent()
 
             // Only proceed if the bus is free
             if (!agnus.busIsFree<BUS_BLITTER>()) {
-                trace(BLTTIM_DEBUG, "Blitter blocked in BLT_STRT1 by %d\n", agnus.busOwner[agnus.pos.h]);
+                trace(BLTTIM_DEBUG, "BLT_STRT1: Blocked by %d\n", agnus.busOwner[agnus.pos.h]);
                 break;
             }
 
@@ -41,7 +47,7 @@ Blitter::serviceEvent()
 
             // Only proceed if the bus is a free
             if (!agnus.busIsFree<BUS_BLITTER>()) {
-                trace(BLTTIM_DEBUG, "Blitter blocked in BLT_STRT2 by %d\n", agnus.busOwner[agnus.pos.h]);
+                trace(BLTTIM_DEBUG, "BLT_STRT2: Blocked by %d\n", agnus.busOwner[agnus.pos.h]);
                 break;
             }
 
@@ -51,23 +57,29 @@ Blitter::serviceEvent()
 
         case BLT_COPY_SLOW:
 
-            trace(BLT_DEBUG, "Instruction %d:%d\n", bltconUSE(), bltpc);
+            trace(BLT_DEBUG, "Copy instruction %d:%d\n", bltconUSE(), bltpc);
             (this->*copyBlitInstr[bltconUSE()][0][bltconFE()][bltpc])();
             break;
 
         case BLT_COPY_FAKE:
 
-            trace(BLT_DEBUG, "Faked instruction %d:%d\n", bltconUSE(), bltpc);
+            trace(BLT_DEBUG, "Copy fake %d:%d\n", bltconUSE(), bltpc);
             (this->*copyBlitInstr[bltconUSE()][1][bltconFE()][bltpc])();
             break;
 
+        case BLT_LINE_SLOW:
+            
+            trace(BLT_DEBUG, "Line instruction %d:%d\n", bltconUSEB(), bltpc);
+            (this->*lineBlitInstr[bltconUSEBC()][0][bltpc])();
+            break;
+
         case BLT_LINE_FAKE:
-            (this->*lineBlitInstr[bltpc])();
+            
+            trace(BLT_DEBUG, "Line fake %d:%d\n", bltconUSEB(), bltpc);
+            (this->*lineBlitInstr[bltconUSEBC()][1][bltpc])();
             break;
 
         default:
-            
-            assert(false);
-            break;
+            fatalError;
     }
 }

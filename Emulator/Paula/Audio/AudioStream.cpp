@@ -22,9 +22,19 @@ Volume::shift()
 }
 
 template <class T> void
+AudioStream<T>::wipeOut()
+{
+    lock();
+    this->clear(T(0,0));
+    unlock();
+}
+
+template <class T> void
 AudioStream<T>::alignWritePtr()
 {
+    lock();
     this->align(this->cap() / 2);
+    unlock();
 }
 
 template <class T> void
@@ -36,13 +46,11 @@ AudioStream<T>::copy(void *buffer, isize n, Volume &vol)
     // Quick path: Volume is stable at 0 or 1
     if (!vol.fading()) {
 
-        if (vol.current == 0) {
-
+        if (vol.current == 0.0) {
+            
+            T zero;
             for (isize i = 0; i < n; i++) {
-                T zero;
-                for (isize i = 0; i < n; i++) {
-                    zero.copy(buffer, i);
-                }
+                zero.copy(buffer, i);
             }
             return;
         }
@@ -103,10 +111,10 @@ AudioStream<T>::copy(void *buffer1, void *buffer2, isize n, Volume &vol)
 
 template <class T> float
 AudioStream<T>::draw(u32 *buffer, isize width, isize height,
-                     bool left, float highestAmplitude, u32 color)
+                     bool left, float highestAmplitude, u32 color) const
 {
     isize dw = this->cap() / width;
-    float newHighestAmplitude = 0.001;
+    float newHighestAmplitude = 0.001f;
     
     // Clear buffer
     for (isize i = 0; i < width * height; i++) {
@@ -149,7 +157,8 @@ AudioStream<T>::draw(u32 *buffer, isize width, isize height,
 // Instantiate template functions
 //
 
+template void AudioStream<SampleType>::wipeOut();
 template void AudioStream<SampleType>::alignWritePtr();
 template void AudioStream<SampleType>::copy(void *, isize, Volume &);
 template void AudioStream<SampleType>::copy(void *, void *, isize, Volume &);
-template float AudioStream<SampleType>::draw(u32 *, isize, isize, bool, float, u32);
+template float AudioStream<SampleType>::draw(u32 *, isize, isize, bool, float, u32) const;

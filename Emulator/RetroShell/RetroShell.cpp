@@ -12,72 +12,33 @@
 #include "Amiga.h"
 #include "Parser.h"
 
-RetroShell::RetroShell(Amiga& ref) : AmigaComponent(ref), interpreter(ref)
-{
+RetroShell::RetroShell(Amiga& ref) : SubComponent(ref), interpreter(ref)
+{    
     // Initialize the text storage
-    storage.push_back("");
+    clear();
 
     // Initialize the input buffer
-    input.push_back("");
+    history.push_back( { "", 0 } );
     
-    // Print a startup message
-    *this << "vAmiga " << V_MAJOR << '.' << V_MINOR << '.' << V_SUBMINOR;
-    *this << " (" << __DATE__ << " " << __TIME__ << ")" << '\n';
-    *this << '\n';
-    *this << "Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de" << '\n';
-    *this << "Licensed under the GNU General Public License v3" << '\n';
-    *this << '\n';
-
-    printHelp();
-    *this << '\n';
-    printPrompt();
-}
-
-void
-RetroShell::_initialize()
-{
-
-}
-
-isize
-RetroShell::cposRel()
-{
-    isize lineLength = (isize)lastLine().size();
-    
-    return cpos >= lineLength ? 0 : lineLength - cpos;
+    // Print the startup message and the input prompt
+    storage.welcome();
 }
 
 RetroShell&
 RetroShell::operator<<(char value)
 {
-    if (value == '\n') {
-
-        // Newline (appends an empty line)
-        storage.push_back("");
-        cpos = cposMin = 0;
-        shorten();
-
-    } else if (value == '\r') {
-
-        // Carriage return (clears the current line)
-        storage.back() = "";
-        
-    } else {
-        
-        // Add a single character
-        storage.back() += value;
-    }
-    
-    shorten();
-    isDirty = true;
+    storage << value;
+    remoteManager.rshServer << value;
+    needsDisplay();
     return *this;
 }
 
 RetroShell&
-RetroShell::operator<<(const string& text)
+RetroShell::operator<<(const string& value)
 {
-    storage.back() += text;
-    isDirty = true;
+    storage << value;
+    remoteManager.rshServer << value;
+    needsDisplay();
     return *this;
 }
 
@@ -85,7 +46,6 @@ RetroShell&
 RetroShell::operator<<(int value)
 {
     *this << std::to_string(value);
-    isDirty = true;
     return *this;
 }
 
@@ -93,227 +53,262 @@ RetroShell&
 RetroShell::operator<<(long value)
 {
     *this << std::to_string(value);
-    isDirty = true;
     return *this;
 }
 
-void
-RetroShell::tab(isize hpos)
+RetroShell&
+RetroShell::operator<<(std::stringstream &stream)
 {
-    isize delta = hpos - (int)storage.back().length();
-    for (isize i = 0; i < delta; i++) {
-        *this << ' ';
+    string line;
+    while(std::getline(stream, line)) {
+        *this << line << '\n';
     }
-    isDirty = true;
+    return *this;
+}
+
+const char *
+RetroShell::text()
+{
+    static string all;
+    
+    // Add the storage contents
+    storage.text(all);
+        
+    // Add the input line
+    all += prompt + input + " ";
+    
+    return all.c_str();
 }
 
 void
-RetroShell::printPrompt()
+RetroShell::tab(isize pos)
 {
-    // Finish the current line (if neccessary)
-    if (!lastLine().empty()) *this << '\n';
+    auto count = pos - (isize)storage[storage.size() - 1].size();
 
-    // Print the prompt
-    *this << prompt;
-    cpos = cposMin = prompt.size();
+    if (count > 0) {
+        
+        std::string fill(count, ' ');
+        storage << fill;
+        remoteManager.rshServer << fill;
+        needsDisplay();
+    }
+}
+
+void
+RetroShell::setStream(std::ostream &os)
+{
+    storage.ostream = &os;
+}
+
+void
+RetroShell::needsDisplay()
+{
+    msgQueue.put(MSG_UPDATE_CONSOLE);
 }
 
 void
 RetroShell::clear()
 {
     storage.clear();
-    printPrompt();
+    needsDisplay();
 }
 
 void
 RetroShell::printHelp()
 {
-    *this << "Press 'TAB' twice for help." << '\n';
+    storage.printHelp();
+    remoteManager.rshServer << "Type 'help' for help.\n";
+    needsDisplay();
 }
 
 void
-RetroShell::shorten()
+RetroShell::press(RetroShellKey key)
 {
-    while (storage.size() > 600) {
+    assert_enum(RetroShellKey, key);
+    assert(ipos >= 0 && ipos < historyLength());
+    assert(cursor >= 0 && cursor <= inputLength());
         
-        storage.erase(storage.begin());
-    }
-}
+    switch(key) {
+            
+        case RSKEY_UP:
+            
+            if (ipos > 0) {
+                
+                // Save the input line if it is currently shown
+                if (ipos == historyLength() - 1) history.back() = { input, cursor };
+                
+                auto &item = history[--ipos];
+                input = item.first;
+                cursor = item.second;
+            }
+            break;
+            
+        case RSKEY_DOWN:
+            
+            if (ipos < historyLength() - 1) {
+                
+                auto &item = history[++ipos];
+                input = item.first;
+                cursor = item.second;
+            }
+            break;
+            
+        case RSKEY_LEFT:
+            
+            if (cursor > 0) cursor--;
+            break;
+            
+        case RSKEY_RIGHT:
+            
+            if (cursor < (isize)input.size()) cursor++;
+            break;
+            
+        case RSKEY_DEL:
+            
+            if (cursor < inputLength()) {
+                input.erase(input.begin() + cursor);
+            }
+            break;
+            
+        case RSKEY_BACKSPACE:
+            
+            if (cursor > 0) {
+                input.erase(input.begin() + --cursor);
+            }
+            break;
+            
+        case RSKEY_HOME:
+            
+            cursor = 0;
+            break;
+            
+        case RSKEY_END:
+            
+            cursor = (isize)input.length();
+            break;
+            
+        case RSKEY_TAB:
+            
+            if (tabPressed) {
+                        
+                // TAB was pressed twice
+                help(input);
 
-void
-RetroShell::pressUp()
-{
-    if (ipos == (isize)input.size() - 1) {
-        lastInput() = lastLine().substr(cposMin);
+            } else {
+                
+                // Auto-complete the typed in command
+                input = interpreter.autoComplete(input);
+                cursor = (isize)input.length();
+            }
+            break;
+            
+        case RSKEY_RETURN:
+            
+            *this << '\r' << prompt << input << '\n';
+            execUserCommand(input);
+            input = "";
+            cursor = 0;
+            remoteManager.rshServer.send(prompt);
+            break;
+            
+        case RSKEY_CR:
+            
+            input = "";
+            cursor = 0;
+            break;
     }
     
-    if (ipos > 0) ipos--;
-    if (ipos < (isize)input.size()) lastLine() = prompt + input[ipos];
-    pressEnd();
-    tabPressed = false;
+    tabPressed = key == RSKEY_TAB;
+    needsDisplay();
+
+    assert(ipos >= 0 && ipos < historyLength());
+    assert(cursor >= 0 && cursor <= inputLength());
 }
 
 void
-RetroShell::pressDown()
+RetroShell::press(char c)
 {
-    if (ipos + 1 < (isize)input.size()) ipos++;
-    if (ipos < (isize)input.size()) lastLine() = prompt + input[ipos];
+    switch (c) {
+            
+        case '\n':
+            
+            press(RSKEY_RETURN);
+            break;
+            
+        case '\r':
+
+            press(RSKEY_CR);
+            break;
+
+        case '\t':
+            
+            press(RSKEY_TAB);
+            break;
+            
+        default:
+            
+            if (isprint(c)) {
+                
+                if (cursor < inputLength()) {
+                    input.insert(input.begin() + cursor, c);
+                } else {
+                    input += c;
+                }
+                cursor++;
+            }
+    }
+
     tabPressed = false;
+    needsDisplay();
 }
 
 void
-RetroShell::pressLeft()
+RetroShell::press(const string &s)
 {
-    cpos = std::max(cpos - 1, cposMin);
-    tabPressed = false;
+    for (auto c : s) press(c);
+}
+
+isize
+RetroShell::cursorRel()
+{
+    assert(cursor >= 0 && cursor <= inputLength());
+    return cursor - (isize)input.length();
 }
 
 void
-RetroShell::pressRight()
+RetroShell::execUserCommand(const string &command)
 {
-    cpos = std::min(cpos + 1, (isize)lastLine().size());
-    tabPressed = false;
-}
-
-void
-RetroShell::pressHome()
-{
-    cpos = cposMin;
-    tabPressed = false;
-}
-
-void
-RetroShell::pressEnd()
-{
-    cpos = (isize)lastLine().size();
-    tabPressed = false;
-}
-
-void
-RetroShell::pressTab()
-{
-    if (tabPressed) {
+    if (!command.empty()) {
         
-        // TAB was pressed twice
-        string currentInput = lastLine();
-        isize cposMinOld = cposMin;
+        // Add the command to the history buffer
+        history.back() = { command, (isize)command.size() };
+        history.push_back( { "", 0 } );
+        ipos = (isize)history.size() - 1;
         
-        // *this << '\n';
-        
-        // Print the instructions for this command
-        interpreter.help(lastLine().substr(cposMin));
-        
-        // Repeat the old input string
-        *this << currentInput;
-        cposMin = cposMinOld;
-        cpos = lastLine().length();
+        // Execute the command
+        try { exec(command); } catch (...) { };
         
     } else {
         
-        // Auto-complete the typed in command
-        string stripped = storage.back().substr(cposMin);
-        lastLine() = prompt + interpreter.autoComplete(stripped);
-        cpos = (isize)lastLine().length();
-    }
-    
-    tabPressed = true;
-}
-
-void
-RetroShell::pressBackspace()
-{
-    if (cpos > cposMin) {
-        lastLine().erase(lastLine().begin() + --cpos);
-    }
-    tabPressed = false;
-}
-
-void
-RetroShell::pressDelete()
-{
-    if (cpos < (isize)lastLine().size()) {
-        lastLine().erase(lastLine().begin() + cpos);
-    }
-    tabPressed = false;
-}
-
-void
-RetroShell::pressReturn()
-{
-    // Get the last line without the prompt
-    string command = lastLine().substr(cposMin);
-    
-    *this << '\n';
-    
-    // Print help message if there was no input
-    if (command.empty()) {
         printHelp();
-        printPrompt();
-        return;
     }
-    
-    // Add command to the command history buffer
-    input[input.size() - 1] = command;
-    input.push_back("");
-    ipos = (isize)input.size() - 1;
-    
-    // Execute the command
-    try { exec(command); } catch (...) { };
-    printPrompt();
-    tabPressed = false;
-}
-
-void
-RetroShell::pressKey(char c)
-{    
-    if (isprint(c)) {
-                
-        if (cpos < (isize)lastLine().size()) {
-            lastLine().insert(lastLine().begin() + cpos, c);
-        } else {
-            lastLine() += c;
-        }
-        cpos++;
-        
-        isDirty = true;        
-        tabPressed = false;
-    }
-}
-
-const char *
-RetroShell::text()
-{
-    all = "";
-    
-    if (auto numRows = storage.size()) {
-        
-        // Add all rows except the last one
-        for (usize i = 0; i < numRows - 1; i++) all += storage[i] + "\n";
-        
-        // Add the last row
-        all += storage[numRows - 1] + " ";        
-    }
-    
-    return all.c_str();
 }
 
 void
 RetroShell::exec(const string &command)
 {
-    // Skip empty lines
-    if (command == "") return;
-
+    bool ignoreError = false;
+    
     // Skip comments
-    if (command.substr(0,1) == "#") return;
-
-    // Check if the command marked with 'try'
-    bool ignoreError = command.rfind("try", 0) == 0;
+    if (command[0] == '#') return;
     
-    // Call the interpreter
     try {
+        // Check if the command marked with 'try'
+        ignoreError = command.rfind("try", 0) == 0;
         
+        // Call the interpreter
         interpreter.exec(command);
-    
+        
     } catch (std::exception &err) {
         
         // Print error message
@@ -327,64 +322,50 @@ RetroShell::exec(const string &command)
 void
 RetroShell::execScript(std::ifstream &fs)
 {
-    msg("execScript(ifstream)\n");
-    
     script.str("");
     script << fs.rdbuf();
     scriptLine = 1;
-    printPrompt();
     continueScript();
 }
 
 void
 RetroShell::execScript(const string &contents)
 {
-    // msg("execScript(string)\n");
-
     script.str("");
     script << contents;
     scriptLine = 1;
-    printPrompt();
     continueScript();
 }
 
 void
 RetroShell::continueScript()
 {
-    msg("continueScript()\n");
-    
     string command;
     while(std::getline(script, command)) {
             
-        msg("%s\n", command.c_str());
-        
         // Print the command
-        printPrompt();
         *this << command << '\n';
         
         // Execute the command
         try {
             exec(command);
             
-        } catch (ScriptInterruption &e) {
+        } catch (ScriptInterruption &) {
             
-            messageQueue.put(MSG_SCRIPT_PAUSE, scriptLine);
-            printPrompt();
+            msgQueue.put(MSG_SCRIPT_PAUSE, scriptLine);
             return;
         
-        } catch (std::exception &e) {
+        } catch (std::exception &) {
             
             *this << "Aborted in line " << scriptLine << '\n';
-            messageQueue.put(MSG_SCRIPT_ABORT, scriptLine);
-            printPrompt();
+            msgQueue.put(MSG_SCRIPT_ABORT, scriptLine);
             return;
         }
 
         scriptLine++;
     }
     
-    printPrompt();
-    messageQueue.put(MSG_SCRIPT_DONE, scriptLine);
+    msgQueue.put(MSG_SCRIPT_DONE, scriptLine);
 }
 
 void
@@ -394,126 +375,67 @@ RetroShell::describe(const std::exception &e)
         
         *this << err->what() << ": Too few arguments";
         *this << '\n';
+        return;
+    }
         
-    } else if (auto err = dynamic_cast<const TooManyArgumentsError *>(&e)) {
+    if (auto err = dynamic_cast<const TooManyArgumentsError *>(&e)) {
         
         *this << err->what() << ": Too many arguments";
         *this << '\n';
+        return;
+    }
     
-    } else if (auto err = dynamic_cast<const util::EnumParseError *>(&e)) {
+    if (auto err = dynamic_cast<const util::EnumParseError *>(&e)) {
         
         *this << err->token << " is not a valid key" << '\n';
         *this << "Expected: " << err->expected << '\n';
-
-    } else if (auto err = dynamic_cast<const util::ParseNumError *>(&e)) {
+        return;
+    }
+    
+    if (auto err = dynamic_cast<const util::ParseNumError *>(&e)) {
         
         *this << err->token << " is not a number";
         *this << '\n';
-
-    } else if (auto err = dynamic_cast<const util::ParseBoolError *>(&e)) {
+        return;
+    }
+    
+    if (auto err = dynamic_cast<const util::ParseBoolError *>(&e)) {
 
         *this << err->token << " must be true or false";
         *this << '\n';
-
-    } else if (auto err = dynamic_cast<const util::ParseError *>(&e)) {
+        return;
+    }
+    
+    if (auto err = dynamic_cast<const util::ParseError *>(&e)) {
 
         *this << err->what() << ": Syntax error";
         *this << '\n';
-
-    } else if (auto err = dynamic_cast<const VAError *>(&e)) {
-
-        describe(*err);
+        return;
     }
-}
-
-void
-RetroShell::describe(const struct VAError &err)
-{
-    switch ((ErrorCode)err.data) {
-            
-        case ERROR_OPT_UNSUPPORTED:
-            *this << "This option is not yet supported." << '\n';
-            return;
-            
-        case ERROR_OPT_INVALID_ARG:
-            *this << "Error: Invalid argument. Expected: " << err.description << '\n';
-            return;
-
-        case ERROR_OPT_LOCKED:
-            *this << "This option is locked because the Amiga is powered on" << '\n';
-            return;
-            
-        case ERROR_FILE_NOT_FOUND:
-            *this << err.description << ": File not found" << '\n';
-            return;
-            
-        case ERROR_ROM_MISSING:
-            *this << "No Boot or Kickstart Rom found" << '\n';
-            return;
-            
-        case ERROR_CHIP_RAM_MISSING:
-            *this << "No Chip Ram found" << '\n';
-            return;
-
-        case ERROR_AROS_NO_EXTROM:
-            *this << "The Aros Kickstart requires an extension Rom" << '\n';
-            return;
-
-        case ERROR_AROS_RAM_LIMIT:
-            *this << "Aros requires at least 1 MB of memory" << '\n';
-            return;
-
-        case ERROR_CHIP_RAM_LIMIT:
-            *this << "The selected Agnus can only handle ";
-            *this << agnus.chipRamLimit() << " MB of Chip Ram" << '\n';
-            return;
-            
-        default:
-            
-            *this << "Command failed with error code " << (isize)err.data;
-            *this << " (" << err.what() << ")" << '\n';
-    }
-}
-
-/*
-void
-RetroShell::exec(std::istream &stream)
-{
-    isize line = 0;
-    string command;
-        
-    // *this << '\n';
     
-    while(std::getline(stream, command)) {
+    if (auto err = dynamic_cast<const VAError *>(&e)) {
 
-        line++;
-        printf("Line %zd: %s\n", line, command.c_str());
-
-        // Execute the command
-        *this << command << '\n';
-        bool result = exec(command, line);
-        
-        if (!result) {
-            
-            printf("Aborted in line %zd\n", line);
-            *this << "Aborted in line " << line << '\n';
-            printPrompt();
-            
-            throw util::Exception(command, line);
-        }
-        printPrompt();
+        *this << err->what();
+        *this << '\n';
+        return;
     }
 }
-*/
 
 void
-RetroShell::dump(HardwareComponent &component, dump::Category category)
+RetroShell::help(const string &command)
+{
+    interpreter.help(command);
+}
+
+void
+RetroShell::dump(AmigaObject &component, Category category)
 {
     std::stringstream ss; string line;
     
-    amiga.suspend();
-    component.dump(category, ss);
-    amiga.resume();
+    { SUSPENDED
+        
+        component.dump(category, ss);
+    }
     
     while(std::getline(ss, line)) *this << line << '\n';
 }
@@ -523,8 +445,7 @@ RetroShell::vsyncHandler()
 {
     if (agnus.clock >= wakeUp) {
         
-        // Ask the external thread (GUI) to continue the script
-        messageQueue.put(MSG_SCRIPT_WAKEUP);
+        msgQueue.put(MSG_SCRIPT_WAKEUP);
         wakeUp = INT64_MAX;
     }
 }

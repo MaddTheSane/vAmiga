@@ -11,11 +11,11 @@
 #include "Paula.h"
 #include "Agnus.h"
 #include "CPU.h"
-#include "IO.h"
+#include "IOUtils.h"
 
-Paula::Paula(Amiga& ref) : AmigaComponent(ref)
+Paula::Paula(Amiga& ref) : SubComponent(ref)
 {
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<AmigaComponent *> {
         
         &channel0,
         &channel1,
@@ -25,53 +25,15 @@ Paula::Paula(Amiga& ref) : AmigaComponent(ref)
         &diskController,
         &uart
     };
-    
-    ipl.setClock(&agnus.clock); 
 }
 
 void
-Paula::_initialize()
-{
-    
-}
-
-void
-Paula::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-
-    // Interrupts
-    for (isize i = 0; i < 16; i++) setIntreq[i] = NEVER;
-    ipl.clear();
-    cpu.setIPL(0);
-    
-    // Audio
-    muxer.clear();
-}
-
-void
-Paula::_inspect()
-{
-    synchronized {
-        
-        info.intreq = intreq;
-        info.intena = intena;
-        info.adkcon = adkcon;
-        
-        audioInfo.channel[0] = channel0.getInfo();
-        audioInfo.channel[1] = channel1.getInfo();
-        audioInfo.channel[2] = channel2.getInfo();
-        audioInfo.channel[3] = channel3.getInfo();
-    }
-}
-
-void
-Paula::_dump(dump::Category category, std::ostream& os) const
+Paula::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
-    if (category & dump::State) {
-    
+    if (category == Category::State) {
+        
         os << tab("potCntX0") << dec(potCntX0) << std::endl;
         os << tab("potCntY0") << dec(potCntY0) << std::endl;
         os << tab("potCntX1") << dec(potCntX1) << std::endl;
@@ -82,7 +44,7 @@ Paula::_dump(dump::Category category, std::ostream& os) const
         os << tab("chargeY1") << chargeY1 << std::endl;
     }
     
-    if (category & dump::Registers) {
+    if (category == Category::Registers) {
         
         os << tab("INTENA") << hex(intena) << std::endl;
         os << tab("INTREQ") << hex(intreq) << std::endl;
@@ -91,11 +53,13 @@ Paula::_dump(dump::Category category, std::ostream& os) const
     }
 }
 
-isize
-Paula::didLoadFromBuffer(const u8 *buffer)
+void
+Paula::_reset(bool hard)
 {
-    muxer.clear();
-    return 0;
+    RESET_SNAPSHOT_ITEMS(hard)
+
+    for (isize i = 0; i < 16; i++) setIntreq[i] = NEVER;
+    cpu.setIPL(0);    
 }
 
 void
@@ -113,9 +77,10 @@ Paula::_pause()
 void
 Paula::_warpOn()
 {
-    // Warping has the unavoidable drawback that audio playback gets out of
-    // sync. To cope with this issue, we ramp down the volume when warping
-    // is switched on and fade in smoothly when it is switched off.
+    /* Warping has the unavoidable drawback that audio playback gets out of
+     * sync. To cope with it, we ramp down the volume when warping is switched
+     * on and fade in smoothly when it is switched off.
+     */
     muxer.rampDown();
 }
 
@@ -127,17 +92,28 @@ Paula::_warpOff()
 }
 
 void
+Paula::_inspect() const
+{
+    {   SYNCHRONIZED
+        
+        info.intreq = intreq;
+        info.intena = intena;
+        info.adkcon = adkcon;        
+    }
+}
+
+isize
+Paula::didLoadFromBuffer(const u8 *buffer)
+{
+    muxer.clear();
+    return 0;
+}
+
+void
 Paula::executeUntil(Cycle target)
 {
     muxer.synthesize(audioClock, target);
     audioClock = target;
-}
-
-
-void
-Paula::raiseIrq(IrqSource src)
-{
-    setINTREQ(true, 1 << src);
 }
 
 void
@@ -145,18 +121,17 @@ Paula::scheduleIrqAbs(IrqSource src, Cycle trigger)
 {
     assert_enum(IrqSource, src);
     assert(trigger != 0);
-    assert(agnus.slot[SLOT_IRQ].id == IRQ_CHECK);
+    assert(agnus.id[SLOT_IRQ] == IRQ_CHECK);
 
-    trace(INT_DEBUG, "scheduleIrq(%lld, %lld)\n", src, trigger);
+    trace(INT_DEBUG, "scheduleIrq(%ld, %lld)\n", src, trigger);
 
     // Record the interrupt request
     if (trigger < setIntreq[src])
         setIntreq[src] = trigger;
 
-    // Schedule the interrupt to be triggered with the proper delay
-    if (trigger < agnus.slot[SLOT_IRQ].triggerCycle) {
+    // Schedule the interrupt
+    if (trigger < agnus.trigger[SLOT_IRQ])
         agnus.scheduleAbs<SLOT_IRQ>(trigger, IRQ_CHECK);
-    }
 }
 
 void
@@ -173,13 +148,10 @@ Paula::checkInterrupt()
         
     if ((iplPipe & 0xFF) != level) {
     
-        ipl.write(level);
         iplPipe = (iplPipe & ~0xFF) | level;
-                
-        trace(CPU_DEBUG, "iplPipe: %016llx\n", iplPipe);        
-        assert(ipl.delayed() == ((iplPipe >> 32) & 0xFF));
-            
         agnus.scheduleRel<SLOT_IPL>(0, IPL_CHANGE, 5);
+
+        trace(CPU_DEBUG, "iplPipe: %016llx\n", iplPipe);
     }
 }
 

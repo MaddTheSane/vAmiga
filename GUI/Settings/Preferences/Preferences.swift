@@ -7,9 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-/* Preferences
- *
- * This class stores all emulator settings that belong to the application level.
+/* This class stores all emulator settings that belong to the application level.
  * There is a single object of this class stored in the application delegate.
  * The object is shared among all emulator instances.
  *
@@ -39,6 +37,13 @@ class Preferences {
     }
 
     // Screen captures
+    var ffmpegPath = "" {
+        didSet {
+            for amiga in myAppDelegate.proxies {
+                amiga.recorder.path = ffmpegPath
+            }
+        }
+    }
     var captureSource = GeneralDefaults.std.captureSource
     var bitRate = 512 {
         didSet {
@@ -58,15 +63,7 @@ class Preferences {
             if aspectY > 999 { aspectY = 999 }
         }
     }
-    
-    // Floppy
-    var blankDiskFormat = PeripheralsDefaults.std.blankDiskFormat
-    var blankDiskFormatIntValue: Int {
-        get { return Int(blankDiskFormat.rawValue) }
-        set { blankDiskFormat = FSVolumeType.init(rawValue: newValue)! }
-    }
-    var bootBlock = PeripheralsDefaults.std.bootBlock
-    
+        
     // Fullscreen
     var keepAspectRatio = GeneralDefaults.std.keepAspectRatio
     var exitOnEsc = GeneralDefaults.std.exitOnEsc
@@ -77,7 +74,7 @@ class Preferences {
     }
     var warpModeIntValue: Int {
         get { return Int(warpMode.rawValue) }
-        set { warpMode = WarpMode.init(rawValue: newValue)! }
+        set { warpMode = WarpMode(rawValue: newValue)! }
     }
     
     // Misc
@@ -131,36 +128,7 @@ class Preferences {
     //
     // General
     //
-    
-    func loadGeneralDefaults(_ defaults: GeneralDefaults) {
-                
-        // Snapshots
-        autoSnapshots = defaults.autoSnapshots
-        snapshotInterval = defaults.autoSnapshotInterval
-
-        // Screenshots
-        screenshotSource = defaults.screenshotSource
-        screenshotTarget = defaults.screenshotTarget
-
-        // Captures
-        captureSource = defaults.captureSource
-        bitRate = defaults.bitRate
-        aspectX = defaults.aspectX
-        aspectY = defaults.aspectY
         
-        // Fullscreen
-        keepAspectRatio = defaults.keepAspectRatio
-        exitOnEsc = defaults.exitOnEsc
-        
-        // Warp mode
-        warpMode = defaults.warpMode
-
-        // Misc
-        ejectWithoutAsking = defaults.ejectWithoutAsking
-        pauseInBackground = defaults.pauseInBackground
-        closeWithoutAsking = defaults.closeWithoutAsking
-    }
-    
     func loadGeneralUserDefaults() {
         
         let defaults = UserDefaults.standard
@@ -174,6 +142,7 @@ class Preferences {
         screenshotTargetIntValue = defaults.integer(forKey: Keys.Gen.screenshotTarget)
 
         // Captures
+        ffmpegPath = defaults.string(forKey: Keys.Gen.ffmpegPath) ?? ""
         captureSource = defaults.integer(forKey: Keys.Gen.captureSource)
         bitRate = defaults.integer(forKey: Keys.Gen.bitRate)
         aspectX = defaults.integer(forKey: Keys.Gen.aspectX)
@@ -201,11 +170,11 @@ class Preferences {
         defaults.set(snapshotInterval, forKey: Keys.Gen.autoSnapshotInterval)
 
         // Screenshots
-        defaults.set(autoSnapshots, forKey: Keys.Gen.autoSnapshots)
-        defaults.set(snapshotInterval, forKey: Keys.Gen.autoSnapshotInterval)
         defaults.set(screenshotSource, forKey: Keys.Gen.screenshotSource)
+        defaults.set(screenshotTargetIntValue, forKey: Keys.Gen.screenshotTarget)
 
         // Captures
+        defaults.set(ffmpegPath, forKey: Keys.Gen.ffmpegPath)
         defaults.set(captureSource, forKey: Keys.Gen.captureSource)
         defaults.set(bitRate, forKey: Keys.Gen.bitRate)
         defaults.set(aspectX, forKey: Keys.Gen.aspectX)
@@ -227,30 +196,7 @@ class Preferences {
     //
     // Controls
     //
-    
-    func loadControlsDefaults(_ defaults: ControlsDefaults) {
-        
-        // Emulation keys
-        keyMaps[0] = defaults.mouseKeyMap
-        keyMaps[1] = defaults.joyKeyMap1
-        keyMaps[2] = defaults.joyKeyMap2
-        disconnectJoyKeys = defaults.disconnectJoyKeys
-        
-        // Joysticks
-        autofire = defaults.autofire
-        autofireBullets = defaults.autofireBullets
-        autofireFrequency = defaults.autofireFrequency
-        
-        // Mouse
-        retainMouseKeyComb = defaults.retainMouseKeyComb
-        retainMouseWithKeys = defaults.retainMouseWithKeys
-        retainMouseByClick = defaults.retainMouseByClick
-        retainMouseByEntering = defaults.retainMouseByEntering
-        releaseMouseKeyComb = defaults.releaseMouseKeyComb
-        releaseMouseWithKeys = defaults.releaseMouseWithKeys
-        releaseMouseByShaking = defaults.releaseMouseByShaking
-    }
-    
+
     func loadControlsUserDefaults() {
         
         let defaults = UserDefaults.standard
@@ -304,11 +250,7 @@ class Preferences {
     //
     // Devices
     //
-    
-    func loadDevicesDefaults(_ defaults: DevicesDefaults) {
         
-    }
-    
     func loadDevicesUserDefaults() {
         
     }

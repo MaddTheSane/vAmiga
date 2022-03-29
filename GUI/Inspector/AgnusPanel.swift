@@ -11,7 +11,7 @@ extension Inspector {
 
     private func cacheAgnus() {
 
-        agnusInfo = amiga.agnus.getInfo()
+        agnusInfo = amiga.agnus.info
     }
 
     func refreshAgnus(count: Int = 0, full: Bool = false) {
@@ -149,7 +149,7 @@ extension Inspector {
         dmaBLTPRI.state = bltpri ? .on : .off
         dmaBLS.state = agnusInfo.bls ? .on : .off
 
-        dmaCOPPC.integerValue = Int(agnusInfo.coppc)
+        dmaCOPPC.integerValue = Int(agnusInfo.coppc0)
         dmaCOPEnable.state = copen ? .on : .off
 
         dmaSPR0PT.integerValue = Int(agnusInfo.sprpt.0)

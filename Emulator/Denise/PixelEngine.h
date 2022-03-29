@@ -10,53 +10,55 @@
 #pragma once
 
 #include "PixelEngineTypes.h"
-#include "AmigaComponent.h"
+#include "SubComponent.h"
 #include "ChangeRecorder.h"
 #include "Constants.h"
+#include "Buffer.h"
 
-class PixelEngine : public AmigaComponent {
+using util::Buffer;
+
+struct ScreenBuffer : public Buffer<u32> {
+    
+    bool longFrame;
+    
+    ScreenBuffer(); 
+};
+
+class PixelEngine : public SubComponent {
 
     friend class DmaDebugger;
     
     // Current configuration
-    PixelEngineConfig config;
+    PixelEngineConfig config = {};
 
 public:
 
     // RGBA colors used to visualize the HBLANK and VBLANK area in the debugger
-    static const i32 rgbaHBlank = 0xFF444444;
-    static const i32 rgbaVBlank = 0xFF444444;
-
-    /*
-    // Filename used by dumpTexture()
-    string dumpTexturePath = "texture";
-    
-    // Pixel area dumped by dumpTexture()
-    isize x1 = 4 * (HBLANK_MAX + 1);
-    isize y1 = VBLANK_MAX + 1;
-    isize x2 = HPIXELS;
-    isize y2 = VPIXELS;
-    */
-    
-private:
+    static const u32 rgbaHBlank = 0xFF444444;
+    static const u32 rgbaVBlank = 0xFF444444;
 
     //
     // Screen buffers
     //
 
-    /* The emulator uses double-buffering for storing the computed textures.
-     * At any time, one of the two buffers is the "working buffer" and the other
-     * one the "stable buffer". All drawing functions write to the working
-     * buffer whereas the GPU reads from the stable buffer. Once a frame has
-     * been completed, the working buffer and the stable buffer are switched.
+private:
+
+    /* The emulator utilizes double-buffering for the computed textures.
+     * At any time, one of the two buffers is the "working buffer". The other
+     * one is the "stable buffer". All drawing functions write to the working
+     * buffer and the GPU reads from the stable buffer. Once a frame has
+     * been completed, the working buffer and the stable buffer are swapped.
      */
     ScreenBuffer emuTexture[2];
 
-    // Pointer to the "working buffer"
-    ScreenBuffer *frameBuffer = &emuTexture[0];
+    // Pointer to the texture data in the working buffer
+    u32 *frameBuffer = emuTexture[0].ptr;
 
+    // Mutex for synchronizing access to the stable buffer
+    util::Mutex bufferMutex;
+        
     // Buffer with background noise (random black and white pixels)
-    u32 *noise = nullptr;
+    Buffer<u32> noise;
 
     
     //
@@ -100,10 +102,22 @@ public:
 public:
     
     PixelEngine(Amiga& ref);
-    ~PixelEngine();
-
+ 
+    
+    //
+    // Methods from AmigaObject
+    //
+    
+private:
+    
     const char *getDescription() const override { return "PixelEngine"; }
+    void _dump(Category category, std::ostream& os) const override { }
 
+    
+    //
+    // Methods from AmigaComponent
+    //
+    
 private:
     
     void _initialize() override;
@@ -116,10 +130,12 @@ private:
 
 public:
     
+    static PixelEngineConfig getDefaultConfig();
     const PixelEngineConfig &getConfig() const { return config; }
+    void resetConfig() override;
 
     i64 getConfigItem(Option option) const;
-    bool setConfigItem(Option option, i64 value) override;
+    void setConfigItem(Option option, i64 value);
 
     
     //
@@ -131,15 +147,11 @@ private:
     template <class T>
     void applyToPersistentItems(T& worker)
     {
+        
     }
 
     template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
 
@@ -149,6 +161,7 @@ private:
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
@@ -203,9 +216,16 @@ private:
 
 public:
 
-    // Returns the stable frame buffer for long frames
-    ScreenBuffer getStableBuffer();
+    // Returns the stable frame buffer
+    const ScreenBuffer &getStableBuffer();
 
+    // Locks or unlocks the stable buffer
+    void lockStableBuffer() { bufferMutex.lock(); }
+    void unlockStableBuffer() { bufferMutex.unlock(); }
+    
+    // Swaps the working buffer and the stable buffer
+    void swapBuffers();
+    
     // Returns a pointer to randon noise
     u32 *getNoise() const;
     
@@ -216,7 +236,7 @@ public:
     void endOfVBlankLine();
 
     // Called after each frame to switch the frame buffers
-    void beginOfFrame();
+    void vsyncHandler();
 
 
     //

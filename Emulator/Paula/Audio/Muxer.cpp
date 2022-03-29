@@ -10,240 +10,28 @@
 #include "config.h"
 #include "Muxer.h"
 #include "CIA.h"
-#include "IO.h"
+#include "IOUtils.h"
 #include "MsgQueue.h"
-#include "Oscillator.h"
 #include <cmath>
+#include <algorithm>
 
-Muxer::Muxer(Amiga& ref) : AmigaComponent(ref)
+Muxer::Muxer(Amiga& ref) : SubComponent(ref)
 {
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<AmigaComponent *> {
 
         &filterL,
         &filterR
     };
     
-    sampler[0] = new Sampler();
-    sampler[1] = new Sampler();
-    sampler[2] = new Sampler();
-    sampler[3] = new Sampler();
-
     setSampleRate(44100);
 }
- 
-Muxer::~Muxer()
-{
-    delete sampler[0];
-    delete sampler[1];
-    delete sampler[2];
-    delete sampler[3];
-}
 
 void
-Muxer::_initialize()
-{
-    config.samplingMethod = SMP_NONE;
-    config.filterType = FILTER_BUTTERWORTH;
-    config.filterAlwaysOn = false;
-    config.volL = 50;
-    config.volR = 50;
-    config.vol[0] = 100;
-    config.vol[1] = 100;
-    config.vol[2] = 100;
-    config.vol[3] = 100;
-    config.pan[0] = 170;
-    config.pan[1] = 30;
-    config.pan[2] = 30;
-    config.pan[3] = 170;
-}
-
-void
-Muxer::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
-    stats.bufferUnderflows = 0;
-    stats.bufferOverflows = 0;
-    stats.producedSamples = 0;
-    stats.consumedSamples = 0;
-    
-    for (isize i = 0; i < 4; i++) sampler[i]->reset();
-    stream.clear();
-}
-
-void
-Muxer::clear()
-{
-    trace(AUDBUF_DEBUG, "clear()\n");
-    
-    // Wipe out the ringbuffer
-    stream.wipeOut();
-    stream.alignWritePtr();
-    
-    // Wipe out the filter buffers
-    filterL.clear();
-    filterR.clear();
-}
-
-i64
-Muxer::getConfigItem(Option option) const
-{
-    switch (option) {
-            
-        case OPT_SAMPLING_METHOD:
-            return config.samplingMethod;
-            
-        case OPT_FILTER_TYPE:
-            assert(filterL.getFilterType() == config.filterType);
-            assert(filterR.getFilterType() == config.filterType);
-            return config.filterType;
-                        
-        case OPT_FILTER_ALWAYS_ON:
-            return config.filterAlwaysOn;
-
-        case OPT_AUDVOLL:
-            return config.volL;
-
-        case OPT_AUDVOLR:
-            return config.volR;
-
-        default:
-            assert(false);
-            return 0;
-    }
-}
-
-i64
-Muxer::getConfigItem(Option option, long id) const
-{
-    switch (option) {
-            
-        case OPT_AUDVOL:
-            return config.vol[id];
-
-        case OPT_AUDPAN:
-            return config.pan[id];
-            
-        default:
-            assert(false);
-            return 0;
-    }
-}
-
-bool
-Muxer::setConfigItem(Option option, i64 value)
-{
-    bool wasMuted = isMuted();
-    
-    switch (option) {
-            
-        case OPT_SAMPLING_METHOD:
-            
-            if (!SamplingMethodEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, SamplingMethodEnum::keyList());
-            }
-            if (config.samplingMethod == value) {
-                return false;
-            }
-            
-            config.samplingMethod = (SamplingMethod)value;
-            return true;
-            
-        case OPT_FILTER_TYPE:
-            
-            if (!FilterTypeEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVALID_ARG, FilterTypeEnum::keyList());
-            }
-            if (config.filterType == value) {
-                return false;
-            }
-
-            config.filterType = (FilterType)value;
-            filterL.setFilterType((FilterType)value);
-            filterR.setFilterType((FilterType)value);
-            return true;
-                        
-        case OPT_FILTER_ALWAYS_ON:
-            
-            if (config.filterAlwaysOn == value) {
-                return false;
-            }
-            
-            config.filterAlwaysOn = value;
-            return true;
-
-        case OPT_AUDVOLL:
-            
-            if (value < 0) value = 0;
-            if (value > 100) value = 100;
-
-            config.volL = value;
-            volL = pow((double)value / 50, 1.4);
-                        
-            if (wasMuted != isMuted())
-                messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
-            return true;
-            
-        case OPT_AUDVOLR:
-
-            if (value < 0) value = 0;
-            if (value > 100) value = 100;
-
-            config.volR = value;
-            volR = pow((double)value / 50, 1.4);
-
-            if (wasMuted != isMuted())
-                messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
-            return true;
-            
-        default:
-            return false;
-    }
-}
-
-bool
-Muxer::setConfigItem(Option option, long id, i64 value)
-{
-    switch (option) {
-                        
-        case OPT_AUDVOL:
-    
-            assert(id >= 0 && id <= 3);
-            if (value < 0) value = 0;
-            if (value > 100) value = 100;
-            
-            config.vol[id] = value;
-            vol[id] = pow((double)value / 100, 1.4);
-            
-            return true;
-            
-        case OPT_AUDPAN:
-                        
-            assert(id >= 0 && id <= 3);
-            if (value < 0 || value > 200) {
-                warn(" Invalid pan: %lld\n", value);
-                warn("Valid values: 0 ... 200\n");
-                return false;
-            }
-
-            config.pan[id] = value;
-            
-            if (value <= 50) pan[id] = (50 + value) / 100.0;
-            else if (value <= 150) pan[id] = (150 - value) / 100.0;
-            else if (value <= 200) pan[id] = (value - 150) / 100.0;
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-void
-Muxer::_dump(dump::Category category, std::ostream& os) const
+Muxer::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
-    if (category & dump::Config) {
+    if (category == Category::Config) {
         
         os << tab("Sampling method");
         os << SamplingMethodEnum::key(config.samplingMethod) << std::endl;
@@ -275,12 +63,203 @@ Muxer::_dump(dump::Category category, std::ostream& os) const
 }
 
 void
+Muxer::_reset(bool hard)
+{
+    RESET_SNAPSHOT_ITEMS(hard)
+    
+    stats = { };
+    
+    for (isize i = 0; i < 4; i++) sampler[i].reset();
+    clear();
+}
+
+void
+Muxer::clear()
+{
+    debug(AUDBUF_DEBUG, "clear()\n");
+    
+    // Wipe out the ringbuffer
+    stream.lock();
+    stream.wipeOut();
+    stream.alignWritePtr();
+    stream.unlock();
+    
+    // Wipe out the filter buffers
+    filterL.clear();
+    filterR.clear();
+}
+
+MuxerConfig
+Muxer::getDefaultConfig()
+{
+    MuxerConfig defaults;
+
+    defaults.samplingMethod = SMP_NONE;
+    defaults.filterType = FILTER_BUTTERWORTH;
+    defaults.filterAlwaysOn = false;
+    defaults.volL = 50;
+    defaults.volR = 50;
+    defaults.vol[0] = 100;
+    defaults.vol[1] = 100;
+    defaults.vol[2] = 100;
+    defaults.vol[3] = 100;
+    defaults.pan[0] = 50;
+    defaults.pan[1] = 350;
+    defaults.pan[2] = 350;
+    defaults.pan[3] = 50;
+
+    return defaults;
+}
+
+void
+Muxer::resetConfig()
+{
+    MuxerConfig defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_SAMPLING_METHOD, defaults.samplingMethod);
+    setConfigItem(OPT_FILTER_TYPE, defaults.filterType);
+    setConfigItem(OPT_FILTER_ALWAYS_ON, defaults.filterAlwaysOn);
+    setConfigItem(OPT_AUDVOLL, defaults.volL);
+    setConfigItem(OPT_AUDVOLR, defaults.volR);
+
+    for (isize i = 0; i < 4; i++) {
+
+        setConfigItem(OPT_AUDVOL, i, defaults.vol[i]);
+        setConfigItem(OPT_AUDPAN, i, defaults.pan[i]);
+    }
+}
+
+i64
+Muxer::getConfigItem(Option option) const
+{
+    switch (option) {
+            
+        case OPT_SAMPLING_METHOD:
+            return config.samplingMethod;
+            
+        case OPT_FILTER_TYPE:
+            assert(filterL.type == config.filterType);
+            assert(filterR.type == config.filterType);
+            return config.filterType;
+                        
+        case OPT_FILTER_ALWAYS_ON:
+            return config.filterAlwaysOn;
+
+        case OPT_AUDVOLL:
+            return config.volL;
+
+        case OPT_AUDVOLR:
+            return config.volR;
+
+        default:
+            fatalError;
+    }
+}
+
+i64
+Muxer::getConfigItem(Option option, long id) const
+{
+    switch (option) {
+            
+        case OPT_AUDVOL:
+            return config.vol[id];
+
+        case OPT_AUDPAN:
+            return config.pan[id];
+            
+        default:
+            fatalError;
+    }
+}
+
+void
+Muxer::setConfigItem(Option option, i64 value)
+{
+    bool wasMuted = isMuted();
+    
+    switch (option) {
+            
+        case OPT_SAMPLING_METHOD:
+            
+            if (!SamplingMethodEnum::isValid(value)) {
+                throw VAError(ERROR_OPT_INVARG, SamplingMethodEnum::keyList());
+            }
+            
+            config.samplingMethod = (SamplingMethod)value;
+            return;
+            
+        case OPT_FILTER_TYPE:
+            
+            if (!FilterTypeEnum::isValid(value)) {
+                throw VAError(ERROR_OPT_INVARG, FilterTypeEnum::keyList());
+            }
+
+            config.filterType = (FilterType)value;
+            filterL.type = ((FilterType)value);
+            filterR.type = ((FilterType)value);
+            return;
+                        
+        case OPT_FILTER_ALWAYS_ON:
+                        
+            config.filterAlwaysOn = value;
+            return;
+
+        case OPT_AUDVOLL:
+            
+            config.volL = std::clamp(value, 0LL, 100LL);
+            volL = powf((float)value / 50, 1.4f);
+                        
+            if (wasMuted != isMuted())
+                msgQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
+            return;
+            
+        case OPT_AUDVOLR:
+
+            config.volR = std::clamp(value, 0LL, 100LL);
+            volR = powf((float)value / 50, 1.4f);
+
+            if (wasMuted != isMuted())
+                msgQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
+            return;
+            
+        default:
+            fatalError;
+    }
+}
+
+void
+Muxer::setConfigItem(Option option, long id, i64 value)
+{
+    switch (option) {
+                        
+        case OPT_AUDVOL:
+    
+            assert(id >= 0 && id <= 3);
+                        
+            config.vol[id] = std::clamp(value, 0LL, 100LL);
+            vol[id] = powf((float)value / 100, 1.4f);
+            return;
+            
+        case OPT_AUDPAN:
+                        
+            assert(id >= 0 && id <= 3);
+
+            config.pan[id] = value;
+            pan[id] = float(0.5 * (sin(config.pan[id] * M_PI / 200.0) + 1));
+            return;
+
+        default:
+            fatalError;
+    }
+}
+
+void
 Muxer::setSampleRate(double hz)
 {
     trace(AUD_DEBUG, "setSampleRate(%f)\n", hz);
 
     sampleRate = hz;
-    cyclesPerSample = MHz(Oscillator::masterClockFrequency) / hz;
+    cyclesPerSample = MASTER_FREQUENCY / hz;
 
     filterL.setSampleRate(hz);
     filterR.setSampleRate(hz);
@@ -289,18 +268,16 @@ Muxer::setSampleRate(double hz)
 isize
 Muxer::didLoadFromBuffer(const u8 *buffer)
 {
-    for (isize i = 0; i < 4; i++) sampler[i]->reset();
+    for (isize i = 0; i < 4; i++) sampler[i].reset();
     return 0;
 }
 
 void
 Muxer::rampUp()
-{
-    // Only proceed if the emulator is not running in warp mode
-    if (warpMode) return;
-    
+{    
     volume.target = 1.0;
     volume.delta = 3;
+    
     ignoreNextUnderOrOverflow();
 }
 
@@ -308,6 +285,7 @@ void
 Muxer::rampUpFromZero()
 {
     volume.current = 0.0;
+    
     rampUp();
 }
  
@@ -316,6 +294,7 @@ Muxer::rampDown()
 {
     volume.target = 0.0;
     volume.delta = 50;
+    
     ignoreNextUnderOrOverflow();
 }
 
@@ -330,10 +309,23 @@ Muxer::synthesize(Cycle clock, Cycle target, long count)
                 
     switch (config.samplingMethod) {
             
-        case SMP_NONE:    synthesize<SMP_NONE>   (clock, count, cyclesPerSample); break;
-        case SMP_NEAREST: synthesize<SMP_NEAREST>(clock, count, cyclesPerSample); break;
-        case SMP_LINEAR:  synthesize<SMP_LINEAR> (clock, count, cyclesPerSample); break;
-        default:          assert(false);
+        case SMP_NONE:
+            
+            synthesize <SMP_NONE> (clock, count, cyclesPerSample);
+            break;
+            
+        case SMP_NEAREST:
+            
+            synthesize <SMP_NEAREST> (clock, count, cyclesPerSample);
+            break;
+            
+        case SMP_LINEAR:
+            
+            synthesize<SMP_LINEAR> (clock, count, cyclesPerSample);
+            break;
+            
+        default:
+            fatalError;
     }
 }
 
@@ -349,10 +341,23 @@ Muxer::synthesize(Cycle clock, Cycle target)
     fraction = exact - (double)count;
              
     switch (config.samplingMethod) {
-        case SMP_NONE:    synthesize<SMP_NONE>   (clock, count, cyclesPerSample); break;
-        case SMP_NEAREST: synthesize<SMP_NEAREST>(clock, count, cyclesPerSample); break;
-        case SMP_LINEAR:  synthesize<SMP_LINEAR> (clock, count, cyclesPerSample); break;
-        default:          assert(false);
+        case SMP_NONE:
+            
+            synthesize <SMP_NONE> (clock, count, cyclesPerSample);
+            break;
+            
+        case SMP_NEAREST:
+            
+            synthesize <SMP_NEAREST> (clock, count, cyclesPerSample);
+            break;
+            
+        case SMP_LINEAR:
+            
+            synthesize <SMP_LINEAR> (clock, count, cyclesPerSample);
+            break;
+            
+        default:
+            fatalError;
 
     }
 }
@@ -367,15 +372,15 @@ Muxer::synthesize(Cycle clock, long count, double cyclesPerSample)
     // Check for a buffer overflow
     if (stream.count() + count >= stream.cap()) handleBufferOverflow();
 
-    double cycle = clock;
+    double cycle = (double)clock;
     bool filter = ciaa.powerLED() || config.filterAlwaysOn;
 
     for (long i = 0; i < count; i++) {
 
-        double ch0 = sampler[0]->interpolate<method>((Cycle)cycle) * vol[0];
-        double ch1 = sampler[1]->interpolate<method>((Cycle)cycle) * vol[1];
-        double ch2 = sampler[2]->interpolate<method>((Cycle)cycle) * vol[2];
-        double ch3 = sampler[3]->interpolate<method>((Cycle)cycle) * vol[3];
+        float ch0 = sampler[0].interpolate <method> ((Cycle)cycle) * vol[0];
+        float ch1 = sampler[1].interpolate <method> ((Cycle)cycle) * vol[1];
+        float ch2 = sampler[2].interpolate <method> ((Cycle)cycle) * vol[2];
+        float ch3 = sampler[3].interpolate <method> ((Cycle)cycle) * vol[3];
         
         // Compute left channel output
         float l =
@@ -412,7 +417,7 @@ Muxer::handleBufferUnderflow()
     // (1) The consumer runs slightly faster than the producer
     // (2) The producer is halted or not startet yet
     
-    trace(AUDBUF_DEBUG, "UNDERFLOW (r: %zd w: %zd)\n", stream.r, stream.w);
+    debug(AUDBUF_DEBUG, "UNDERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
     
     // Reset the write pointer
     stream.alignWritePtr();
@@ -440,7 +445,7 @@ Muxer::handleBufferOverflow()
     // (1) The consumer runs slightly slower than the producer
     // (2) The consumer is halted or not startet yet
     
-    trace(AUDBUF_DEBUG, "OVERFLOW (r: %zd w: %zd)\n", stream.r, stream.w);
+    debug(AUDBUF_DEBUG, "OVERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
     
     // Reset the write pointer
     stream.alignWritePtr();
@@ -448,7 +453,6 @@ Muxer::handleBufferOverflow()
     // Determine the number of elapsed seconds since the last adjustment
     auto elapsedTime = util::Time::now() - lastAlignment;
     lastAlignment = util::Time::now();
-    trace(AUDBUF_DEBUG, "elapsedTime: %f\n", elapsedTime.asSeconds());
     
     // Adjust the sample rate, if condition (1) holds
     if (elapsedTime.asSeconds() > 10.0) {
@@ -459,7 +463,7 @@ Muxer::handleBufferOverflow()
         auto offPerSec = (stream.cap() / 2) / elapsedTime.asSeconds();
         double newSampleRate = getSampleRate() - (isize)offPerSec;
 
-        trace(AUDBUF_DEBUG, "Changing sample rate to %f\n", newSampleRate);
+        debug(AUDBUF_DEBUG, "Changing sample rate to %f\n", newSampleRate);
         setSampleRate(newSampleRate);
     }
 }
@@ -503,11 +507,10 @@ Muxer::copy(void *buffer1, void *buffer2, isize n)
 SampleType *
 Muxer::nocopy(isize n)
 {
-    SampleType *addr;
     stream.lock();
     
     if (stream.count() < n) handleBufferUnderflow();
-    addr = stream.currentAddr();
+    SampleType *addr = stream.currentAddr();
     stream.skip(n);
     stats.consumedSamples += n;
 

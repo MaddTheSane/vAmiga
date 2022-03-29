@@ -11,7 +11,7 @@
 #include "CPU.h"
 #include "Agnus.h"
 #include "Amiga.h"
-#include "IO.h"
+#include "IOUtils.h"
 #include "Memory.h"
 #include "MsgQueue.h"
 
@@ -28,7 +28,7 @@ Moira::sync(int cycles)
     clock += cycles;
 
     // Emulate Agnus up to the same cycle
-    agnus.executeUntil(CPU_CYCLES(clock));
+    agnus.execute(CPU_AS_DMA_CYCLES(cycles));
 }
 
 u8
@@ -58,16 +58,18 @@ Moira::read16OnReset(u32 addr)
 void
 Moira::write8(u32 addr, u8 val)
 {
-    trace(XFILES && addr - reg.pc < 5, "XFILES: write8 close to PC %x\n", reg.pc);
-
+    if constexpr (XFILES) if (addr - reg.pc < 5) {
+        trace(true, "XFILES: write8 close to PC %x\n", reg.pc);
+    }
     mem.poke8 <ACCESSOR_CPU> (addr, val);
 }
 
 void
 Moira::write16 (u32 addr, u16 val)
 {
-    trace(XFILES && addr - reg.pc < 5, "XFILES: write16 close to PC %x\n", reg.pc);
-
+    if constexpr (XFILES) if (addr - reg.pc < 5) {
+        trace(true, "XFILES: write16 close to PC %x\n", reg.pc);
+    }
     mem.poke16 <ACCESSOR_CPU> (addr, val);
 }
 
@@ -78,22 +80,22 @@ Moira::readIrqUserVector(u8 level) const
 }
 
 void
-Moira::signalReset()
+Moira::signalResetInstr()
 {
     trace(XFILES, "XFILES: RESET instruction\n");
     amiga.softReset();
 }
 
 void
-Moira::signalStop(u16 op)
+Moira::signalStopInstr(u16 op)
 {
-    if (!(op & 0x2000)) {
-        trace(XFILES, "XFILES: STOP instruction (%x)\n", op);
+    if constexpr (XFILES) {
+        if (!(op & 0x2000)) trace(true, "XFILES: STOP instruction (%x)\n", op);
     }
 }
 
 void
-Moira::signalTAS()
+Moira::signalTasInstr()
 {
     trace(XFILES, "XFILES: TAS instruction\n");
 }
@@ -101,7 +103,7 @@ Moira::signalTAS()
 void
 Moira::signalHalt()
 {
-    messageQueue.put(MSG_CPU_HALT);
+    msgQueue.put(MSG_CPU_HALT);
 }
 
 void
@@ -132,7 +134,7 @@ Moira::signalIllegalOpcodeException(u16 opcode)
 void
 Moira::signalTraceException()
 {
-    // debug(XFILES, "XFILES: traceException\n");
+
 }
 
 void
@@ -144,12 +146,20 @@ Moira::signalTrapException()
 void
 Moira::signalPrivilegeViolation()
 {
+    
 }
 
 void
 Moira::signalInterrupt(u8 level)
 {
     debug(INT_DEBUG, "Executing level %d IRQ\n", level);
+    
+    /*
+    if (agnus.frame.nr > 2180) {
+        trace(true, "Executing level %d IRQ\n", level);
+        amiga.signalStop();
+    }
+    */
 }
 
 void
@@ -169,15 +179,35 @@ Moira::addressErrorHandler()
 }
 
 void
+Moira::softstopReached(u32 addr)
+{
+    amiga.setFlag(RL::SOFTSTOP_REACHED);
+}
+
+void
 Moira::breakpointReached(u32 addr)
 {
-    amiga.setControlFlags(RL_BREAKPOINT_REACHED);
+    amiga.setFlag(RL::BREAKPOINT_REACHED);
 }
 
 void
 Moira::watchpointReached(u32 addr)
 {
-    amiga.setControlFlags(RL_WATCHPOINT_REACHED);
+    amiga.setFlag(RL::WATCHPOINT_REACHED);
+}
+
+void
+Moira::catchpointReached(u8 vector)
+{
+    amiga.setFlag(RL::CATCHPOINT_REACHED);
+}
+
+void
+Moira::execDebug(const char *cmd)
+{
+    if (agnus.pos.v == 76 || agnus.pos.v == 77) {
+        trace(true, "%s\n", cmd);
+    }
 }
 
 }
@@ -188,12 +218,52 @@ Moira::watchpointReached(u32 addr)
 
 CPU::CPU(Amiga& ref) : moira::Moira(ref)
 {
+    
+}
+
+i64
+CPU::getConfigItem(Option option) const
+{
+    switch (option) {
+            
+        case OPT_REG_RESET_VAL:  return (long)config.regResetVal;
+        
+        default:
+            fatalError;
+    }
 }
 
 void
-CPU::_initialize()
+CPU::setConfigItem(Option option, i64 value)
 {
+    switch (option) {
+            
+        case OPT_REG_RESET_VAL:
+
+            config.regResetVal = (u32)value;
+            return;
+                        
+        default:
+            fatalError;
+    }
+}
+
+CPUConfig
+CPU::getDefaultConfig()
+{
+    CPUConfig defaults;
+
+    defaults.regResetVal = 0x00000000;
     
+    return defaults;
+}
+
+void
+CPU::resetConfig()
+{
+    auto defaults = getDefaultConfig();
+
+    setConfigItem(OPT_REG_RESET_VAL, defaults.regResetVal);
 }
 
 void
@@ -206,6 +276,9 @@ CPU::_reset(bool hard)
         // Reset the Moira core
         Moira::reset();
         
+        // Initialize all data and address registers with the startup value
+        for(int i = 0; i < 8; i++) reg.d[i] = reg.a[i] = config.regResetVal;
+        
         // Remove all previously recorded instructions
         debugger.clearLog();
         
@@ -217,21 +290,21 @@ CPU::_reset(bool hard)
          *  register nor any of the internal registers is affected by an
          *  internal reset operation. All external devices in the system should
          *  be reset at the completion of the RESET instruction."
-         *      [Motorola M68000 User Manual]
+         *  [Motorola M68000 User Manual]
          */            
     }
 }
 
 void
-CPU::_inspect()
+CPU::_inspect() const
 {
     _inspect(getPC0());
 }
 
 void
-CPU::_inspect(u32 dasmStart)
+CPU::_inspect(u32 dasmStart) const
 {
-    synchronized {
+    {   SYNCHRONIZED
         
         info.pc0 = getPC0() & 0xFFFFFF;
         
@@ -246,11 +319,15 @@ CPU::_inspect(u32 dasmStart)
 }
 
 void
-CPU::_dump(dump::Category category, std::ostream& os) const
+CPU::_dump(Category category, std::ostream& os) const
 {
-    // using namespace util;
+    if (category == Category::Config) {
+        
+        os << util::tab("Register reset value");
+        os << util::hex(config.regResetVal) << std::endl;
+    }
     
-    if (category & dump::State) {
+    if (category == Category::State) {
         
         os << util::tab("Clock");
         os << util::dec(clock) << std::endl;
@@ -259,9 +336,9 @@ CPU::_dump(dump::Category category, std::ostream& os) const
         os << util::tab("Last exception");
         os << util::dec(exception);
     }
-    
-    if (category & dump::Registers) {
 
+    if (category == Category::Registers) {
+        
         os << util::tab("PC");
         os << util::hex(reg.pc0) << std::endl;
         os << std::endl;
@@ -300,19 +377,66 @@ CPU::_dump(dump::Category category, std::ostream& os) const
         os << (reg.sr.v ? 'V' : 'v');
         os << (reg.sr.c ? 'C' : 'c') << std::endl;
     }
+
+    if (category == Category::Breakpoints) {
+        
+        for (int i = 0; i < debugger.breakpoints.elements(); i++) {
+            
+            auto bp = debugger.breakpoints.guardNr(i);
+            auto nr = "Breakpoint " + std::to_string(i);
+            
+            os << util::tab(nr);
+            os << util::hex(bp->addr);
+
+            if (!bp->enabled) os << " (Disabled)";
+            else if (bp->ignore) os << " (Disabled for " << bp->ignore << " hits)";
+            os << std::endl;
+        }
+    }
+    
+    if (category == Category::Watchpoints) {
+        
+        for (int i = 0; i < debugger.watchpoints.elements(); i++) {
+            
+            auto wp = debugger.watchpoints.guardNr(i);
+            auto nr = "Watchpoint " + std::to_string(i);
+            
+            os << util::tab(nr);
+            os << util::hex(wp->addr);
+            if (!wp->enabled) os << " (Disabled)";
+            else if (wp->ignore) os << " (Disabled for " << wp->ignore << " hits)";
+            os << std::endl;
+        }
+    }
+    
+    if (category == Category::Catchpoints) {
+        
+        for (int i = 0; i < debugger.catchpoints.elements(); i++) {
+            
+            auto wp = debugger.catchpoints.guardNr(i);
+            auto nr = "Catchpoint " + std::to_string(i);
+
+            os << util::tab(nr);
+            os << "Vector " << util::dec(wp->addr);
+            os << " (" << cpu.debugger.vectorName(u8(wp->addr)) << ")";
+            if (!wp->enabled) os << " (Disabled)";
+            else if (wp->ignore) os << " (Disabled for " << wp->ignore << " hits)";
+            os << std::endl;
+        }
+    }
 }
 
 void
 CPU::_debugOn()
 {
-    msg("Enabling debug mode\n");
+    debug(RUN_DEBUG, "Enabling debug mode\n");
     debugger.enableLogging();
 }
 
 void
 CPU::_debugOff()
 {
-    msg("Disabling debug mode\n");
+    debug(RUN_DEBUG, "Disabling debug mode\n");
     debugger.disableLogging();
 }
 
@@ -392,9 +516,154 @@ CPU::disassembleInstr(isize *len)
 {
     return disassembleInstr(reg.pc0, len);
 }
+
 const char *
 CPU::disassembleWords(isize len)
 {
     return disassembleWords(reg.pc0, len);
-    return "";
 }
+
+void
+CPU::jump(u32 addr)
+{
+    {   SUSPENDED
+        
+        debugger.jump(addr);
+    }
+}
+
+void
+CPU::setBreakpoint(u32 addr)
+{
+    if (debugger.breakpoints.isSetAt(addr)) throw VAError(ERROR_BP_ALREADY_SET, addr);
+
+    debugger.breakpoints.setAt(addr);
+    msgQueue.put(MSG_BREAKPOINT_UPDATED);
+}
+
+void
+CPU::deleteBreakpoint(isize nr)
+{
+    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+
+    debugger.breakpoints.remove(nr);
+    msgQueue.put(MSG_BREAKPOINT_UPDATED);
+}
+
+void
+CPU::enableBreakpoint(isize nr)
+{
+    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+
+    debugger.breakpoints.enable(nr);
+    msgQueue.put(MSG_BREAKPOINT_UPDATED);
+}
+
+void
+CPU::disableBreakpoint(isize nr)
+{
+    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+
+    debugger.breakpoints.disable(nr);
+    msgQueue.put(MSG_BREAKPOINT_UPDATED);
+}
+
+void
+CPU::ignoreBreakpoint(isize nr, isize count)
+{
+    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+
+    debugger.breakpoints.ignore(nr, count);
+    msgQueue.put(MSG_BREAKPOINT_UPDATED);
+}
+
+void
+CPU::setWatchpoint(u32 addr)
+{
+    if (debugger.watchpoints.isSetAt(addr)) throw VAError(ERROR_WP_ALREADY_SET, addr);
+
+    debugger.watchpoints.setAt(addr);
+    msgQueue.put(MSG_WATCHPOINT_UPDATED);
+}
+
+void
+CPU::deleteWatchpoint(isize nr)
+{
+    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+
+    debugger.watchpoints.remove(nr);
+    msgQueue.put(MSG_WATCHPOINT_UPDATED);
+}
+
+void
+CPU::enableWatchpoint(isize nr)
+{
+    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+
+    debugger.watchpoints.enable(nr);
+    msgQueue.put(MSG_WATCHPOINT_UPDATED);
+}
+
+void
+CPU::disableWatchpoint(isize nr)
+{
+    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+
+    debugger.watchpoints.disable(nr);
+    msgQueue.put(MSG_WATCHPOINT_UPDATED);
+}
+
+void
+CPU::ignoreWatchpoint(isize nr, isize count)
+{
+    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+
+    debugger.watchpoints.ignore(nr, count);
+    msgQueue.put(MSG_WATCHPOINT_UPDATED);
+}
+
+void
+CPU::setCatchpoint(u8 vector)
+{
+    if (debugger.catchpoints.isSetAt(vector)) throw VAError(ERROR_CP_ALREADY_SET, vector);
+
+    debugger.catchpoints.setAt(vector);
+    msgQueue.put(MSG_CATCHPOINT_UPDATED);
+}
+
+void
+CPU::deleteCatchpoint(isize nr)
+{
+    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+
+    debugger.catchpoints.remove(nr);
+    msgQueue.put(MSG_CATCHPOINT_UPDATED);
+}
+
+void
+CPU::enableCatchpoint(isize nr)
+{
+    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+
+    debugger.catchpoints.enable(nr);
+    msgQueue.put(MSG_CATCHPOINT_UPDATED);
+}
+
+void
+CPU::disableCatchpoint(isize nr)
+{
+    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+
+    debugger.catchpoints.disable(nr);
+    msgQueue.put(MSG_CATCHPOINT_UPDATED);
+}
+
+void
+CPU::ignoreCatchpoint(isize nr, isize count)
+{
+    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+
+    debugger.catchpoints.ignore(nr, count);
+    msgQueue.put(MSG_CATCHPOINT_UPDATED);
+}
+

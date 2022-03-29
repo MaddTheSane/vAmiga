@@ -14,7 +14,7 @@ extension Inspector {
     
     private func cacheCIA() {
 
-        ciaInfo = ciaA ? amiga.ciaA.getInfo() : amiga.ciaB.getInfo()
+        ciaInfo = ciaA ? amiga.ciaA.info : amiga.ciaB.info
     }
 
     func refreshCIA(count: Int = 0, full: Bool = false) {
@@ -117,15 +117,15 @@ extension Inspector {
         ciaICRbinary.intValue = Int32(ciaInfo.icr)
         ciaIMR.intValue = Int32(ciaInfo.imr)
         ciaIMRbinary.intValue = Int32(ciaInfo.imr)
-        ciaIntLineLow.state = ciaInfo.intLine ? .off : .on
+        ciaIntLineLow.state = ciaInfo.irq ? .off : .on
 
-        ciaCntHi.integerValue = (ciaInfo.cnt.value >> 16) & 0xFF
-        ciaCntMid.integerValue = (ciaInfo.cnt.value >> 8) & 0xFF
-        ciaCntLo.integerValue = ciaInfo.cnt.value & 0xFF
-        ciaAlarmHi.integerValue = (ciaInfo.cnt.alarm >> 16) & 0xFF
-        ciaAlarmMid.integerValue = (ciaInfo.cnt.alarm >> 8) & 0xFF
-        ciaAlarmLo.integerValue = ciaInfo.cnt.alarm & 0xFF
-        ciaCntIntEnable.state = ciaInfo.cntIntEnable ? .on : .off
+        ciaCntHi.intValue = Int32(ciaInfo.tod.value >> 16) & 0xFF
+        ciaCntMid.intValue = Int32(ciaInfo.tod.value >> 8) & 0xFF
+        ciaCntLo.intValue = Int32(ciaInfo.tod.value) & 0xFF
+        ciaAlarmHi.intValue = Int32(ciaInfo.tod.alarm >> 16) & 0xFF
+        ciaAlarmMid.intValue = Int32(ciaInfo.tod.alarm >> 8) & 0xFF
+        ciaAlarmLo.intValue = Int32(ciaInfo.tod.alarm) & 0xFF
+        ciaCntIntEnable.state = ciaInfo.todIrqEnable ? .on : .off
 
         ciaSDR.intValue = Int32(ciaInfo.sdr)
         ciaSSR.intValue = Int32(ciaInfo.ssr)
