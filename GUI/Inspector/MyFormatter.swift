@@ -67,7 +67,7 @@ class MyFormatter: Formatter {
     override func isPartialStringValid(_ partialString: String, newEditingString newString: AutoreleasingUnsafeMutablePointer<NSString?>?, errorDescription error: AutoreleasingUnsafeMutablePointer<NSString?>?) -> Bool {
         
         let number = (partialString == "") ? 0 : Int(partialString, radix: radix)
-        if number == nil || number! < minValue || number! > maxValue {
+        guard let number = number, number >= minValue, number <= maxValue else {
             NSSound.beep()
             return false
         }

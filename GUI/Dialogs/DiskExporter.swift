@@ -88,15 +88,15 @@ class DiskExporter: DialogController {
 
         partition = nr
         
-        if hdf != nil && nr != nil {
+        if let hdf = hdf, let nr = nr {
 
             // Try to decode the file system from the HDF
-            vol = try? FileSystemProxy.make(withHDF: hdf!, partition: nr!)
+            vol = try? FileSystemProxy.make(withHDF: hdf, partition: nr)
         
-        } else if adf != nil {
+        } else if let adf = adf {
 
             // Try to decode the file system from the ADF
-            vol = try? FileSystemProxy.make(withADF: adf!)
+            vol = try? FileSystemProxy.make(withADF: adf)
 
         } else {
                
@@ -236,23 +236,23 @@ class DiskExporter: DialogController {
         } else {
                 
             info1.stringValue = "Partition \(partition! + 1) out of \(num)"
-            if vol == nil {
-                info2.stringValue = "No compatible file system"
+            if let vol = vol {
+                info2.stringValue = vol.dos.description
             } else {
-                info2.stringValue = vol!.dos.description
+                info2.stringValue = "No compatible file system"
             }
         }
     }
         
     func updateFloppyDiskInfo() {
             
-        if adf != nil {
-            info1.stringValue = adf!.typeInfo + ", " + adf!.layoutInfo
+        if let adf = adf {
+            info1.stringValue = adf.typeInfo + ", " + adf.layoutInfo
         } else {
             info1.stringValue = ""
         }
-        if vol != nil {
-            info2.stringValue = vol!.dos.description
+        if let vol = vol {
+            info2.stringValue = vol.dos.description
         } else {
             info2.stringValue = "No compatible file system"
         }

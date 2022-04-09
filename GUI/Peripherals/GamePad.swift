@@ -180,8 +180,8 @@ class GamePad {
     
     func property(key: String) -> String? {
             
-        if device != nil {
-            if let prop = IOHIDDeviceGetProperty(device!, key as CFString) {
+        if let device = device {
+            if let prop = IOHIDDeviceGetProperty(device, key as CFString) {
                 return "\(prop)"
             }
         }
@@ -523,7 +523,7 @@ class GamePad {
     func processKeyDownEvent(macKey: MacKey) -> Bool {
 
         // Only proceed if a keymap is present
-         if keyMap == nil { return false }
+         guard keyMap != nil else { return false }
          
          // Only proceed if this key is used for emulation
          let events = keyDownEvents(macKey)
@@ -537,8 +537,8 @@ class GamePad {
     func processKeyUpEvent(macKey: MacKey) -> Bool {
         
         // Only proceed if a keymap is present
-        if keyMap == nil { return false }
-        
+        guard keyMap != nil else { return false }
+
         // Only proceed if this key is used for emulation
         let events = keyUpEvents(macKey)
         guard !events.isEmpty else { return false }

@@ -105,15 +105,15 @@ extension PreferencesController {
     func devKeyDown(with macKey: MacKey) -> Bool {
 
         // Only proceed if a recording sessing is in progress
-        if conRecordedKey == nil { return false }
+        guard let conRecordedKey = conRecordedKey else { return false }
                 
         // Record the key if it is not the ESC key
         if macKey != MacKey.escape {
-            let (slot, action) = gamePadAction(for: conRecordedKey!)
+            let (slot, action) = gamePadAction(for: conRecordedKey)
             gamePadManager.gamePads[slot]?.bind(key: macKey, action: action)
         }
 
-        conRecordedKey = nil
+        self.conRecordedKey = nil
         refresh()
         return true
     }

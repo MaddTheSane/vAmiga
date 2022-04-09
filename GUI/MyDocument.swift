@@ -136,7 +136,7 @@ class MyDocument: NSDocument {
     func mountAttachment(destination: FloppyDriveProxy? = nil) throws {
         
         // Only proceed if an attachment is present
-        if attachment == nil { return }
+        guard let attachment = attachment else { return }
         
         if let proxy = attachment as? SnapshotProxy {
             try amiga.loadSnapshot(proxy)

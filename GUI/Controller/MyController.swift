@@ -368,7 +368,7 @@ extension MyController {
         var pan: Int { return word4 }
                                                         
         // Only proceed if the proxy object is still alive
-        if amiga == nil { return }
+        guard let amiga = amiga else { return }
         
         switch msg.type {
             

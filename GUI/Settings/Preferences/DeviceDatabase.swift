@@ -143,13 +143,13 @@ class DeviceDatabase {
         if custom[v]?[p] != nil { custom[v]![p]![key] = value; return }
         
         // Only proceed if there is something to set
-        if value == nil { return }
+        guard let value = value else { return }
         
         // Add a new key / value pair
         if custom[v] != nil {
-            custom[v]![p] = [key: value!]
+            custom[v]![p] = [key: value]
         } else {
-            custom[v] = [p: [key: value!]]
+            custom[v] = [p: [key: value]]
         }
     }
 

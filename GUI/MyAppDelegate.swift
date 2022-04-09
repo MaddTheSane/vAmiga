@@ -254,7 +254,7 @@ extension MyAppDelegate {
                                              callback: cgEventCallback,
                                              userInfo: nil)
                 
-                if eventTap == nil {
+                guard let eventTap = eventTap else {
                     
                     log(warning: "Aborting. Failed to create the event tap.")
                     return
@@ -263,7 +263,7 @@ extension MyAppDelegate {
                 // Add the event tap to the run loop and enable it
                 let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
                 CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-                CGEvent.tapEnable(tap: eventTap!, enable: true)
+                CGEvent.tapEnable(tap: eventTap, enable: true)
                 log("Success")
             }
         }

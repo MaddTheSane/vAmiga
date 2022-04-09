@@ -450,7 +450,7 @@ extension AmigaKey {
 
         // Get a background image
         let (image, tint) = bgImage(style: style, layout: layout)
-        if image == nil { return nil }
+        guard let image = image else { return nil }
         
         // Get the keycap label
         let label = self.label[layout] ?? self.label[.generic]!
@@ -460,14 +460,14 @@ extension AmigaKey {
 
             // Generate a standard label
             let size = (parts[0].count == 1) ? large : small
-            image!.imprint(text: String(parts[0]), x: 8, y: 2, fontSize: size, tint: tint)
+            image.imprint(text: String(parts[0]), x: 8, y: 2, fontSize: size, tint: tint)
         }
         if parts.count == 2 {
             
             // Generate a stacked label
             let size = (parts[0].count == 1) ? small : tiny
-            image!.imprint(text: String(parts[0]), x: 6, y: 2, fontSize: size, tint: tint)
-            image!.imprint(text: String(parts[1]), x: 6, y: 9, fontSize: size, tint: tint)
+            image.imprint(text: String(parts[0]), x: 6, y: 2, fontSize: size, tint: tint)
+            image.imprint(text: String(parts[1]), x: 6, y: 9, fontSize: size, tint: tint)
         }
         
         return image

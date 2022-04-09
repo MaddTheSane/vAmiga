@@ -84,13 +84,13 @@ class SnapshotDialog: DialogController {
     
     func timeInfo(date: Date?) -> String {
          
-         if date == nil { return "" }
+         guard let date = date else { return "" }
          
          let formatter = DateFormatter()
          formatter.timeZone = TimeZone.current
          formatter.dateFormat = "HH:mm:ss" // "yyyy-MM-dd HH:mm"
          
-         return formatter.string(from: date!)
+         return formatter.string(from: date)
     }
     
     func timeInfo(time: time_t) -> String {

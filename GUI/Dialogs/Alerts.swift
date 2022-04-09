@@ -124,7 +124,7 @@ extension MyController {
         
         let alert = NSAlert()
         alert.alertStyle = style
-        if icon != nil { alert.icon = NSImage(named: icon!) }
+        if let icon = icon { alert.icon = NSImage(named: icon) }
         alert.messageText = msg1
         alert.informativeText = msg2
         alert.addButton(withTitle: "OK")

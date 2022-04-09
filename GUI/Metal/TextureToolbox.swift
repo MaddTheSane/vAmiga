@@ -182,9 +182,9 @@ extension MTLTexture {
     
     func replace(region: MTLRegion, buffer: UnsafeMutablePointer<UInt32>?) {
         
-        if buffer != nil {
+        if let buffer = buffer {
             let bpr = 4 * region.size.width
-            replace(region: region, mipmapLevel: 0, withBytes: buffer!, bytesPerRow: bpr)
+            replace(region: region, mipmapLevel: 0, withBytes: buffer, bytesPerRow: bpr)
         }
     }
     

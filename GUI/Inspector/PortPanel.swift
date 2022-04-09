@@ -15,7 +15,7 @@ extension Inspector {
 
     private func cachePorts() {
 
-        if amiga != nil {
+        if let amiga = amiga {
             port1Info = amiga.controlPort1.info
             port2Info = amiga.controlPort2.info
             serInfo   = amiga.serialPort.info
