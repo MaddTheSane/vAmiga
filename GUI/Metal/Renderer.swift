@@ -212,22 +212,17 @@ class Renderer: NSObject, MTKViewDelegate {
                 semaphore.signal()
                 return
             }
-            
+
             // Render the scene
-            let flat = fullscreen && !parent.pref.keepAspectRatio
-            if canvas.isTransparent || animates != 0 { splashScreen.render(encoder) }
-            if canvas.isVisible { canvas.render(encoder, flat: flat) }
+            if canvas.isTransparent { splashScreen.render(encoder) }
+            if canvas.isVisible { canvas.render(encoder) }
             if monitors.isVisible { monitors.render(encoder) }
             encoder.endEncoding()
 
             // Commit the command buffer
-            buffer.addCompletedHandler { _ in
-                // self.canvas.updateTexture()
-                self.semaphore.signal()
-            }
+            buffer.addCompletedHandler { _ in self.semaphore.signal() }
             buffer.present(drawable)
             buffer.commit()
-            // buffer.waitUntilCompleted()
         }
         
         // Perform periodic events inside the controller

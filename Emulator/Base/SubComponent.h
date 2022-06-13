@@ -21,6 +21,7 @@ class CIAB;
 class ControlPort;
 class Copper;
 class Denise;
+class DiagBoard;
 class DiskController;
 class DmaDebugger;
 class FloppyDrive;
@@ -62,6 +63,7 @@ protected:
     Copper &copper;
     CPU &cpu;
     Denise &denise;
+    DiagBoard &diagBoard;
     DiskController &diskController;
     DmaDebugger &dmaDebugger;
     FloppyDrive &df0;
@@ -100,7 +102,7 @@ public:
     virtual bool isPoweredOff() const override;
     virtual bool isPoweredOn() const override;
     virtual bool isPaused() const override;
-    virtual bool isRunning() const override; 
+    virtual bool isRunning() const override;
     virtual bool isSuspended() const override;
     virtual bool isHalted() const override;
 

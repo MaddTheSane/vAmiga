@@ -9,7 +9,7 @@
 
 #include "config.h"
 #include "Blitter.h"
-#include "Agnus.h"
+#include "Amiga.h"
 #include "Checksum.h"
 #include "IOUtils.h"
 #include "Thread.h"
@@ -54,6 +54,7 @@ Blitter::_reset(bool hard)
     RESET_SNAPSHOT_ITEMS(hard)
 
     if (hard) {
+        blitcount = 1;
         copycount = 0;
         linecount = 0;
     }
@@ -62,29 +63,27 @@ Blitter::_reset(bool hard)
 void
 Blitter::_run()
 {
-    if constexpr (BLT_GUARD) {
+    if constexpr (BLT_MEM_GUARD) {
 
         memguard.resize(mem.getConfig().chipSize);
         memguard.clear();
     }
 }
 
-BlitterConfig
-Blitter::getDefaultConfig()
-{
-    BlitterConfig defaults;
-    
-    defaults.accuracy = 2;
-
-    return defaults;
-}
-
 void
 Blitter::resetConfig()
 {
-    auto defaults = getDefaultConfig();
-    
-    setConfigItem(OPT_BLITTER_ACCURACY, defaults.accuracy);
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
+
+    std::vector <Option> options = {
+        
+        OPT_BLITTER_ACCURACY
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
 }
 
 i64
@@ -505,8 +504,6 @@ Blitter::beginBlit()
 {
     auto level = config.accuracy;
 
-    if constexpr (BLT_GUARD) memguard.clear();
-
     if (bltconLINE()) {
 
         if constexpr (BLT_CHECKSUM) {
@@ -558,10 +555,10 @@ Blitter::beginLineBlit(isize level)
         debug(BLT_CHECKSUM, "Performing level %ld line blits.\n", level);
     }
     if (bltcon0 & BLTCON0_USEB) {
-        trace(XFILES, "Performing line blit with channel B enabled\n");
+        xfiles("Performing line blit with channel B enabled\n");
     }
     if (bltsizeH != 2) {
-        trace(XFILES, "Performing line blit with WIDTH = %d\n", bltsizeH);
+        xfiles("Performing line blit with WIDTH = %d\n", bltsizeH);
     }
     
     switch (level) {
@@ -610,8 +607,7 @@ Blitter::endBlit()
     debug(BLTTIM_DEBUG, "(%ld,%ld) Blitter terminates\n", agnus.pos.v, agnus.pos.h);
     
     running = false;
-    
-    if constexpr (BLT_GUARD) memguard.clear();
+    if constexpr (BLT_MEM_GUARD) blitcount++;
     
     // Clear the Blitter slot
     agnus.cancel<SLOT_BLT>();

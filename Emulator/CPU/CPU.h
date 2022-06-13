@@ -11,17 +11,36 @@
 
 #include "CPUTypes.h"
 #include "SubComponent.h"
+#include "RingBuffer.h"
 #include "Moira.h"
 
 class CPU : public moira::Moira {
 
+    friend class Moira;
+    
     // The current configuration
     CPUConfig config = {};
 
     // Result of the latest inspection
     mutable CPUInfo info = {};
 
-    
+    // Recorded call stack
+    CallstackRecorder callstack;
+
+
+    //
+    // Overclocking
+    //
+
+public:
+
+    // Sub-cycle counter
+    i64 penalty;
+
+    // Number of cycles that should be executed at normal speed
+    i64 slowCycles;
+
+
     //
     // Initializing
     //
@@ -58,6 +77,8 @@ private:
     {
         worker
 
+        << config.revision
+        << config.overclocking
         << config.regResetVal;
     }
 
@@ -70,6 +91,8 @@ private:
             
             << flags
             << clock
+            << penalty
+            << slowCycles
             
             << reg.pc
             << reg.pc0
@@ -108,7 +131,6 @@ private:
     
 public:
     
-    static CPUConfig getDefaultConfig();
     const CPUConfig &getConfig() const { return config; }
     void resetConfig() override;
     
@@ -140,7 +162,10 @@ public:
     // Delays the CPU by a certain amout of master cycles
     void addWaitStates(Cycle cycles) { clock += AS_CPU_CYCLES(cycles); }
     
-    
+    // Resynchronizes an overclocked CPU with the Agnus clock
+    void resyncOverclockedCpu();
+
+
     //
     // Running the disassembler
     //
@@ -168,6 +193,14 @@ public:
     // Continues program execution at the specified address
     void jump(u32 addr);
     
+    
+    //
+    // Instruction delegates
+    //
+    
+    virtual void signalJsrBsrInstr(u16 opcode, u32 oldPC, u32 newPC) override;
+    virtual void signalRtsInstr() override;
+
     
     //
     // Debugging

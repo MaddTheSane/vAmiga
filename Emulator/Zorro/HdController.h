@@ -12,6 +12,7 @@
 #include "HdControllerTypes.h"
 #include "ZorroBoard.h"
 #include "HDFFile.h"
+#include "RomFileTypes.h"
 
 class HdController : public ZorroBoard {
     
@@ -20,14 +21,26 @@ class HdController : public ZorroBoard {
 
     // The hard drive this controller is connected to
     HardDrive &drive;
+
+    // Current configuration
+    HdcConfig config = {};
+    
+    // Usage profile
+    HdcStats stats = {};
+    
+    // The current controller state
+    HdcState hdcState = HDC_UNDETECTED;
     
     // Rom code
     Buffer<u8> rom;
     
+    // Number of initialized partitions
+    isize numPartitions = 0;
+
     // Transmitted pointer
     u32 pointer = 0;
-    
-    
+
+
     //
     // Initializing
     //
@@ -58,7 +71,9 @@ private:
     template <class T>
     void applyToPersistentItems(T& worker)
     {
-        // worker << rom;
+        worker
+        
+        << config.connected;
     }
 
     template <class T>
@@ -70,6 +85,8 @@ private:
             
             << baseAddr
             << state
+            << hdcState
+            << numPartitions
             << pointer;
         }
     }
@@ -92,9 +109,9 @@ public:
     virtual u8 product() const override          { return 0x88; }
     virtual u8 flags() const override            { return 0x00; }
     virtual u16 manufacturer() const override    { return 0x0539; }
-    virtual u32 serialNumber() const override    { return 3141592 + u32(nr); }
+    virtual u32 serialNumber() const override    { return 31415 + u32(nr); }
     virtual u16 initDiagVec() const override     { return 0x40; }
-    virtual string vendorName() const override   { return "MRAS"; }
+    virtual string vendorName() const override   { return "RASTEC"; }
     virtual string productName() const override  { return "HD controller"; }
     virtual string revisionName() const override { return "0.3"; }
 
@@ -102,7 +119,42 @@ private:
     
     void updateMemSrcTables() override;
     
+    
+    //
+    // Configuring
+    //
+    
+public:
 
+    const HdcConfig &getConfig() const { return config; }
+    void resetConfig() override;
+    
+    i64 getConfigItem(Option option) const;
+    void setConfigItem(Option option, i64 value);
+
+    
+    //
+    // Analyzing
+    //
+    
+public:
+    
+    const HdcStats &getStats() { return stats; }
+    void clearStats() { stats = { }; }
+    
+    // Returns the current controller state
+    HdcState getHdcState() { return hdcState; }
+    
+    // Informs whether the controller is compatible with a certain Kickstart
+    bool isCompatible(RomIdentifier id);
+    bool isCompatible();
+
+private:
+    
+    void resetHdcState();
+    void changeHdcState(HdcState newState);
+
+    
     //
     // Accessing the board
     //
@@ -118,9 +170,9 @@ public:
         
 private:
     
-    void processCmd();
-    void processInit();
-    void processResource();
-    void processInfoReq();
-    void processInitSeg();
+    void processCmd(u32 ptr);
+    void processInit(u32 ptr);
+    void processResource(u32 ptr);
+    void processInfoReq(u32 ptr);
+    void processInitSeg(u32 ptr);
 };

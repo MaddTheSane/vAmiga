@@ -43,8 +43,8 @@ class Canvas: Layer {
      * The texture is updated in function updateTexture() which is called
      * periodically in drawRect().
      */
-    var longFrameTexture: MTLTexture! = nil
-    var shortFrameTexture: MTLTexture! = nil
+    var lfTexture: MTLTexture! = nil
+    var sfTexture: MTLTexture! = nil
 
     /* Merge texture (1024 x 1024)
      * The long frame and short frame textures are merged into this one.
@@ -89,10 +89,8 @@ class Canvas: Layer {
     //
     
     var quad2D: Node?
-    var quad3D: Quad?
             
     var vertexUniforms2D = VertexUniforms(mvp: matrix_identity_float4x4)
-    var vertexUniforms3D = VertexUniforms(mvp: matrix_identity_float4x4)
     var fragmentUniforms = FragmentUniforms(alpha: 1.0,
                                             white: 0.0,
                                             dotMaskWidth: 0,
@@ -121,13 +119,8 @@ class Canvas: Layer {
     func buildVertexBuffers() {
         
         quad2D = Node(device: device,
-                      x: -1.0, y: -1.0, z: 0.0, w: 2.0, h: 2.0,
-                      t: textureRect)
-        
-        quad3D = Quad(device: device,
-                      x1: -0.64, y1: -0.48, z1: -0.64,
-                      x2: 0.64, y2: 0.48, z2: 0.64,
-                      t: textureRect)
+                      x: -1.0, y: -1.0, z: 0.98, w: 2.0, h: 2.0,
+                      t: textureRect)        
     }
     
     func buildTextures() {
@@ -138,13 +131,13 @@ class Canvas: Layer {
         let rwtp: MTLTextureUsage = [ .shaderRead, .shaderWrite, .renderTarget, .pixelFormatView ]
 
         // Emulator texture (long frames)
-        longFrameTexture = device.makeTexture(size: TextureSize.original, usage: r)
-        renderer.metalAssert(longFrameTexture != nil,
+        lfTexture = device.makeTexture(size: TextureSize.original, usage: r)
+        renderer.metalAssert(lfTexture != nil,
                              "The frame texture (long frames) could not be allocated.")
         
         // Emulator texture (short frames)
-        shortFrameTexture = device.makeTexture(size: TextureSize.original, usage: r)
-        renderer.metalAssert(shortFrameTexture != nil,
+        sfTexture = device.makeTexture(size: TextureSize.original, usage: r)
+        renderer.metalAssert(sfTexture != nil,
                              "The frame texture (short frames) could not be allocated.")
         
         // Merged emulator texture (long frame + short frame)
@@ -224,20 +217,17 @@ class Canvas: Layer {
     
     func updateTexture() {
         
-        precondition(longFrameTexture != nil)
-        precondition(shortFrameTexture != nil)
+        precondition(lfTexture != nil)
+        precondition(sfTexture != nil)
 
         if amiga.poweredOff {
-                    
+
+            // Update the GPU texture with random noise
             var buffer = amiga.denise.noise!
-            longFrameTexture.replace(w: Int(HPIXELS),
-                                     h: Int(VPIXELS),
-                                     buffer: buffer)
+            lfTexture.replace(w: Int(HPIXELS), h: Int(VPIXELS), buffer: buffer)
             
             buffer = amiga.denise.noise!
-            shortFrameTexture.replace(w: Int(HPIXELS),
-                                      h: Int(VPIXELS),
-                                      buffer: buffer)
+            sfTexture.replace(w: Int(HPIXELS), h: Int(VPIXELS), buffer: buffer)
             return
         }
         
@@ -256,15 +246,10 @@ class Canvas: Layer {
             currLOF = amiga.denise.longFrame
             
             // Update the GPU texture
-            let offset = Int(HBLANK_MIN) * 4
             if currLOF {
-                longFrameTexture.replace(w: Int(HPIXELS),
-                                         h: Int(VPIXELS),
-                                         buffer: buffer + offset)
+                lfTexture.replace(w: Int(HPIXELS), h: Int(VPIXELS), buffer: buffer)
             } else {
-                shortFrameTexture.replace(w: Int(HPIXELS),
-                                          h: Int(VPIXELS),
-                                          buffer: buffer + offset)
+                sfTexture.replace(w: Int(HPIXELS), h: Int(VPIXELS), buffer: buffer)
             }
         }
         
@@ -298,7 +283,7 @@ class Canvas: Layer {
             mergeUniforms.shortFrameScale = (flickerCnt % 4 >= 2) ? weight : 1.0
             
             mergeFilter.apply(commandBuffer: buffer,
-                              textures: [longFrameTexture, shortFrameTexture, mergeTexture],
+                              textures: [lfTexture, sfTexture, mergeTexture],
                               options: &mergeUniforms,
                               length: MemoryLayout<MergeUniforms>.stride)
             
@@ -306,12 +291,12 @@ class Canvas: Layer {
             
             // Case 2: Non-interlace drawing (two long frames in a row)
             mergeBypass.apply(commandBuffer: buffer,
-                              textures: [longFrameTexture, mergeTexture])
+                              textures: [lfTexture, mergeTexture])
         } else {
             
             // Case 3: Non-interlace drawing (two short frames in a row)
             mergeBypass.apply(commandBuffer: buffer,
-                              textures: [shortFrameTexture, mergeTexture])
+                              textures: [sfTexture, mergeTexture])
         }
         
         // Compute the upscaled texture (first pass, in-texture upscaling)
@@ -382,13 +367,8 @@ class Canvas: Layer {
                                  length: MemoryLayout<FragmentUniforms>.stride,
                                  index: 1)
     }
-    
-    func render(_ encoder: MTLRenderCommandEncoder, flat: Bool) {
-        
-        flat ? render2D(encoder: encoder) : render3D(encoder: encoder)
-    }
-    
-    func render2D(encoder: MTLRenderCommandEncoder) {
+
+    func render(_ encoder: MTLRenderCommandEncoder) {
         
         // Configure the vertex shader
         encoder.setVertexBytes(&vertexUniforms2D,
@@ -400,21 +380,5 @@ class Canvas: Layer {
         
         // Render
         quad2D!.drawPrimitives(encoder)
-    }
-    
-    func render3D(encoder: MTLRenderCommandEncoder) {
-        
-        let animates = renderer.animates
-        
-        // Configure the vertex shader
-        encoder.setVertexBytes(&vertexUniforms3D,
-                               length: MemoryLayout<VertexUniforms>.stride,
-                               index: 1)
-        
-        // Configure fragment shader
-        setupFragmentShader(encoder: encoder)
-        
-        // Render (part of) the cube
-        quad3D!.draw(encoder, allSides: animates != 0)
     }
 }

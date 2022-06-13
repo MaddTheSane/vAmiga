@@ -9,7 +9,7 @@
 
 #include "config.h"
 #include "Copper.h"
-#include "Agnus.h"
+#include "Amiga.h"
 
 void
 Copper::serviceEvent()
@@ -59,7 +59,7 @@ Copper::serviceEvent(EventID id)
             } else {
 
                 // Reschedule the wakeup event
-                trace(XFILES, "XFILES: Copper wakeup aborted\n");
+                xfiles("Copper wakeup aborted\n");
                 scheduleWaitWakeup(getBFD());
             }
             break;
@@ -102,6 +102,11 @@ Copper::serviceEvent(EventID id)
                 
             // Remember the program counter (picked up by the debugger)
             coppc0 = coppc;
+            
+            // Check if a breakpoint has been reached
+            if (checkForBreakpoints && debugger.breakpoints.eval(coppc)) {
+                amiga.setFlag(RL::COPPERBP_REACHED);
+            }
             
             // Load the first instruction word
             cop1ins = agnus.doCopperDmaRead(coppc);
@@ -154,6 +159,12 @@ Copper::serviceEvent(EventID id)
                 default:
                     move(reg, cop2ins);
             }
+            
+            // Check if a watchpoint has been reached
+            if (checkForWatchpoints && debugger.watchpoints.eval(reg)) {
+                amiga.setFlag(RL::COPPERWP_REACHED);
+            }
+
             break;
             
         case COP_WAIT_OR_SKIP:
@@ -284,11 +295,11 @@ Copper::serviceEvent(EventID id)
 void
 Copper::schedule(EventID next, int delay)
 {
-    agnus.scheduleRel<SLOT_COP>(DMA_CYCLES(delay), next);
+    agnus.scheduleRel <SLOT_COP> (DMA_CYCLES(delay), next);
 }
 
 void
 Copper::reschedule(int delay)
 {
-    agnus.rescheduleRel<SLOT_COP>(DMA_CYCLES(delay));
+    agnus.rescheduleRel <SLOT_COP> (DMA_CYCLES(delay));
 }

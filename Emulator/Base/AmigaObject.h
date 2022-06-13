@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "Error.h"
+
 /* Object model:
  *
  * ------------------
@@ -33,21 +35,19 @@
  * AmigaComponent defines the base functionality of all hardware components. It
  * comprises functions for initializing, configuring, and serializing the
  * object, as well as functions for powering up and down, running and
- * pausing. Furthermore, a 'synchronized' macro is provided to prevent mutual
+ * pausing. Furthermore, a 'SYNCHRONIZED' macro is provided to prevent mutual
  * execution of certain code components.
  *
  * Thread adds the ability to run the component asynchroneously. It implements
  * the emulator's state model (off, paused, running).
  */
 
-#include "Error.h"
-
 enum class Category
 {    
-    BankMap, Blocks, Breakpoints, Bus, Catchpoints, Checksums, Config, Dma,
-    Drive, Events, FileSystem, Geometry, List1, List2, Parameters, Partitions,
-    Properties, Registers, Segments, Signals, State, Summary, Tod, Volumes,
-    Watchpoints
+    BankMap, Beam, Blocks, Breakpoints, Bus, Callstack, Catchpoints, Checksums,
+    Config, Defaults, Dma, Drive, Events, FileSystem, Geometry, Hunks, List1,
+    List2, Parameters, Partitions, Properties, Registers, Sections, Segments,
+    Signals, State, Stats, Summary, SwTraps, Tod, Volumes, Watchpoints
 };
 
 class AmigaObject {
@@ -78,8 +78,6 @@ public:
     // Prints debug information about this component
     void dump(Category category, std::ostream& ss) const;
     void dump(Category category) const;
-    void dump(std::ostream& ss) const;
-    void dump() const;
     virtual void _dump(Category category, std::ostream& ss) const = 0;
 };
 
@@ -132,10 +130,16 @@ if constexpr (enable) { if (verbose) { \
 prefix(); \
 fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }}
 
+#define xfiles(format, ...) \
+if constexpr (XFILES) { if (verbose) { \
+prefix(); \
+fprintf(stderr, "XFILES: " format, ##__VA_ARGS__); }}
+
 #else
 
 #define debug(enable, format, ...)
 #define plain(enable, format, ...)
 #define trace(enable, format, ...)
+#define xfiles(format, ...)
 
 #endif

@@ -16,6 +16,30 @@
 using namespace os;
 
 string
+OSDebugger::dosTypeStr(u32 type)
+{
+    char typeStr[] = {
+
+        char(BYTE3(type)),
+        char(BYTE2(type)),
+        char(BYTE1(type)),
+        char(BYTE0(type) + '0'),
+        0
+    };
+    
+    return string(typeStr);
+}
+
+string
+OSDebugger::dosVersionStr(u32 version)
+{
+    auto major = std::to_string(HI_WORD(version));
+    auto minor = std::to_string(LO_WORD(version));
+
+    return major + "." + minor;
+}
+
+string
 OSDebugger::toString(os::LnType value) const
 {
     const char *result = "???";
@@ -159,6 +183,17 @@ OSDebugger::isRamPtr(u32 addr) const
 
     return addr && mem.inRam(addr);
 }
+
+bool
+OSDebugger::isRamOrRomPtr(u32 addr) const
+{
+    if (!mem.inRam(addr) && !mem.inRom(addr)) {
+        warn("Pointer outside RAM and ROM: %x\n", addr);
+    }
+    
+    return addr && (mem.inRam(addr) || mem.inRom(addr));
+}
+
 bool
 OSDebugger::isValidPtr(u32 addr) const
 {

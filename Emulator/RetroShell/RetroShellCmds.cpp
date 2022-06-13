@@ -76,9 +76,10 @@ template <> void
 RetroShell::exec <Token::regression, Token::setup> (Arguments &argv, long param)
 {
     auto scheme = util::parseEnum <ConfigSchemeEnum> (argv[0]);
-    auto kickrom = argv[1];
+    auto rom = argv[1];
+    auto ext = argv.size() > 2 ? argv[2] : "";
     
-    amiga.regressionTester.prepare(scheme, kickrom);
+    amiga.regressionTester.prepare(scheme, rom, ext);
     
 }
 
@@ -131,6 +132,24 @@ RetroShell::exec <Token::amiga, Token::init> (Arguments &argv, long param)
 }
 
 template <> void
+RetroShell::exec <Token::amiga, Token::config> (Arguments& argv, long param)
+{
+    dump(amiga, Category::Config);
+}
+
+template <> void
+RetroShell::exec <Token::amiga, Token::set, Token::pal> (Arguments& argv, long param)
+{
+    amiga.configure(OPT_VIDEO_FORMAT, PAL);
+}
+
+template <> void
+RetroShell::exec <Token::amiga, Token::set, Token::ntsc> (Arguments& argv, long param)
+{
+    amiga.configure(OPT_VIDEO_FORMAT, NTSC);
+}
+
+template <> void
 RetroShell::exec <Token::amiga, Token::power, Token::on> (Arguments &argv, long param)
 {
     amiga.powerOn();
@@ -174,9 +193,15 @@ RetroShell::exec <Token::amiga, Token::reset> (Arguments &argv, long param)
 }
 
 template <> void
-RetroShell::exec <Token::amiga, Token::inspect> (Arguments &argv, long param)
+RetroShell::exec <Token::amiga, Token::inspect, Token::state> (Arguments &argv, long param)
 {
     dump(amiga, Category::State);
+}
+
+template <> void
+RetroShell::exec <Token::amiga, Token::inspect, Token::defaults> (Arguments &argv, long param)
+{
+    dump(amiga, Category::Defaults);
 }
 
 
@@ -288,10 +313,17 @@ RetroShell::exec <Token::cpu, Token::config> (Arguments &argv, long param)
 }
 
 template <> void
+RetroShell::exec <Token::cpu, Token::set, Token::overclocking> (Arguments &argv, long param)
+{
+    auto value = util::parseNum(argv.front());
+    amiga.configure(OPT_CPU_OVERCLOCKING, value);
+}
+
+template <> void
 RetroShell::exec <Token::cpu, Token::set, Token::regreset> (Arguments &argv, long param)
 {
     auto value = util::parseNum(argv.front());
-    amiga.configure(OPT_REG_RESET_VAL, value);
+    amiga.configure(OPT_CPU_RESET_VAL, value);
 }
 
 template <> void
@@ -304,6 +336,13 @@ template <> void
 RetroShell::exec <Token::cpu, Token::inspect, Token::registers> (Arguments& argv, long param)
 {
     dump(amiga.cpu, Category::Registers);
+}
+
+template <> void
+RetroShell::exec <Token::cpu, Token::callstack> (Arguments &argv, long param)
+{
+    if (!amiga.inDebugMode()) throw VAError(ERROR_DEBUG_OFF);
+    dump(amiga.cpu, Category::Callstack);
 }
 
 template <> void
@@ -433,6 +472,18 @@ RetroShell::exec <Token::cpu, Token::cp, Token::ignore> (Arguments& argv, long p
 }
 
 template <> void
+RetroShell::exec <Token::cpu, Token::cp> (Arguments& argv, long param)
+{
+    amiga.cpu.ignoreCatchpoint(util::parseNum(argv[0]), util::parseNum(argv[1]));
+}
+
+template <> void
+RetroShell::exec <Token::cpu, Token::swtraps> (Arguments &argv, long param)
+{
+    dump(amiga.cpu, Category::SwTraps);
+}
+
+template <> void
 RetroShell::exec <Token::cpu, Token::jump> (Arguments &argv, long param)
 {
     auto value = util::parseNum(argv.front());
@@ -529,9 +580,22 @@ RetroShell::exec <Token::agnus, Token::set, Token::slowrammirror> (Arguments &ar
 }
 
 template <> void
+RetroShell::exec <Token::agnus, Token::set, Token::ptrdrops> (Arguments &argv, long param)
+{
+    auto value = util::parseBool(argv.front());
+    amiga.configure(OPT_PTR_DROPS, value);
+}
+
+template <> void
 RetroShell::exec <Token::agnus, Token::inspect, Token::state> (Arguments &argv, long param)
 {
     dump(amiga.agnus, Category::State);
+}
+
+template <> void
+RetroShell::exec <Token::agnus, Token::inspect, Token::beam> (Arguments &argv, long param)
+{
+    dump(amiga.agnus, Category::Beam);
 }
 
 template <> void
@@ -608,6 +672,78 @@ RetroShell::exec <Token::copper, Token::list> (Arguments& argv, long param)
         case 2: dump(amiga.agnus.copper, Category::List2); break;
         default: throw VAError(ERROR_OPT_INVARG, "1 or 2");
     }
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::bp, Token::info> (Arguments& argv, long param)
+{
+    dump(copper.debugger, Category::Breakpoints);
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::bp, Token::at> (Arguments& argv, long param)
+{
+    copper.debugger.setBreakpoint(u32(util::parseNum(argv.front())));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::bp, Token::del> (Arguments& argv, long param)
+{
+    copper.debugger.deleteBreakpoint(util::parseNum(argv.front()));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::bp, Token::enable> (Arguments& argv, long param)
+{
+    copper.debugger.enableBreakpoint(util::parseNum(argv.front()));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::bp, Token::disable> (Arguments& argv, long param)
+{
+    copper.debugger.disableBreakpoint(util::parseNum(argv.front()));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::bp, Token::ignore> (Arguments& argv, long param)
+{
+    copper.debugger.ignoreBreakpoint(util::parseNum(argv[0]), util::parseNum(argv[1]));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::wp, Token::info> (Arguments& argv, long param)
+{
+    dump(copper.debugger, Category::Watchpoints);
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::wp, Token::at> (Arguments& argv, long param)
+{
+    copper.debugger.setWatchpoint(u32(util::parseNum(argv.front())));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::wp, Token::del> (Arguments& argv, long param)
+{
+    copper.debugger.deleteWatchpoint(util::parseNum(argv.front()));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::wp, Token::enable> (Arguments& argv, long param)
+{
+    copper.debugger.enableWatchpoint(util::parseNum(argv.front()));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::wp, Token::disable> (Arguments& argv, long param)
+{
+    copper.debugger.disableWatchpoint(util::parseNum(argv.front()));
+}
+
+template <> void
+RetroShell::exec <Token::copper, Token::wp, Token::ignore> (Arguments& argv, long param)
+{
+    copper.debugger.ignoreWatchpoint(util::parseNum(argv[0]), util::parseNum(argv[1]));
 }
 
 
@@ -701,97 +837,97 @@ RetroShell::exec <Token::dmadebugger, Token::close> (Arguments& argv, long param
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::copper> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_COPPER, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_COPPER, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::blitter> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_BLITTER, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_BLITTER, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::disk> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_DISK, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_DISK, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::audio> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_AUDIO, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_AUDIO, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::sprites> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_SPRITE, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_SPRITE, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::bitplanes> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_BITPLANE, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_BITPLANE, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::cpu> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_CPU, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_CPU, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::show, Token::refresh> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_REFRESH, true);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_REFRESH, true);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::copper> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_COPPER, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_COPPER, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::blitter> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_BLITTER, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_BLITTER, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::disk> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_DISK, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_DISK, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::audio> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_AUDIO, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_AUDIO, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::sprites> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_SPRITE, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_SPRITE, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::bitplanes> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_BITPLANE, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_BITPLANE, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::cpu> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_CPU, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_CPU, false);
 }
 
 template <> void
 RetroShell::exec <Token::dmadebugger, Token::hide, Token::refresh> (Arguments& argv, long param)
 {
-    amiga.configure(OPT_DMA_DEBUG_ENABLE, DMA_CHANNEL_REFRESH, false);
+    amiga.configure(OPT_DMA_DEBUG_CHANNEL, DMA_CHANNEL_REFRESH, false);
 }
 
 
@@ -964,7 +1100,8 @@ RetroShell::exec <Token::keyboard, Token::inspect> (Arguments& argv, long param)
 template <> void
 RetroShell::exec <Token::keyboard, Token::press> (Arguments& argv, long param)
 {
-    keyboard.autoType((KeyCode)param);
+    auto keycode = util::parseNum(argv.front());
+    keyboard.autoType(KeyCode(keycode));
 }
 
 
@@ -1312,6 +1449,14 @@ RetroShell::exec <Token::dfn, Token::inspect> (Arguments& argv, long param)
     dump(*amiga.df[param], Category::State);
 }
 
+template <> void
+RetroShell::exec <Token::dfn, Token::cp> (Arguments& argv, long param)
+{
+    assert(param >= 0 && param <= 3);
+    df[param]->catchFile(argv.front());
+}
+
+
 //
 // Hd0, Hd1, Hd2, Hd3
 //
@@ -1398,8 +1543,8 @@ RetroShell::exec <Token::zorro, Token::inspect> (Arguments& argv, long param)
     if (auto board = zorro.getBoard(value); board != nullptr) {
 
         dump(*board, Category::Properties);
-        *this << "\n";
         dump(*board, Category::State);
+        dump(*board, Category::Stats);
     }
 }
 
@@ -1518,6 +1663,20 @@ RetroShell::exec <Token::os, Token::processes> (Arguments& argv, long param)
     
     *this << ss;
 }
+
+template <> void
+RetroShell::exec <Token::os, Token::cp> (Arguments& argv, long param)
+{
+    diagBoard.catchTask(argv.back());
+    *this << "Waiting for task '" << argv.back() << "' to start...\n";
+}
+
+template <> void
+RetroShell::exec <Token::os, Token::set, Token::diagboard> (Arguments& argv, long param)
+{
+    diagBoard.setConfigItem(OPT_DIAG_BOARD, util::parseBool(argv.front()));
+}
+
 
 //
 // Remote servers

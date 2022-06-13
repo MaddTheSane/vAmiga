@@ -57,7 +57,7 @@ Interpreter::registerInstructions()
 
     root.add({"regression", "setup"},
              "command", "Initializes the test environment",
-             &RetroShell::exec <Token::regression, Token::setup>, 2);
+             &RetroShell::exec <Token::regression, Token::setup>, {2, 3});
 
     root.add({"regression", "run"},
              "command", "Launches a regression test",
@@ -89,7 +89,22 @@ Interpreter::registerInstructions()
     
     root.add({"amiga"},
              "component", "The virtual Amiga");
-        
+
+    root.add({"amiga", "config"},
+             "command", "Displays the current configuration",
+             &RetroShell::exec <Token::amiga, Token::config>, 0);
+
+    root.add({"amiga", "set"},
+             "command", "Configures the component");
+
+    root.add({"amiga", "set", "pal"},
+             "key", "Emulates a PAL machine",
+             &RetroShell::exec <Token::amiga, Token::set, Token::pal>, 0);
+
+    root.add({"amiga", "set", "pal"},
+             "key", "Emulates a NTSC machine",
+             &RetroShell::exec <Token::amiga, Token::set, Token::ntsc>, 0);
+
     root.add({"amiga", "init"},
              "command", "Initializes the Amiga with a predefined scheme",
              &RetroShell::exec <Token::amiga, Token::init>, 1);
@@ -129,9 +144,16 @@ Interpreter::registerInstructions()
              &RetroShell::exec <Token::amiga, Token::reset>, 0);
     
     root.add({"amiga", "inspect"},
-             "command", "Displays the component state",
-             &RetroShell::exec <Token::amiga, Token::inspect>, 0);
+             "command", "Displays the component state");
 
+    root.add({"amiga", "inspect", "state"},
+             "command", "Displays the current state",
+             &RetroShell::exec <Token::amiga, Token::inspect, Token::state>, 0);
+
+    root.add({"amiga", "inspect", "defaults"},
+             "command", "Displays the user defaults storage",
+             &RetroShell::exec <Token::amiga, Token::inspect, Token::defaults>, 0);
+    
     
     //
     // Memory
@@ -223,7 +245,11 @@ Interpreter::registerInstructions()
 
     root.add({"cpu", "set"},
              "command", "Configures the component");
-    
+
+    root.add({"cpu", "set", "overclocking"},
+             "key", "Overclocks the CPU by the specified factor",
+             &RetroShell::exec <Token::cpu, Token::set, Token::overclocking>, 1);
+
     root.add({"cpu", "set", "regreset"},
              "key", "Selects the reset value of data and address registers",
              &RetroShell::exec <Token::cpu, Token::set, Token::regreset>, 1);
@@ -238,7 +264,11 @@ Interpreter::registerInstructions()
     root.add({"cpu", "inspect", "registers"},
              "command", "Displays the current register values",
              &RetroShell::exec <Token::cpu, Token::inspect, Token::registers>, 0);
-
+    
+    root.add({"cpu", "callstack" },
+             "command", "Prints recorded subroutine calls",
+             &RetroShell::exec <Token::cpu, Token::callstack>, 0);
+    
     root.add({"cpu", "break"},
              "command", "Manages breakpoints");
 
@@ -328,6 +358,10 @@ Interpreter::registerInstructions()
              "command", "Ignores a catchpoint a certain number of times",
              &RetroShell::exec <Token::cpu, Token::cp, Token::ignore>, 2);
 
+    root.add({"cpu", "swtraps"},
+             "command", "Lists all software traps",
+             &RetroShell::exec <Token::cpu, Token::swtraps>, 0);
+
     root.add({"cpu", "jump"},
              "command", "Jumps to the specified address",
              &RetroShell::exec <Token::cpu, Token::jump>, 1);
@@ -405,12 +439,20 @@ Interpreter::registerInstructions()
              "key", "Enables or disables ECS Slow Ram mirroring",
              &RetroShell::exec <Token::agnus, Token::set, Token::slowrammirror>, 1);
 
+    root.add({"agnus", "set", "ptrdrops"},
+             "key", "Emulate dropped register writes",
+             &RetroShell::exec <Token::agnus, Token::set, Token::ptrdrops>, 1);
+
     root.add({"agnus", "inspect"},
              "command", "Displays the internal state");
 
     root.add({"agnus", "inspect", "state"},
              "category", "Displays the current state",
              &RetroShell::exec <Token::agnus, Token::inspect, Token::state>, 0);
+
+    root.add({"agnus", "inspect", "beam"},
+             "category", "Displays the current beam position",
+             &RetroShell::exec <Token::agnus, Token::inspect, Token::beam>, 0);
 
     root.add({"agnus", "inspect", "registers"},
              "category", "Displays the current register values",
@@ -477,6 +519,60 @@ Interpreter::registerInstructions()
              "command", "Disassembles a Copper list",
              &RetroShell::exec <Token::copper, Token::list>, 1);
 
+    root.add({"copper", "break"},
+             "command", "Manages breakpoints");
+
+    root.add({"copper", "break", "info"},
+             "command", "Lists all breakpoints",
+             &RetroShell::exec <Token::copper, Token::bp, Token::info>, 0);
+
+    root.add({"copper", "break", "at"},
+             "command", "Sets a breakpoint at the specified address",
+             &RetroShell::exec <Token::copper, Token::bp, Token::at>, 1);
+
+    root.add({"copper", "break", "delete"},
+             "command", "Deletes a breakpoint",
+             &RetroShell::exec <Token::copper, Token::bp, Token::del>, 1);
+
+    root.add({"copper", "break", "enable"},
+             "command", "Enables a breakpoint",
+             &RetroShell::exec <Token::copper, Token::bp, Token::enable>, 1);
+
+    root.add({"copper", "break", "disable"},
+             "command", "Disables a breakpoint",
+             &RetroShell::exec <Token::copper, Token::bp, Token::disable>, 1);
+
+    root.add({"copper", "break", "ignore"},
+             "command", "Ignores a breakpoint a certain number of times",
+             &RetroShell::exec <Token::copper, Token::bp, Token::ignore>, 2);
+ 
+    root.add({"copper", "watch"},
+             "command", "Manages watchpoints");
+
+    root.add({"copper", "watch", "info"},
+             "command", "Lists all watchpoints",
+             &RetroShell::exec <Token::copper, Token::wp, Token::info>, 0);
+
+    root.add({"copper", "watch", "at"},
+             "command", "Sets a watchpoint at the specified address",
+             &RetroShell::exec <Token::copper, Token::wp, Token::at>, 1);
+
+    root.add({"copper", "watch", "delete"},
+             "command", "Deletes a watchpoint",
+             &RetroShell::exec <Token::copper, Token::wp, Token::del>, 1);
+
+    root.add({"copper", "watch", "enable"},
+             "command", "Enables a watchpoint",
+             &RetroShell::exec <Token::copper, Token::wp, Token::enable>, 1);
+
+    root.add({"copper", "watch", "disable"},
+             "command", "Disables a watchpoint",
+             &RetroShell::exec <Token::copper, Token::wp, Token::disable>, 1);
+
+    root.add({"copper", "watch", "ignore"},
+             "command", "Ignores a watchpoint a certain number of times",
+             &RetroShell::exec <Token::copper, Token::wp, Token::ignore>, 2);
+    
     
     //
     // Denise
@@ -1107,6 +1203,10 @@ Interpreter::registerInstructions()
         root.add({df, "inspect"},
                  "command", "Displays the component state",
                  &RetroShell::exec <Token::dfn, Token::inspect>, 0);
+
+        root.add({df, "catch"},
+                 "command", "Creates a catchpoint for the specfied file",
+                 &RetroShell::exec <Token::dfn, Token::cp>, 1);
     }
 
     //
@@ -1238,6 +1338,18 @@ Interpreter::registerInstructions()
              "command", "Lists all processes",
              &RetroShell::exec <Token::os, Token::processes>, {0, 1});
 
+    root.add({"os", "catch"},
+             "command", "Pauses emulation on task launch",
+             &RetroShell::exec <Token::os, Token::cp>, 1);
+
+    root.add({"os", "set"},
+             "command", "Configures the component");
+        
+    root.add({"os", "set", "diagboard" },
+             "command", "Attaches or detaches the debug expansion board",
+             &RetroShell::exec <Token::os, Token::set, Token::diagboard>, 1);
+
+    
     //
     // Remote server
     //

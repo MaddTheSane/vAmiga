@@ -22,12 +22,7 @@ Sequencer::pokeDDFSTRT(u16 value)
     value &= agnus.ddfMask();
     
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        agnus.recordRegisterChange(DMA_CYCLES(3), SET_DDFSTRT, value);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        agnus.recordRegisterChange(DMA_CYCLES(4), SET_DDFSTRT, value);
-    }
+    agnus.recordRegisterChange(DMA_CYCLES(4), SET_DDFSTRT, value);
 }
 
 void
@@ -47,10 +42,10 @@ Sequencer::setDDFSTRT(u16 old, u16 value)
     } else {
         
         if (posh == old) {
-            trace(XFILES, "setDDFSTRT: Old value matches trigger position\n");
+            xfiles("setDDFSTRT: Old value matches trigger position\n");
         }
         if (posh == value) {
-            trace(XFILES, "setDDFSTRT: New value matches trigger position\n");
+            xfiles("setDDFSTRT: New value matches trigger position\n");
         }
     }
     
@@ -79,12 +74,7 @@ Sequencer::pokeDDFSTOP(u16 value)
     value &= agnus.ddfMask();
     
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        agnus.recordRegisterChange(DMA_CYCLES(3), SET_DDFSTOP, value);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        agnus.recordRegisterChange(DMA_CYCLES(4), SET_DDFSTOP, value);
-    }
+    agnus.recordRegisterChange(DMA_CYCLES(4), SET_DDFSTOP, value);
 }
 
 void
@@ -104,10 +94,10 @@ Sequencer::setDDFSTOP(u16 old, u16 value)
     } else {
         
         if (posh == old) {
-            trace(XFILES, "setDDFSTOP: Old value matches trigger position\n");
+            xfiles("setDDFSTOP: Old value matches trigger position\n");
         }
         if (posh == value) {
-            trace(XFILES, "setDDFSTOP: New value matches trigger position\n");
+            xfiles("setDDFSTOP: New value matches trigger position\n");
         }
     }
     
@@ -136,7 +126,7 @@ Sequencer::setDIWSTRT(u16 value)
     vstrt = HI_BYTE(value);
     
     if (agnus.pos.v == vstrt && agnus.pos.v != vstop) {
-        
+
         sigRecorder.insert(agnus.pos.h + 2, SIG_VFLOP_SET);
         computeBplEventTable(sigRecorder);
     }
@@ -154,13 +144,13 @@ Sequencer::setDIWSTOP(u16 value)
     vstop = HI_BYTE(value) | ((value & 0x8000) ? 0 : 0x100);
     
     if (agnus.pos.v == vstop) {
-        
+
         sigRecorder.insert(agnus.pos.h + 2, SIG_VFLOP_CLR);
         computeBplEventTable(sigRecorder);
     }
 
     if (agnus.pos.v != vstop && agnus.pos.v == vstrt) {
-            
+
         sigRecorder.insert(agnus.pos.h + 2, SIG_VFLOP_SET);
         computeBplEventTable(sigRecorder);
     }

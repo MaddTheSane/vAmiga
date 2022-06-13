@@ -43,9 +43,9 @@ struct GeometryDescriptor {
         << bsize;
     }
     
-    // Returns a vector with compatible geometries for a given byte count
-    static std::vector<GeometryDescriptor> driveGeometries(isize capacity);
-    
+    // Returns a vector with compatible geometries for a given block count
+    static std::vector<GeometryDescriptor> driveGeometries(isize numBlocks, isize bsize = 512);
+
     // Checks whether the geometry is unique
     bool unique() const;
     
@@ -124,6 +124,37 @@ struct PartitionDescriptor {
     void dump() const;
     void dump(std::ostream& os) const;
 
+    // Throws an exception if inconsistent or unsupported values are present
+    void checkCompatibility(const GeometryDescriptor &geo) const;
+};
+
+struct DriverDescriptor {
+
+    u32 dosType = 0;
+    u32 dosVersion = 0;
+    u32 patchFlags = 0;
+    std::vector<u32> blocks;
+    u32 segList = 0;
+    
+    template <class W>
+    void operator<<(W& worker)
+    {
+        worker
+        
+        << dosType
+        << dosVersion
+        << patchFlags
+        << blocks
+        << segList;
+    }
+    
+    // Initializers
+    DriverDescriptor() { };
+        
+    // Prints debug information
+    void dump() const;
+    void dump(std::ostream& os) const;
+    
     // Throws an exception if inconsistent or unsupported values are present
     void checkCompatibility() const;
 };

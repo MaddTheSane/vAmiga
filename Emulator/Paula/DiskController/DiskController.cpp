@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "DiskController.h"
+#include "Amiga.h"
 #include "Agnus.h"
 #include "ADFFile.h"
 #include "FloppyDrive.h"
@@ -28,33 +29,33 @@ DiskController::_reset(bool hard)
     dsksync = 0x4489;    
 }
 
-DiskControllerConfig
-DiskController::getDefaultConfig()
-{
-    DiskControllerConfig defaults;
-    
-    defaults.connected[0] = true;
-    defaults.connected[1] = false;
-    defaults.connected[2] = false;
-    defaults.connected[3] = false;
-    defaults.speed = 1;
-    defaults.lockDskSync = false;
-    defaults.autoDskSync = false;
-    
-    return defaults;
-}
-
 void
 DiskController::resetConfig()
 {
-    auto defaults = getDefaultConfig();
-    
-    for (isize i = 0; i < 4; i++) {
-        setConfigItem(OPT_DRIVE_CONNECT, i, defaults.connected[i]);
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
+
+    std::vector <Option> options = {
+        
+        OPT_DRIVE_SPEED,
+        OPT_AUTO_DSKSYNC,
+        OPT_LOCK_DSKSYNC
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
     }
-    setConfigItem(OPT_DRIVE_SPEED, defaults.speed);
-    setConfigItem(OPT_AUTO_DSKSYNC, defaults.lockDskSync);
-    setConfigItem(OPT_LOCK_DSKSYNC, defaults.autoDskSync);
+    
+    std::vector <Option> moreOptions = {
+        
+        OPT_DRIVE_CONNECT
+    };
+
+    for (auto &option : moreOptions) {
+        for (isize i = 0; i < 4; i++) {
+            setConfigItem(option, i, defaults.get(option, i));
+        }
+    }
 }
 
 i64
@@ -255,64 +256,6 @@ DiskController::setState(DriveState oldState, DriveState newState)
                 msgQueue.put(MSG_DRIVE_READ, selected);
     }
 }
-
-/*
-void
-DiskController::ejectDisk(isize nr, Cycle delay)
-{
-    assert(nr >= 0 && nr <= 3);
-
-    warn("DiskController::ejectDisk(...) has been deprecated.\n");
-    warn("Use Drive::ejectDisk() instead.\n");
-
-    df[nr]->ejectDisk(delay);
-}
-
-void
-DiskController::insertDisk(std::unique_ptr<Disk> disk, isize nr, Cycle delay)
-{
-    assert(disk != nullptr);
-    assert(nr >= 0 && nr <= 3);
-
-    warn("DiskController::insertDisk(...) has been deprecated.\n");
-    warn("Use Drive::insertDisk(...) instead.\n");
-
-    df[nr]->insertDisk(std::move(disk), delay);
-}
-
-void
-DiskController::insertDisk(class FloppyFile &file, isize nr, Cycle delay)
-{
-    assert(nr >= 0 && nr <= 3);
-    
-    warn("DiskController::insertDisk(...) has been deprecated.\n");
-    warn("Use Drive::swapDisk(...) instead.\n");
-
-    df[nr]->swapDisk(file);
-}
-
-void
-DiskController::insertDisk(const string &name, isize nr, Cycle delay)
-{
-    assert(nr >= 0 && nr <= 3);
-    
-    warn("DiskController::insertDisk(...) has been deprecated.\n");
-    warn("Use Drive::swapDisk(...) instead.\n");
-
-    df[nr]->swapDisk(name);
-}
-
-void
-DiskController::insertNew(isize nr, Cycle delay)
-{
-    assert(nr >= 0 && nr <= 3);
-    
-    warn("DiskController::insertNew(...) has been deprecated.\n");
-    warn("Use Drive::swapDisk(...) instead.\n");
-    
-    df[nr]->insertNew();
-}
-*/
 
 void
 DiskController::setWriteProtection(isize nr, bool value)
@@ -605,7 +548,7 @@ DiskController::performTurboDMA(FloppyDrive *drive)
     }
     
     // Trigger disk interrupt with some delay
-    Cycle delay = MIMIC_UAE ? 2 * HPOS_CNT - agnus.pos.h + 30 : 512;
+    Cycle delay = MIMIC_UAE ? 2 * HPOS_CNT_PAL - agnus.pos.h + 30 : 512;
     paula.scheduleIrqRel(INT_DSKBLK, DMA_CYCLES(delay));
     
     setState(DRIVE_DMA_OFF);

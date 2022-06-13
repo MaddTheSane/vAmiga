@@ -531,7 +531,7 @@ template<Instr I, Mode M, Size S> void
 Moira::execBsr(u16 opcode)
 {
     EXEC_DEBUG
-
+    
     i16 offset = S == Word ? (i16)queue.irc : (i8)opcode;
      
     u32 newpc = U32_ADD(reg.pc, offset);
@@ -550,9 +550,12 @@ Moira::execBsr(u16 opcode)
     if (error) return;
     
     // Jump to new address
+    auto oldpc = reg.pc;
     reg.pc = newpc;
 
     fullPrefetch<POLLIPL>();
+    
+    signalJsrBsrInstr(opcode, oldpc, reg.pc);
 }
 
 template<Instr I, Mode M, Size S> void
@@ -860,10 +863,13 @@ Moira::execJsr(u16 opcode)
     if (error) return;
 
     // Jump to new address
+    auto oldpc = reg.pc;
     reg.pc = ea;
 
     queue.irc = (u16)readMS <MEM_PROG, Word> (ea);
     prefetch<POLLIPL>();
+
+    signalJsrBsrInstr(opcode, oldpc, reg.pc);
 }
 
 template<Instr I, Mode M, Size S> void
@@ -1362,6 +1368,7 @@ Moira::execMovepDxEa(u16 opcode)
         {
             writeM <M,Byte> (ea, (dx >> 24) & 0xFF); ea += 2;
             writeM <M,Byte> (ea, (dx >> 16) & 0xFF); ea += 2;
+            [[fallthrough]];
         }
         case Word:
         {
@@ -1389,7 +1396,7 @@ Moira::execMovepEaDx(u16 opcode)
         {
             dx |= readMS <MEM_DATA, Byte> (ea) << 24; ea += 2;
             dx |= readMS <MEM_DATA, Byte> (ea) << 16; ea += 2;
-            // fallthrough
+            [[fallthrough]];
         }
         case Word:
         {
@@ -1736,6 +1743,7 @@ Moira::execReset(u16 opcode)
     EXEC_DEBUG
 
     SUPERVISOR_MODE_ONLY
+    
     signalResetInstr();
     
     sync(128);
@@ -1798,6 +1806,8 @@ Moira::execRts(u16 opcode)
 {
     EXEC_DEBUG
 
+    signalRtsInstr();
+    
     bool error;
     u32 newpc = readM<M, Long>(reg.sp, error);
     if (error) return;
@@ -1934,7 +1944,7 @@ Moira::execTrap(u16 opcode)
     EXEC_DEBUG
 
     int nr = ____________xxxx(opcode);
-
+    
     sync(4);
     execTrapException(32 + nr);
 }

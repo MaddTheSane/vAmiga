@@ -46,25 +46,24 @@ class DialogController: NSWindowController, DialogControllerDelegate {
     // Remembers whether awakeFromNib has been called
     var awake = false
     
-    static func make(parent: MyController, nibName: NSNib.Name) -> Self? {
-
-        let controller = Self.init(windowNibName: nibName)
-        controller.parent = parent
-        controller.amiga = parent.amiga
+    convenience init?(with controller: MyController, nibName: NSNib.Name) {
+    
+        self.init(windowNibName: nibName)
         
-        return controller
+        parent = controller
+        amiga = parent.amiga
     }
 
     func register() {
         
         DialogController.active.append(self)
-        log("Register: \(DialogController.active)", level: 2)
+        debug(.lifetime, "Register: \(DialogController.active)")
     }
     
     func unregister() {
         
         DialogController.active = DialogController.active.filter {$0 != self}
-        log("Unregister: \(DialogController.active)", level: 2)
+        debug(.lifetime, "Unregister: \(DialogController.active)")
     }
     
     override func windowWillLoad() {
@@ -137,7 +136,6 @@ extension DialogController: NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
 
-        log()
         unregister()
     }
 }

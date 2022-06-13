@@ -10,8 +10,12 @@
 #include "config.h"
 #include "DriveDescriptors.h"
 #include "Error.h"
+#include "FSTypes.h"
 #include "IOUtils.h"
+#include "OSDebugger.h"
+
 #include <vector>
+#include <algorithm>
 
 //
 // GeometryDescriptor
@@ -40,7 +44,7 @@ GeometryDescriptor::operator < (const GeometryDescriptor &rhs) const
 }
 
 std::vector<GeometryDescriptor>
-GeometryDescriptor::driveGeometries(isize capacity)
+GeometryDescriptor::driveGeometries(isize numBlocks, isize bsize)
 {
     std::vector<GeometryDescriptor> result;
     
@@ -54,28 +58,28 @@ GeometryDescriptor::driveGeometries(isize capacity)
         56, 59, 60, 61, 62, 63
     };
     
-    // Compute all geometries compatible with the file size
+    // Compute all geometries compatible with the given block count
     for (isize h = GeometryDescriptor::hMin; h <= GeometryDescriptor::hMax; h++) {
         for (isize i = 0; i < isizeof(sizes); i++) {
                   
             auto s = isize(sizes[i]);
-            auto cylSize = h * s * 512;
+            auto blocksPerCyl = h * s;
             
-            if (capacity % cylSize == 0) {
+            if (numBlocks % blocksPerCyl == 0) {
                 
-                auto c = capacity / cylSize;
+                auto c = numBlocks / blocksPerCyl;
 
                 if (c > GeometryDescriptor::cMax) continue;
                 if (c < GeometryDescriptor::cMin && h > 1) continue;
                 
-                result.push_back(GeometryDescriptor(c, h, s, 512));
+                result.push_back(GeometryDescriptor(c, h, s, bsize));
             }
         }
     }
 
     // Sort all entries
     std::sort(result.begin(), result.end());
-    
+        
     return result;
 }
 
@@ -129,7 +133,7 @@ GeometryDescriptor::checkCompatibility() const
 // PartitionDescriptor
 //
 
-PartitionDescriptor::PartitionDescriptor(const GeometryDescriptor &geo) // : PartitionDescriptor()
+PartitionDescriptor::PartitionDescriptor(const GeometryDescriptor &geo)
 {
     sizeBlock   = u32(geo.bsize / 4);
     heads       = u32(geo.heads);
@@ -181,7 +185,7 @@ PartitionDescriptor::dump(std::ostream& os) const
     os << dec(dosType) << std::endl;
 }
 
-void PartitionDescriptor::checkCompatibility() const
+void PartitionDescriptor::checkCompatibility(const GeometryDescriptor &geo) const
 {
     auto bsize = 4 * sizeBlock;
     
@@ -191,4 +195,39 @@ void PartitionDescriptor::checkCompatibility() const
     if (lowCyl > highCyl) {
         throw VAError(ERROR_HDR_CORRUPTED_PTABLE);
     }
+    if (isize(highCyl) >= geo.cylinders) {
+        throw VAError(ERROR_HDR_CORRUPTED_PTABLE);
+    }
+}
+
+void
+DriverDescriptor::dump() const
+{
+    dump(std::cout);
+}
+
+void
+DriverDescriptor::dump(std::ostream& os) const
+{
+    using namespace util;
+        
+    os << tab("DOS type");
+    os << hex(dosType);
+    os << " (" << OSDebugger::dosTypeStr(dosType) << ")" << std::endl;
+    os << tab("DOS version");
+    os << hex(dosVersion);
+    os << " (" << OSDebugger::dosVersionStr(dosVersion) << ")" << std::endl;
+    os << tab("Patch flags");
+    os << hex(patchFlags) << std::endl;
+    os << tab("Code blocks");
+    for (usize i = 0; i < blocks.size(); i++) {
+        os << (i ? ", " : "") << dec(blocks[i]);
+    }
+    os << std::endl;
+}
+
+void
+DriverDescriptor::checkCompatibility() const
+{
+
 }

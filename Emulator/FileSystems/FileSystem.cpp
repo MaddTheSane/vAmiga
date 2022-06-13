@@ -11,9 +11,11 @@
 #include "IOUtils.h"
 #include "MutableFileSystem.h"
 #include "MemUtils.h"
+
 #include <climits>
 #include <set>
 #include <stack>
+#include <algorithm>
 
 FileSystem::~FileSystem()
 {
@@ -191,18 +193,6 @@ isize
 FileSystem::usedBlocks() const
 {
     return numBlocks() - freeBlocks();
-}
-
-isize
-FileSystem::freeBytes() const
-{
-    return freeBlocks() * bsize;
-}
-
-isize
-FileSystem::usedBytes() const
-{
-    return usedBlocks() * bsize;
 }
 
 FSName

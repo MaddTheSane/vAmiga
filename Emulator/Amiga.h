@@ -14,6 +14,7 @@
 #include "ControlPort.h"
 #include "CIA.h"
 #include "CPU.h"
+#include "Defaults.h"
 #include "Denise.h"
 #include "FloppyDrive.h"
 #include "GdbServer.h"
@@ -42,6 +43,9 @@
  */
 class Amiga : public Thread {
 
+    // The current configuration
+    AmigaConfig config = {};
+
     /* Result of the latest inspection. In order to update the GUI inspector
      * panels, the emulator schedules events in the inspector slot (SLOT_INS in
      * the secondary table) on a periodic basis. Inside the event handler, the
@@ -56,7 +60,10 @@ class Amiga : public Thread {
     //
     
 public:
-    
+
+    // User settings
+    static Defaults defaults;
+
     // Core components
     CPU cpu = CPU(*this);
     CIAA ciaA = CIAA(*this);
@@ -91,7 +98,8 @@ public:
     HdController hd2con = HdController(*this, hd2);
     HdController hd3con = HdController(*this, hd3);
     RamExpansion ramExpansion = RamExpansion(*this);
-
+    DiagBoard diagBoard= DiagBoard(*this);
+    
     // Other Peripherals
     Keyboard keyboard = Keyboard(*this);
     
@@ -199,7 +207,7 @@ private:
     template <class T>
     void applyToPersistentItems(T& worker)
     {
-        
+        worker << config.type;
     }
 
     template <class T>
@@ -228,19 +236,24 @@ private:
 private:
     
     void execute() override;
+    util::Time getDelay() override;
 
-    
+
     //
     // Configuring
     //
     
 public:
-        
+
+    const AmigaConfig &getConfig() const { return config; }
+    void resetConfig() override;
+
     // Gets a single configuration item
     i64 getConfigItem(Option option) const;
     i64 getConfigItem(Option option, long id) const;
-    
+
     // Sets a single configuration item
+    void setConfigItem(Option option, i64 value);
     void configure(Option option, i64 value) throws;
     void configure(Option option, long id, i64 value) throws;
     
@@ -255,7 +268,7 @@ private:
     // Overrides a config option if the corresponding debug option is enabled
     i64 overrideOption(Option option, i64 value);
 
-    
+
     //
     // Analyzing
     //
@@ -283,7 +296,6 @@ public:
     
     // Convenience wrappers
     void signalStop() { setFlag(RL::STOP); }
-    void signalInspect() { setFlag(RL::INSPECT); }
     void signalWarpOn() { setFlag(RL::WARP_ON); }
     void signalWarpOff() { setFlag(RL::WARP_OFF); }
     void signalAutoSnapshot() { setFlag(RL::AUTO_SNAPSHOT); }

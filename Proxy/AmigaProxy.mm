@@ -80,6 +80,92 @@ using namespace moira;
 @end
 
 //
+// Properties
+//
+
+@implementation DefaultsProxy
+
+- (Defaults *)props
+{
+    return (Defaults *)obj;
+}
+
+- (void)load:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try { return [self props]->load([url fileSystemRepresentation]); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (void)save:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try { return [self props]->save([url fileSystemRepresentation]); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (void)register:(NSString *)key value:(NSString *)value
+{
+    [self props]->setFallback(string([key UTF8String]), string([value UTF8String]));
+}
+
+- (NSString *)getString:(NSString *)key
+{
+    auto result = [self props]->getString([key UTF8String]);
+    return @(result.c_str());
+}
+
+- (NSInteger)getInt:(NSString *)key
+{
+    return [self props]->getInt([key UTF8String]);
+}
+
+- (NSInteger)getOpt:(Option)option
+{
+    return [self props]->get(option);
+}
+
+- (NSInteger)getOpt:(Option)option nr:(NSInteger)nr
+{
+    return [self props]->get(option, nr);
+}
+
+- (void)setKey:(NSString *)key value:(NSString *)value
+{
+    [self props]->setString(string([key UTF8String]), string([value UTF8String]));
+}
+
+- (void)setOpt:(Option)option value:(NSInteger)value
+{
+    [self props]->set(option, value);
+}
+
+- (void)setOpt:(Option)option nr:(NSInteger)nr value:(NSInteger)value
+{
+    [self props]->set(option, nr, value);
+}
+
+- (void)removeAll
+{
+    [self props]->remove();
+}
+
+- (void)removeKey:(NSString *)key
+{
+    [self props]->remove(string([key UTF8String]));
+}
+
+- (void)remove:(Option)option
+{
+    [self props]->remove(option);
+}
+
+- (void)remove:(Option) option nr:(NSInteger)nr
+{
+    [self props]->remove(option, nr);
+}
+
+@end
+
+//
 // Guards (Breakpoints, Watchpoints)
 //
 
@@ -339,6 +425,17 @@ using namespace moira;
 - (BOOL)isPatchedRom:(RomIdentifier)rev
 {
     return RomFile::isPatchedRom(rev);
+}
+
+- (RomIdentifier) romIdentifierOf:(u64)fingerprint
+{
+    return RomFile::identifier(u32(fingerprint));
+}
+
+- (NSString *) romTitleOf:(RomIdentifier)rev
+{
+    const char *str = RomFile::title(rev);
+    return str ? @(str) : nullptr;
 }
 
 - (BOOL)hasRom
@@ -613,6 +710,21 @@ using namespace moira;
     return [self agnus]->isECS();
 }
 
+- (BOOL)isPAL
+{
+    return [self agnus]->isPAL();
+}
+
+- (BOOL)isNTSC
+{
+    return [self agnus]->isNTSC();
+}
+
+- (NSInteger)frameCount
+{
+    return [self agnus]->pos.frame;
+}
+
 - (AgnusStats)getStats
 {
     return [self agnus]->getStats();
@@ -830,10 +942,10 @@ using namespace moira;
                aspectY:(NSInteger)aspectY
              exception:(ExceptionWrapper *)ex
 {
-    int x1 = (int)rect.origin.x;
-    int y1 = (int)rect.origin.y;
-    int x2 = x1 + (int)rect.size.width;
-    int y2 = y1 + (int)rect.size.height;
+    auto x1 = isize(rect.origin.x);
+    auto y1 = isize(rect.origin.y);
+    auto x2 = isize(x1 + (int)rect.size.width);
+    auto y2 = isize(y1 + (int)rect.size.height);
     
     try { return [self recorder]->startRecording(x1, y1, x2, y2, rate, aspectX, aspectY); }
     catch (VAError &error) { [ex save:error]; }
@@ -1218,7 +1330,7 @@ using namespace moira;
     return [self drive]->hasDisk();
 }
 
-- (BOOL)modified
+- (BOOL)hasModifiedDisk
 {
     return [self drive]->hasModifiedDisk();
 }
@@ -1257,6 +1369,7 @@ using namespace moira;
 {
     [self drive]->markDiskAsUnmodified();
 }
+
 - (void)toggleWriteProtection
 {
     [self drive]->toggleWriteProtection();
@@ -1372,9 +1485,19 @@ using namespace moira;
     return [self drive]->getGeometry().bsize;
 }
 
-- (BOOL)uniqueGeometry
+- (HdcState)hdcState
 {
-    return [self drive]->getGeometry().unique();
+    return [self drive]->getHdcState();
+}
+
+- (BOOL)isCompatible
+{
+    return [self drive]->isCompatible();
+}
+
+- (BOOL)writeThroughEnabled
+{
+    return [self drive]->writeThroughEnabled();
 }
 
 - (NSString *)nameOfPartition:(NSInteger)nr
@@ -1398,6 +1521,15 @@ using namespace moira;
 - (HardDriveState)state
 {
     return [self drive]->getState();
+}
+
+- (void)attachFile:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->init([url fileSystemRepresentation]);
+    }  catch (VAError &error) {
+        [ex save:error];
+    }
 }
 
 - (void)attach:(HDFFileProxy *)hdf exception:(ExceptionWrapper *)ex
@@ -1450,7 +1582,7 @@ using namespace moira;
     NSMutableArray *data = [[NSMutableArray alloc] init];
     
     auto geometry = [self drive]->getGeometry();
-    auto geometries = GeometryDescriptor::driveGeometries(geometry.numBytes());
+    auto geometries = GeometryDescriptor::driveGeometries(geometry.numBlocks());
         
     for (auto &g : geometries) {
         
@@ -1459,6 +1591,23 @@ using namespace moira;
     }
     
     return data;
+}
+
+- (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try { return [self drive]->writeToFile([url fileSystemRepresentation]); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (void)enableWriteThrough:(ExceptionWrapper *)ex
+{
+    try { return [self drive]->enableWriteThrough(); }
+    catch (VAError &error) { [ex save:error]; }
+}
+
+- (void)disableWriteThrough
+{
+    [self drive]->disableWriteThrough();
 }
 
 @end
@@ -1702,13 +1851,6 @@ using namespace moira;
     RetroShellProxy *proxy = [[self alloc] initWith: shell];
     return proxy;
 }
-
-/*
--(NSInteger)cpos
-{
-    return [self shell]->cposAbs();
-}
-*/
 
 -(NSInteger)cursorRel
 {
@@ -2280,6 +2422,11 @@ using namespace moira;
     return [self hdf]->numPartitions();
 }
 
+- (NSInteger)numDrivers
+{
+    return [self hdf]->numDrivers();
+}
+
 - (NSInteger)writeToFile:(NSString *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
 {
     try { return [self hdf]->writePartitionToFile([path fileSystemRepresentation], nr); }
@@ -2469,6 +2616,7 @@ using namespace moira;
 @synthesize controlPort1;
 @synthesize controlPort2;
 @synthesize copper;
+@synthesize copperBreakpoints;
 @synthesize cpu;
 @synthesize denise;
 @synthesize df0;
@@ -2508,6 +2656,7 @@ using namespace moira;
     controlPort1 = [[ControlPortProxy alloc] initWith:&amiga->controlPort1];
     controlPort2 = [[ControlPortProxy alloc] initWith:&amiga->controlPort2];
     copper = [[CopperProxy alloc] initWith:&amiga->agnus.copper];
+    copperBreakpoints = [[GuardsProxy alloc] initWith:&amiga->agnus.copper.debugger.breakpoints];
     cpu = [[CPUProxy alloc] initWith:&amiga->cpu];
     denise = [[DeniseProxy alloc] initWith:&amiga->denise];
     df0 = [[FloppyDriveProxy alloc] initWith:&amiga->df0];
@@ -2536,6 +2685,11 @@ using namespace moira;
 - (Amiga *)amiga
 {
     return (Amiga *)obj;
+}
+
++ (DefaultsProxy *) defaults
+{
+    return [[DefaultsProxy alloc] initWith:&Amiga::defaults];
 }
 
 - (void)dealloc

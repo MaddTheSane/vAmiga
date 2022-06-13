@@ -11,10 +11,14 @@
 
 #include "MoiraConfig.h"
 #include "MoiraTypes.h"
+#include <map>
 
 namespace moira {
 
-// Base structure for a single breakpoint or watchpoint
+//
+// A single breakpoint, watchpoint, or catchpoint
+//
+
 struct Guard {
 
     // The observed address
@@ -33,15 +37,16 @@ public:
 
 };
 
-// Base class for a collection of guards
+
+//
+// A collection of breakpoints, watchpoints, or catchpoints
+//
+
 class Guards {
 
     friend class Debugger;
     
 protected:
-
-    // Reference to the connected CPU
-    class Moira &moira;
 
     // Capacity of the guards array
     long capacity = 1;
@@ -64,7 +69,7 @@ public:
 
 public:
 
-    Guards(Moira& ref) : moira(ref) { }
+    // Guards(Moira& ref) : moira(ref) { }
     virtual ~Guards();
     
     
@@ -121,34 +126,61 @@ public:
     // Indicates if guard checking is necessary
     virtual void setNeedsCheck(bool value) = 0;
 
-private:
-
     // Evaluates all guards
     bool eval(u32 addr, Size S = Byte);
 };
 
 class Breakpoints : public Guards {
 
+    class Moira &moira;
+
 public:
 
-    Breakpoints(Moira& ref) : Guards(ref) { }
+    Breakpoints(Moira& ref) : moira(ref) { }
     void setNeedsCheck(bool value) override;
 };
 
 class Watchpoints : public Guards {
 
+    class Moira &moira;
+    
 public:
 
-    Watchpoints(Moira& ref) : Guards(ref) { }
+    Watchpoints(Moira& ref) : moira(ref) { }
     void setNeedsCheck(bool value) override;
 };
 
 class Catchpoints : public Guards {
 
+    class Moira &moira;
+    
 public:
 
-    Catchpoints(Moira& ref) : Guards(ref) { }
+    Catchpoints(Moira& ref) : moira(ref) { }
     void setNeedsCheck(bool value) override;
+};
+
+
+//
+// Software traps
+//
+
+struct SoftwareTrap {
+  
+    // The original instruction that has been replaced by this trap
+    u16 instruction;
+};
+
+struct SoftwareTraps {
+    
+    std::map <u16,SoftwareTrap> traps;
+    
+    // Creates a new software trap for a given instruction
+    u16 create(u16 instr);
+    u16 create(u16 key, u16 instr);
+    
+    // Replaces a software trap by its original opcode
+    u16 resolve(u16 instr);
 };
 
 class Debugger {
@@ -158,22 +190,24 @@ public:
     // Reference to the connected CPU
     class Moira &moira;
 
-    // Guard storage
+    // Breakpoints, watchpoints, and catchpoints
     Breakpoints breakpoints = Breakpoints(moira);
     Watchpoints watchpoints = Watchpoints(moira);
     Catchpoints catchpoints = Catchpoints(moira);
+    
+    // Software traps
+    SoftwareTraps swTraps;
     
 private:
 
     /* Soft breakpoint for implementing single-stepping. In contrast to a
      * standard (hard) breakpoint, a soft breakpoint is deleted when reached.
-     * The CPU halts if softStop matches the CPU's program counter (used to
-     * implement "step over") or if softStop equals UINT64_MAX (used to
-     * implement "step into"). To disable soft stopping, simply set softStop
-     * to an unreachable memory location such as UINT64_MAX - 1.
+     * If a softStop is set, the CPU halts if it matches the program counter
+     * (used to implement "step over") or if it contains a negative value (used
+     * to implement "step into").
      */
-    u64 softStop = UINT64_MAX - 1;
-
+    std::optional <i64> softStop;
+    
     // Buffer storing logged instructions
     static const int logBufferCapacity = 256;
     Registers logBuffer[logBufferCapacity];
@@ -192,6 +226,22 @@ public:
 
     void reset();
 
+    
+    //
+    // Analyzing instructions
+    //
+    
+    static bool isLineAInstr(u16 opcode) { return (opcode & 0xF000) == 0xA000; }
+    static bool isLineFInstr(u16 opcode) { return (opcode & 0xF000) == 0xF000; }
+
+    
+    //
+    // Providing textual descriptions
+    //
+    
+    // Returns a human-readable name for an exception vector
+    static std::string vectorName(u8 vector);
+    
 
     //
     // Working with breakpoints, watchpoints, and catchpoints
@@ -203,15 +253,11 @@ public:
     // Sets a soft breakpoint to the next instruction
     void stepOver();
 
-    // Returns true if a breakpoint, watchpoint, or catchpoints hits in
+    // Checks whether a debug events should be triggered
     bool softstopMatches(u32 addr);
     bool breakpointMatches(u32 addr);
     bool watchpointMatches(u32 addr, Size S);
     bool catchpointMatches(u32 vectorNr);
-
-    // Saved program counters (DEPRECATED)
-    i64 breakpointPC = -1;
-    i64 watchpointPC = -1;
 
     
     //
@@ -238,14 +284,6 @@ public:
 
     // Clears the log buffer
     void clearLog() { logCnt = 0; }
-    
-    
-    //
-    // Providing textual representations
-    //
-    
-    // Returns a human-readable name for an exception vector
-    static std::string vectorName(u8 vector);
     
     
     //

@@ -20,12 +20,17 @@ enum_long(ERROR_CODE)
     // Emulator state
     ERROR_POWERED_OFF,
     ERROR_POWERED_ON,
+    ERROR_DEBUG_OFF,
     ERROR_RUNNING,
 
     // Configuration
     ERROR_OPT_UNSUPPORTED,
     ERROR_OPT_INVARG,
     ERROR_OPT_LOCKED,               // DEPRECATED: Replace by ERROR_POWERED_ON
+
+    // Property storage
+    ERROR_INVALID_KEY,
+    ERROR_SYNTAX,
 
     // CPU
     ERROR_BP_NOT_FOUND,
@@ -43,6 +48,8 @@ enum_long(ERROR_CODE)
     ERROR_DIR_NOT_FOUND,
     ERROR_DIR_ACCESS_DENIED,
     ERROR_FILE_NOT_FOUND,
+    ERROR_FILE_EXISTS,
+    ERROR_FILE_IS_DIRECTORY,
     ERROR_FILE_ACCESS_DENIED,
     ERROR_FILE_TYPE_MISMATCH,
     ERROR_FILE_TYPE_UNSUPPORTED,
@@ -59,6 +66,10 @@ enum_long(ERROR_CODE)
     ERROR_ROM_MISSING,
     ERROR_AROS_NO_EXTROM,
     
+    // Drives
+    ERROR_WT_BLOCKED,
+    ERROR_WT,
+    
     // Floppy disks
     ERROR_DISK_MISSING,
     ERROR_DISK_INCOMPATIBLE,
@@ -68,7 +79,7 @@ enum_long(ERROR_CODE)
     ERROR_DISK_WRONG_SECTOR_COUNT,
     ERROR_DISK_INVALID_SECTOR_NUMBER,
     
-    // Hard drives
+    // Hard disks
     ERROR_HDR_TOO_LARGE,
     ERROR_HDR_UNSUPPORTED_CYL_COUNT,
     ERROR_HDR_UNSUPPORTED_HEAD_COUNT,
@@ -77,7 +88,12 @@ enum_long(ERROR_CODE)
     ERROR_HDR_UNMATCHED_GEOMETRY,
     ERROR_HDR_UNPARTITIONED,
     ERROR_HDR_CORRUPTED_PTABLE,
+    ERROR_HDR_CORRUPTED_FSH,
+    ERROR_HDR_CORRUPTED_LSEG,
     ERROR_HDR_UNSUPPORTED,
+
+    // Hard drive controller
+    ERROR_HDC_INIT,
 
     // Snapshots
     ERROR_SNAP_TOO_OLD,
@@ -95,12 +111,17 @@ enum_long(ERROR_CODE)
     ERROR_MISSING_ROM_KEY,
     ERROR_INVALID_ROM_KEY,
     
-    // Screen recorder
+    // Recorder
     ERROR_REC_LAUNCH,
 
     // OS Debugger
     ERROR_OSDB,
-    
+    ERROR_HUNK_BAD_COOKIE,
+    ERROR_HUNK_BAD_HEADER,
+    ERROR_HUNK_NO_SECTIONS,
+    ERROR_HUNK_UNSUPPORTED,
+    ERROR_HUNK_CORRUPTED,
+
     // Remote servers
     ERROR_SOCK_CANT_CREATE,
     ERROR_SOCK_CANT_CONNECT,
@@ -168,9 +189,9 @@ typedef ERROR_CODE ErrorCode;
 #ifdef __cplusplus
 struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return ERROR_FS_INVALID_HASHTABLE_SIZE; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = ERROR_FS_INVALID_HASHTABLE_SIZE;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "ERROR"; }
     static const char *key(ErrorCode value)
@@ -182,11 +203,15 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
                 
             case ERROR_POWERED_OFF:                 return "POWERED_OFF";
             case ERROR_POWERED_ON:                  return "POWERED_ON";
+            case ERROR_DEBUG_OFF:                   return "DEBUG_OFF";
             case ERROR_RUNNING:                     return "RUNNING";
 
             case ERROR_OPT_UNSUPPORTED:             return "OPT_UNSUPPORTED";
             case ERROR_OPT_INVARG:                  return "OPT_INVARG";
             case ERROR_OPT_LOCKED:                  return "OPT_LOCKED";
+                
+            case ERROR_INVALID_KEY:                 return "INVALID_KEY";
+            case ERROR_SYNTAX:                      return "SYNTAX";
                 
             case ERROR_BP_NOT_FOUND:                return "BP_NOT_FOUND";
             case ERROR_BP_ALREADY_SET:              return "BP_ALREADY_SET";
@@ -201,6 +226,8 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
             case ERROR_DIR_NOT_FOUND:               return "DIR_NOT_FOUND";
             case ERROR_DIR_ACCESS_DENIED:           return "DIR_ACCESS_DENIED";
             case ERROR_FILE_NOT_FOUND:              return "FILE_NOT_FOUND";
+            case ERROR_FILE_EXISTS:                 return "FILE_EXISTS";
+            case ERROR_FILE_IS_DIRECTORY:           return "FILE_IS_DIRECtORY";
             case ERROR_FILE_ACCESS_DENIED:          return "FILE_ACCESS_DENIED";
             case ERROR_FILE_TYPE_MISMATCH:          return "FILE_TYPE_MISMATCH";
             case ERROR_FILE_TYPE_UNSUPPORTED:       return "FILE_TYPE_UNSUPPORTED";
@@ -214,6 +241,9 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
 
             case ERROR_ROM_MISSING:                 return "ROM_MISSING";
             case ERROR_AROS_NO_EXTROM:              return "AROS_NO_EXTROM";
+
+            case ERROR_WT_BLOCKED:                  return "WT_BLOCKED";
+            case ERROR_WT:                          return "WT";
 
             case ERROR_DISK_MISSING:                return "DISK_MISSING";
             case ERROR_DISK_INCOMPATIBLE:           return "DISK_INCOMPATIBLE";
@@ -231,8 +261,12 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
             case ERROR_HDR_UNMATCHED_GEOMETRY:      return "HDR_UNMATCHED_GEOMETRY";
             case ERROR_HDR_UNPARTITIONED:           return "HDR_UNPARTITIONED";
             case ERROR_HDR_CORRUPTED_PTABLE:        return "HDR_CORRUPTED_PTABLE";
+            case ERROR_HDR_CORRUPTED_FSH:           return "HDR_CORRUPTED_FSH";
+            case ERROR_HDR_CORRUPTED_LSEG:          return "HDR_CORRUPTED_LSEG";
             case ERROR_HDR_UNSUPPORTED:             return "HDR_UNSUPPORTED";
                 
+            case ERROR_HDC_INIT:                    return "HDC_INIT";
+
             case ERROR_SNAP_TOO_OLD:                return "SNAP_TOO_OLD";
             case ERROR_SNAP_TOO_NEW:                return "SNAP_TOO_NEW";
             case ERROR_SNAP_IS_BETA:                return "SNAP_IS_BETA";
@@ -248,7 +282,12 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
             case ERROR_REC_LAUNCH:                  return "REC_LAUNCH";
 
             case ERROR_OSDB:                        return "OSDB";
-                
+            case ERROR_HUNK_BAD_COOKIE:             return "HUNK_BAD_COOKIE";
+            case ERROR_HUNK_BAD_HEADER:             return "HUNK_BAD_HEADER";
+            case ERROR_HUNK_NO_SECTIONS:            return "HUNK_NO_SECTIONS";
+            case ERROR_HUNK_UNSUPPORTED:            return "HUNK_UNSUPPORTED";
+            case ERROR_HUNK_CORRUPTED:              return "HUNK_CORRUPTED";
+
             case ERROR_SOCK_CANT_CREATE:            return "SOCK_CANT_CREATE";
             case ERROR_SOCK_CANT_CONNECT:           return "SOCK_CANT_CONNECT";
             case ERROR_SOCK_CANT_BIND:              return "SOCK_CANT_BIND";

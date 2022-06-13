@@ -38,6 +38,9 @@ enum_long(ROM_IDENTIFIER)
     ROM_KICK13_34_005_A500,
     ROM_KICK13_34_005_A3000,
 
+    // Expansion lib patches
+    ROM_KICK12_33_180_MRAS,
+
     // Guardian patches
     ROM_KICK12_33_180_G11R,
     ROM_KICK13_34_005_G12R,
@@ -72,8 +75,11 @@ enum_long(ROM_IDENTIFIER)
     ROM_HYP320_47_96_A3000,
     ROM_HYP320_47_96_A4000,
     ROM_HYP320_47_96_A4000T,
+    ROM_HYP321_47_102_A500,
 
     // Free Kickstart Rom replacements
+    ROM_AROS_54705,
+    ROM_AROS_54705_EXT,
     ROM_AROS_55696,
     ROM_AROS_55696_EXT,
     ROM_AROS_1ED13DE6E3,
@@ -90,9 +96,9 @@ typedef ROM_IDENTIFIER RomIdentifier;
 #ifdef __cplusplus
 struct RomIdentifierEnum : util::Reflection<RomIdentifierEnum, RomIdentifier>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return ROM_LOGICA20; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = ROM_LOGICA20;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "ROM"; }
     static const char *key(RomIdentifier value)
@@ -114,6 +120,8 @@ struct RomIdentifierEnum : util::Reflection<RomIdentifierEnum, RomIdentifier>
             case ROM_KICK121_34_004:        return "KICK121_34_004";
             case ROM_KICK13_34_005_A500:
             case ROM_KICK13_34_005_A3000:   return "KICK13_34_005";
+
+            case ROM_KICK12_33_180_MRAS:    return "KICK12_33_180_MRAS";
 
             case ROM_KICK12_33_180_G11R:    return "ROM_KICK12_33_180_G11R";
             case ROM_KICK13_34_005_G12R:    return "ROM_KICK13_34_005_G12R";
@@ -145,7 +153,10 @@ struct RomIdentifierEnum : util::Reflection<RomIdentifierEnum, RomIdentifier>
             case ROM_HYP320_47_96_A3000:
             case ROM_HYP320_47_96_A4000:
             case ROM_HYP320_47_96_A4000T:   return "HYP320_47_96";
+            case ROM_HYP321_47_102_A500:    return "HYP321_47_102";
 
+            case ROM_AROS_54705:            return "AROS_54705";
+            case ROM_AROS_54705_EXT:        return "AROS_54705_EXT";
             case ROM_AROS_55696:            return "AROS_55696";
             case ROM_AROS_55696_EXT:        return "AROS_55696_EXT";
             case ROM_AROS_1ED13DE6E3:       return "AROS_1ED13DE6E3";

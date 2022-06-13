@@ -14,6 +14,7 @@ import Darwin
 //
 
 extension MakeWithBuffer {
+    
     static func makeWith(buffer: UnsafeRawPointer, length: Int) throws -> Self {
                 
         let exc = ExceptionWrapper()
@@ -31,13 +32,16 @@ extension MakeWithBuffer {
     }
 
     private static func make(with data: Data, exception: ExceptionWrapper) -> Self? {
+        
         return data.withUnsafeBytes { uwbp -> Self? in
+            
             return make(withBuffer: uwbp.baseAddress!, length: uwbp.count, exception: exception)
         }
     }
 }
 
 extension MakeWithFile {
+    
     static func make(with url: URL) throws -> Self {
         
         let exc = ExceptionWrapper()
@@ -48,6 +52,7 @@ extension MakeWithFile {
 }
 
 extension MakeWithDrive {
+    
     static func make(with drive: FloppyDriveProxy) throws -> Self {
         
         let exc = ExceptionWrapper()
@@ -192,6 +197,13 @@ extension FloppyDriveProxy {
 
 extension HardDriveProxy {
 
+    func attach(url: URL) throws {
+        
+        let exception = ExceptionWrapper()
+        attachFile(url, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+
     func attach(hdf: HDFFileProxy) throws {
         
         let exception = ExceptionWrapper()
@@ -217,6 +229,20 @@ extension HardDriveProxy {
         
         let exception = ExceptionWrapper()
         changeGeometry(c, h: h, s: s, b: b, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+    
+    func writeToFile(_ url: URL) throws {
+
+        let exception = ExceptionWrapper()
+        write(toFile: url, exception: exception)
+        if exception.errorCode != .OK { throw VAError(exception) }
+    }
+
+    func enableWriteThrough() throws {
+
+        let exception = ExceptionWrapper()
+        enableWriteThrough(exception)
         if exception.errorCode != .OK { throw VAError(exception) }
     }
 }
@@ -380,6 +406,11 @@ extension FloppyDriveProxy {
         return NSImage(named: name)!
     }
     
+    var toolTip: String? {
+        
+        return nil
+    }
+    
     var ledIcon: NSImage? {
         
         if !isConnected { return nil }
@@ -391,7 +422,7 @@ extension FloppyDriveProxy {
                 return NSImage(named: "ledGreen")
             }
         } else {
-            return NSImage(named: "driveLedOff")
+            return NSImage(named: "ledGrey")
         }
     }
 }
@@ -400,7 +431,35 @@ extension HardDriveProxy {
     
     var templateIcon: NSImage? {
         
-        return NSImage(named: "hdrTemplate")!
+        var name: String
+                
+        switch hdcState {
+            
+        case .UNDETECTED, .INITIALIZING:
+            name = "hdrETemplate"
+            
+        default:
+            name = hasModifiedDisk ? "hdrUTemplate" : "hdrTemplate"
+        }
+        
+        return NSImage(named: name)!
+    }
+    
+    var toolTip: String? {
+        
+        switch hdcState {
+            
+        case .UNDETECTED:
+            return "The hard drive is waiting to be initialized by the OS."
+            
+        case .INITIALIZING:
+            return "The OS has started to initialize the hard drive. If the " +
+            "condition persists the hard drive is not valid or incompatible " +
+            "with the chosen setup."
+            
+        default:
+            return nil
+        }
     }
     
     var ledIcon: NSImage? {

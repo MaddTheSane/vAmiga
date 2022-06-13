@@ -37,9 +37,11 @@ public class MetalView: MTKView {
     // Time stamp needed to detect a shaking mouse
     var lastShake = DispatchTime(uptimeNanoseconds: 0)
     
-    // When a file is dragged in, it's URL is stored in this variable
-    var draggedUrl: URL?
-
+    // Temporary storage of the properties of a dragged in file
+    var dropZone: Int?
+    var dropUrl: URL?
+    var dropType: FileType?
+    
     required public init(coder: NSCoder) {
     
         super.init(coder: coder)
@@ -65,11 +67,5 @@ public class MetalView: MTKView {
         newFrame.origin.y -= height
         newFrame.size.height += height
         frame = newFrame
-    }
-    
-    // Shrinks view vertically by the height of the status bar
-    // public func shrink() { adjustHeight(-26.0) }
-    
-    // Expand view vertically by the height of the status bar
-    // public func expand() { adjustHeight(26.0) }
+    }    
 }

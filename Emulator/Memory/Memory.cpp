@@ -99,10 +99,34 @@ Memory::_dump(Category category, std::ostream& os) const
 }
 
 void
+Memory::_initialize()
+{
+    AmigaComponent::_initialize();
+    
+    if (auto romPath = Amiga::defaults.getString("ROM_PATH"); romPath != "") {
+
+        msg("Trying to load Rom from %s...\n", romPath.c_str());
+        
+        try { loadRom(romPath); } catch (std::exception& e) {
+            warn("Error: %s\n", e.what());
+        }
+    }
+    
+    if (auto extPath = Amiga::defaults.getString("EXT_PATH"); extPath != "") {
+
+        msg("Trying to load extension Rom from %s...\n", extPath.c_str());
+        
+        try { loadExt(extPath); } catch (std::exception& e) {
+            warn("Error: %s\n", e.what());
+        }
+    }
+}
+
+void
 Memory::_reset(bool hard)
 {
     if (hard) {
-        
+
         // Erase WOM (if any)
         if (hasWom()) eraseWom();
 
@@ -119,43 +143,28 @@ Memory::_reset(bool hard)
     clearStats();
 }
 
-MemoryConfig
-Memory::getDefaultConfig()
-{
-    MemoryConfig defaults;
-    
-    defaults.chipSize = 512;
-    defaults.slowSize = 0;
-    defaults.fastSize = 0;
-
-    defaults.romSize = 0;
-    defaults.womSize = 0;
-    defaults.extSize = 0;
-    
-    defaults.saveRoms = true;
-    defaults.slowRamDelay = true;
-    defaults.bankMap = BANK_MAP_A500;
-    defaults.ramInitPattern = RAM_INIT_ALL_ZEROES;
-    defaults.unmappingType = UNMAPPED_FLOATING;
-    defaults.extStart = 0xE0;
-    
-    return defaults;
-}
-
 void
 Memory::resetConfig()
 {
-    auto defaults = getDefaultConfig();
-    
-    setConfigItem(OPT_CHIP_RAM, defaults.chipSize);
-    setConfigItem(OPT_SLOW_RAM, defaults.slowSize);
-    setConfigItem(OPT_FAST_RAM, defaults.fastSize);
-    setConfigItem(OPT_EXT_START, defaults.extStart);
-    setConfigItem(OPT_SAVE_ROMS, defaults.saveRoms);
-    setConfigItem(OPT_SLOW_RAM_DELAY, defaults.slowRamDelay);
-    setConfigItem(OPT_BANKMAP, defaults.bankMap);
-    setConfigItem(OPT_UNMAPPING_TYPE, defaults.unmappingType);
-    setConfigItem(OPT_RAM_INIT_PATTERN, defaults.ramInitPattern);
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
+
+    std::vector <Option> options = {
+        
+        OPT_CHIP_RAM,
+        OPT_SLOW_RAM,
+        OPT_FAST_RAM,
+        OPT_EXT_START,
+        OPT_SAVE_ROMS,
+        OPT_SLOW_RAM_DELAY,
+        OPT_BANKMAP,
+        OPT_UNMAPPING_TYPE,
+        OPT_RAM_INIT_PATTERN
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
 }
 
 i64
@@ -200,8 +209,8 @@ Memory::setConfigItem(Option option, i64 value)
             if (!isPoweredOff()) {
                 throw VAError(ERROR_OPT_LOCKED);
             }
-            if ((value % 256) != 0 || value > 512) {
-                throw VAError(ERROR_OPT_INVARG, "0, 256, 512");
+            if ((value % 256) != 0 || value > 1536) {
+                throw VAError(ERROR_OPT_INVARG, "0, 256, 512, ..., 1536");
             }
                         
             mem.allocSlow((i32)KB(value));
@@ -414,7 +423,7 @@ Memory::didSaveToBuffer(u8 *buffer)
 
 void
 Memory::_isReady() const
-{
+{    
     if (!hasRom() || FORCE_ROM_MISSING) {
         throw VAError(ERROR_ROM_MISSING);
     }
@@ -427,11 +436,6 @@ Memory::_isReady() const
     if ((hasArosRom() && ramSize() < MB(1)) || FORCE_AROS_RAM_LIMIT) {
         throw VAError(ERROR_AROS_RAM_LIMIT);
     }
-    /*
-    if (mem.chipRamSize() > KB(agnus.chipRamLimit()) || FORCE_CHIP_RAM_LIMIT) {
-        throw VAError(ERROR_CHIP_RAM_LIMIT);
-    }
-    */
 }
 
 void
@@ -477,14 +481,14 @@ void
 Memory::allocSlow(i32 bytes, bool update)
 {
     config.slowSize = bytes;
-    alloc(slowAllocator, bytes, slowMask, update);
+    alloc(slowAllocator, bytes, update);
 }
 
 void
 Memory::allocFast(i32 bytes, bool update)
 {
     config.fastSize = bytes;
-    alloc(fastAllocator, bytes, fastMask, update);
+    alloc(fastAllocator, bytes, update);
 }
             
 void
@@ -509,19 +513,26 @@ Memory::allocExt(i32 bytes, bool update)
 }
 
 void
-Memory::alloc(Allocator<u8> &allocator, isize bytes, u32 &mask, bool update)
+Memory::alloc(Allocator<u8> &allocator, isize bytes, bool update)
 {
     // Only proceed if memory layout will change
     if (bytes == allocator.size) return;
 
     // Allocate memory
     allocator.alloc(bytes);
-    
-    // Set the memory mask
-    mask = bytes ? u32(bytes - 1) : 0;
 
     // Update the memory source tables if requested
     if (update) updateMemSrcTables();
+}
+
+void
+Memory::alloc(Allocator<u8> &allocator, isize bytes, u32 &mask, bool update)
+{
+    // Set the memory mask
+    mask = bytes ? u32(bytes - 1) : 0;
+
+    // Allocate
+    alloc(allocator, bytes, update);
 }
 
 void
@@ -736,6 +747,44 @@ Memory::saveExt(const string &path)
     file.writeToFile(path);
 }
 
+void
+Memory::patchExpansionLib()
+{
+    /* In Kickstart 1.2, function 'ConfigBoard' is broken. A patch needs to
+     * be applied to make the debugger board compatible with this Rom.
+     */
+    switch (romIdentifier()) {
+
+        case ROM_KICK12_33_166:
+        case ROM_KICK12_33_180:
+        case ROM_KICK121_34_004:
+        case ROM_KICK12_33_180_G11R:
+        {
+            for (isize i = 0; i < KB(512) - 22; i += 2) {
+                
+                if (R16BE(rom + i)      == 0x2c6e &&
+                    R16BE(rom + i + 2)  == 0x0024 &&
+                    R16BE(rom + i + 4)  == 0x4eae &&
+                    R16BE(rom + i + 6)  == 0xff3a &&
+                    R16BE(rom + i + 20) == 0x202f &&
+                    R16BE(rom + i + 22) == 0x0002) {
+                    
+                    msg("Patching Kickstart 1.2 at %lx\n", i);
+            
+                    W32BE(rom + i, 0x426f0004);
+                    W16BE(rom + i + 22, 0x0000);
+                    return;
+                }
+            }
+            warn("Can't find patch location\n");
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
 template <> MemorySource
 Memory::getMemSrc <ACCESSOR_CPU> (u32 addr)
 {
@@ -901,7 +950,7 @@ Memory::inSlowRam(u32 addr)
     if (addr > 0xFFFFFF) return false;
         
     auto memSrc = cpuMemSrc[addr >> 16];
-    return memSrc == MEM_SLOW || memSrc == MEM_SLOW_MIRROR;
+    return memSrc == MEM_SLOW;
 }
 
 bool
@@ -1075,7 +1124,7 @@ template<> u16
 Memory::peek16 <ACCESSOR_CPU, MEM_CIA> (u32 addr)
 {
     ASSERT_CIA_ADDR(addr);
-    trace(XFILES, "XFILES (CIA): Reading a WORD from %x\n", addr);
+    xfiles("CIA: Reading a WORD from %x\n", addr);
 
     agnus.executeUntilBusIsFreeForCIA();
     
@@ -1289,7 +1338,6 @@ Memory::peek8 <ACCESSOR_CPU> (u32 addr)
         case MEM_CHIP:          return peek8 <ACCESSOR_CPU, MEM_CHIP>     (addr);
         case MEM_CHIP_MIRROR:   return peek8 <ACCESSOR_CPU, MEM_CHIP>     (addr);
         case MEM_SLOW:          return peek8 <ACCESSOR_CPU, MEM_SLOW>     (addr);
-        case MEM_SLOW_MIRROR:   return peek8 <ACCESSOR_CPU, MEM_SLOW>     (addr);
         case MEM_FAST:          return peek8 <ACCESSOR_CPU, MEM_FAST>     (addr);
         case MEM_CIA:           return peek8 <ACCESSOR_CPU, MEM_CIA>      (addr);
         case MEM_CIA_MIRROR:    return peek8 <ACCESSOR_CPU, MEM_CIA>      (addr);
@@ -1319,7 +1367,6 @@ Memory::peek16 <ACCESSOR_CPU> (u32 addr)
         case MEM_CHIP:          return peek16 <ACCESSOR_CPU, MEM_CHIP>     (addr);
         case MEM_CHIP_MIRROR:   return peek16 <ACCESSOR_CPU, MEM_CHIP>     (addr);
         case MEM_SLOW:          return peek16 <ACCESSOR_CPU, MEM_SLOW>     (addr);
-        case MEM_SLOW_MIRROR:   return peek16 <ACCESSOR_CPU, MEM_SLOW>     (addr);
         case MEM_FAST:          return peek16 <ACCESSOR_CPU, MEM_FAST>     (addr);
         case MEM_CIA:           return peek16 <ACCESSOR_CPU, MEM_CIA>      (addr);
         case MEM_CIA_MIRROR:    return peek16 <ACCESSOR_CPU, MEM_CIA>      (addr);
@@ -1349,7 +1396,6 @@ Memory::spypeek16 <ACCESSOR_CPU> (u32 addr) const
         case MEM_CHIP:          return spypeek16 <ACCESSOR_CPU, MEM_CHIP>     (addr);
         case MEM_CHIP_MIRROR:   return spypeek16 <ACCESSOR_CPU, MEM_CHIP>     (addr);
         case MEM_SLOW:          return spypeek16 <ACCESSOR_CPU, MEM_SLOW>     (addr);
-        case MEM_SLOW_MIRROR:   return spypeek16 <ACCESSOR_CPU, MEM_SLOW>     (addr);
         case MEM_FAST:          return spypeek16 <ACCESSOR_CPU, MEM_FAST>     (addr);
         case MEM_CIA:           return spypeek16 <ACCESSOR_CPU, MEM_CIA>      (addr);
         case MEM_CIA_MIRROR:    return spypeek16 <ACCESSOR_CPU, MEM_CIA>      (addr);
@@ -1403,7 +1449,7 @@ template<> u16
 Memory::peek16 <ACCESSOR_AGNUS, MEM_NONE> (u32 addr)
 {
     assert((addr & agnus.ptrMask) == addr);
-    trace(XFILES, "XFILES (AGNUS): Reading from unmapped RAM\n");
+    xfiles("Agnus reads from unmapped RAM\n");
     return peek16 <ACCESSOR_CPU, MEM_NONE> (addr);
 }
 
@@ -1432,8 +1478,8 @@ template<> u16
 Memory::peek16 <ACCESSOR_AGNUS, MEM_SLOW> (u32 addr)
 {
     assert((addr & agnus.ptrMask) == addr);
-    trace(XFILES, "XFILES (AGNUS): Reading from Slow RAM mirror\n");
-    dataBus = READ_SLOW_16(addr & 0x7FFFF);
+    xfiles("Agnus reads from Slow RAM mirror\n");
+    dataBus = READ_SLOW_16(SLOW_RAM_STRT + (addr & 0x7FFFF));
     return dataBus;
 }
 
@@ -1441,7 +1487,7 @@ template<> u16
 Memory::spypeek16 <ACCESSOR_AGNUS, MEM_SLOW> (u32 addr) const
 {
     assert((addr & agnus.ptrMask) == addr);
-    return READ_SLOW_16(addr);
+    return READ_SLOW_16(SLOW_RAM_STRT + (addr & 0x7FFFF));
 }
 
 template<> u16
@@ -1504,8 +1550,8 @@ Memory::poke8 <ACCESSOR_CPU, MEM_CHIP> (u32 addr, u8 value)
 {
     ASSERT_CHIP_ADDR(addr);
     
-    if constexpr (BLT_GUARD) {
-        if (blitter.memguard[addr & mem.chipMask]) {
+    if constexpr (BLT_MEM_GUARD) {
+        if (blitter.checkMemguard(addr & mem.chipMask)) {
             trace(true, "CPU(8) OVERWRITES BLITTER AT ADDR %x\n", addr);
         }
     }
@@ -1522,8 +1568,8 @@ Memory::poke16 <ACCESSOR_CPU, MEM_CHIP> (u32 addr, u16 value)
 {
     ASSERT_CHIP_ADDR(addr);
     
-    if constexpr (BLT_GUARD) {
-        if (blitter.memguard[addr & mem.chipMask]) {
+    if constexpr (BLT_MEM_GUARD) {
+        if (blitter.checkMemguard(addr & mem.chipMask)) {
             trace(true, "CPU(16) OVERWRITES BLITTER AT ADDR %x\n", addr);
         }
     }
@@ -1592,7 +1638,7 @@ template <> void
 Memory::poke16 <ACCESSOR_CPU, MEM_CIA> (u32 addr, u16 value)
 {
     ASSERT_CIA_ADDR(addr);
-    trace(XFILES, "XFILES (CIA): Writing a WORD into %x\n", addr);
+    xfiles("CIA: Writing a WORD into %x\n", addr);
 
     agnus.executeUntilBusIsFreeForCIA();
     
@@ -1740,7 +1786,6 @@ Memory::poke8 <ACCESSOR_CPU> (u32 addr, u8 value)
         case MEM_CHIP:          poke8 <ACCESSOR_CPU, MEM_CHIP>     (addr, value); return;
         case MEM_CHIP_MIRROR:   poke8 <ACCESSOR_CPU, MEM_CHIP>     (addr, value); return;
         case MEM_SLOW:          poke8 <ACCESSOR_CPU, MEM_SLOW>     (addr, value); return;
-        case MEM_SLOW_MIRROR:   poke8 <ACCESSOR_CPU, MEM_SLOW>     (addr, value); return;
         case MEM_FAST:          poke8 <ACCESSOR_CPU, MEM_FAST>     (addr, value); return;
         case MEM_CIA:           poke8 <ACCESSOR_CPU, MEM_CIA>      (addr, value); return;
         case MEM_CIA_MIRROR:    poke8 <ACCESSOR_CPU, MEM_CIA>      (addr, value); return;
@@ -1770,7 +1815,6 @@ Memory::poke16 <ACCESSOR_CPU> (u32 addr, u16 value)
         case MEM_CHIP:          poke16 <ACCESSOR_CPU, MEM_CHIP>     (addr, value); return;
         case MEM_CHIP_MIRROR:   poke16 <ACCESSOR_CPU, MEM_CHIP>     (addr, value); return;
         case MEM_SLOW:          poke16 <ACCESSOR_CPU, MEM_SLOW>     (addr, value); return;
-        case MEM_SLOW_MIRROR:   poke16 <ACCESSOR_CPU, MEM_SLOW>     (addr, value); return;
         case MEM_FAST:          poke16 <ACCESSOR_CPU, MEM_FAST>     (addr, value); return;
         case MEM_CIA:           poke16 <ACCESSOR_CPU, MEM_CIA>      (addr, value); return;
         case MEM_CIA_MIRROR:    poke16 <ACCESSOR_CPU, MEM_CIA>      (addr, value); return;
@@ -2132,9 +2176,6 @@ Memory::spypeekCustom16(u32 addr) const
 template <Accessor s> void
 Memory::pokeCustom16(u32 addr, u16 value)
 {
-
-    assert(string(regName(addr)) == string(Memory::regName(addr)));
-
     if ((addr & 0xFFF) == 0x30) {
         trace(OCSREG_DEBUG, "pokeCustom16(SERDAT, '%c')\n", (char)value);
     } else {
@@ -2175,7 +2216,7 @@ Memory::pokeCustom16(u32 addr, u16 value)
         case 0x03A >> 1: // STRVBL
         case 0x03C >> 1: // STRHOR
         case 0x03E >> 1: // STRLONG
-            trace(XFILES, "XFILES (STROBE): %x\n", addr);
+            xfiles("STROBE register write: %04x\n", addr);
             return; // ignore
         case 0x040 >> 1: // BLTCON0
             blitter.pokeBLTCON0(value); return;
@@ -2583,6 +2624,8 @@ Memory::pokeCustom16(u32 addr, u16 value)
             denise.pokeCOLORxx<s,30>(value); return;
         case 0x1BE >> 1: // COLOR31
             denise.pokeCOLORxx<s,31>(value); return;
+        case 0x1DC >> 1: // BEAMCON0
+            agnus.pokeBEAMCON0(value); return;
         case 0x1FE >> 1: // NO-OP
             copper.pokeNOOP(value); return;
     }
@@ -2646,7 +2689,6 @@ Memory::patch(u32 addr, u8 value)
         case MEM_CHIP:          patch <MEM_CHIP>     (addr, value); return;
         case MEM_CHIP_MIRROR:   patch <MEM_CHIP>     (addr, value); return;
         case MEM_SLOW:          patch <MEM_SLOW>     (addr, value); return;
-        case MEM_SLOW_MIRROR:   patch <MEM_SLOW>     (addr, value); return;
         case MEM_FAST:          patch <MEM_FAST>     (addr, value); return;
         case MEM_ROM:           patch <MEM_ROM>      (addr, value); return;
         case MEM_ROM_MIRROR:    patch <MEM_ROM>      (addr, value); return;

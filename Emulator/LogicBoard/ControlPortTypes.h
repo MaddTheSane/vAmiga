@@ -13,34 +13,16 @@
 #include "Reflection.h"
 
 //
-// Enumerations
+// Constants
 //
 
-enum_long(PortNr)
-{
-    PORT_1 = 1,
-    PORT_2 = 2
-};
+#define PORT_1  1
+#define PORT_2  2
 
-#ifdef __cplusplus
-struct PortNrEnum : util::Reflection<PortNrEnum, PortNr>
-{    
-    static long minVal() { return 0; }
-    static long maxVal() { return PORT_2; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
-    
-    static const char *prefix() { return ""; }
-    static const char *key(PortNr value)
-    {
-        switch (value) {
-                
-            case PORT_1:  return "PORT_1";
-            case PORT_2:  return "PORT_2";
-        }
-        return "???";
-    }
-};
-#endif
+
+//
+// Enumerations
+//
 
 enum_long(CPD)
 {
@@ -53,9 +35,9 @@ typedef CPD ControlPortDevice;
 #ifdef __cplusplus
 struct ControlPortDeviceEnum : util::Reflection<ControlPortDeviceEnum, ControlPortDevice>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return CPD_JOYSTICK; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = CPD_JOYSTICK;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "CPD"; }
     static const char *key(ControlPortDevice value)

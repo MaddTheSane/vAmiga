@@ -15,7 +15,7 @@
 #include <fstream>
 
 void
-RegressionTester::prepare(ConfigScheme scheme, string kickstart)
+RegressionTester::prepare(ConfigScheme scheme, string rom, string ext)
 {
     // Only proceed if the /tmp folder exisits
     if (!util::fileExists("/tmp")) throw VAError(ERROR_DIR_NOT_FOUND, "/tmp");
@@ -28,13 +28,16 @@ RegressionTester::prepare(ConfigScheme scheme, string kickstart)
     amiga.configure(scheme);
 
     // Load Kickstart Rom
-    amiga.mem.loadRom(kickstart.c_str());
+    amiga.mem.loadRom(rom.c_str());
+    
+    // Load Extension Rom (if provided)
+    if (ext != "") amiga.mem.loadExt(ext.c_str());
+    
+    // Choose a warp source that prevents the GUI from disabling warp mode
+    constexpr isize warpSource = 1;
     
     // Run as fast as possible
-    amiga.warpOn();
-    
-    // Prevent the GUI from disabling warp mode
-    amiga.setWarpLock(true);
+    amiga.warpOn(warpSource);    
 }
 
 void
@@ -96,12 +99,13 @@ RegressionTester::dumpTexture(Amiga &amiga, std::ostream& os)
     {   SUSPENDED
         
         auto &buffer = amiga.denise.pixelEngine.getStableBuffer();
-        
+        u32 *ptr = buffer.ptr - 4 * HBLANK_MIN;
+
         for (isize y = y1; y < y2; y++) {
             
             for (isize x = x1; x < x2; x++) {
                 
-                char *cptr = (char *)(buffer.ptr + y * HPIXELS + x);
+                char *cptr = (char *)(ptr + y * HPIXELS + x);
                 os.write(cptr + 0, 1);
                 os.write(cptr + 1, 1);
                 os.write(cptr + 2, 1);

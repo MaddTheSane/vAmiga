@@ -20,7 +20,7 @@ extension Canvas {
                       height: rect.height / texH)
     }
 
-    // Returns the used texture area (including HBLANK and VBLANK)
+    // Returns the entire texture area (including HBLANK and VBLANK)
     var entire: CGRect {
         
         return CGRect(x: 0, y: 0, width: 4 * Int(HPOS_CNT), height: Int(VPOS_CNT))
@@ -33,11 +33,13 @@ extension Canvas {
     
     // Returns the largest visibile texture area (excluding HBLANK and VBLANK)
     var largestVisible: CGRect {
+
+        let pal = amiga.agnus.isPAL
         
         let x1 = Int(HBLANK_CNT) * 4
-        let x2 = Int(HPOS_CNT) * 4
+        let x2 = Int(HPOS_CNT_PAL) * 4
         let y1 = Int(VBLANK_CNT)
-        let y2 = Int(VPOS_CNT) - 2
+        let y2 = pal ? Int(VPOS_CNT_PAL) : Int(VPOS_CNT_NTSC)
         
         return CGRect(x: x1, y: y1, width: x2 - x1, height: y2 - y1)
     }
@@ -83,7 +85,7 @@ extension Canvas {
             bw = x1 - 0.5 * (width - (x2 - x1))
             bw = max(bw, largest.minX)
             bw = min(bw, largest.maxX - width)
-            // log("AutoShift x: \(bw)")
+            debug(.events, "AutoShift x: \(bw)")
             
         } else {
             
@@ -95,7 +97,7 @@ extension Canvas {
             bh = y1 - 0.5 * (height - (y2 - y1))
             bh = max(bh, largest.minY)
             bh = min(bh, largest.maxY - height)
-            // log("AutoShift y: \(bh)")
+            debug(.events, "AutoShift y: \(bh)")
             
         } else {
             
@@ -111,13 +113,17 @@ extension Canvas {
     }
     
     func updateTextureRect() {
-        
-        textureRect = visibleNormalized
+
+        if amiga.getConfig(.DMA_DEBUG_ENABLE) != 0 {
+            textureRect = entireNormalized
+        } else {
+            textureRect = visibleNormalized
+        }
     }
 
     func updateTextureRect(hstrt: Int, vstrt: Int, hstop: Int, vstop: Int) {
 
-        // log("updateTextureRect \(hstrt) \(vstrt) \(hstop) \(vstop)")
+        debug(.metal, "updateTextureRect \(hstrt) \(vstrt) \(hstop) \(vstop)")
 
         // Convert to pixel coordinates
         x1 = 2 * CGFloat(hstrt)
@@ -132,7 +138,7 @@ extension Canvas {
         if x2 > max.maxX { x2 = max.maxX }
         if y2 > max.maxY { y2 = max.maxY }
 
-        // log("(\(x1),\(y1)) - \(x2),\(y2))")
+        debug(.metal, "(\(x1),\(y1)) - \(x2),\(y2))")
 
         // Compensate the texture shift
         x1 -= CGFloat(HBLANK_MIN) * 4

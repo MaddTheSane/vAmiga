@@ -18,10 +18,14 @@
 
 enum_long(OPT)
 {
+    // Amiga
+    OPT_VIDEO_FORMAT,
+    
     // Agnus
     OPT_AGNUS_REVISION,
     OPT_SLOW_RAM_MIRROR,
-    
+    OPT_PTR_DROPS,
+
     // Denise
     OPT_DENISE_REVISION,
     OPT_VIEWPORT_TRACKING,
@@ -35,11 +39,14 @@ enum_long(OPT)
     // DMA Debugger
     OPT_DMA_DEBUG_ENABLE,
     OPT_DMA_DEBUG_MODE,
-    OPT_DMA_DEBUG_COLOR,
     OPT_DMA_DEBUG_OPACITY,
+    OPT_DMA_DEBUG_CHANNEL,
+    OPT_DMA_DEBUG_COLOR,
     
     // CPU
-    OPT_REG_RESET_VAL,
+    OPT_CPU_REVISION,
+    OPT_CPU_OVERCLOCKING,
+    OPT_CPU_RESET_VAL,
     
     // Real-time clock
     OPT_RTC_MODEL,
@@ -74,9 +81,11 @@ enum_long(OPT)
     OPT_INSERT_VOLUME,
     OPT_EJECT_VOLUME,
     
-    // Hard Drives
+    // Hard drive controllers
+    OPT_HDC_CONNECT,
+
+    // Hard drives
     OPT_HDR_TYPE,
-    OPT_HDR_CONNECT,
     OPT_HDR_PAN,
     OPT_HDR_STEP_VOLUME,
     
@@ -122,6 +131,9 @@ enum_long(OPT)
     OPT_AUDVOLL,
     OPT_AUDVOLR,
     
+    // Expansion boards
+    OPT_DIAG_BOARD,
+    
     // Remote servers
     OPT_SRV_PORT,
     OPT_SRV_PROTOCOL,
@@ -133,17 +145,20 @@ typedef OPT Option;
 #ifdef __cplusplus
 struct OptionEnum : util::Reflection<OptionEnum, Option>
 {    
-    static long minVal() { return 0; }
-    static long maxVal() { return OPT_AUDVOLR; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = OPT_AUDVOLR;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "OPT"; }
     static const char *key(Option value)
     {
         switch (value) {
-                
+
+            case OPT_VIDEO_FORMAT:          return "VIDEO_FORMAT";
+
             case OPT_AGNUS_REVISION:        return "AGNUS_REVISION";
             case OPT_SLOW_RAM_MIRROR:       return "SLOW_RAM_MIRROR";
+            case OPT_PTR_DROPS:             return "PTR_DROPS";
                 
             case OPT_DENISE_REVISION:       return "DENISE_REVISION";
             case OPT_VIEWPORT_TRACKING:     return "VIEWPORT_TRACKING";
@@ -155,10 +170,13 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
 
             case OPT_DMA_DEBUG_ENABLE:      return "DMA_DEBUG_ENABLE";
             case OPT_DMA_DEBUG_MODE:        return "DMA_DEBUG_MODE";
-            case OPT_DMA_DEBUG_COLOR:       return "DMA_DEBUG_COLOR";
             case OPT_DMA_DEBUG_OPACITY:     return "DMA_DEBUG_OPACITY";
+            case OPT_DMA_DEBUG_CHANNEL:     return "DMA_DEBUG_CHANNEL";
+            case OPT_DMA_DEBUG_COLOR:       return "DMA_DEBUG_COLOR";
 
-            case OPT_REG_RESET_VAL:         return "REG_RESET_VAL";
+            case OPT_CPU_REVISION:          return "CPU_REVISION";
+            case OPT_CPU_OVERCLOCKING:      return "CPU_OVERCLOCKING";
+            case OPT_CPU_RESET_VAL:         return "CPU_RESET_VAL";
                 
             case OPT_RTC_MODEL:             return "RTC_MODEL";
 
@@ -189,8 +207,9 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_INSERT_VOLUME:         return "INSERT_VOLUME";
             case OPT_EJECT_VOLUME:          return "EJECT_VOLUME";
                 
+            case OPT_HDC_CONNECT:           return "HDC_CONNECT";
+
             case OPT_HDR_TYPE:              return "HDR_TYPE";
-            case OPT_HDR_CONNECT:           return "HDR_CONNECT";
             case OPT_HDR_PAN:               return "HDR_PAN";
             case OPT_HDR_STEP_VOLUME:       return "HDR_STEP_VOLUME";
 
@@ -228,39 +247,12 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_AUDVOLL:               return "AUDVOLL";
             case OPT_AUDVOLR:               return "AUDVOLR";
 
+            case OPT_DIAG_BOARD:            return "DIAG_BOARD";
+
             case OPT_SRV_PORT:              return "SRV_PORT";
             case OPT_SRV_PROTOCOL:          return "SRV_PROTOCOL";
             case OPT_SRV_AUTORUN:           return "SRV_AUTORUN";
             case OPT_SRV_VERBOSE:           return "SRV_VERBOSE";
-        }
-        return "???";
-    }
-};
-#endif
-
-enum_long(EMULATOR_STATE)
-{
-    EMULATOR_STATE_OFF,
-    EMULATOR_STATE_PAUSED,
-    EMULATOR_STATE_RUNNING
-};
-typedef EMULATOR_STATE EmulatorState;
-
-#ifdef __cplusplus
-struct EmulatorStateEnum : util::Reflection<EmulatorStateEnum, EmulatorState>
-{
-    static long minVal() { return 0; }
-    static long maxVal() { return EMULATOR_STATE_RUNNING; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
-
-    static const char *prefix() { return "EMULATOR_STATE"; }
-    static const char *key(EmulatorState value)
-    {
-        switch (value) {
-                
-            case EMULATOR_STATE_OFF:      return "OFF";
-            case EMULATOR_STATE_PAUSED:   return "PAUSED";
-            case EMULATOR_STATE_RUNNING:  return "RUNNING";
         }
         return "???";
     }

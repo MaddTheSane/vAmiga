@@ -33,19 +33,7 @@ Agnus::pokeDMACON(u16 value)
     trace(DMA_DEBUG, "pokeDMACON(%04x)\n", value);
 
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        if (value & 0x8000) {
-            recordRegisterChange(DMA_CYCLES(1), SET_DMACON, value);
-        } else {
-            recordRegisterChange(DMA_CYCLES(1), SET_DMACON, value);
-        }
-    } else {
-        if (value & 0x8000) {
-            recordRegisterChange(DMA_CYCLES(2), SET_DMACON, value);
-        } else {
-            recordRegisterChange(DMA_CYCLES(2), SET_DMACON, value);
-        }
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_DMACON, value);
 }
 
 void
@@ -189,12 +177,12 @@ Agnus::peekVHPOSR() const
         result = HI_LO(latchedPos.v & 0xFF, 0);
 
     } else {
-        
-        // The returned position is four cycles ahead
-        auto pos = agnus.pos + Beam {0,4};
-        
+
+        // The returned position is five cycles ahead
+        auto pos = agnus.pos + 5;
+
         // Rectify the vertical position if it has wrapped over
-        if (pos.v >= frame.numLines()) pos.v = 0;
+        if (pos.v > pos.vMax()) pos.v = 0;
         
         // In cycle 0 and 1, we need to return the old value of posv
         if (pos.h <= 1) {
@@ -222,7 +210,7 @@ Agnus::setVHPOS(u16 value)
     [[maybe_unused]] int v7v0 = HI_BYTE(value);
     [[maybe_unused]] int h8h1 = LO_BYTE(value);
     
-    trace(XFILES, "XFILES (VHPOS): %x (%d,%d)\n", value, v7v0, h8h1);
+    xfiles("setVHPOS(%04x) (%d,%d)\n", value, v7v0, h8h1);
 
     // Don't know what to do here ...
 }
@@ -231,29 +219,27 @@ u16
 Agnus::peekVPOSR() const
 {
     // 15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
-    // LF I6 I5 I4 I3 I2 I1 I0 -- -- -- -- -- -- -- V8
+    // LF I6 I5 I4 I3 I2 I1 I0 LL -- -- -- -- -- -- V8
  
     // I5 I4 I3 I2 I1 I0 (Chip Identification)
     u16 result = idBits();
 
-    // LF (Long frame bit)
-    if (frame.isLongFrame()) result |= 0x8000;
+    // LF LL (Long Frame bit, Long Line bit)
+    if (pos.lof) result |= 0x8000;
+    if (pos.lol) result |= 0x0080;
 
-    // V8 (Vertical position MSB)
-    // result |= (ersy(bplcon0Initial) ? latchedPos.v : pos.v) >> 8;
-    
     if (ersy(bplcon0Initial)) {
 
         // Return the latched position if external synchronization is enabled
         result |= latchedPos.v >> 8;
 
     } else {
-        
-        // The returned position is four cycles ahead
-        auto pos = agnus.pos + Beam {0,4};
-        
+
+        // The returned position is five cycles ahead
+        auto pos = agnus.pos + 5;
+
         // Rectify the vertical position if it has wrapped over
-        if (pos.v >= frame.numLines()) pos.v = 0;
+        if (pos.v > pos.vMax()) pos.v = 0;
         
         // In cycle 0 and 1, we need to return the old value of posv
         if (pos.h <= 1) {
@@ -280,38 +266,38 @@ Agnus::setVPOS(u16 value)
 {
     if (!!GET_BIT(value, 0) != !!GET_BIT(pos.v, 8)) {
 
-        trace(XFILES, "XFILES (VPOS): Toggling V8 is not supported\n");
+        xfiles("VPOS: Toggling V8 is not supported\n");
     }
 
-    /* I don't really know what exactly we are supposed to do here.
-     * For the time being, I only take care of the LOF bit.
-     */
+    // Writing to this register clears the LOL bit
+    if (pos.lol) {
+
+        trace(NTSC_DEBUG, "Clearing the LOL bit\n");
+        pos.lol = false;
+        rectifyVBLEvent();
+    }
+
+    // Check the LOF bit
     bool newlof = value & 0x8000;
-    if (frame.lof == newlof) return;
+    if (pos.lof != newlof) {
         
-    /* If a long frame gets changed to a short frame, we only proceed if
-     * Agnus is not in the last rasterline. Otherwise, we would corrupt the
-     * emulators internal state (we would be in a line that is unreachable).
-     */
-    if (!newlof && inLastRasterline()) {
+        /* If a long frame gets changed to a short frame, we only proceed if
+         * Agnus is not in the last rasterline. Otherwise, we would corrupt the
+         * emulators internal state (we would be in a line that is unreachable).
+         */
+        if (!newlof && inLastRasterline()) {
 
-        trace(XFILES, "XFILES (VPOS): LOF bit changed in last scanline\n");
-        return;
-    }
-    
-    trace(XFILES, "XFILES (VPOS): Making a %s frame\n", newlof ? "long" : "short");
-    frame.lof = newlof;
-    
-    /* Reschedule a pending VBL event with a trigger cycle that is consistent
-     * with the new value of the LOF bit.
-     */
-    switch (id[SLOT_VBL]) {
+            xfiles("VPOS: LOF bit changed in last scanline\n");
+            return;
+        }
 
-        case VBL_STROBE0: scheduleStrobe0Event(); break;
-        case VBL_STROBE1: scheduleStrobe1Event(); break;
-        case VBL_STROBE2: scheduleStrobe2Event(); break;
-            
-        default: break;
+        xfiles("VPOS: Making a %s frame\n", newlof ? "long" : "short");
+        pos.lof = newlof;
+        
+        /* Reschedule a pending VBL event with a trigger cycle that is consistent
+         * with the new value of the LOF bit.
+         */
+        rectifyVBLEvent();
     }
 }
 
@@ -356,6 +342,9 @@ Agnus::setBPLCON0(u16 oldValue, u16 newValue)
     // Latch the position counters if the ERSY bit is set
     if ((newValue & 0b10) && !(oldValue & 0b10)) latchedPos = pos;
 
+    // Check the LACE bit
+    pos.lofToggle = newValue & 0b100;
+
     bplcon0 = newValue;
 }
 
@@ -392,7 +381,7 @@ template <Accessor s> void
 Agnus::pokeDIWSTRT(u16 value)
 {
     trace(DIW_DEBUG, "pokeDIWSTRT<%s>(%04x)\n", AccessorEnum::key(s), value);
-    
+
     recordRegisterChange(DMA_CYCLES(4), SET_DIWSTRT_AGNUS, value);
     recordRegisterChange(DMA_CYCLES(3), SET_DIWSTRT_DENISE, value);
 }
@@ -401,7 +390,7 @@ template <Accessor s> void
 Agnus::pokeDIWSTOP(u16 value)
 {
     trace(DIW_DEBUG, "pokeDIWSTOP<%s>(%04x)\n", AccessorEnum::key(s), value);
-    
+
     recordRegisterChange(DMA_CYCLES(4), SET_DIWSTOP_AGNUS, value);
     recordRegisterChange(DMA_CYCLES(3), SET_DIWSTOP_DENISE, value);
 }
@@ -462,23 +451,50 @@ Agnus::pokeSPRxCTL(u16 value)
     sprVStrt[x] = (i16)((value & 0b100) << 6 | (sprVStrt[x] & 0x00FF));
     sprVStop[x] = (i16)((value & 0b010) << 7 | (value >> 8));
 
+    // ECS Agnus supports an additional position bit (encoded in 'unused' area)
+    if (GET_BIT(value, 6)) {
+        xfiles("pokeSPRxCTL: Extended VSTRT bit set\n");
+        if (isECS()) sprVStrt[x] |= 0x0200;
+    }
+    if (GET_BIT(value, 5)) {
+        xfiles("pokeSPRxCTL: Extended VSTOP bit set\n");
+        if (isECS()) sprVStop[x] |= 0x0200;
+    }
+
     // Update sprite DMA status
     if (sprVStrt[x] == v) sprDmaState[x] = SPR_DMA_ACTIVE;
     if (sprVStop[x] == v) sprDmaState[x] = SPR_DMA_IDLE;
 }
 
-template <Accessor s>
-void Agnus::pokeDSKPTH(u16 value)
+void
+Agnus::pokeBEAMCON0(u16 value)
+{
+    xfiles("pokeBEAMCON0(%04x)\n", value);
+
+    // ECS only register
+    if (agnus.isOCS()) return;
+
+    // 15: unused       11: LOLDIS      7: VARBEAMEN    3: unused
+    // 14: HARDDIS      10: CSCBEN      6: DUAL         2: CSYTRUE
+    // 13: LPENDIS       9: VARVSYEN    5: PAL          1: VSYTRUE
+    // 12: VARVBEN       8: VARHSYEN    4: VARCSYEN     0: HSYTRUE
+
+    // PAL
+    VideoFormat type = GET_BIT(value, 5) ? PAL : NTSC;
+    if (pos.type != type) agnus.setVideoFormat(type);
+
+    // LOLDIS
+    bool loldis = GET_BIT(value, 11);
+    if (pos.type == NTSC) pos.lolToggle = !loldis;
+}
+
+template <Accessor s> void
+Agnus::pokeDSKPTH(u16 value)
 {
     trace(DSKREG_DEBUG, "pokeDSKPTH(%04x) [%s]\n", value, AccessorEnum::key(s));
 
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        recordRegisterChange(DMA_CYCLES(1), SET_DSKPTH, value, s);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        recordRegisterChange(DMA_CYCLES(2), SET_DSKPTH, value, s);
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_DSKPTH, value, s);
 }
 
 void
@@ -493,7 +509,7 @@ Agnus::setDSKPTH(u16 value)
     dskpt = REPLACE_HI_WORD(dskpt, value);
     
     if (dskpt & ~agnus.ptrMask) {
-        trace(XFILES, "DSKPT %08x out of range\n", dskpt);
+        xfiles("DSKPT %08x out of range\n", dskpt);
     }
 }
 
@@ -503,12 +519,7 @@ void Agnus::pokeDSKPTL(u16 value)
     trace(DSKREG_DEBUG, "pokeDSKPTL(%04x) [%s]\n", value, AccessorEnum::key(s));
 
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        recordRegisterChange(DMA_CYCLES(1), SET_DSKPTL, value, s);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        recordRegisterChange(DMA_CYCLES(2), SET_DSKPTL, value, s);
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_DSKPTL, value, s);
 }
 
 void
@@ -545,12 +556,7 @@ Agnus::pokeBPLxPTH(u16 value)
     trace(BPLREG_DEBUG, "pokeBPL%dPTH(%04x) [%s]\n", x, value, AccessorEnum::key(s));
     
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        recordRegisterChange(DMA_CYCLES(1), SET_BPL1PTH + x - 1, value, s);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        recordRegisterChange(DMA_CYCLES(2), SET_BPL1PTH + x - 1, value, s);
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_BPL1PTH + x - 1, value, s);
 }
 
 template <int x> void
@@ -565,7 +571,7 @@ Agnus::setBPLxPTH(u16 value)
     bplpt[x - 1] = REPLACE_HI_WORD(bplpt[x - 1], value);
     
     if (bplpt[x - 1] & ~agnus.ptrMask) {
-        trace(XFILES, "BPL%dPT %08x out of range\n", x, bplpt[x - 1]);
+        xfiles("BPL%dPT %08x out of range\n", x, bplpt[x - 1]);
     }
 }
 
@@ -575,12 +581,7 @@ Agnus::pokeBPLxPTL(u16 value)
     trace(BPLREG_DEBUG, "pokeBPL%dPTL(%04x) [%s]\n", x, value, AccessorEnum::key(s));
 
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        recordRegisterChange(DMA_CYCLES(1), SET_BPL1PTL + x - 1, value, s);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        recordRegisterChange(DMA_CYCLES(2), SET_BPL1PTL + x - 1, value, s);
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_BPL1PTL + x - 1, value, s);
 }
 
 template <int x> void
@@ -601,12 +602,7 @@ Agnus::pokeSPRxPTH(u16 value)
     trace(SPRREG_DEBUG, "pokeSPR%dPTH(%04x) [%s]\n", x, value, AccessorEnum::key(s));
 
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        recordRegisterChange(DMA_CYCLES(1), SET_SPR0PTH + x, value, s);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        recordRegisterChange(DMA_CYCLES(2), SET_SPR0PTH + x, value, s);
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_SPR0PTH + x, value, s);
 }
 
 template <int x> void
@@ -621,7 +617,7 @@ Agnus::setSPRxPTH(u16 value)
     sprpt[x] = REPLACE_HI_WORD(sprpt[x], value);
     
     if (sprpt[x] & ~agnus.ptrMask) {
-        trace(XFILES, "SPR%dPT %08x out of range\n", x, sprpt[x]);
+        xfiles("SPR%dPT %08x out of range\n", x, sprpt[x]);
     }
 }
 
@@ -631,12 +627,7 @@ Agnus::pokeSPRxPTL(u16 value)
     trace(SPRREG_DEBUG, "pokeSPR%dPTL(%04x) [%s]\n", x, value, AccessorEnum::key(s));
 
     // Schedule the write cycle
-    if constexpr (s == ACCESSOR_CPU) {
-        recordRegisterChange(DMA_CYCLES(1), SET_SPR0PTL + x, value, s);
-    }
-    if constexpr (s == ACCESSOR_AGNUS) {
-        recordRegisterChange(DMA_CYCLES(2), SET_SPR0PTL + x, value, s);
-    }
+    recordRegisterChange(DMA_CYCLES(2), SET_SPR0PTL + x, value, s);
 }
 
 template <int x> void
@@ -657,9 +648,9 @@ Agnus::dropWrite(BusOwner owner)
     /* A write to a pointer register is dropped if the pointer was used one
      * cycle before the update would happen.
      */
-    if (!NO_PTR_DROPS && pos.h >= 1 && busOwner[pos.h - 1] == owner) {
+    if (config.ptrDrops && pos.h >= 1 && busOwner[pos.h - 1] == owner) {
         
-        trace(XFILES, "XFILES: Dropping pointer register write (%d)\n", owner);
+        xfiles("Dropping pointer register write (%d)\n", owner);
         return true;
     }
     

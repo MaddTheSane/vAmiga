@@ -129,7 +129,13 @@ extension Renderer {
 
     func zoomTextureIn(steps: Int = 30) {
 
+        let current = canvas.textureRect
         let target = canvas.visibleNormalized
+
+        cutoutX1.current = Float(current.minX)
+        cutoutY1.current = Float(current.minY)
+        cutoutX2.current = Float(current.maxX)
+        cutoutY2.current = Float(current.maxY)
         
         cutoutX1.target = Float(target.minX)
         cutoutY1.target = Float(target.minY)
@@ -171,9 +177,9 @@ extension Renderer {
     // Geometry animations
     //
 
-    func zoomIn(steps: Int = 60) {
+    func zoomIn(steps: Int = 30) {
 
-        shiftZ.current = 6.0
+        shiftZ.current = 0.025
         shiftZ.target = 0.0
         angleX.target = 0.0
         angleY.target = 0.0
@@ -187,9 +193,9 @@ extension Renderer {
         animates |= AnimationType.geometry
     }
 
-    func zoomOut(steps: Int = 40) {
+    func zoomOut(steps: Int = 30) {
 
-        shiftZ.target = 6.0
+        shiftZ.target = 0.025
         angleX.target = 0.0
         angleY.target = 0.0
         angleZ.target = 0.0
@@ -250,12 +256,18 @@ extension Renderer {
     // Color animation
     //
     
-    func flash() {
+    func flash(steps: Int = 20) {
                 
         white.current = 1.0
         white.target = 0.0
-        white.steps = 20
+        white.steps = steps
         
         animates |= AnimationType.color
+    }
+
+    func blend(steps: Int = 20) {
+
+        canvas.alpha.current = 0
+        canvas.alpha.steps = steps
     }
 }

@@ -29,16 +29,16 @@ enum_long(FILETYPE)
     FILETYPE_EXE,
     FILETYPE_DIR,
     FILETYPE_ROM,
-    FILETYPE_EXTENDED_ROM
+    FILETYPE_EXTENDED_ROM    
 };
 typedef FILETYPE FileType;
 
 #ifdef __cplusplus
 struct FileTypeEnum : util::Reflection<FileTypeEnum, FileType>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return FILETYPE_EXTENDED_ROM; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = FILETYPE_EXTENDED_ROM;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "FILETYPE"; }
     static const char *key(FileType value)

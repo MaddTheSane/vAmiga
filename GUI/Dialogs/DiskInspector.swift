@@ -165,13 +165,20 @@ class DiskInspector: DialogController {
         
         if let hdf = decoder as? HDFFileProxy {
                         
-            let num = hdf.numPartitions
-            subTitle2.stringValue = "\(num) Partition" + (num != 1 ? "s" : "")
+            var num = hdf.numPartitions
+            subTitle2.stringValue = "\(num) Partition"
+            subTitle2.stringValue += num != 1 ? "s" : ""
+            
             if hdf.hasRDB {
-                subTitle3.stringValue = "Rigid Disk Block found"
+                subTitle3.stringValue = "Rigid Disk Block"
             } else {
                 subTitle3.stringValue = "No Rigid Disk Block"
             }
+
+            num = hdf.numDrivers
+            subTitle3.stringValue += ", " + (num == 0 ? "no" : "\(num)")
+            subTitle3.stringValue += " loadable file system"
+            subTitle3.stringValue += num != 1 ? "s" : ""
         }
         if let floppy = decoder as? FloppyFileProxy {
             

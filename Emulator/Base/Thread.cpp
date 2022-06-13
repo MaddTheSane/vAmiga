@@ -14,11 +14,7 @@
 
 Thread::Thread()
 {
-    // Initialize the sync timer
-    targetTime = util::Time::now();
-    
-    // Start the thread and enter the main function
-    thread = std::thread(&Thread::main, this);
+
 }
 
 Thread::~Thread()
@@ -30,7 +26,6 @@ Thread::~Thread()
 template <> void
 Thread::execute <Thread::SyncMode::Periodic> ()
 {
-    // Call the execution function
     loadClock.go();
     execute();
     loadClock.stop();
@@ -39,7 +34,6 @@ Thread::execute <Thread::SyncMode::Periodic> ()
 template <> void
 Thread::execute <Thread::SyncMode::Pulsed> ()
 {
-    // Call the execution function
     loadClock.go();
     execute();
     loadClock.stop();
@@ -83,7 +77,7 @@ Thread::sleep <Thread::SyncMode::Periodic> ()
     // Sleep for a while
     // std::cout << "Sleeping... " << targetTime.asMilliseconds() << std::endl;
     // std::cout << "Delay = " << delay.asNanoseconds() << std::endl;
-    targetTime += delay;
+    targetTime += getDelay();
     targetTime.sleepUntil();
 }
 
@@ -98,9 +92,9 @@ void
 Thread::main()
 {
     debug(RUN_DEBUG, "main()\n");
-          
+    
     while (++loopCounter) {
-           
+
         if (isRunning()) {
                         
             switch (mode) {
@@ -136,6 +130,11 @@ Thread::main()
             
             if (state == EXEC_OFF && newState == EXEC_PAUSED) {
                 
+                AmigaComponent::powerOn();
+                state = EXEC_PAUSED;
+
+            } else if (state == EXEC_OFF && newState == EXEC_RUNNING) {
+
                 AmigaComponent::powerOn();
                 state = EXEC_PAUSED;
 
@@ -198,27 +197,9 @@ Thread::main()
 }
 
 void
-Thread::setSyncDelay(util::Time newDelay)
-{
-    delay = newDelay;
-}
-
-void
 Thread::setMode(SyncMode newMode)
 {
     mode = newMode;
-}
-
-void
-Thread::setWarpLock(bool value)
-{
-    warpLock = value;
-}
-
-void
-Thread::setDebugLock(bool value)
-{
-    debugLock = value;
 }
 
 void
@@ -258,9 +239,6 @@ Thread::run(bool blocking)
 
     // Never call this function inside the emulator thread
     assert(!isEmulatorThread());
-
-    // The emulator is expected to be powered on
-    if (isPoweredOff()) throw VAError(ERROR_POWERED_OFF);
         
     if (!isRunning()) {
 
@@ -301,7 +279,7 @@ Thread::warpOn(isize source)
 {
     assert(source >= 0 && source < 8);
     
-    if (!warpLock) changeWarpTo(warpMode | (u8)(1 << source));
+    changeWarpTo(warpMode | (u8)(1 << source));
 }
 
 void
@@ -309,7 +287,7 @@ Thread::warpOff(isize source)
 {
     assert(source >= 0 && source < 8);
     
-    if (!warpLock) changeWarpTo(warpMode & ~(u8)(1 << source));
+    changeWarpTo(warpMode & ~(u8)(1 << source));
 }
 
 void
@@ -317,13 +295,13 @@ Thread::debugOn(isize source)
 {
     assert(source >= 0 && source < 8);
     
-    if (!debugLock) changeDebugTo(debugMode | (u8)(1 << source));
+    changeDebugTo(debugMode | (u8)(1 << source));
 }
 
 void
 Thread::debugOff(isize source)
 {
-    if (!debugLock) changeDebugTo(debugMode & ~(u8)(1 << source));
+    changeDebugTo(debugMode & ~(u8)(1 << source));
 }
 
 void

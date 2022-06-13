@@ -23,6 +23,8 @@ static_assert(sizeof(u16) == 2, "u16 size mismatch");
 static_assert(sizeof(u32) == 4, "u32 size mismatch");
 static_assert(sizeof(u64) == 8, "u64 size mismatch");
 
+Defaults Amiga::defaults;
+
 string
 Amiga::version()
 {
@@ -82,6 +84,7 @@ Amiga::Amiga()
         &hd2con,
         &hd3con,
         &ramExpansion,
+        &diagBoard,
         &ciaA,
         &ciaB,
         &mem,
@@ -96,6 +99,12 @@ Amiga::Amiga()
     initialize();
     hardReset();
         
+    // Initialize the sync timer
+    targetTime = util::Time::now();
+    
+    // Start the thread and enter the main function
+    thread = std::thread(&Thread::main, this);
+    
     // Print some debug information
     if constexpr (SNP_DEBUG) {
         
@@ -135,7 +144,7 @@ void
 Amiga::prefix() const
 {
     fprintf(stderr, "[%lld] (%3ld,%3ld) ",
-            agnus.frame.nr, agnus.pos.v, agnus.pos.h);
+            agnus.pos.frame, agnus.pos.v, agnus.pos.h);
 
     fprintf(stderr, "%06X ", cpu.getPC0());
     fprintf(stderr, "%2X ", cpu.getIPL());
@@ -181,9 +190,24 @@ void
 Amiga::_reset(bool hard)
 {
     RESET_SNAPSHOT_ITEMS(hard)
-    
+
     // Clear all runloop flags
     flags = 0;
+}
+
+void
+Amiga::resetConfig()
+{
+    assert(isPoweredOff());
+
+    std::vector <Option> options = {
+
+        OPT_VIDEO_FORMAT
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
 }
 
 i64
@@ -191,9 +215,14 @@ Amiga::getConfigItem(Option option) const
 {
     switch (option) {
 
+        case OPT_VIDEO_FORMAT:
+
+            return config.type;
+
         case OPT_AGNUS_REVISION:
         case OPT_SLOW_RAM_MIRROR:
-            
+        case OPT_PTR_DROPS:
+
             return agnus.getConfigItem(option);
             
         case OPT_DENISE_REVISION:
@@ -220,9 +249,11 @@ Amiga::getConfigItem(Option option) const
         case OPT_DMA_DEBUG_OPACITY:
             
             return agnus.dmaDebugger.getConfigItem(option);
-            
-        case OPT_REG_RESET_VAL:
-            
+
+        case OPT_CPU_REVISION:
+        case OPT_CPU_OVERCLOCKING:
+        case OPT_CPU_RESET_VAL:
+
             return cpu.getConfigItem(option);
             
         case OPT_RTC_MODEL:
@@ -273,6 +304,10 @@ Amiga::getConfigItem(Option option) const
             
             return keyboard.getConfigItem(option);
 
+        case OPT_DIAG_BOARD:
+            
+            return diagBoard.getConfigItem(option);
+            
         default:
             fatalError;
     }
@@ -283,7 +318,7 @@ Amiga::getConfigItem(Option option, long id) const
 {
     switch (option) {
             
-        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_CHANNEL:
         case OPT_DMA_DEBUG_COLOR:
             
             return agnus.dmaDebugger.getConfigItem(option, id);
@@ -311,8 +346,11 @@ Amiga::getConfigItem(Option option, long id) const
             
             return df[id]->getConfigItem(option);
             
+        case OPT_HDC_CONNECT:
+            
+            return hdcon[id]->getConfigItem(option);
+            
         case OPT_HDR_TYPE:
-        case OPT_HDR_CONNECT:
         case OPT_HDR_PAN:
         case OPT_HDR_STEP_VOLUME:
             
@@ -346,6 +384,27 @@ Amiga::getConfigItem(Option option, long id) const
 }
 
 void
+Amiga::setConfigItem(Option option, i64 value)
+{
+    switch (option) {
+
+        case OPT_VIDEO_FORMAT:
+
+            if (value != config.type) {
+
+                SUSPENDED
+
+                config.type = VideoFormat(value);
+                agnus.setVideoFormat(config.type);
+            }
+            return;
+
+        default:
+            fatalError;
+    }
+}
+
+void
 Amiga::configure(Option option, i64 value)
 {
     debug(CNF_DEBUG, "configure(%s, %lld)\n", OptionEnum::key(option), value);
@@ -375,8 +434,14 @@ Amiga::configure(Option option, i64 value)
 
     switch (option) {
 
+        case OPT_VIDEO_FORMAT:
+
+            setConfigItem(option, value);
+            break;
+
         case OPT_AGNUS_REVISION:
         case OPT_SLOW_RAM_MIRROR:
+        case OPT_PTR_DROPS:
             
             agnus.setConfigItem(option, value);
             break;
@@ -409,7 +474,9 @@ Amiga::configure(Option option, i64 value)
             agnus.dmaDebugger.setConfigItem(option, value);
             break;
 
-        case OPT_REG_RESET_VAL:
+        case OPT_CPU_REVISION:
+        case OPT_CPU_OVERCLOCKING:
+        case OPT_CPU_RESET_VAL:
             
             cpu.setConfigItem(option, value);
             break;
@@ -449,9 +516,16 @@ Amiga::configure(Option option, i64 value)
             df[2]->setConfigItem(option, value);
             df[3]->setConfigItem(option, value);
             break;
-            
+
+        case OPT_HDC_CONNECT:
+
+            hdcon[0]->setConfigItem(option, value);
+            hdcon[1]->setConfigItem(option, value);
+            hdcon[2]->setConfigItem(option, value);
+            hdcon[3]->setConfigItem(option, value);
+            break;
+
         case OPT_HDR_TYPE:
-        case OPT_HDR_CONNECT:
         case OPT_HDR_PAN:
         case OPT_HDR_STEP_VOLUME:
             
@@ -524,6 +598,11 @@ Amiga::configure(Option option, i64 value)
             controlPort2.joystick.setConfigItem(option, value);
             break;
             
+        case OPT_DIAG_BOARD:
+            
+            diagBoard.setConfigItem(OPT_DIAG_BOARD, value);
+            break;
+            
         case OPT_SRV_PORT:
         case OPT_SRV_PROTOCOL:
         case OPT_SRV_AUTORUN:
@@ -568,7 +647,7 @@ Amiga::configure(Option option, long id, i64 value)
     
     switch (option) {
             
-        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_CHANNEL:
         case OPT_DMA_DEBUG_COLOR:
             
             agnus.dmaDebugger.setConfigItem(option, id, value);
@@ -597,20 +676,37 @@ Amiga::configure(Option option, long id, i64 value)
         case OPT_INSERT_VOLUME:
         case OPT_EJECT_VOLUME:
             
+            assert(id >= 0 || id <= 4);
             df[id]->setConfigItem(option, value);
             break;
 
+        case OPT_HDC_CONNECT:
+
+            assert(id >= 0 || id <= 4);
+            hdcon[id]->setConfigItem(option, value);
+            break;
+
         case OPT_HDR_TYPE:
-        case OPT_HDR_CONNECT:
         case OPT_HDR_PAN:
         case OPT_HDR_STEP_VOLUME:
             
+            assert(id >= 0 || id <= 4);
             hd[id]->setConfigItem(option, value);
             break;
 
+        case OPT_CIA_REVISION:
+        case OPT_TODBUG:
+        case OPT_ECLOCK_SYNCING:
+            
+            assert(id == 0 || id == 1);
+            if (id == 0) ciaA.setConfigItem(option, value);
+            if (id == 1) ciaB.setConfigItem(option, value);
+            break;
+            
         case OPT_PULLUP_RESISTORS:
         case OPT_MOUSE_VELOCITY:
             
+            assert(id == PORT_1 || id == PORT_2);
             if (id == PORT_1) controlPort1.mouse.setConfigItem(option, value);
             if (id == PORT_2) controlPort2.mouse.setConfigItem(option, value);
             break;
@@ -650,7 +746,8 @@ Amiga::configure(ConfigScheme scheme)
         switch(scheme) {
 
             case CONFIG_A1000_OCS_1MB:
-                
+
+                configure(OPT_VIDEO_FORMAT, PAL);
                 configure(OPT_CHIP_RAM, 512);
                 configure(OPT_SLOW_RAM, 512);
                 configure(OPT_AGNUS_REVISION, AGNUS_OCS_OLD);
@@ -658,6 +755,7 @@ Amiga::configure(ConfigScheme scheme)
 
             case CONFIG_A500_OCS_1MB:
                 
+                configure(OPT_VIDEO_FORMAT, PAL);
                 configure(OPT_CHIP_RAM, 512);
                 configure(OPT_SLOW_RAM, 512);
                 configure(OPT_AGNUS_REVISION, AGNUS_OCS);
@@ -665,6 +763,7 @@ Amiga::configure(ConfigScheme scheme)
                 
             case CONFIG_A500_ECS_1MB:
                 
+                configure(OPT_VIDEO_FORMAT, PAL);
                 configure(OPT_CHIP_RAM, 512);
                 configure(OPT_SLOW_RAM, 512);
                 configure(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
@@ -760,7 +859,7 @@ Amiga::_inspect() const
         info.dmaClock = agnus.clock;
         info.ciaAClock = ciaA.getClock();
         info.ciaBClock = ciaB.getClock();
-        info.frame = agnus.frame.nr;
+        info.frame = agnus.pos.frame;
         info.vpos = agnus.pos.v;
         info.hpos = agnus.pos.h;
     }
@@ -770,7 +869,13 @@ void
 Amiga::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
-    
+
+    if (category == Category::Config) {
+
+        os << tab("Video format");
+        os << VideoFormatEnum::key(config.type);
+    }
+
     if (category == Category::State) {
         
         os << tab("Power");
@@ -781,6 +886,11 @@ Amiga::_dump(Category category, std::ostream& os) const
         os << bol(inWarpMode()) << std::endl;
         os << tab("Debug mode");
         os << bol(inDebugMode()) << std::endl;
+    }
+    
+    if (category == Category::Defaults) {
+        
+        defaults.dump(category, os);
     }
 }
 
@@ -923,13 +1033,7 @@ Amiga::execute()
                 clearFlag(RL::USER_SNAPSHOT);
                 takeUserSnapshot();
             }
-
-            // Are we requested to update the debugger info structs?
-            if (flags & RL::INSPECT) {
-                clearFlag(RL::INSPECT);
-                inspect();
-            }
-
+            
             // Did we reach a soft breakpoint?
             if (flags & RL::SOFTSTOP_REACHED) {
                 clearFlag(RL::SOFTSTOP_REACHED);
@@ -963,7 +1067,36 @@ Amiga::execute()
                 clearFlag(RL::CATCHPOINT_REACHED);
                 inspect();
                 auto vector = u8(cpu.debugger.catchpoints.hit->addr);
-                msgQueue.put(MSG_CATCHPOINT_REACHED, vector);
+                msgQueue.put(MSG_CATCHPOINT_REACHED, cpu.getPC0(), vector);
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Did we reach a software trap?
+            if (flags & RL::SWTRAP_REACHED) {
+                clearFlag(RL::SWTRAP_REACHED);
+                inspect();
+                msgQueue.put(MSG_SWTRAP_REACHED, cpu.getPC0());
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Did we reach a Copper breakpoint?
+            if (flags & RL::COPPERBP_REACHED) {
+                clearFlag(RL::COPPERBP_REACHED);
+                inspect();
+                auto addr = u8(agnus.copper.debugger.breakpoints.hit->addr);
+                msgQueue.put(MSG_COPPERBP_REACHED, addr);
+                newState = EXEC_PAUSED;
+                break;
+            }
+
+            // Did we reach a Copper watchpoint?
+            if (flags & RL::COPPERWP_REACHED) {
+                clearFlag(RL::COPPERWP_REACHED);
+                inspect();
+                auto addr = u8(agnus.copper.debugger.watchpoints.hit->addr);
+                msgQueue.put(MSG_COPPERWP_REACHED, addr);
                 newState = EXEC_PAUSED;
                 break;
             }
@@ -995,16 +1128,33 @@ Amiga::execute()
     }
 }
 
+util::Time
+Amiga::getDelay()
+{
+    switch (config.type) {
+
+        case PAL:   return util::Time(i64(1000000000 / 50));
+        case NTSC:  return util::Time(i64(1000000000 / 60));
+
+        default:
+            fatalError;
+    }
+}
+
 void
 Amiga::setFlag(u32 flag)
 {
-    SYNCHRONIZED flags |= flag;
+    SYNCHRONIZED
+
+    flags |= flag;
 }
 
 void
 Amiga::clearFlag(u32 flag)
 {
-    SYNCHRONIZED flags &= ~flag;
+    SYNCHRONIZED
+
+    flags &= ~flag;
 }
 
 void
@@ -1086,8 +1236,12 @@ Amiga::latestUserSnapshot()
 void
 Amiga::loadSnapshot(const Snapshot &snapshot)
 {
+    // bool wasPAL, isPAL;
+
     {   SUSPENDED
-        
+
+        // wasPAL = agnus.isPAL();
+
         try {
             
             // Restore the saved state
@@ -1104,13 +1258,13 @@ Amiga::loadSnapshot(const Snapshot &snapshot)
             hardReset();
             throw error;
         }
-        
-        // Print some debug info if requested
-        if constexpr (SNP_DEBUG) dump();
+
+        // isPAL = agnus.isPAL();
     }
     
     // Inform the GUI
     msgQueue.put(MSG_SNAPSHOT_RESTORED);
+    msgQueue.put(MSG_VIDEO_FORMAT, agnus.isPAL() ? PAL : NTSC);
 }
 
 void

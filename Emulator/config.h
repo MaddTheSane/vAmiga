@@ -15,15 +15,15 @@
 
 // Version number
 #define VER_MAJOR 2
-#define VER_MINOR 0
+#define VER_MINOR 1
 #define VER_SUBMINOR 0
-#define VER_BETA 1
+#define VER_BETA 2
 
 // Snapshot version number
 #define SNP_MAJOR 2
-#define SNP_MINOR 0
+#define SNP_MINOR 1
 #define SNP_SUBMINOR 0
-#define SNP_BETA 1
+#define SNP_BETA 2
 
 // Uncomment this setting in a release build
 // #define RELEASEBUILD
@@ -60,9 +60,9 @@ struct FloatStereo; typedef struct FloatStereo SampleType;
  { OPT_DRIVE_SPEED,      -1             }  }
 */
 
-// Uncomment to colorize a certain row or column
-// #define LINE_DEBUG (agnus.pos.v == 260 || agnus.pos.v == 300)
-// #define COLUMN_DEBUG 114
+// Uncomment to colorize a certain scanline
+// #define LINE_DEBUG (vpos == 0 || vpos == 160 || vpos == 300)
+// #define LINE_DEBUG (vpos == 200)
 
 
 //
@@ -93,7 +93,8 @@ struct FloatStereo; typedef struct FloatStereo SampleType;
 //
 
 static const int NO_SEQ_FASTPATH = 0; // Disable sequencer speed optimizations
-static const int LEGACY_COPPER   = 0; // Enable deprecated Copper code
+static const int DIAG_BOARD      = 0; // Plug in the diagnose board
+
 
 //
 // Debug settings
@@ -103,6 +104,7 @@ static const int LEGACY_COPPER   = 0; // Enable deprecated Copper code
 static const int XFILES          = 0; // Report paranormal activity
 static const int CNF_DEBUG       = 0; // Configuration options
 static const int OBJ_DEBUG       = 0; // Object life-times
+static const int DEF_DEBUG       = 0; // User defaults
 static const int MIMIC_UAE       = 0; // Enable to compare debug logs with UAE
 
 // Runloop
@@ -113,6 +115,7 @@ static const int SNP_DEBUG       = 0; // Serialization (snapshots)
 
 // CPU
 static const int CPU_DEBUG       = 0; // CPU
+static const int CST_DEBUG       = 0; // Call stack recording
 
 // Memory access
 static const int OCSREG_DEBUG    = 0; // General OCS register debugging
@@ -124,7 +127,7 @@ static const int MEM_DEBUG       = 0; // Memory
 static const int DMA_DEBUG       = 0; // DMA registers
 static const int DDF_DEBUG       = 0; // Display data fetch
 static const int SEQ_DEBUG       = 0; // Bitplane sequencer
-static const int NO_PTR_DROPS    = 0; // Never drop a pointer register write
+static const int NTSC_DEBUG      = 0; // NTSC mode
 
 // Copper
 static const int COP_CHECKSUM    = 0; // Compute Copper checksums
@@ -134,7 +137,8 @@ static const int COP_DEBUG       = 0; // Copper execution
 // Blitter
 static const int BLT_CHECKSUM    = 0; // Compute Blitter checksums
 static const int BLTREG_DEBUG    = 0; // Blitter registers
-static const int BLT_GUARD       = 0; // Guard registers while Blitter runs
+static const int BLT_REG_GUARD   = 0; // Guard registers while Blitter runs
+static const int BLT_MEM_GUARD   = 0; // Guard memory while Blitter runs
 static const int BLT_DEBUG       = 0; // Blitter execution
 static const int BLTTIM_DEBUG    = 0; // Blitter Timing
 static const int SLOW_BLT_DEBUG  = 0; // Execute micro-instructions in one chunk
@@ -174,6 +178,8 @@ static const int FS_DEBUG        = 0; // File System Classes (OFS / FFS)
 
 // Hard Drives
 static const int HDR_ACCEPT_ALL  = 0; // Disables hard drive layout checks
+static const int HDR_FS_LOAD_ALL = 0; // Don't filter out unneeded file systems
+static const int WT_DEBUG        = 0; // Write-through mode
 
 // Audio
 static const int AUDREG_DEBUG    = 0; // Audio registers
@@ -192,9 +198,11 @@ static const int HOLD_MOUSE_L    = 0; // Hold down the left mouse button
 static const int HOLD_MOUSE_R    = 0; // Hold down the right mouse button
 
 // Expansion boards
-static const int ZOR_DEBUG       = 0; // Zorro space, autoconfig
+static const int ZOR_DEBUG       = 0; // Zorro space
+static const int ACF_DEBUG       = 0; // Autoconfig
 static const int FAS_DEBUG       = 0; // FastRam
 static const int HDR_DEBUG       = 0; // HardDrive
+static const int DBD_DEBUG       = 0; // DebugBoard
 
 // Media types
 static const int ADF_DEBUG       = 0; // ADF and extended ADF files

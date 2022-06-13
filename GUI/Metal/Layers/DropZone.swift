@@ -22,7 +22,9 @@ class DropZone: Layer {
     
     var window: NSWindow { return controller.window! }
     var contentView: NSView { return window.contentView! }
-        
+    var metal: MetalView { return controller.metal! }
+    var mydocument: MyDocument { return controller.mydocument! }
+    
     var zones = [NSImageView(), NSImageView(), NSImageView(), NSImageView()]
     var ul = [NSPoint(x: 0, y: 0), NSPoint(x: 0, y: 0),
               NSPoint(x: 0, y: 0), NSPoint(x: 0, y: 0)]
@@ -41,8 +43,6 @@ class DropZone: Layer {
     var maxAlpha = [0.0, 0.0, 0.0, 0.0]
         
     var type: FileType?
-    var error: VAError?
-    var errorUrl: URL?
     
     // Image pool
     var dfDisabled: [NSImage] =
@@ -147,7 +147,6 @@ class DropZone: Layer {
     override func update(frames: Int64) {
         
         super.update(frames: frames)
-
         if alpha.current > 0 { updateAlpha() }
     }
     
@@ -211,13 +210,30 @@ class DropZone: Layer {
         resize()
     }
     
-    override func animationHasStopped() {
+    override func layerDidClose() {
         
-        if !isVisible {
+        guard let url = metal.dropUrl else { return }
+        guard let type = metal.dropType else { return }
+        let n = metal.dropZone
+
+        do {
+                        
+            switch type {
+                
+            case .SNAPSHOT, .SCRIPT:
+                try mydocument.addMedia(url: url,
+                                        allowedTypes: [type])
+                
+            case .ADF, .HDF, .EXT, .IMG, .DMS, .EXE, .DIR:
+                try mydocument.addMedia(url: url,
+                                        allowedTypes: [type], df: n!, hd: n!)
+            default:
+                fatalError()
+            }
             
-            // The drop zone has closed. If an error is pending, display it
-            error?.cantOpen(url: errorUrl!)
-            error = nil
+        } catch {
+            
+            controller.showAlert(.cantOpen(url: url), error: error, async: true)
         }
     }
     

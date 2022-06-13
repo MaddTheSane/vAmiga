@@ -20,9 +20,6 @@ class ScreenshotDialog: DialogController {
     @IBOutlet weak var itemLabel: NSTextField!
     @IBOutlet weak var text1: NSTextField!
     @IBOutlet weak var text2: NSTextField!
-
-    // Fingerprint of linked media file
-    var checksum = UInt64(0)
     
     // Screenshot storage
     var screenshots: [Screenshot] = []
@@ -39,7 +36,7 @@ class ScreenshotDialog: DialogController {
 
     func loadScreenshots() {
 
-        log("Seeking screenshots for disk with id \(checksum)", level: 2)
+        debug(.media)
         
         for url in Screenshot.allFiles {
             if let screenshot = Screenshot(fromUrl: url) {
@@ -47,19 +44,19 @@ class ScreenshotDialog: DialogController {
             }
         }
         
-        log("\(screenshots.count) screenshots loaded", level: 2)
+        debug(.media, "\(screenshots.count) screenshots loaded")
     }
     
     func saveScreenshots() throws {
         
-        log("Saving screenshots to disk (\(checksum))", level: 2)
-                
+        debug(.media)
+
         Screenshot.deleteFolder()
         for n in 0 ..< screenshots.count {
             try? screenshots[n].save()
         }
 
-        log("All screenshots saved", level: 2)
+        debug(.media, "All screenshots saved")
     }
     
     override func sheetWillShow() {

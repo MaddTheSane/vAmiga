@@ -9,58 +9,39 @@
 
 #include "config.h"
 #include "DmaDebugger.h"
-#include "Agnus.h"
-#include "Denise.h"
-#include "MsgQueue.h"
-#include "PixelEngine.h"
+#include "Amiga.h"
 
 DmaDebugger::DmaDebugger(Amiga &ref) : SubComponent(ref)
 {
 }
 
-DmaDebuggerConfig
-DmaDebugger::getDefaultConfig()
-{
-    DmaDebuggerConfig defaults;
-
-    defaults.enabled = false;
-    defaults.displayMode = DMA_DISPLAY_MODE_FG_LAYER;
-    defaults.opacity = 50;
-
-    defaults.visualize[DMA_CHANNEL_CPU] = false;
-    defaults.visualize[DMA_CHANNEL_REFRESH] = true;
-    defaults.visualize[DMA_CHANNEL_DISK] = true;
-    defaults.visualize[DMA_CHANNEL_AUDIO] = true;
-    defaults.visualize[DMA_CHANNEL_BITPLANE] = true;
-    defaults.visualize[DMA_CHANNEL_SPRITE] = true;
-    defaults.visualize[DMA_CHANNEL_COPPER] = true;
-    defaults.visualize[DMA_CHANNEL_BLITTER] = true;
-
-    defaults.debugColor[DMA_CHANNEL_CPU] = 0xFFFFFF00;
-    defaults.debugColor[DMA_CHANNEL_REFRESH] = 0xFF000000;
-    defaults.debugColor[DMA_CHANNEL_DISK] = 0x00FF0000;
-    defaults.debugColor[DMA_CHANNEL_AUDIO] = 0xFF00FF00;
-    defaults.debugColor[DMA_CHANNEL_BITPLANE] = 0x00FFFF00;
-    defaults.debugColor[DMA_CHANNEL_SPRITE] = 0x0088FF00;
-    defaults.debugColor[DMA_CHANNEL_COPPER] = 0xFFFF0000;
-    defaults.debugColor[DMA_CHANNEL_BLITTER] = 0xFFCC0000;
-    
-    return defaults;
-}
-
 void
 DmaDebugger::resetConfig()
 {
-    auto defaults = getDefaultConfig();
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
+
+    std::vector <Option> options = {
+        
+        OPT_DMA_DEBUG_ENABLE,
+        OPT_DMA_DEBUG_MODE,
+        OPT_DMA_DEBUG_OPACITY
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
     
-    setConfigItem(OPT_DMA_DEBUG_ENABLE, defaults.enabled);
-    setConfigItem(OPT_DMA_DEBUG_MODE, defaults.displayMode);
-    setConfigItem(OPT_DMA_DEBUG_OPACITY, defaults.opacity);
+    std::vector <Option> moreOptions = {
+        
+        OPT_DMA_DEBUG_CHANNEL,
+        OPT_DMA_DEBUG_COLOR
+    };
 
-    for (isize i = 0; DmaChannelEnum::isValid(i); i++) {
-
-        setConfigItem(OPT_DMA_DEBUG_ENABLE, i, defaults.visualize[i]);
-        setConfigItem(OPT_DMA_DEBUG_COLOR, i, defaults.debugColor[i]);
+    for (auto &option : moreOptions) {
+        for (isize i = 0; DmaChannelEnum::isValid(i); i++) {
+            setConfigItem(option, i, defaults.get(option, i));
+        }
     }
 }
 
@@ -85,8 +66,8 @@ DmaDebugger::getConfigItem(Option option, long id) const
     
     switch (option) {
             
-        case OPT_DMA_DEBUG_ENABLE: return config.visualize[id];
-        case OPT_DMA_DEBUG_COLOR:  return config.debugColor[id];
+        case OPT_DMA_DEBUG_CHANNEL: return config.visualize[id];
+        case OPT_DMA_DEBUG_COLOR:   return config.debugColor[id];
                         
         default:
             fatalError;
@@ -132,7 +113,7 @@ DmaDebugger::setConfigItem(Option option, long id, i64 value)
     
     switch (option) {
                                     
-        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_CHANNEL:
             
             config.visualize[channel] = value;
 
@@ -320,15 +301,39 @@ DmaDebugger::setColor(BusOwner owner, u32 rgba)
 }
 
 void
-DmaDebugger::computeOverlay()
+DmaDebugger::eolHandler()
 {
     // Only proceed if DMA debugging has been turned on
     if (!config.enabled) return;
 
-    BusOwner *owners = agnus.busOwner;
-    u16 *values = agnus.busValue;
-    u32 *ptr = denise.pixelEngine.pixelAddr(0);
+    // Copy Agnus arrays before they get deleted
+    std::memcpy(busValue, agnus.busValue, sizeof(agnus.busValue));
+    std::memcpy(busOwner, agnus.busOwner, sizeof(agnus.busOwner));
 
+    // Record some information for being picked up in the HSYNC handler
+    pixel0 = agnus.pos.pixel(0);
+}
+
+void
+DmaDebugger::hsyncHandler(isize vpos)
+{
+    assert(agnus.pos.h == 0x11);
+
+    // Only proceed if DMA debugging has been turned on
+    if (!config.enabled) return;
+
+    // Draw first chunk (data from previous DMA line)
+    u32 *ptr1 = pixelEngine.frameBufferAddr(vpos);
+    computeOverlay(ptr1, HBLANK_MIN, HPOS_MAX, busOwner, busValue);
+
+    // Draw second chunk (data from current DMA line)
+    u32 *ptr2 = ptr1 + agnus.pos.pixel(0);
+    computeOverlay(ptr2, 0, HBLANK_MIN - 1, agnus.busOwner, agnus.busValue);
+}
+
+void
+DmaDebugger::computeOverlay(u32 *ptr, isize first, isize last, BusOwner *own, u16 *val)
+{
     double opacity = config.opacity / 100.0;
     double bgWeight = 0;
     double fgWeight = 0;
@@ -358,9 +363,9 @@ DmaDebugger::computeOverlay()
 
     }
 
-    for (isize i = 0; i < HPOS_CNT; i++, ptr += 4) {
+    for (isize i = first; i <= last; i++, ptr += 4) {
 
-        BusOwner owner = owners[i];
+        BusOwner owner = own[i];
 
         // Handle the easy case first: No foreground pixels
         if (!visualize[owner]) {
@@ -375,10 +380,10 @@ DmaDebugger::computeOverlay()
         }
 
         // Get RGBA values of foreground pixels
-        GpuColor col0 = debugColor[owner][(values[i] & 0xC000) >> 14];
-        GpuColor col1 = debugColor[owner][(values[i] & 0x0C00) >> 10];
-        GpuColor col2 = debugColor[owner][(values[i] & 0x00C0) >> 6];
-        GpuColor col3 = debugColor[owner][(values[i] & 0x000C) >> 2];
+        GpuColor col0 = debugColor[owner][(val[i] & 0xC000) >> 14];
+        GpuColor col1 = debugColor[owner][(val[i] & 0x0C00) >> 10];
+        GpuColor col2 = debugColor[owner][(val[i] & 0x00C0) >> 6];
+        GpuColor col3 = debugColor[owner][(val[i] & 0x000C) >> 2];
 
         if (fgWeight != 0.0) {
             col0 = col0.mix(GpuColor(ptr[0]), fgWeight);
@@ -400,11 +405,13 @@ DmaDebugger::vSyncHandler()
     // Only proceed if the debugger is enabled
     if (!config.enabled) return;
 
-    // Clear old data in the next frame's VBLANK area
-    u32 *ptr = denise.pixelEngine.frameBuffer;
+    // Clear old data in the VBLANK area of the next frame
     for (isize row = 0; row < VBLANK_CNT; row++) {
+
+        u32 *ptr = denise.pixelEngine.frameBufferAddr(row);
         for (isize col = 0; col < HPIXELS; col++) {
-            ptr[row * HPIXELS + col] = PixelEngine::rgbaVBlank;
+
+            ptr[col] = PixelEngine::rgbaVBlank;
         }
     }
 }

@@ -7,27 +7,29 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-// import AppKit
-
 extension NSPasteboard.PasteboardType {
-    static let compatibleFileURL = NSPasteboard.PasteboardType(kUTTypeFileURL as String)
+
+    static let compatibleFileURL =
+    NSPasteboard.PasteboardType(kUTTypeFileURL as String)
 }
 
 public extension MetalView {
-    
-    // Returns a list of supported drag and drop types
-    func acceptedTypes() -> [NSPasteboard.PasteboardType] {
-        
-        return [.compatibleFileURL, .string, .fileContents]
-    }
-    
-    // Registers the supported drag and drop types
+
     func setupDragAndDrop() {
     
         registerForDraggedTypes(acceptedTypes())
     }
 
+    func acceptedTypes() -> [NSPasteboard.PasteboardType] {
+
+        return [.compatibleFileURL, .string, .fileContents]
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        
+        dropZone = nil
+        dropUrl = nil
+        dropType = nil
         
         let pasteBoard = sender.draggingPasteboard
         guard let type = pasteBoard.availableType(from: acceptedTypes()) else {
@@ -46,10 +48,10 @@ public extension MetalView {
             if let url = NSURL.init(from: pasteBoard) as URL? {
             
                 // Unpack the file if it is compressed
-                draggedUrl = url.unpacked(maxSize: 2048 * 1024)
+                dropUrl = url.unpacked(maxSize: 2048 * 1024)
 
                 // Analyze the file type
-                let type = AmigaFileProxy.type(of: draggedUrl)
+                let type = AmigaFileProxy.type(of: dropUrl)
                 
                 // Open the drop zone layer
                 parent.renderer.dropZone.open(type: type, delay: 0.25)
@@ -115,46 +117,34 @@ public extension MetalView {
 
     func performUrlDrag(_ sender: NSDraggingInfo) -> Bool {
                 
-        guard let url = draggedUrl else { return false }
+        if dropUrl == nil { return false }
+        
+        // Check drop zones
+        var zone: Int?
+        for i in 0...3 {
+            if renderer.dropZone.isInside(sender, zone: i) { zone = i }
+        }
+
+        // Check file types
+        let type = FileType(url: dropUrl)
+        switch type {
             
-        do {
+        case .SNAPSHOT, .SCRIPT:
+            break
             
-            // Check if the file is a snapshot or a script
-            do {
-                let types: [FileType] = [ .SNAPSHOT, .SCRIPT ]
-                try myDocument.createAttachment(from: url, allowedTypes: types)
-                try myDocument.mountAttachment()
-                return true
-                
-            } catch let error as VAError {
-                
-                if error.errorCode != .FILE_TYPE_MISMATCH {
-                    throw error
-                }
-            }
+        case .ADF, .HDF, .EXT, .IMG, .DMS, .EXE, .DIR:
+            if zone == nil { return false }
             
-            // Check drop zones
-            for i in 0...3 {
-                if renderer.dropZone.isInside(sender, zone: i) {
-                    
-                    let types: [FileType] = [ .HDF, .ADF, .EXT, .IMG, .DMS, .EXE, .DIR ]
-                    try myDocument.createAttachment(from: url, allowedTypes: types)
-                    try myDocument.mountAttachment(drive: i)
-                    return true
-                }
-            }
-            
-            return false
-            
-        } catch {
-            
-            // Make the drop layer display an error message after closing
-            parent.renderer.dropZone.error = error as? VAError
-            parent.renderer.dropZone.errorUrl = url
+        default:
             return false
         }
+
+        dropZone = zone
+        dropType = type
+        return true
     }
             
     override func concludeDragOperation(_ sender: NSDraggingInfo?) {
+
     }
 }

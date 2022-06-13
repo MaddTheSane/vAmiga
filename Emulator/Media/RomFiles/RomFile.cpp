@@ -79,6 +79,8 @@ RomFile::identifier(u32 fingerprint)
         case 0xC4F0F55F: return ROM_KICK13_34_005_A500;
         case 0xE0F37258: return ROM_KICK13_34_005_A3000;
 
+        case 0xF80F0FC5: return ROM_KICK12_33_180_MRAS;
+
         case 0x85067666: return ROM_KICK12_33_180_G11R;
         case 0x74680D37: return ROM_KICK13_34_005_G12R;
 
@@ -110,7 +112,10 @@ RomFile::identifier(u32 fingerprint)
         case 0xF3AF46CC: return ROM_HYP320_47_96_A3000;
         case 0x9BB8FC93: return ROM_HYP320_47_96_A4000;
         case 0x9188A509: return ROM_HYP320_47_96_A4000T;
+        case 0x4F078456: return ROM_HYP321_47_102_A500;
 
+        case 0x9CE0F009: return ROM_AROS_54705;
+        case 0xE2C7F70A: return ROM_AROS_54705_EXT;
         case 0x3F4FCC0A: return ROM_AROS_55696;
         case 0xF2E52B07: return ROM_AROS_55696_EXT;
         case 0x4CE7C8D6: return ROM_AROS_1ED13DE6E3;
@@ -150,6 +155,8 @@ RomFile::isArosRom(RomIdentifier rev)
 
         case 0x00000000: return ROM_MISSING;
 
+        case ROM_AROS_54705:
+        case ROM_AROS_54705_EXT:
         case ROM_AROS_55696:
         case ROM_AROS_55696_EXT:
         case ROM_AROS_1ED13DE6E3:
@@ -192,6 +199,8 @@ RomFile::isCommodoreRom(RomIdentifier rev)
         case ROM_KICK13_34_005_A500:
         case ROM_KICK13_34_005_A3000:
 
+        case ROM_KICK12_33_180_MRAS:
+
         case ROM_KICK20_36_028:
         case ROM_KICK202_36_207_A3000:
         case ROM_KICK204_37_175_A500:
@@ -227,7 +236,8 @@ RomFile::isHyperionRom(RomIdentifier rev)
         case ROM_HYP320_47_96_A1200:
         case ROM_HYP320_47_96_A3000:
         case ROM_HYP320_47_96_A4000:
-        case ROM_HYP320_47_96_A4000T: return true;
+        case ROM_HYP320_47_96_A4000T:
+        case ROM_HYP321_47_102_A500:    return true;
 
         default: return false;
     }
@@ -265,6 +275,8 @@ RomFile::title(RomIdentifier rev)
         case ROM_KICK13_34_005_A500:
         case ROM_KICK13_34_005_A3000:   return "Kickstart 1.3";
 
+        case ROM_KICK12_33_180_MRAS:    return "Kickstart 1.2";
+            
         case ROM_KICK12_33_180_G11R:    return "Kickstart 1.2";
         case ROM_KICK13_34_005_G12R:    return "Kickstart 1.3";
 
@@ -295,9 +307,12 @@ RomFile::title(RomIdentifier rev)
         case ROM_HYP320_47_96_A3000:
         case ROM_HYP320_47_96_A4000:
         case ROM_HYP320_47_96_A4000T:   return "Kickstart 3.2 (Hyperion)";
+        case ROM_HYP321_47_102_A500:    return "Kickstart 3.2.1 (Hyperion)";
 
+        case ROM_AROS_54705:
         case ROM_AROS_55696:
         case ROM_AROS_1ED13DE6E3:       return "AROS Kickstart replacement";
+        case ROM_AROS_54705_EXT:
         case ROM_AROS_55696_EXT:
         case ROM_AROS_1ED13DE6E3_EXT:   return "AROS Kickstart extension";
 
@@ -327,6 +342,8 @@ RomFile::version(RomIdentifier rev)
         case ROM_KICK121_34_004:        return "Rev 34.004";
         case ROM_KICK13_34_005_A500:
         case ROM_KICK13_34_005_A3000:   return "Rev 34.005";
+
+        case ROM_KICK12_33_180_MRAS:    return "Rev 33.180";
 
         case ROM_KICK12_33_180_G11R:    return "Rev 33.180 (Guardian patch)";
         case ROM_KICK13_34_005_G12R:    return "Rev 34.005 (Guardian patch)";
@@ -358,7 +375,10 @@ RomFile::version(RomIdentifier rev)
         case ROM_HYP320_47_96_A3000:
         case ROM_HYP320_47_96_A4000:
         case ROM_HYP320_47_96_A4000T:   return "Rev 47.96";
+        case ROM_HYP321_47_102_A500:    return "Rev 47.102";
 
+        case ROM_AROS_54705:            return "SVN 54705";
+        case ROM_AROS_54705_EXT:        return "SVN 54705";
         case ROM_AROS_55696:            return "SVN 55696";
         case ROM_AROS_55696_EXT:        return "SVN 55696";
         case ROM_AROS_1ED13DE6E3:       return "Version 1ed13de6e3";
@@ -391,6 +411,8 @@ RomFile::released(RomIdentifier rev)
         case ROM_KICK13_34_005_A500:    return "December 1987";
         case ROM_KICK13_34_005_A3000:   return "December 1987";
 
+        case ROM_KICK12_33_180_MRAS:    return "2022";
+
         case ROM_KICK12_33_180_G11R:    return "1988";
         case ROM_KICK13_34_005_G12R:    return "1988";
 
@@ -421,7 +443,10 @@ RomFile::released(RomIdentifier rev)
         case ROM_HYP320_47_96_A3000:
         case ROM_HYP320_47_96_A4000:
         case ROM_HYP320_47_96_A4000T:   return "May 2021";
+        case ROM_HYP321_47_102_A500:    return "December 2021";
 
+        case ROM_AROS_54705:            return "May 2017";
+        case ROM_AROS_54705_EXT:        return "May 2017";
         case ROM_AROS_55696:            return "February 2019";
         case ROM_AROS_55696_EXT:        return "February 2019";
         case ROM_AROS_1ED13DE6E3:       return "September 2021";
@@ -453,10 +478,12 @@ RomFile::model(RomIdentifier rev) {
         case ROM_KICK13_34_005_A500:    return "A500, A1000, A2000, CDTV";
         case ROM_KICK13_34_005_A3000:   return "A3000";
 
-        case ROM_KICK12_33_180_G11R:    return "???";
-        case ROM_KICK13_34_005_G12R:    return "???";
+        case ROM_KICK12_33_180_MRAS:    return "MRAS patch";
 
-        case ROM_KICK20_36_028:         return "???";
+        case ROM_KICK12_33_180_G11R:    return "";
+        case ROM_KICK13_34_005_G12R:    return "";
+
+        case ROM_KICK20_36_028:         return "";
         case ROM_KICK202_36_207_A3000:  return "A3000";
         case ROM_KICK204_37_175_A500:   return "A500";
         case ROM_KICK204_37_175_A3000:  return "A3000";
@@ -483,26 +510,23 @@ RomFile::model(RomIdentifier rev) {
         case ROM_HYP320_47_96_A3000:    return "A3000";
         case ROM_HYP320_47_96_A4000:    return "A4000";
         case ROM_HYP320_47_96_A4000T:   return "A4000T";
+        case ROM_HYP321_47_102_A500:    return "A500, A600, A1000, A2000, CDTV";
 
-        case ROM_AROS_55696:            return "All Models";
-        case ROM_AROS_55696_EXT:        return "All Models";
-        case ROM_AROS_1ED13DE6E3:       return "All Models";
-        case ROM_AROS_1ED13DE6E3_EXT:   return "All Models";
+        case ROM_AROS_54705:            return "UAE version";
+        case ROM_AROS_54705_EXT:        return "UAE version";
+        case ROM_AROS_55696:            return "SAE version";
+        case ROM_AROS_55696_EXT:        return "SAE version";
+        case ROM_AROS_1ED13DE6E3:       return "";
+        case ROM_AROS_1ED13DE6E3_EXT:   return "";
 
-        case ROM_DIAG11:                return "???";
-        case ROM_DIAG12:                return "???";
-        case ROM_DIAG121:               return "???";
-        case ROM_LOGICA20:              return "???";
+        case ROM_DIAG11:                return "";
+        case ROM_DIAG12:                return "";
+        case ROM_DIAG121:               return "";
+        case ROM_LOGICA20:              return "";
 
         default:                        return "";
     }
 }
-
-/*
-RomFile::RomFile()
-{
-}
-*/
 
 bool
 RomFile::isCompatible(std::istream &stream)

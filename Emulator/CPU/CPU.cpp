@@ -24,11 +24,43 @@ namespace moira {
 void
 Moira::sync(int cycles)
 {
-    // Advance the CPU clock
-    clock += cycles;
+    CPU *cpu = (CPU *)this;
 
-    // Emulate Agnus up to the same cycle
-    agnus.execute(CPU_AS_DMA_CYCLES(cycles));
+    if (!cpu->config.overclocking) {
+
+        // Advance the CPU clock
+        clock += cycles;
+
+        // Emulate Agnus up to the same cycle
+        agnus.execute(CPU_AS_DMA_CYCLES(cycles));
+
+    } else {
+
+        // Compute the number of mico-cycles executed in one DMA cycle
+        auto microCyclesPerCycle = 2 * cpu->config.overclocking;
+
+        // Execute some cycles at normal speed if required
+        while (cpu->slowCycles && cycles) {
+
+            cpu->penalty += microCyclesPerCycle;
+            cycles--;
+            cpu->slowCycles--;
+        }
+
+        // Execute all other cycles
+        cpu->penalty += cycles;
+
+        while (cpu->penalty >= microCyclesPerCycle) {
+
+            // Advance the CPU clock by one DMA cycle
+            clock += 2;
+
+            // Emulate Agnus for one DMA cycle
+            agnus.execute();
+
+            cpu->penalty -= microCyclesPerCycle;
+        }
+    }
 }
 
 u8
@@ -46,7 +78,12 @@ Moira::read16(u32 addr)
 u16
 Moira::read16Dasm(u32 addr)
 {
-    return mem.spypeek16 <ACCESSOR_CPU> (addr);
+    auto result = mem.spypeek16 <ACCESSOR_CPU> (addr);
+    
+    // For LINE-A instructions, check if the opcode is a software trap
+    if (Debugger::isLineAInstr(result)) result = debugger.swTraps.resolve(result);
+
+    return result;
 }
 
 u16
@@ -58,17 +95,17 @@ Moira::read16OnReset(u32 addr)
 void
 Moira::write8(u32 addr, u8 val)
 {
-    if constexpr (XFILES) if (addr - reg.pc < 5) {
-        trace(true, "XFILES: write8 close to PC %x\n", reg.pc);
+    if constexpr (XFILES) {
+        if (addr - reg.pc < 5) xfiles("write8 close to PC %x\n", reg.pc);
     }
     mem.poke8 <ACCESSOR_CPU> (addr, val);
 }
 
 void
-Moira::write16 (u32 addr, u16 val)
+Moira::write16(u32 addr, u16 val)
 {
-    if constexpr (XFILES) if (addr - reg.pc < 5) {
-        trace(true, "XFILES: write16 close to PC %x\n", reg.pc);
+    if constexpr (XFILES) {
+        if (addr - reg.pc < 5) xfiles("write16 close to PC %x\n", reg.pc);
     }
     mem.poke16 <ACCESSOR_CPU> (addr, val);
 }
@@ -82,22 +119,22 @@ Moira::readIrqUserVector(u8 level) const
 void
 Moira::signalResetInstr()
 {
-    trace(XFILES, "XFILES: RESET instruction\n");
+    xfiles("RESET instruction\n");
     amiga.softReset();
 }
 
 void
 Moira::signalStopInstr(u16 op)
 {
-    if constexpr (XFILES) {
-        if (!(op & 0x2000)) trace(true, "XFILES: STOP instruction (%x)\n", op);
+    if (!(op & 0x2000)) {
+        xfiles("STOP instruction (%x)\n", op);
     }
 }
 
 void
 Moira::signalTasInstr()
 {
-    trace(XFILES, "XFILES: TAS instruction\n");
+    xfiles("TAS instruction\n");
 }
 
 void
@@ -109,26 +146,26 @@ Moira::signalHalt()
 void
 Moira::signalAddressError(moira::AEStackFrame &frame)
 {
-    trace(XFILES, "XFILES: Address error exception %x %x %x %x %x\n",
+    xfiles("Address error exception %x %x %x %x %x\n",
           frame.code, frame.addr, frame.ird, frame.sr, frame.pc);
 }
 
 void
 Moira::signalLineAException(u16 opcode)
 {
-    trace(XFILES, "XFILES: lineAException(%x)\n", opcode);
+    xfiles("lineAException(%x)\n", opcode);
 }
 
 void
 Moira::signalLineFException(u16 opcode)
 {
-    trace(XFILES, "XFILES: lineFException(%x)\n", opcode);
+    xfiles("lineFException(%x)\n", opcode);
 }
 
 void
 Moira::signalIllegalOpcodeException(u16 opcode)
 {
-    trace(XFILES, "XFILES: illegalOpcodeException(%x)\n", opcode);
+    xfiles("illegalOpcodeException(%x)\n", opcode);
 }
 
 void
@@ -140,7 +177,7 @@ Moira::signalTraceException()
 void
 Moira::signalTrapException()
 {
-    trace(XFILES, "XFILES: trapException\n");
+    xfiles("trapException\n");
 }
 
 void
@@ -153,13 +190,6 @@ void
 Moira::signalInterrupt(u8 level)
 {
     debug(INT_DEBUG, "Executing level %d IRQ\n", level);
-    
-    /*
-    if (agnus.frame.nr > 2180) {
-        trace(true, "Executing level %d IRQ\n", level);
-        amiga.signalStop();
-    }
-    */
 }
 
 void
@@ -170,6 +200,12 @@ Moira::signalJumpToVector(int nr, u32 addr)
     if (isIrqException) {
         trace(INT_DEBUG, "Exception %d: Changing PC to %x\n", nr, addr);
     }
+}
+
+void
+Moira::signalSoftwareTrap(u16 instr, SoftwareTrap trap)
+{
+ 
 }
 
 void
@@ -203,6 +239,12 @@ Moira::catchpointReached(u8 vector)
 }
 
 void
+Moira::swTrapReached(u32 addr)
+{
+    amiga.setFlag(RL::SWTRAP_REACHED);
+}
+
+void
 Moira::execDebug(const char *cmd)
 {
     if (agnus.pos.v == 76 || agnus.pos.v == 77) {
@@ -225,8 +267,10 @@ i64
 CPU::getConfigItem(Option option) const
 {
     switch (option) {
-            
-        case OPT_REG_RESET_VAL:  return (long)config.regResetVal;
+
+        case OPT_CPU_REVISION:      return (long)config.revision;
+        case OPT_CPU_OVERCLOCKING:  return (long)config.overclocking;
+        case OPT_CPU_RESET_VAL:     return (long)config.regResetVal;
         
         default:
             fatalError;
@@ -237,10 +281,27 @@ void
 CPU::setConfigItem(Option option, i64 value)
 {
     switch (option) {
-            
-        case OPT_REG_RESET_VAL:
 
-            config.regResetVal = (u32)value;
+        case OPT_CPU_REVISION:
+
+            if (!CPURevisionEnum::isValid(value)) {
+                throw VAError(ERROR_OPT_INVARG, CPURevisionEnum::keyList());
+            }
+
+            config.revision = CPURevision(value);
+            return;
+
+        case OPT_CPU_OVERCLOCKING:
+
+            suspend();
+            config.overclocking = isize(value);
+            resume();
+            msgQueue.put(MSG_OVERCLOCKING, config.overclocking);
+            return;
+
+        case OPT_CPU_RESET_VAL:
+
+            config.regResetVal = u32(value);
             return;
                         
         default:
@@ -248,22 +309,22 @@ CPU::setConfigItem(Option option, i64 value)
     }
 }
 
-CPUConfig
-CPU::getDefaultConfig()
-{
-    CPUConfig defaults;
-
-    defaults.regResetVal = 0x00000000;
-    
-    return defaults;
-}
-
 void
 CPU::resetConfig()
 {
-    auto defaults = getDefaultConfig();
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
 
-    setConfigItem(OPT_REG_RESET_VAL, defaults.regResetVal);
+    std::vector <Option> options = {
+
+        OPT_CPU_REVISION,
+        OPT_CPU_OVERCLOCKING,
+        OPT_CPU_RESET_VAL
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
 }
 
 void
@@ -322,7 +383,11 @@ void
 CPU::_dump(Category category, std::ostream& os) const
 {
     if (category == Category::Config) {
-        
+
+        os << util::tab("CPU model");
+        os << CPURevisionEnum::key(config.revision) << std::endl;
+        os << util::tab("Overclocking");
+        os << util::dec(config.overclocking) << std::endl;
         os << util::tab("Register reset value");
         os << util::hex(config.regResetVal) << std::endl;
     }
@@ -424,6 +489,30 @@ CPU::_dump(Category category, std::ostream& os) const
             os << std::endl;
         }
     }
+
+    if (category == Category::SwTraps) {
+                
+        for (auto &trap : debugger.swTraps.traps) {
+
+            os << util::tab("0x" + util::hexstr <4> (trap.first));
+            os << "Replaced by 0x" << util::hexstr <4> (trap.second.instruction);
+            os << std::endl;
+        }
+    }
+
+    if (category == Category::Callstack) {
+               
+        isize nr = 0;
+        for (isize i = callstack.begin(); i != callstack.end(); i = callstack.next(i)) {
+
+            auto &entry = callstack.elements[i];
+            string instr = HI_BYTE(entry.opcode) == 0b01100001 ? "BSR " : "JSR ";
+            
+            os << util::tab("#" + std::to_string(nr++));
+            os << util::hex(entry.oldPC) << ": " << instr << util::hex(entry.newPC);
+            os << std::endl;
+        }
+    }
 }
 
 void
@@ -451,6 +540,17 @@ CPU::didLoadFromBuffer(const u8 *buffer)
     debugger.breakpoints.setNeedsCheck(debugger.breakpoints.elements() != 0);
     debugger.watchpoints.setNeedsCheck(debugger.watchpoints.elements() != 0);
     return 0;
+}
+
+void
+CPU::resyncOverclockedCpu()
+{
+    if (penalty) {
+
+        clock += 2;
+        agnus.execute();
+        penalty = 0;
+    }
 }
 
 const char *
@@ -529,6 +629,47 @@ CPU::jump(u32 addr)
     {   SUSPENDED
         
         debugger.jump(addr);
+    }
+}
+
+void
+CPU::signalJsrBsrInstr(u16 opcode, u32 oldPC, u32 newPC)
+{
+    if (amiga.inDebugMode()) {
+        
+        trace(CST_DEBUG, "JSR/BSR: %x -> %x [%ld]\n", oldPC, newPC, callstack.count());
+        
+        if (callstack.isFull()) {
+            
+            debug(CST_DEBUG, "JSR/BSR: Large stack\n");
+            (void)callstack.read();
+        }
+        
+        CallStackEntry entry;
+        entry.opcode = opcode;
+        entry.oldPC = oldPC;
+        entry.newPC = newPC;
+        for (isize i = 0; i < 8; i++) entry.d[i] = reg.d[i];
+        for (isize i = 0; i < 8; i++) entry.a[i] = reg.a[i];
+        
+        callstack.write(entry);
+    }
+}
+
+void
+CPU::signalRtsInstr()
+{
+    if (amiga.inDebugMode()) {
+        
+        trace(CST_DEBUG, "RTS [%ld]\n", callstack.count());
+        
+        if (callstack.isEmpty()) {
+            
+            trace(CST_DEBUG, "RTS: Empty stack\n");
+            return;
+        }
+        
+        (void)callstack.read();
     }
 }
 
@@ -666,4 +807,3 @@ CPU::ignoreCatchpoint(isize nr, isize count)
     debugger.catchpoints.ignore(nr, count);
     msgQueue.put(MSG_CATCHPOINT_UPDATED);
 }
-

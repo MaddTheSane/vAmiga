@@ -115,8 +115,8 @@
  * Similar to warp mode, the emulator may be put into debug mode. This mode is
  * enabled when the GUI debugger is opend and disabled when the debugger is
  * closed. In debug mode, several time-consuming tasks are performed that are
- * usually left out. E.g., the CPU checks for breakpoints and records the
- * executed instruction in a trace buffer.
+ * usually left out. E.g., the CPU records the callstack and tracks all
+ * executed instructions in a trace buffer.
  */
 
 class Thread : public AmigaComponent, util::Wakeable {
@@ -144,16 +144,11 @@ protected:
     volatile u8 debugMode = 0;
     volatile u8 newDebugMode = 0;
 
-    // Indicates if warp mode or debug mode is locked (DEPRECATED)
-    bool warpLock = false;
-    bool debugLock = false;
-    
     // Counters
     isize loopCounter = 0;
     isize suspendCounter = 0;
     
-    // Time stamps for adjusting the execution speed
-    util::Time delay = util::Time(1000000000 / 50);
+    // Time stamp for adjusting the execution speed
     util::Time targetTime;
             
     // Clocks for measuring the CPU load
@@ -191,6 +186,9 @@ private:
     // The code to be executed in each iteration (implemented by the subclass)
     virtual void execute() = 0;
 
+    // Delay between two frames in nanoseconds (provided by the subclass)
+    virtual util::Time getDelay() = 0;
+
     // Returns true if this functions is called from within the emulator thread
     bool isEmulatorThread() { return std::this_thread::get_id() == thread.get_id(); }
 
@@ -201,10 +199,7 @@ private:
 
 public:
     
-    void setSyncDelay(util::Time newDelay);
     void setMode(SyncMode newMode);
-    void setWarpLock(bool value);
-    void setDebugLock(bool value);
 
     
     //

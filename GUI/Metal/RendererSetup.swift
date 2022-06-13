@@ -63,20 +63,20 @@ extension Renderer {
         
         shaderOptions = ShaderOptions(
             
-            blur: config.blur,
+            blur: Int32(config.blur),
             blurRadius: config.blurRadius,
             bloom: Int32(config.bloom),
             bloomRadius: config.bloomRadius,
             bloomBrightness: config.bloomBrightness,
             bloomWeight: config.bloomWeight,
-            flicker: config.flicker,
+            flicker: Int32(config.flicker),
             flickerWeight: config.flickerWeight,
             dotMask: Int32(config.dotMask),
             dotMaskBrightness: config.dotMaskBrightness,
             scanlines: Int32(config.scanlines),
             scanlineBrightness: config.scanlineBrightness,
             scanlineWeight: config.scanlineWeight,
-            disalignment: config.disalignment,
+            disalignment: Int32(config.disalignment),
             disalignmentH: config.disalignmentH,
             disalignmentV: config.disalignmentV
         )
@@ -157,11 +157,20 @@ extension Renderer {
     
     func buildMatrices2D() {
 
-        let model = Renderer.translationMatrix(x: 0, y: 0, z: 0.99)
-        let view = matrix_identity_float4x4
-        let proj = matrix_identity_float4x4
-        let mvp = proj * view * model
-        
+        let aspect = Float(size.width) / Float(size.height)
+        var xs = Float(1.0)
+
+        debug(.metal, "buildMatrices2D: aspect = \(aspect)")
+
+        // Scale horizontal coordinates if necessary
+        if parent.pref.keepAspectRatio && abs(aspect - (4/3)) > 0.1 {
+
+            xs = 4 / (3 * aspect)
+            debug(.metal, "Fixing aspect ratio with scaling factor \(xs)")
+        }
+
+        let mvp = Renderer.scalingMatrix(xs: xs, ys: 1.0, zs: 1.0)
+
         canvas.vertexUniforms2D.mvp = mvp
         monitors.vertexUniforms2D.mvp = mvp
     }
@@ -180,17 +189,17 @@ extension Renderer {
         
         let view = matrix_identity_float4x4
         let proj = Renderer.perspectiveMatrix(fovY: Float(65.0 * (.pi / 180.0)),
-                                     aspect: aspect,
-                                     nearZ: 0.1,
-                                     farZ: 100.0)
+                                              aspect: aspect,
+                                              nearZ: 0.1,
+                                              farZ: 100.0)
 
         let transEye = Renderer.translationMatrix(x: xShift,
-                                         y: yShift,
-                                         z: zShift + 1.393 - 0.16)
+                                                  y: yShift,
+                                                  z: zShift + 1.393 - 0.16)
 
         let transRotX = Renderer.translationMatrix(x: 0.0,
-                                          y: 0.0,
-                                          z: 0.16)
+                                                   y: 0.0,
+                                                   z: 0.16)
 
         let rotX = Renderer.rotationMatrix(radians: xAngle, x: 0.5, y: 0.0, z: 0.0)
         let rotY = Renderer.rotationMatrix(radians: yAngle, x: 0.0, y: 0.5, z: 0.0)
@@ -199,7 +208,6 @@ extension Renderer {
         let model = transEye * rotX * transRotX * rotY * rotZ
         let mvp = proj * view * model
         
-        canvas.vertexUniforms3D.mvp = mvp
         monitors.vertexUniforms3D.mvp = mvp
     }
 

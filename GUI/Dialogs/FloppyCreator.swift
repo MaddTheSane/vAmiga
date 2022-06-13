@@ -142,16 +142,17 @@ class FloppyCreator: DialogController {
         bootBlock.selectedTag() == 4 ? .BYTE_BANDIT : .NONE
         
         let name = nameField.stringValue
-        log("Dos = \(fs) Boot = \(bb) Name = \(name)")
+        debug(.media, "Dos = \(fs) Boot = \(bb) Name = \(name)")
         
         do {
+
             try drive?.insertNew(fileSystem: fs, bootBlock: bb, name: name)
-            
             myAppDelegate.clearRecentlyExportedDiskURLs(df: nr)
             hideSheet()
             
         } catch {
-            (error as? VAError)?.cantInsert()
+            
+            parent.showAlert(.cantInsert, error: error, window: window)
         }
     }
 }

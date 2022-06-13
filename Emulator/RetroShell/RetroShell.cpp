@@ -14,6 +14,14 @@
 
 RetroShell::RetroShell(Amiga& ref) : SubComponent(ref), interpreter(ref)
 {    
+ 
+}
+
+void
+RetroShell::_initialize()
+{
+    AmigaComponent::_initialize();
+
     // Initialize the text storage
     clear();
 
@@ -432,7 +440,7 @@ RetroShell::dump(AmigaObject &component, Category category)
 {
     std::stringstream ss; string line;
     
-    { SUSPENDED
+    {   SUSPENDED
         
         component.dump(category, ss);
     }
@@ -441,7 +449,7 @@ RetroShell::dump(AmigaObject &component, Category category)
 }
 
 void
-RetroShell::vsyncHandler()
+RetroShell::eofHandler()
 {
     if (agnus.clock >= wakeUp) {
         

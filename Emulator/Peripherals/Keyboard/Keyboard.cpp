@@ -9,10 +9,8 @@
 
 #include "config.h"
 #include "Keyboard.h"
-#include "Agnus.h"
-#include "CIA.h"
+#include "Amiga.h"
 #include "IOUtils.h"
-#include "MsgQueue.h"
 
 void
 Keyboard::_reset(bool hard)
@@ -24,22 +22,20 @@ Keyboard::_reset(bool hard)
     execute();
 }
 
-KeyboardConfig
-Keyboard::getDefaultConfig()
-{
-    KeyboardConfig defaults;
-
-    defaults.accurate = true;
-    
-    return defaults;
-}
-
 void
 Keyboard::resetConfig()
 {
-    auto defaults = getDefaultConfig();
-    
-    setConfigItem(OPT_ACCURATE_KEYBOARD, defaults.accurate);
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
+
+    std::vector <Option> options = {
+        
+        OPT_ACCURATE_KEYBOARD
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
 }
 
 i64
@@ -116,11 +112,13 @@ void
 Keyboard::pressKey(KeyCode keycode)
 {
     assert(keycode < 0x80);
-
+    
+    SYNCHRONIZED
+    
     if (!keyDown[keycode] && !queue.isFull()) {
-
+        
         trace(KBD_DEBUG, "Pressing Amiga key %02X\n", keycode);
-
+        
         keyDown[keycode] = true;
         queue.write(keycode);
         wakeUp();
@@ -136,11 +134,13 @@ void
 Keyboard::releaseKey(KeyCode keycode)
 {
     assert(keycode < 0x80);
-
+    
+    SYNCHRONIZED
+    
     if (keyDown[keycode] && !queue.isFull()) {
-
+        
         trace(KBD_DEBUG, "Releasing Amiga key %02X\n", keycode);
-
+        
         keyDown[keycode] = false;
         queue.write(keycode | 0x80);
         wakeUp();
@@ -164,7 +164,7 @@ Keyboard::releaseAllKeys()
 void
 Keyboard::autoType(KeyCode keycode, Cycle duration, Cycle delay)
 {
-    agnus.scheduleRel<SLOT_KEY>(delay, KEY_PRESS, keycode);
+    agnus.scheduleRel<SLOT_KEY>(delay, KEY_PRESS, duration << 8 | keycode);
 }
 
 void
@@ -238,6 +238,8 @@ Keyboard::processHandshake()
 void
 Keyboard::execute()
 {
+    SYNCHRONIZED
+    
     switch(state) {
             
         case KB_SELFTEST:
@@ -271,9 +273,9 @@ Keyboard::execute()
             break;
             
         case KB_SEND:
-            
+
             trace(KBD_DEBUG, "KB_SEND\n");
-            
+
             // Send a key code if the buffer is filled
             if (!queue.isEmpty()) {
                 sendKeyCode(queue.read());
@@ -281,7 +283,7 @@ Keyboard::execute()
                 agnus.cancel<SLOT_KBD>();
             }
             break;
-            
+
         default:
             fatalError;
     }

@@ -29,6 +29,7 @@
 #import "FloppyDriveTypes.h"
 #import "FSTypes.h"
 #import "HardDriveTypes.h"
+#import "HdControllerTypes.h"
 #import "JoystickTypes.h"
 #import "KeyboardTypes.h"
 #import "MemoryTypes.h"
@@ -80,6 +81,7 @@
 @class MemProxy;
 @class MouseProxy;
 @class PaulaProxy;
+@class DefaultsProxy;
 @class RemoteManagerProxy;
 @class RetroShellProxy;
 @class RomFileProxy;
@@ -149,6 +151,7 @@
     KeyboardProxy *keyboard;
     MemProxy *mem;
     PaulaProxy *paula;
+    DefaultsProxy *properties;
     RemoteManagerProxy *remoteManager;
     RetroShellProxy *retroShell;
     RtcProxy *rtc;
@@ -173,6 +176,7 @@
 @property (readonly, strong) FloppyDriveProxy *df3;
 @property (readonly, strong) GuardsProxy *breakpoints;
 @property (readonly, strong) GuardsProxy *watchpoints;
+@property (readonly, strong) GuardsProxy *copperBreakpoints;
 @property (readonly, strong) HardDriveProxy *hd0;
 @property (readonly, strong) HardDriveProxy *hd1;
 @property (readonly, strong) HardDriveProxy *hd2;
@@ -185,6 +189,8 @@
 @property (readonly, strong) RtcProxy *rtc;
 @property (readonly, strong) RecorderProxy *recorder;
 @property (readonly, strong) SerialPortProxy *serialPort;
+
+@property (class, readonly, strong) DefaultsProxy *defaults;
 
 - (void)kill;
 
@@ -237,6 +243,34 @@
 - (BOOL)configure:(Option)opt drive:(NSInteger)id enable:(BOOL)val;
 
 - (void)setListener:(const void *)sender function:(Callback *)func;
+
+@end
+
+
+//
+// Properties
+//
+
+@interface DefaultsProxy : Proxy { }
+    
+- (void)load:(NSURL *)url exception:(ExceptionWrapper *)ex;
+- (void)save:(NSURL *)url exception:(ExceptionWrapper *)ex;
+
+- (void)register:(NSString *)key value:(NSString *)value;
+
+- (NSString *)getString:(NSString *)key;
+- (NSInteger)getInt:(NSString *)key;
+- (NSInteger)getOpt:(Option)option;
+- (NSInteger)getOpt:(Option)option nr:(NSInteger)nr;
+
+- (void)setKey:(NSString *)key value:(NSString *)value;
+- (void)setOpt:(Option)option value:(NSInteger)value;
+- (void)setOpt:(Option)option nr:(NSInteger)nr value:(NSInteger)value;
+
+- (void)removeAll;
+- (void)removeKey:(NSString *)key;
+- (void)remove:(Option)option;
+- (void)remove:(Option) option nr:(NSInteger)nr;
 
 @end
 
@@ -317,7 +351,10 @@
 @interface MemProxy : AmigaComponentProxy { }
 
 @property (readonly) MemoryConfig config;
+
 - (MemoryStats) getStats;
+
+- (RomIdentifier) romIdentifierOf:(u64)fingerprint;
 
 - (BOOL) isBootRom:(RomIdentifier)rev;
 - (BOOL) isArosRom:(RomIdentifier)rev;
@@ -325,6 +362,7 @@
 - (BOOL) isCommodoreRom:(RomIdentifier)rev;
 - (BOOL) isHyperionRom:(RomIdentifier)rev;
 - (BOOL) isPatchedRom:(RomIdentifier)rev;
+- (NSString *) romTitleOf:(RomIdentifier)rev;
 
 @property (readonly) BOOL hasRom;
 @property (readonly) BOOL hasBootRom;
@@ -380,6 +418,9 @@
 - (EventSlotInfo)getEventSlotInfo:(NSInteger)slot;
 @property (readonly) BOOL isOCS;
 @property (readonly) BOOL isECS;
+@property (readonly) BOOL isPAL;
+@property (readonly) BOOL isNTSC;
+@property (readonly) NSInteger frameCount;
 - (AgnusStats)getStats;
 
 @end
@@ -658,16 +699,22 @@
 @property (readonly) NSInteger heads;
 @property (readonly) NSInteger sectors;
 @property (readonly) NSInteger bsize;
-@property (readonly) BOOL uniqueGeometry;
+@property (readonly) HdcState hdcState;
+@property (readonly) BOOL isCompatible;
+@property (readonly) BOOL writeThroughEnabled;
 - (NSString *)nameOfPartition:(NSInteger)nr;
 - (NSInteger)lowerCylOfPartition:(NSInteger)nr;
 - (NSInteger)upperCylOfPartition:(NSInteger)nr;
 @property (readonly) HardDriveState state;
+- (void)attachFile:(NSURL *)path exception:(ExceptionWrapper *)ex;
 - (void)attach:(HDFFileProxy *)hdf exception:(ExceptionWrapper *)ex;
 - (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex;
 - (void)format:(FSVolumeType)fs name:(NSString *)name exception:(ExceptionWrapper *)ex;
 - (void)changeGeometry:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex;
 - (NSArray *) geometries;
+- (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
+- (void)enableWriteThrough:(ExceptionWrapper *)ex;
+- (void)disableWriteThrough;
 
 @end
 
@@ -924,6 +971,7 @@
 
 @property (readonly) BOOL hasRDB;
 @property (readonly) NSInteger numPartitions;
+@property (readonly) NSInteger numDrivers;
 
 - (NSInteger)writeToFile:(NSString *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
 

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="19529" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="19529"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -164,7 +164,7 @@
                         </textFieldCell>
                     </textField>
                     <customView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="DD4-5B-w9h" customClass="MetalView" customModule="vAmiga" customModuleProvider="target">
-                        <rect key="frame" x="0.0" y="26" width="802" height="602"/>
+                        <rect key="frame" x="0.0" y="26" width="800" height="600"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <connections>
                             <outlet property="parent" destination="-2" id="DoA-Vt-vqv"/>
@@ -217,8 +217,10 @@
                             <menu key="menu" id="VSY-08-JkF">
                                 <items>
                                     <menuItem title="Amiga Frequency" state="on" id="ebX-Qd-V1U"/>
-                                    <menuItem title="CPU Load" tag="1" id="e2a-oz-kXg"/>
-                                    <menuItem title="Frames per Second" tag="2" id="LD4-F0-Zv0"/>
+                                    <menuItem title="Amiga Refresh Rate" tag="1" id="L02-L5-0ha"/>
+                                    <menuItem isSeparatorItem="YES" id="74s-Nk-IOb"/>
+                                    <menuItem title="Host CPU Load" tag="2" id="e2a-oz-kXg"/>
+                                    <menuItem title="Host GPU Refresh Rate" tag="3" id="LD4-F0-Zv0"/>
                                 </items>
                             </menu>
                         </popUpButtonCell>

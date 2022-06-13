@@ -9,8 +9,8 @@
 
 #include "config.h"
 #include "Joystick.h"
-#include "Agnus.h"
-#include "ControlPort.h"
+#include "Amiga.h"
+// #include "ControlPort.h"
 #include "IOUtils.h"
 
 Joystick::Joystick(Amiga& ref, ControlPort& pref) : SubComponent(ref), port(pref)
@@ -35,26 +35,22 @@ Joystick::_reset(bool hard)
     axisY = 0;
 }
 
-JoystickConfig
-Joystick::getDefaultConfig()
-{
-    JoystickConfig defaults;
-
-    defaults.autofire = false;
-    defaults.autofireBullets = -3;
-    defaults.autofireDelay = 125;
-    
-    return defaults;
-}
-
 void
 Joystick::resetConfig()
 {
-    auto defaults = getDefaultConfig();
-    
-    setConfigItem(OPT_AUTOFIRE, defaults.autofire);
-    setConfigItem(OPT_AUTOFIRE_BULLETS, defaults.autofireBullets);
-    setConfigItem(OPT_AUTOFIRE_DELAY, defaults.autofireDelay);
+    assert(isPoweredOff());
+    auto &defaults = amiga.defaults;
+
+    std::vector <Option> options = {
+        
+        OPT_AUTOFIRE,
+        OPT_AUTOFIRE_BULLETS,
+        OPT_AUTOFIRE_DELAY
+    };
+
+    for (auto &option : options) {
+        setConfigItem(option, defaults.get(option));
+    }
 }
 
 i64
@@ -78,7 +74,7 @@ Joystick::setConfigItem(Option option, i64 value)
             
         case OPT_AUTOFIRE:
             
-            config.autofire = value;
+            config.autofire = bool(value);
 
             // Release button immediately if autofire-mode is switches off
             if (value == false) button = false;
@@ -87,7 +83,7 @@ Joystick::setConfigItem(Option option, i64 value)
 
         case OPT_AUTOFIRE_BULLETS:
             
-            config.autofireBullets = (isize)value;
+            config.autofireBullets = isize(value);
             
             // Update the bullet counter if we're currently firing
             if (bulletCounter > 0) reload();
@@ -96,7 +92,7 @@ Joystick::setConfigItem(Option option, i64 value)
 
         case OPT_AUTOFIRE_DELAY:
             
-            config.autofireDelay = (isize)value;
+            config.autofireDelay = isize(value);
             return;
 
         default:
@@ -137,7 +133,7 @@ Joystick::reload()
 void
 Joystick::scheduleNextShot()
 {
-    nextAutofireFrame = agnus.frame.nr + config.autofireDelay;
+    nextAutofireFrame = agnus.pos.frame + config.autofireDelay;
 }
 
 void
@@ -229,13 +225,13 @@ Joystick::trigger(GamePadAction event)
 }
 
 void
-Joystick::vsyncHandler()
+Joystick::eofHandler()
 {
     // Only proceed if auto fire is enabled
     if (!config.autofire || config.autofireDelay < 0) return;
   
     // Only proceed if a trigger frame has been reached
-    if (agnus.frame.nr != nextAutofireFrame) return;
+    if (agnus.pos.frame != nextAutofireFrame) return;
 
     // Only proceed if there are bullets left
     if (bulletCounter == 0) return;

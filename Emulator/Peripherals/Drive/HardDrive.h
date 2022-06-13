@@ -12,6 +12,7 @@
 #include "HardDriveTypes.h"
 #include "Drive.h"
 #include "AgnusTypes.h"
+#include "HdControllerTypes.h"
 #include "HDFFile.h"
 #include "MemUtils.h"
 
@@ -19,6 +20,9 @@ class HardDrive : public Drive {
     
     friend class HDFFile;
     friend class HdController;
+
+    // Write-through storage files
+    static std::fstream wtStream[4];
     
     // Current configuration
     HardDriveConfig config = {};
@@ -38,8 +42,11 @@ class HardDrive : public Drive {
     GeometryDescriptor geometry;
     
     // Partition table
-    std::vector<PartitionDescriptor> ptable;
+    std::vector <PartitionDescriptor> ptable;
             
+    // Loadable file system drivers
+    std::vector <DriverDescriptor> drivers;
+        
     // Disk data
     Buffer<u8> data;
     
@@ -52,7 +59,11 @@ class HardDrive : public Drive {
     // Disk state flags
     bool modified = false;
     bool writeProtected = false;
+    optional <bool> bootable;
 
+    // Indicates if write-through mode is enabled
+    bool writeThrough = false;
+    
     
     //
     // Initializing
@@ -61,7 +72,8 @@ class HardDrive : public Drive {
 public:
 
     HardDrive(Amiga& ref, isize nr);
-        
+    ~HardDrive();
+    
     // Creates a hard drive with a certain geometry
     void init(const GeometryDescriptor &geometry);
 
@@ -73,6 +85,9 @@ public:
 
     // Creates a hard drive with the contents of an HDF
     void init(const HDFFile &hdf) throws;
+
+    // Creates a hard drive with the contents of an HDF file
+    void init(const string &path) throws;
 
 private:
 
@@ -105,7 +120,6 @@ private:
         worker
         
         << config.type
-        << config.connected
         << config.pan
         << config.stepVolume
         << diskVendor
@@ -116,9 +130,11 @@ private:
         << controllerRevision
         >> geometry
         >> ptable
+        >> drivers
         << data
         << modified
-        << writeProtected;
+        << writeProtected
+        << bootable;
     }
 
     template <class T>
@@ -139,7 +155,7 @@ private:
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-
+    isize didLoadFromBuffer(const u8 *buffer) override;
     
     //
     // Methods from Drive
@@ -166,7 +182,7 @@ public:
     bool hasProtectedDisk() const override;
     void setModificationFlag(bool value) override;
     void setProtectionFlag(bool value) override;
-    
+        
     
     //
     // Configuring
@@ -174,12 +190,16 @@ public:
     
 public:
     
-    static HardDriveConfig getDefaultConfig(isize nr);
     const HardDriveConfig &getConfig() const { return config; }
     void resetConfig() override;
     
     i64 getConfigItem(Option option) const;
     void setConfigItem(Option option, i64 value);
+    
+private:
+    
+    void connect();
+    void disconnect();
 
     
     //
@@ -197,15 +217,24 @@ public:
 
     // Returns the number of partitions
     isize numPartitions() const { return isize(ptable.size()); }
-        
+
+    // Returns the number of loadable file system drivers
+    isize numDrivers() const { return isize(drivers.size()); }
+
     // Returns the current drive state
     HardDriveState getState() const { return state; }
     
     // Gets or sets the 'modification' flag
     bool isModified() const { return modified; }
     void setModified(bool value) { modified = value; }
-        
+       
+    // Returns the current controller state
+    HdcState getHdcState();
 
+    // Checks whether the drive will work with the currently installed Rom
+    bool isCompatible();
+    
+    
     //
     // Formatting
     //
@@ -233,6 +262,9 @@ public:
     // Reads a data block from RAM and writes it onto the hard drive
     i8 write(isize offset, isize length, u32 addr);
     
+    // Reads a loadable file system
+    void readDriver(isize nr, Buffer<u8> &driver);
+    
 private:
         
     // Checks the given argument list for consistency
@@ -241,6 +273,36 @@ private:
     // Moves the drive head to the specified block
     void moveHead(isize lba);
     void moveHead(isize c, isize h, isize s);
+    
+    
+    //
+    // Importing and exporting
+    //
+    
+public:
+    
+    // Restores a disk (called on connect)
+    bool restoreDisk() throws;
+
+    // Exports the disk in HDF format
+    void writeToFile(const string &path) throws;
+
+    
+    //
+    // Managing write-through mode
+    //
+    
+    bool writeThroughEnabled() const { return writeThrough; }
+    void enableWriteThrough() throws;
+    void disableWriteThrough();
+
+private:
+    
+    // Return the path to the write-through storage file
+    string writeThroughPath();
+    
+    // Creates or updates the write-through storage file
+    void saveWriteThroughImage() throws;
     
     
     //

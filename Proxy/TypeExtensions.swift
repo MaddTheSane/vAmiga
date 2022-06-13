@@ -34,7 +34,6 @@ extension EventSlot: CustomStringConvertible {
         case .TXD:      return "UART out"
         case .RXD:      return "UART in"
         case .POT:      return "Potentiometer"
-        case .RAS:      return "Rasterline"
         case .TER:      return "Next tertiary event"
 
         case .DC0:      return "Disk Change Df0"
@@ -56,6 +55,17 @@ extension EventSlot: CustomStringConvertible {
             
         default:        fatalError()
         }
+    }
+}
+
+extension FileType {
+    
+    init?(url: URL?) {
+        self = url == nil ? .UNKNOWN : AmigaFileProxy.type(of: url)
+    }
+
+    static var all: [FileType] {
+        return [ .SNAPSHOT, .SCRIPT, .ADF, .HDF, .EXT, .IMG, .DMS, .EXE, .DIR ]
     }
 }
 
@@ -193,7 +203,7 @@ extension ErrorCode {
         case .FS_INVALID_HASHTABLE_SIZE:
             return "Expected $48 (72 hash table entries)"
         default:
-            log(warning: "\(self)")
+            warn("\(self)")
             fatalError()
         }
     }

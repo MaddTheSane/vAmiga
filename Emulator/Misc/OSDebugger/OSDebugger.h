@@ -54,10 +54,15 @@ private:
     isize _load(const u8 *buffer) override { return 0; }
     isize _save(u8 *buffer) override { return 0; }
     
+
+    //
+    // Providing textual representations
+    //
+
+public:
     
-    //
-    // Translating enumeration types to strings
-    //
+    static string dosTypeStr(u32 type);
+    static string dosVersionStr(u32 version);
 
 private:
     
@@ -79,6 +84,7 @@ private:
 public:
     
     bool isRamPtr(u32 addr) const;
+    bool isRamOrRomPtr(u32 addr) const;
     bool isValidPtr(u32 addr) const;
 
     
@@ -108,6 +114,8 @@ public:
     
     void read(u32 addr, os::CommandLineInterface *result) const;
     void read(u32 addr, os::ExecBase *result) const;
+    void read(u32 addr, os::FileSysResource *result) const;
+    void read(u32 addr, os::FileSysEntry *result) const;
     void read(u32 addr, os::Interrupt *result) const;
     void read(u32 addr, os::IntVector *result) const;
     void read(u32 addr, os::IOStdReq *result) const;
@@ -127,7 +135,8 @@ public:
     //
 
 public:
-
+    
+    void read(u32 addr, std::vector <os::FileSysEntry> &result) const;
     void read(std::vector <os::Task> &result) const;
     void read(std::vector <os::Process> &result) const;
     void read(u32 addr, std::vector <os::Task> &result) const;

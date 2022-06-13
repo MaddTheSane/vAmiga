@@ -88,7 +88,6 @@ private:
     
 public:
 
-    static JoystickConfig getDefaultConfig();
     const JoystickConfig &getConfig() const { return config; }
     void resetConfig() override;
 
@@ -115,7 +114,7 @@ public:
     void trigger(GamePadAction event);
 
     // To be called after each frame
-    void vsyncHandler();
+    void eofHandler();
     
 private:
 

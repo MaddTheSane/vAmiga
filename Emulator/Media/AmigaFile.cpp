@@ -103,7 +103,10 @@ AmigaFile::type(const string &path)
         
         if (Snapshot::isCompatible(path) &&
             Snapshot::isCompatible(stream)) return FILETYPE_SNAPSHOT;
-        
+
+        if (Script::isCompatible(path) &&
+            Script::isCompatible(stream)) return FILETYPE_SCRIPT;
+
         if (ADFFile::isCompatible(path) &&
             ADFFile::isCompatible(stream)) return FILETYPE_ADF;
         
@@ -210,6 +213,10 @@ AmigaFile::writeToStream(std::ostream &stream, isize offset, isize len)
 isize
 AmigaFile::writeToFile(const string &path, isize offset, isize len)
 {
+    if (util::isDirectory(path)) {
+        throw VAError(ERROR_FILE_IS_DIRECTORY);
+    }
+    
     std::ofstream stream(path, std::ofstream::binary);
 
     if (!stream.is_open()) {

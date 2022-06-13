@@ -29,6 +29,10 @@ VAError::VAError(ErrorCode code, const string &s)
             description = "The emulator is powered on.";
             break;
 
+        case ERROR_DEBUG_OFF:
+            description = "Debug mode is switched off.";
+            break;
+
         case ERROR_RUNNING:
             description = "The emulator is running.";
             break;
@@ -43,6 +47,14 @@ VAError::VAError(ErrorCode code, const string &s)
             
         case ERROR_OPT_LOCKED:
             description = "This option is locked because the Amiga is powered on.";
+            break;
+
+        case ERROR_INVALID_KEY:
+            description = "Invalid key: " + s;
+            break;
+            
+        case ERROR_SYNTAX:
+            description = "Syntax error in line " + s;
             break;
 
         case ERROR_BP_NOT_FOUND:
@@ -84,7 +96,19 @@ VAError::VAError(ErrorCode code, const string &s)
         case ERROR_FILE_NOT_FOUND:
             description = "File \"" + s + "\" not found.";
             break;
-            
+
+        case ERROR_FILE_EXISTS:
+            description = "File \"" + s + "\" already exists.";
+            break;
+
+        case ERROR_FILE_IS_DIRECTORY:
+            if (s.empty()) {
+                description = "The selected file is a directory.";
+            } else {
+                description = "File \"" + s + "\" is a directory.";
+            }
+            break;
+
         case ERROR_FILE_ACCESS_DENIED:
             description = "Unable to access file \"" + s + "\". Permission denied.";
             break;
@@ -128,6 +152,16 @@ VAError::VAError(ErrorCode code, const string &s)
             
         case ERROR_AROS_NO_EXTROM:
             description = "No Extension Rom installed.";
+            break;
+
+        case ERROR_WT_BLOCKED:
+            description = "The storage file for the selected hard drive is";
+            description += " being used by another emulator instance. It cannot ";
+            description += " be shared among multiple emulator instances.";
+            break;
+
+        case ERROR_WT:
+            description = "Write through: " + s;
             break;
 
         case ERROR_DISK_MISSING:
@@ -203,11 +237,19 @@ VAError::VAError(ErrorCode code, const string &s)
             break;
 
         case ERROR_HDR_CORRUPTED_PTABLE:
-            description = "Can't parse the partition table.";
+            description = "Invalid partition table.";
             break;
-            
+
+        case ERROR_HDR_CORRUPTED_FSH:
+            description = "Invalid file system header block.";
+            break;
+
         case ERROR_HDR_UNSUPPORTED:
             description = "The hard drive is encoded in an unknown or unsupported format.";
+            break;
+
+        case ERROR_HDC_INIT:
+            description = "Failed to initialize hard drive: " + s;
             break;
 
         case ERROR_SNAP_TOO_OLD:
@@ -267,6 +309,26 @@ VAError::VAError(ErrorCode code, const string &s)
             description = "OS Debugger: " + s;
             break;
             
+        case ERROR_HUNK_BAD_COOKIE:
+            description = "Invalid magic cookie.";
+            break;
+
+        case ERROR_HUNK_BAD_HEADER:
+            description = "Bad header.";
+            break;
+
+        case ERROR_HUNK_NO_SECTIONS:
+            description = "No hunks found.";
+            break;
+
+        case ERROR_HUNK_UNSUPPORTED:
+            description = "Unsupported hunk: " + s;
+            break;
+
+        case ERROR_HUNK_CORRUPTED:
+            description = "Corrupted hunk structure.";
+            break;
+
         case ERROR_FS_UNSUPPORTED:
             description = "Unsupported file system.";
             break;

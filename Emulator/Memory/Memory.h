@@ -14,9 +14,13 @@
 #include "RomFileTypes.h"
 #include "MemUtils.h"
 
+// REMOVE ASAP
+extern Accessor _accessor;
+
 using util::Allocator;
 using util::Buffer;
 
+#define SLOW_RAM_STRT 0xC00000
 #define FAST_RAM_STRT ramExpansion.getBaseAddr()
 
 // Verifies address ranges
@@ -25,7 +29,7 @@ assert(((x) % config.chipSize) == ((x) & chipMask));
 #define ASSERT_FAST_ADDR(x) \
 assert(((x) - FAST_RAM_STRT) < (u32)config.fastSize);
 #define ASSERT_SLOW_ADDR(x) \
-assert(((x) % config.slowSize) == ((x) & slowMask));
+assert(((x) - SLOW_RAM_STRT) < (u32)config.slowSize);
 #define ASSERT_ROM_ADDR(x) \
 assert(((x) % config.romSize) == ((x) & romMask));
 #define ASSERT_WOM_ADDR(x) \
@@ -45,11 +49,6 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 // Reading
 //
 
-// Reads a value in big-endian format
-#define R8BE_ALIGNED(a)     (*(u8 *)(a))
-#define R16BE_ALIGNED(a)    (util::bigEndian(*(u16 *)(a)))
-#define R32BE_ALIGNED(a)    (util::bigEndian(*(u32 *)(a)))
-
 // Reads a value from Chip RAM in big endian format
 #define READ_CHIP_8(x)      R8BE_ALIGNED (chip + ((x) & chipMask))
 #define READ_CHIP_16(x)     R16BE_ALIGNED(chip + ((x) & chipMask))
@@ -59,8 +58,8 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 #define READ_FAST_16(x)     R16BE_ALIGNED(fast + ((x) - FAST_RAM_STRT))
 
 // Reads a value from Slow RAM in big endian format
-#define READ_SLOW_8(x)      R8BE_ALIGNED (slow + ((x) & slowMask))
-#define READ_SLOW_16(x)     R16BE_ALIGNED(slow + ((x) & slowMask))
+#define READ_SLOW_8(x)      R8BE_ALIGNED (slow + ((x) - SLOW_RAM_STRT))
+#define READ_SLOW_16(x)     R16BE_ALIGNED(slow + ((x) - SLOW_RAM_STRT))
 
 // Reads a value from Boot ROM or Kickstart ROM in big endian format
 #define READ_ROM_8(x)       R8BE_ALIGNED (rom + ((x) & romMask))
@@ -78,11 +77,6 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 // Writing
 //
 
-// Writes a value in big-endian format
-#define W8BE_ALIGNED(a,v)   { *(u8 *)(a) = (u8)(v); }
-#define W16BE_ALIGNED(a,v)  { *(u16 *)(a) = util::bigEndian((u16)v); }
-#define W32BE_ALIGNED(a,v)  { *(u32 *)(a) = util::bigEndian((u32)v); }
-
 // Writes a value into Chip RAM in big endian format
 #define WRITE_CHIP_8(x,y)   W8BE_ALIGNED (chip + ((x) & chipMask), (y))
 #define WRITE_CHIP_16(x,y)  W16BE_ALIGNED(chip + ((x) & chipMask), (y))
@@ -92,8 +86,8 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 #define WRITE_FAST_16(x,y)  W16BE_ALIGNED(fast + ((x) - FAST_RAM_STRT), (y))
 
 // Writes a value into Slow RAM in big endian format
-#define WRITE_SLOW_8(x,y)   W8BE_ALIGNED (slow + ((x) & slowMask), (y))
-#define WRITE_SLOW_16(x,y)  W16BE_ALIGNED(slow + ((x) & slowMask), (y))
+#define WRITE_SLOW_8(x,y)   W8BE_ALIGNED (slow + ((x) - SLOW_RAM_STRT), (y))
+#define WRITE_SLOW_16(x,y)  W16BE_ALIGNED(slow + ((x) - SLOW_RAM_STRT), (y))
 
 // Writes a value into Boot ROM or Kickstart ROM in big endian format
 #define WRITE_ROM_8(x,y)    W8BE_ALIGNED (rom + ((x) & romMask), (y))
@@ -179,8 +173,6 @@ public:
     u32 womMask = 0;
     u32 extMask = 0;
     u32 chipMask = 0;
-    u32 slowMask = 0;
-    u32 fastMask = 0;
 
     /* Indicates if the Kickstart Wom is writable. If an Amiga 1000 Boot Rom is
      * installed, a Kickstart WOM (Write Once Memory) is added automatically.
@@ -229,6 +221,7 @@ private:
     
 private:
     
+    void _initialize() override;
     void _reset(bool hard) override;
     
     template <class T>
@@ -268,7 +261,6 @@ private:
     
 public:
     
-    static MemoryConfig getDefaultConfig();
     const MemoryConfig &getConfig() const { return config; }
     void resetConfig() override;
     
@@ -321,6 +313,7 @@ public:
 
 private:
     
+    void alloc(Allocator<u8> &allocator, isize bytes, bool update);
     void alloc(Allocator<u8> &allocator, isize bytes, u32 &mask, bool update);
 
 
@@ -388,17 +381,19 @@ public:
     void loadRom(const string &path) throws;
     void loadRom(const u8 *buf, isize len) throws;
     
+    // Installs a Kickstart expansion Rom
     void loadExt(class ExtendedRomFile &rom) throws;
     void loadExt(const string &path) throws;
     void loadExt(const u8 *buf, isize len) throws;
         
-public:
-    
     // Saves a Rom to disk
     void saveRom(const string &path) throws;
     void saveWom(const string &path) throws;
     void saveExt(const string &path) throws;
 
+    // Fixes two bugs in Kickstart 1.2 expansion.library
+    void patchExpansionLib();
+    
     
     //
     // Maintaining the memory source table

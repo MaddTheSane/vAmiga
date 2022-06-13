@@ -16,6 +16,33 @@
 // Enumerations
 //
 
+enum_long(VIDEO_FORMAT)
+{
+    PAL,
+    NTSC
+};
+typedef VIDEO_FORMAT VideoFormat;
+
+#ifdef __cplusplus
+struct VideoFormatEnum : util::Reflection<VideoFormatEnum, VideoFormat>
+{
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = NTSC;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
+
+    static const char *prefix() { return ""; }
+    static const char *key(VideoFormat value)
+    {
+        switch (value) {
+
+            case PAL:   return "PAL";
+            case NTSC:  return "NTSC";
+        }
+        return "???";
+    }
+};
+#endif
+
 enum_long(CONFIG_SCHEME)
 {
     CONFIG_A1000_OCS_1MB,
@@ -27,9 +54,9 @@ typedef CONFIG_SCHEME ConfigScheme;
 #ifdef __cplusplus
 struct ConfigSchemeEnum : util::Reflection<ConfigSchemeEnum, ConfigScheme>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return CONFIG_A500_ECS_1MB; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = CONFIG_A500_ECS_1MB;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "CONFIG"; }
     static const char *key(ConfigScheme value)
@@ -63,9 +90,9 @@ typedef INSPECTION_TARGET InspectionTarget;
 #ifdef __cplusplus
 struct InspectionTargetEnum : util::Reflection<InspectionTargetEnum, InspectionTarget>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return INSPECTION_EVENTS; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = INSPECTION_EVENTS;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "INSPECTION"; }
     static const char *key(InspectionTarget value)
@@ -149,9 +176,9 @@ typedef REG_CHIPSET ChipsetReg;
 static_assert(REG_NO_OP == (0x1FE >> 1));
 struct ChipsetRegEnum : util::Reflection<ChipsetRegEnum, ChipsetReg>
 {
-    static long minVal() { return 0; }
-    static long maxVal() { return REG_NO_OP; }
-    static bool isValid(auto val) { return val >= minVal() && val <= maxVal(); }
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = REG_NO_OP;
+    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "REG"; }
     static const char *key(ConfigScheme value)
@@ -257,6 +284,12 @@ struct ChipsetRegEnum : util::Reflection<ChipsetRegEnum, ChipsetReg>
 
 typedef struct
 {
+    VideoFormat type;
+}
+AmigaConfig;
+
+typedef struct
+{
     Cycle cpuClock;
     Cycle dmaClock;
     Cycle ciaAClock;
@@ -278,17 +311,19 @@ typedef u32 RunLoopFlags;
 
 namespace RL
 {
-constexpr u32 STOP               = 0b00000000001;
-constexpr u32 INSPECT            = 0b00000000010;
-constexpr u32 WARP_ON            = 0b00000000100;
-constexpr u32 WARP_OFF           = 0b00000001000;
-constexpr u32 SOFTSTOP_REACHED   = 0b00000010000;
-constexpr u32 BREAKPOINT_REACHED = 0b00000100000;
-constexpr u32 WATCHPOINT_REACHED = 0b00001000000;
-constexpr u32 CATCHPOINT_REACHED = 0b00010000000;
-constexpr u32 AUTO_SNAPSHOT      = 0b00100000000;
-constexpr u32 USER_SNAPSHOT      = 0b01000000000;
-constexpr u32 SYNC_THREAD        = 0b10000000000;
+constexpr u32 STOP               = (1 << 0);
+constexpr u32 WARP_ON            = (1 << 1);
+constexpr u32 WARP_OFF           = (1 << 2);
+constexpr u32 SOFTSTOP_REACHED   = (1 << 3);
+constexpr u32 BREAKPOINT_REACHED = (1 << 4);
+constexpr u32 WATCHPOINT_REACHED = (1 << 5);
+constexpr u32 CATCHPOINT_REACHED = (1 << 6);
+constexpr u32 SWTRAP_REACHED     = (1 << 7);
+constexpr u32 COPPERBP_REACHED   = (1 << 8);
+constexpr u32 COPPERWP_REACHED   = (1 << 9);
+constexpr u32 AUTO_SNAPSHOT      = (1 << 10);
+constexpr u32 USER_SNAPSHOT      = (1 << 11);
+constexpr u32 SYNC_THREAD        = (1 << 12);
 };
 
 #endif

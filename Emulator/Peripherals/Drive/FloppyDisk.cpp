@@ -122,7 +122,7 @@ void
 FloppyDisk::clearDisk()
 {
     fnv = 0;
-    modified = FORCE_DISK_MODIFIED ? true : false;
+    modified = bool(FORCE_DISK_MODIFIED);
     
     // Initialize with random data
     srand(0);
@@ -139,6 +139,14 @@ FloppyDisk::clearDisk()
             data.track[t][0] = 0x44;
             data.track[t][1] = 0xA2;
         }
+    }
+}
+
+void
+FloppyDisk::clearDisk(u8 value)
+{
+    for (isize i = 0; i < isizeof(data.raw); i++) {
+        data.raw[i] = value;
     }
 }
 

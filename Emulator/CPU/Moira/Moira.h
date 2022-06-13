@@ -107,7 +107,7 @@ protected:
 
     // Number of elapsed cycles since powerup
     i64 clock;
-
+    
     // The data and address registers
     Registers reg;
 
@@ -229,7 +229,9 @@ protected:
     // Instrution delegates
     virtual void signalResetInstr() { };
     virtual void signalStopInstr(u16 op) { };
-    virtual void signalTASInstr() { };
+    virtual void signalTasInstr() { };
+    virtual void signalJsrBsrInstr(u16 opcode, u32 oldPC, u32 newPC) { };
+    virtual void signalRtsInstr() { };
 
     // State delegates
     virtual void signalHardReset() { };
@@ -245,16 +247,18 @@ protected:
     virtual void signalPrivilegeViolation() { };
     virtual void signalInterrupt(u8 level) { };
     virtual void signalJumpToVector(int nr, u32 addr) { };
+    virtual void signalSoftwareTrap(u16 opcode, SoftwareTrap trap) { };
 
     // Exception delegates
     virtual void addressErrorHandler() { };
     
-    // Called when a breakpoint is reached
-    virtual void breakpointReached(u32 addr) { };
-
-    // Called when a breakpoint is reached
-    virtual void watchpointReached(u32 addr) { };
-
+    // Called when a debug point is reached
+    virtual void softstopReached(u32 addr);
+    virtual void breakpointReached(u32 addr);
+    virtual void watchpointReached(u32 addr);
+    virtual void catchpointReached(u8 vector);
+    virtual void swTrapReached(u32 addr);
+    
     // Called at the beginning of each instruction handler (see EXEC_DEBUG)
     virtual void execDebug(const char *cmd) { };
     
@@ -279,6 +283,8 @@ protected:
     void signalResetInstr();
     void signalStopInstr(u16 op);
     void signalTasInstr();
+    virtual void signalJsrBsrInstr(u16 opcode, u32 oldPC, u32 newPC) { };
+    virtual void signalRtsInstr() { };
 
     // State delegates
     void signalHalt();
@@ -293,7 +299,8 @@ protected:
     void signalPrivilegeViolation();
     void signalInterrupt(u8 level);
     void signalJumpToVector(int nr, u32 addr);
-
+    void signalSoftwareTrap(u16 instr, SoftwareTrap trap);
+    
     // Exception delegates
     void addressErrorHandler();
     
@@ -302,7 +309,8 @@ protected:
     void breakpointReached(u32 addr);
     void watchpointReached(u32 addr);
     void catchpointReached(u8 vector);
-
+    void swTrapReached(u32 addr);
+    
     // Called at the beginning of each instruction handler (see EXEC_DEBUG)
     void execDebug(const char *cmd);
  

@@ -63,7 +63,7 @@ class DiskExporter: DialogController {
         ext = try? EXTFileProxy.make(with: dfn!)
 
         // Run the DOS decoder
-        img = try? IMGFileProxy.make(with: dfn!) 
+        img = try? IMGFileProxy.make(with: dfn!)
                         
         // Select the export partition
         select(partition: 0)
@@ -138,7 +138,7 @@ class DiskExporter: DialogController {
         formatPopup.removeAllItems()
         if adf != nil { addItem("ADF", tag: Format.adf) }
         if hdf != nil { addItem("HDF", tag: Format.hdf) }
-        if ext != nil { addItem("ADF", tag: Format.ext) }
+        if ext != nil { addItem("Extended ADF", tag: Format.ext) }
         if img != nil { addItem("IMG", tag: Format.img) }
         if img != nil { addItem("IMA", tag: Format.ima) }
         if vol != nil { addItem("Folder", tag: Format.vol) }
@@ -295,12 +295,12 @@ class DiskExporter: DialogController {
     //
         
     func openExportToFilePanel(allowedTypes: [String]) {
-     
-        // TODO: allowedTypes is not used
+             
         savePanel = NSSavePanel()
         savePanel.prompt = "Export"
         savePanel.title = "Export"
         savePanel.nameFieldLabel = "Export As:"
+        savePanel.nameFieldStringValue = "Untitled." + allowedTypes.first!
         savePanel.canCreateDirectories = true
 
         savePanel.beginSheetModal(for: window!, completionHandler: { result in
@@ -337,6 +337,7 @@ class DiskExporter: DialogController {
         } else {
             exportFloppyDisk(url: url)
         }
+        parent.refreshStatusBar()
     }
     
     func exportFloppyDisk(url: URL) {
@@ -347,27 +348,27 @@ class DiskExporter: DialogController {
 
             case Format.adf:
                 
-                log("Exporting ADF")
+                debug(.media, "Exporting ADF")
                 try parent.mydocument.export(fileProxy: adf!, to: url)
 
             case Format.ext:
                 
-                log("Exporting Extended ADF")
+                debug(.media, "Exporting Extended ADF")
                 try parent.mydocument.export(fileProxy: ext!, to: url)
 
             case Format.img:
                 
-                log("Exporting IMG")
+                debug(.media, "Exporting IMG")
                 try parent.mydocument.export(fileProxy: img!, to: url)
 
             case Format.ima:
                 
-                log("Exporting IMA")
+                debug(.media, "Exporting IMA")
                 try parent.mydocument.export(fileProxy: img!, to: url)
 
             case Format.vol:
                 
-                log("Exporting file system")
+                debug(.media, "Exporting file system")
                 try vol!.export(url: url)
                 
             default:
@@ -379,10 +380,8 @@ class DiskExporter: DialogController {
             
             hideSheet()
 
-        } catch let error as VAError {
-            error.warning("Cannot export floppy disk")
         } catch {
-            fatalError()
+            parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
         }
     }
     
@@ -392,12 +391,12 @@ class DiskExporter: DialogController {
             
             if let nr = partition {
 
-                log("Exporting partiton \(nr)")
+                debug(.media, "Exporting partiton \(nr) to \(url)")
                 try hdf?.writeToFile(url: url, partition: nr)
 
             } else {
 
-                log("Exporting entire HDF")
+                debug(.media, "Exporting entire HDF to \(url)")
                 try hdf?.writeToFile(url: url)
             }
             
@@ -406,10 +405,8 @@ class DiskExporter: DialogController {
             
             hideSheet()
             
-        } catch let error as VAError {
-            error.warning("Cannot export hard disk")
         } catch {
-            fatalError()
+            parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
         }
     }
 }
