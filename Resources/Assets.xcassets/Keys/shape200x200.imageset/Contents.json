@@ -27,6 +27,7 @@
           "value" : "dark"
         }
       ],
+      "filename" : "shape200x200_dark.pdf",
       "idiom" : "universal",
       "scale" : "2x"
     },
@@ -41,6 +42,7 @@
           "value" : "dark"
         }
       ],
+      "filename" : "shape200x200_dark.pdf",
       "idiom" : "universal",
       "scale" : "3x"
     }
