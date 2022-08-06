@@ -12,9 +12,9 @@ import simd
 struct TextureSize {
 
     static let background = MTLSizeMake(512, 512, 0)
-    static let original = MTLSizeMake(1024, 320, 0)
-    static let merged = MTLSizeMake(1024, 640, 0)
-    static let upscaled = MTLSizeMake(2048, 1280, 0)
+    static let original = MTLSizeMake(Int(TPP * HPIXELS), Int(VPIXELS), 0)
+    static let merged = MTLSizeMake(Int(2 * HPIXELS), Int(4 * VPIXELS), 0)
+    static let upscaled = MTLSizeMake(Int(2 * HPIXELS), Int(4 * VPIXELS), 0)
 }
 
 extension Renderer {

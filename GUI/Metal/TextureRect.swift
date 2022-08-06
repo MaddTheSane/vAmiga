@@ -23,7 +23,7 @@ extension Canvas {
     // Returns the entire texture area (including HBLANK and VBLANK)
     var entire: CGRect {
         
-        return CGRect(x: 0, y: 0, width: 4 * Int(HPOS_CNT), height: Int(VPOS_CNT))
+        return CGRect(x: 0, y: 0, width: Int(4 * TPP * HPOS_CNT), height: Int(VPOS_CNT))
     }
     
     var entireNormalized: CGRect {
@@ -36,8 +36,8 @@ extension Canvas {
 
         let pal = amiga.agnus.isPAL
         
-        let x1 = Int(HBLANK_CNT) * 4
-        let x2 = Int(HPOS_CNT_PAL) * 4
+        let x1 = Int(4 * TPP * HBLANK_CNT)
+        let x2 = Int(4 * TPP * HPOS_CNT_PAL)
         let y1 = Int(VBLANK_CNT)
         let y2 = pal ? Int(VPOS_CNT_PAL) : Int(VPOS_CNT_NTSC)
         
@@ -132,8 +132,8 @@ extension Canvas {
         debug(.metal, "updateTextureRect \(hstrt) \(vstrt) \(hstop) \(vstop)")
 
         // Convert to pixel coordinates
-        x1 = 2 * CGFloat(hstrt)
-        x2 = 2 * CGFloat(hstop)
+        x1 = CGFloat(2 * Int(TPP) * hstrt)
+        x2 = CGFloat(2 * Int(TPP) * hstop)
         y1 = CGFloat(vstrt)
         y2 = CGFloat(vstop)
 
@@ -147,8 +147,8 @@ extension Canvas {
         debug(.metal, "(\(x1),\(y1)) - \(x2),\(y2))")
 
         // Compensate the texture shift
-        x1 -= CGFloat(HBLANK_MIN) * 4
-        x2 -= CGFloat(HBLANK_MIN) * 4
+        x1 -= CGFloat(HBLANK_MIN * TPP) * 4
+        x2 -= CGFloat(HBLANK_MIN * TPP) * 4
         
         updateTextureRect()
     }

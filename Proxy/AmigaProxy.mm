@@ -843,16 +843,6 @@ using namespace moira;
     return [self denise]->debugger.getSpriteColor(nr, reg);
 }
 
-- (void)lockStableBuffer
-{
-    [self denise]->pixelEngine.lockStableBuffer();
-}
-
-- (void)unlockStableBuffer
-{
-    [self denise]->pixelEngine.unlockStableBuffer();
-}
-
 - (BOOL)longFrame
 {
     return [self denise]->pixelEngine.getStableBuffer().longFrame;
@@ -860,12 +850,12 @@ using namespace moira;
 
 - (u32 *)stableBuffer
 {
-    return [self denise]->pixelEngine.getStableBuffer().ptr;
+    return (u32 *)([self denise]->pixelEngine.stablePtr());
 }
 
 - (u32 *)noise
 {
-    return [self denise]->pixelEngine.getNoise();
+    return (u32 *)([self denise]->pixelEngine.getNoise());
 }
 
 @end

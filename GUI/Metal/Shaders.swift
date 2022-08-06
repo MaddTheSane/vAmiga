@@ -152,10 +152,10 @@ class ComputeKernel: NSObject {
         let groupH = kernel.maxTotalThreadsPerThreadgroup / groupW
         let threadsPerGroup = MTLSizeMake(groupW, groupH, 1)
         
-        let countW = (cutout.0) / groupW
-        let countH = (cutout.1) / groupH
+        let countW = (cutout.0) / groupW + 1
+        let countH = (cutout.1) / groupH + 1
         let threadgroupCount = MTLSizeMake(countW, countH, 1)
-        
+
         // Finally, we're ready to dispatch
         encoder.dispatchThreadgroups(threadgroupCount,
                                      threadsPerThreadgroup: threadsPerGroup)
@@ -182,15 +182,15 @@ class BypassFilter: ComputeKernel {
 class MergeFilter: ComputeKernel {
     
     convenience init?(device: MTLDevice, library: MTLLibrary, cutout: (Int, Int)) {
-        self.init(name: "merge",
+        self.init(name: "merge\(3 - TPP)X4Y",
                   device: device, library: library, cutout: cutout)
     }
 }
 
-class MergeBypassFilter: ComputeKernel {
+class ScaleFilter: ComputeKernel {
     
     convenience init?(device: MTLDevice, library: MTLLibrary, cutout: (Int, Int)) {
-        self.init(name: "bypassmerger",
+        self.init(name: "scale\(3 - TPP)X4Y",
                   device: device, library: library, cutout: cutout)
     }
 }
