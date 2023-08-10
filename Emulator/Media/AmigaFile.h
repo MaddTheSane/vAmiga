@@ -10,7 +10,7 @@
 #pragma once
 
 #include "AmigaFileTypes.h"
-#include "AmigaObject.h"
+#include "CoreObject.h"
 #include "Checksum.h"
 #include "IOUtils.h"
 #include "Buffer.h"
@@ -19,6 +19,8 @@
 #include <fstream>
 
 using util::Buffer;
+
+namespace vamiga {
 
 /* All media files are organized in the class hierarchy displayed below. Two
  * abstract classes are involed: AmigaFile, DiskFile, and FloppyFile.
@@ -52,13 +54,13 @@ using util::Buffer;
  *  --------------
  *       |
  *       |-----------------------------------------------------------
- *       |           |           |           |            |          |
- *   ---------   ---------   ---------   ---------    ---------  ---------
- *  | ADFFile | | EXTFile | | IMGFile | | DMSFile | | EXEFile | | Folder  |
- *   ---------   ---------   ---------   ---------    ---------  ---------
+ *       |           |            |           |           |          |
+ *   ---------   ----------   ---------   ---------   ---------   ---------
+ *  | ADFFile | | EADFFile | | IMGFile | | DMSFile | | EXEFile | | Folder  |
+ *   ---------   ----------   ---------   ---------   ---------   ---------
  */
 
-class AmigaFile : public AmigaObject {
+class AmigaFile : public CoreObject {
     
 public:
     
@@ -76,9 +78,10 @@ public:
 public:
 
     virtual ~AmigaFile();
-        
+
     void init(std::istream &stream) throws;
     void init(const string &path, std::istream &stream) throws;
+    void init(isize len) throws;
     void init(const u8 *buf, isize len) throws;
     void init(const Buffer<u8> &buffer) throws;
     void init(const string &path) throws;
@@ -88,7 +91,7 @@ public:
 
     
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 private:
@@ -107,18 +110,19 @@ public:
     
     // Returns the type of this file
     virtual FileType type() const { return FILETYPE_UNKNOWN; }
-            
+
     // Returns a textual description of the file size
     virtual string sizeAsString();
     
     // Returns a fingerprint (hash value) for this file
-    virtual u64 fnv() const { return data.fnv64(); }
-        
+    virtual u64 fnv64() const { return data.fnv64(); }
+    virtual u32 crc32() const { return data.crc32(); }
+
     
     //
     // Flashing
     //
-            
+
     // Copies the file contents into a buffer
     virtual void flash(u8 *buf, isize offset, isize len) const;
     virtual void flash(u8 *buf, isize offset) const;
@@ -157,3 +161,5 @@ private:
     virtual void finalizeRead() throws { };
     virtual void finalizeWrite() throws { };
 };
+
+}

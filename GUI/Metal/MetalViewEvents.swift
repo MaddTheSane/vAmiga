@@ -127,7 +127,29 @@ public extension MetalView {
             mouse2!.processMouseEvents(events: [.RELEASE_RIGHT])
         }
     }
-    
+
+    override func otherMouseDown(with event: NSEvent) {
+
+        if !gotMouse { return }
+
+        if mouse2 == nil || event.deviceID != 0 {
+            mouse1!.processMouseEvents(events: [.PRESS_MIDDLE])
+        } else {
+            mouse2!.processMouseEvents(events: [.PRESS_MIDDLE])
+        }
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+
+        if !gotMouse { return }
+
+        if mouse2 == nil || event.deviceID != 0 {
+            mouse1!.processMouseEvents(events: [.RELEASE_MIDDLE])
+        } else {
+            mouse2!.processMouseEvents(events: [.RELEASE_MIDDLE])
+        }
+    }
+
     override func mouseMoved(with event: NSEvent) {
         
         if !gotMouse { return }
@@ -141,7 +163,7 @@ public extension MetalView {
         let scaleY = (256.0 * 300.0) / frame.height / 128.0
         let dxdy = NSPoint(x: dx * scaleX, y: dy * scaleY)
         
-        // Report the new location to the Amiga mouse
+        // Report the new location to the mouse
         if mouse2 == nil || event.deviceID != 0 {
             mouse1!.processMouseEvents(delta: dxdy)
         } else {

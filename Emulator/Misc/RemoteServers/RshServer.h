@@ -11,14 +11,16 @@
 
 #include "RemoteServer.h"
 
+namespace vamiga {
+
 class RshServer : public RemoteServer {
-  
+
 public:
     
     RshServer(Amiga& ref);
-        
+
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 protected:
@@ -28,7 +30,7 @@ protected:
 
     
     //
-    // Methods from AmigaComponent
+    // Methods from CoreComponent
     //
 
     void resetConfig() override;
@@ -44,3 +46,5 @@ protected:
     void didStart() override;
     void didConnect() override;
 };
+
+}

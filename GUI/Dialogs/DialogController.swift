@@ -18,18 +18,13 @@ class DialogWindow: NSWindow {
     }
 }
 
-/* Base class for all auxiliary windows. The class extends NSWindowController
- * by a reference to the controller of the connected emulator window (parent)
- * and a reference to the parents proxy object. It also provides some wrappers
- * around showing and hiding the window.
- */
 protocol DialogControllerDelegate: AnyObject {
     
     // Called before beginSheet() is called
-    func sheetWillShow()
+    func dialogWillShow()
 
     // Called after beginSheet() has beed called
-    func sheetDidShow()
+    func dialogDidShow()
 
     // Called after the completion handler has been executed
     func cleanup()
@@ -40,12 +35,15 @@ class DialogController: NSWindowController, DialogControllerDelegate {
     var parent: MyController!
     var amiga: AmigaProxy!
 
-    // List of open windows or sheets (to make ARC happy)
+    // References to all open dialogs (to make ARC happy)
     static var active: [DialogController] = []
     
     // Remembers whether awakeFromNib has been called
     var awake = false
-    
+
+    // Indicates if this dialog is displayed as a sheet
+    var sheet = false
+
     convenience init?(with controller: MyController, nibName: NSNib.Name) {
     
         self.init(windowNibName: nibName)
@@ -65,70 +63,72 @@ class DialogController: NSWindowController, DialogControllerDelegate {
         DialogController.active = DialogController.active.filter {$0 != self}
         debug(.lifetime, "Unregister: \(DialogController.active)")
     }
-    
-    override func windowWillLoad() {
-    }
-    
-    override func windowDidLoad() {
-    }
-    
+
     override func awakeFromNib() {
     
         awake = true
         window?.delegate = self
-        sheetWillShow()
+        dialogWillShow()
     }
     
-    func sheetWillShow() {
-        
+    func dialogWillShow() {
+
+        debug(.lifetime)
     }
     
-    func sheetDidShow() {
-        
+    func dialogDidShow() {
+
+        debug(.lifetime)
     }
     
     func cleanup() {
-        
+
+        debug(.lifetime)
     }
     
-    func showWindow(completionHandler handler:(() -> Void)? = nil) {
+    func showAsWindow() {
 
+        sheet = false
         register()
-        if awake { sheetWillShow() }
-        
+
+        if awake { dialogWillShow() }
         showWindow(self)
+        dialogDidShow()
     }
 
-    func showSheet(completionHandler handler:(() -> Void)? = nil) {
+    func showAsSheet(completionHandler handler:(() -> Void)? = nil) {
 
+        sheet = true
         register()
-        if awake { sheetWillShow() }
-        
-        parent.window?.beginSheet(window!, completionHandler: { result in
 
-            handler?()
-            self.cleanup()
-        })
-
-        sheetDidShow()
+        if awake { dialogWillShow() }
+        parent.window?.beginSheet(window!, completionHandler: { result in handler?() })
+        dialogDidShow()
     }
-            
-    func hideSheet() {
-    
-        if let win = window {
-            parent.window?.endSheet(win, returnCode: .cancel)
+
+    func hide() {
+
+        cleanup()
+
+        if sheet {
+            if let win = window {
+                parent.window?.endSheet(win, returnCode: .cancel)
+            }
+        } else {
+            close()
         }
+
         unregister()
     }
-    
+
     @IBAction func okAction(_ sender: Any!) {
         
-        hideSheet()
+        hide()
     }
     
     @IBAction func cancelAction(_ sender: Any!) {
         
-        hideSheet()
+        hide()
     }
 }
 

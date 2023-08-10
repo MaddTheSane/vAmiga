@@ -18,6 +18,8 @@
 #include "MemUtils.h"
 #include "MutableFileSystem.h"
 
+namespace vamiga {
+
 bool
 ADFFile::isCompatible(const string &path)
 {
@@ -29,18 +31,15 @@ bool
 ADFFile::isCompatible(std::istream &stream)
 {
     isize length = util::streamLength(stream);
-    
+
     // Some ADFs contain an additional byte at the end. Ignore it.
     length &= ~1;
-    
-    // There are no magic bytes. Hence, we only check the file size.
-    return
-    length == ADFSIZE_35_DD ||
-    length == ADFSIZE_35_DD_81 ||
-    length == ADFSIZE_35_DD_82 ||
-    length == ADFSIZE_35_DD_83 ||
-    length == ADFSIZE_35_DD_84 ||
-    length == ADFSIZE_35_HD;
+
+    // The size must be a multiple of the cylinder size
+    if (length % 11264) return false;
+
+    // Check some more limits
+    return length <= ADFSIZE_35_DD_84 || length == ADFSIZE_35_HD;
 }
 
 isize
@@ -64,6 +63,38 @@ ADFFile::init(Diameter diameter, Density density)
     assert(data.empty());
     
     data.init(fileSize(diameter, density));
+}
+
+void
+ADFFile::init(const FloppyDiskDescriptor &descr)
+{
+    if (descr.diameter != INCH_35) throw VAError(ERROR_DISK_INVALID_DIAMETER);
+
+    switch (descr.density) {
+
+        case DENSITY_DD:
+
+            switch (descr.cylinders) {
+
+                case 80: init(ADFSIZE_35_DD); break;
+                case 81: init(ADFSIZE_35_DD_81); break;
+                case 82: init(ADFSIZE_35_DD_82); break;
+                case 83: init(ADFSIZE_35_DD_83); break;
+                case 84: init(ADFSIZE_35_DD_84); break;
+
+                default:
+                    throw VAError(ERROR_DISK_INVALID_LAYOUT);
+            }
+            break;
+
+        case DENSITY_HD:
+
+            init(ADFSIZE_35_HD);
+            break;
+
+        default:
+            throw VAError(ERROR_DISK_INVALID_DENSITY);
+    }
 }
 
 void
@@ -102,6 +133,13 @@ ADFFile::init(MutableFileSystem &volume)
     }
 
     volume.exportVolume(data.ptr, data.size);
+}
+
+void
+ADFFile::finalizeRead()
+{
+    // Add some empty cylinders if the file contains less than 80
+    if (data.size < ADFSIZE_35_DD) data.resize(ADFSIZE_35_DD, 0);
 }
 
 isize
@@ -302,11 +340,19 @@ ADFFile::encodeTrack(FloppyDisk &disk, Track t) const
     // Encode all sectors
     for (Sector s = 0; s < sectors; s++) encodeSector(disk, t, s);
     
-    // Rectify the first clock bit (where buffer wraps over)
+    // TODO: Remove after while
+    assert((disk.data.track[t][disk.length.track[t] - 1] & 1) == disk.readBit(t, disk.length.track[t] * 8 - 1));
+
+    // Rectify the first clock bit (where the buffer wraps over)
+    if (disk.readBit(t, disk.length.track[t] * 8 - 1)) {
+        disk.writeBit(t, 0, 0);
+    }
+    /*
     if (disk.data.track[t][disk.length.track[t] - 1] & 1) {
         disk.data.track[t][0] &= 0x7F;
     }
-    
+    */
+
     // Compute a debug checksum
     debug(ADF_DEBUG, "Track %ld checksum = %x\n",
           t, util::fnv32(disk.data.track[t], disk.length.track[t]));
@@ -330,8 +376,8 @@ ADFFile::encodeSector(FloppyDisk &disk, Track t, Sector s) const
     //     Data checksum       56      8     Odd/Even encoded
     
     // Determine the start of this sector
-    u8 *p = disk.data.track[t] + 700 + (s * 1088);
-    
+    u8 *p = disk.data.track[t] + (s * 1088);
+
     // Bytes before SYNC
     p[0] = (p[-1] & 1) ? 0x2A : 0xAA;
     p[1] = 0xAA;
@@ -351,7 +397,7 @@ ADFFile::encodeSector(FloppyDisk &disk, Track t, Sector s) const
     
     // Unused area
     for (isize i = 16; i < 48; i++)
-    p[i] = 0xAA;
+        p[i] = 0xAA;
     
     // Data
     u8 bytes[512];
@@ -381,7 +427,7 @@ ADFFile::encodeSector(FloppyDisk &disk, Track t, Sector s) const
     // Add clock bits
     for(isize i = 8; i < 1088; i++) {
         p[i] = FloppyDisk::addClockBits(p[i], p[i-1]);
-    }    
+    }
 }
 
 void
@@ -403,7 +449,7 @@ ADFFile::decodeDisk(FloppyDisk &disk)
     if (disk.getDensity() != getDensity()) {
         throw VAError(ERROR_DISK_INVALID_DENSITY);
     }
-        
+
     // Make the MFM stream scannable beyond the track end
     disk.repeatTracks();
 
@@ -475,4 +521,6 @@ ADFFile::decodeSector(u8 *dst, u8 *src)
     
     // Decode sector data
     FloppyDisk::decodeOddEven(dst + sector * 512, src, 512);
+}
+
 }

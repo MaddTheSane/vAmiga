@@ -10,8 +10,9 @@
 #include "config.h"
 #include "Joystick.h"
 #include "Amiga.h"
-// #include "ControlPort.h"
 #include "IOUtils.h"
+
+namespace vamiga {
 
 Joystick::Joystick(Amiga& ref, ControlPort& pref) : SubComponent(ref), port(pref)
 {
@@ -107,7 +108,9 @@ Joystick::_dump(Category category, std::ostream& os) const
     
     if (category == Category::State) {
         
-        os << tab("Button pressed") << bol(button) << std::endl;
+        os << tab("Button 1 pressed") << bol(button) << std::endl;
+        os << tab("Button 2 pressed") << bol(button2) << std::endl;
+        os << tab("Button 3 pressed") << bol(button3) << std::endl;
         os << tab("X axis") << dec(axisX) << std::endl;
         os << tab("Y axis") << dec(axisY) << std::endl;
     }
@@ -134,6 +137,25 @@ void
 Joystick::scheduleNextShot()
 {
     nextAutofireFrame = agnus.pos.frame + config.autofireDelay;
+}
+
+void
+Joystick::changePotgo(u16 &potgo) const
+{
+    u16 maskR = port.isPort1() ? 0x0400 : 0x4000;
+    u16 maskM = port.isPort1() ? 0x0100 : 0x1000;
+
+    if (button2) {
+        potgo &= ~maskR;
+    } else { // if (config.pullUpResistors) {  TODO: MOVE config.pullUpResistors to Port
+        potgo |= maskR;
+    }
+
+    if (button3) {
+        potgo &= ~maskM;
+    } else { // if (config.pullUpResistors) {  TODO: MOVE config.pullUpResistors to Port
+        potgo |= maskM;
+    }
 }
 
 void
@@ -181,18 +203,22 @@ Joystick::trigger(GamePadAction event)
     assert_enum(GamePadAction, event);
 
     debug(PRT_DEBUG, "trigger(%s)\n", GamePadActionEnum::key(event));
-     
+
     switch (event) {
             
-        case PULL_UP:    axisY = -1; break;
-        case PULL_DOWN:  axisY =  1; break;
-        case PULL_LEFT:  axisX = -1; break;
-        case PULL_RIGHT: axisX =  1; break;
-            
-        case RELEASE_X:  axisX =  0; break;
-        case RELEASE_Y:  axisY =  0; break;
-        case RELEASE_XY: axisX = axisY = 0; break;
-            
+        case PULL_UP:       axisY = -1; break;
+        case PULL_DOWN:     axisY =  1; break;
+        case PULL_LEFT:     axisX = -1; break;
+        case PULL_RIGHT:    axisX =  1; break;
+        case PRESS_FIRE2:   button2 = true; break;
+        case PRESS_FIRE3:   button3 = true; break;
+        case RELEASE_X:     axisX =  0; break;
+        case RELEASE_Y:     axisY =  0; break;
+        case RELEASE_XY:    axisX = axisY = 0; break;
+        case RELEASE_FIRE2: button2 = false; break;
+        case RELEASE_FIRE3: button3 = false; break;
+
+
         case PRESS_FIRE:
             if (config.autofire) {
                 if (bulletCounter) {
@@ -202,7 +228,7 @@ Joystick::trigger(GamePadAction event)
                     button = false;
                     
                 } else {
-                
+
                     // Load magazine
                     button = true;
                     reload();
@@ -213,7 +239,7 @@ Joystick::trigger(GamePadAction event)
                 button = true;
             }
             break;
-            
+
         case RELEASE_FIRE:
             if (!config.autofire) button = false;
             break;
@@ -229,7 +255,7 @@ Joystick::eofHandler()
 {
     // Only proceed if auto fire is enabled
     if (!config.autofire || config.autofireDelay < 0) return;
-  
+
     // Only proceed if a trigger frame has been reached
     if (agnus.pos.frame != nextAutofireFrame) return;
 
@@ -243,4 +269,6 @@ Joystick::eofHandler()
         button = true;
     }
     scheduleNextShot();
+}
+
 }

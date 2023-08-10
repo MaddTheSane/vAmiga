@@ -38,7 +38,7 @@ extension PreferencesController {
         let hasFFmpeg = amiga.recorder.hasFFmpeg
         genFFmpegPath.stringValue = amiga.recorder.path
         genFFmpegPath.textColor = hasFFmpeg ? .textColor : .warningColor
-        genSource.selectItem(withTag: pref.captureSource)
+        genSource.selectItem(withTag: pref.captureSourceIntValue)
         genBitRate.stringValue = "\(pref.bitRate)"
         genAspectX.integerValue = pref.aspectX
         genAspectY.integerValue = pref.aspectY
@@ -51,9 +51,6 @@ extension PreferencesController {
         genAspectRatioButton.state = pref.keepAspectRatio ? .on : .off
         genExitOnEscButton.state = pref.exitOnEsc ? .on : .off
                 
-        // Warp mode
-        genWarpMode.selectItem(withTag: pref.warpModeIntValue)
-
         // Miscellaneous
         genEjectWithoutAskingButton.state = pref.ejectWithoutAsking ? .on : .off
         genDetachWithoutAskingButton.state = pref.detachWithoutAsking ? .on : .off
@@ -120,7 +117,7 @@ extension PreferencesController {
         
     @IBAction func capSourceAction(_ sender: NSPopUpButton!) {
         
-        pref.captureSource = sender.selectedTag()
+        pref.captureSourceIntValue = sender.selectedTag()
         refresh()
     }
 
@@ -160,17 +157,6 @@ extension PreferencesController {
     @IBAction func genExitOnEscAction(_ sender: NSButton!) {
         
         pref.exitOnEsc = (sender.state == .on)
-        refresh()
-    }
-
-    //
-    // Action methods (Warp mode)
-    //
-
-    @IBAction func genWarpModeAction(_ sender: NSPopUpButton!) {
-        
-        pref.warpMode = WarpMode(rawValue: sender.selectedTag())!
-        parent.refreshStatusBar()
         refresh()
     }
     

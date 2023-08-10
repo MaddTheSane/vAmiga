@@ -43,9 +43,17 @@ class Configuration {
         get { return amiga.getConfig(.CPU_REVISION) }
         set { amiga.configure(.CPU_REVISION, value: newValue) }
     }
+    var cpuDasmRev: Int {
+        get { return amiga.getConfig(.CPU_DASM_REVISION) }
+        set { amiga.configure(.CPU_DASM_REVISION, value: newValue) }
+    }
     var cpuSpeed: Int {
         get { return amiga.getConfig(.CPU_OVERCLOCKING) }
         set { amiga.configure(.CPU_OVERCLOCKING, value: newValue) }
+    }
+    var warpMode: Int {
+        get { return amiga.getConfig(.WARP_MODE) }
+        set { amiga.configure(.WARP_MODE, value: newValue) }
     }
     var agnusRev: Int {
         get { return amiga.getConfig(.AGNUS_REVISION) }
@@ -66,10 +74,6 @@ class Configuration {
     var filterType: Int {
         get { return amiga.getConfig(.FILTER_TYPE) }
         set { amiga.configure(.FILTER_TYPE, value: newValue) }
-    }
-    var filterAlwaysOn: Bool {
-        get { return amiga.getConfig(.FILTER_ALWAYS_ON) != 0}
-        set { amiga.configure(.FILTER_ALWAYS_ON, enable: newValue) }
     }
     var chipRam: Int {
         get { return amiga.getConfig(.CHIP_RAM) }
@@ -116,6 +120,14 @@ class Configuration {
         precondition(0 <= n && n <= 3)
         amiga.configure(.DRIVE_TYPE, drive: n, value: type)
     }
+    func dfnRpm(_ n: Int) -> Int {
+        precondition(0 <= n && n <= 3)
+        return amiga.getConfig(.DRIVE_RPM, drive: n)
+    }
+    func setDfnRpm(_ n: Int, type: Int) {
+        precondition(0 <= n && n <= 3)
+        amiga.configure(.DRIVE_RPM, drive: n, value: type)
+    }
     func hdnConnected(_ n: Int) -> Bool {
         precondition(0 <= n && n <= 3)
         return amiga.getConfig(.HDC_CONNECT, drive: n) != 0
@@ -141,6 +153,10 @@ class Configuration {
         get { return dfnType(0) }
         set { setDfnType(0, type: newValue) }
     }
+    var df0Rpm: Int {
+        get { return dfnRpm(0) }
+        set { setDfnRpm(0, type: newValue) }
+    }
     var df1Connected: Bool {
         get { return dfnConnected(1) }
         set { setDfnConnected(1, connect: newValue) }
@@ -148,6 +164,10 @@ class Configuration {
     var df1Type: Int {
         get { return dfnType(1) }
         set { setDfnType(1, type: newValue) }
+    }
+    var df1Rpm: Int {
+        get { return dfnRpm(1) }
+        set { setDfnRpm(1, type: newValue) }
     }
     var df2Connected: Bool {
         get { return dfnConnected(2) }
@@ -157,6 +177,10 @@ class Configuration {
         get { return dfnType(2) }
         set { setDfnType(2, type: newValue) }
     }
+    var df2Rpm: Int {
+        get { return dfnRpm(2) }
+        set { setDfnRpm(2, type: newValue) }
+    }
     var df3Connected: Bool {
         get { return dfnConnected(3) }
         set { setDfnConnected(3, connect: newValue) }
@@ -164,6 +188,10 @@ class Configuration {
     var df3Type: Int {
         get { return dfnType(3) }
         set { setDfnType(3, type: newValue) }
+    }
+    var df3Rpm: Int {
+        get { return dfnRpm(3) }
+        set { setDfnRpm(3, type: newValue) }
     }
     var hd0Connected: Bool {
         get { return hdnConnected(0) }
@@ -228,8 +256,8 @@ class Configuration {
         }
     }
     var serialDevice: Int {
-        get { return amiga.getConfig(.SERIAL_DEVICE) }
-        set { amiga.configure(.SERIAL_DEVICE, value: newValue) }
+        get { return amiga.getConfig(.SER_DEVICE) }
+        set { amiga.configure(.SER_DEVICE, value: newValue) }
     }
     var serialDevicePort: Int {
         get { return amiga.getConfig(.SRV_PORT, id: ServerType.SER.rawValue) }
@@ -280,13 +308,13 @@ class Configuration {
         get { return amiga.getConfig(.DRIVE_SPEED) }
         set { amiga.configure(.DRIVE_SPEED, value: newValue) }
     }
-    var mechanicalDelays: Bool {
-        get { return amiga.getConfig(.EMULATE_MECHANICS, drive: 0) != 0 }
+    var driveMechanics: Int {
+        get { return amiga.getConfig(.DRIVE_MECHANICS, drive: 0) }
         set {
-            amiga.configure(.EMULATE_MECHANICS, drive: 0, enable: newValue)
-            amiga.configure(.EMULATE_MECHANICS, drive: 1, enable: newValue)
-            amiga.configure(.EMULATE_MECHANICS, drive: 2, enable: newValue)
-            amiga.configure(.EMULATE_MECHANICS, drive: 3, enable: newValue)
+            amiga.configure(.DRIVE_MECHANICS, drive: 0, value: newValue)
+            amiga.configure(.DRIVE_MECHANICS, drive: 1, value: newValue)
+            amiga.configure(.DRIVE_MECHANICS, drive: 2, value: newValue)
+            amiga.configure(.DRIVE_MECHANICS, drive: 3, value: newValue)
         }
     }
     var lockDskSync: Bool {
@@ -404,7 +432,15 @@ class Configuration {
     //
     // Video settings
     //
-    
+
+    var syncMode: Int {
+        get { return amiga.getConfig(.SYNC_MODE) }
+        set { amiga.configure(.SYNC_MODE, value: newValue) }
+    }
+    var proposedFps: Int {
+        get { return amiga.getConfig(.PROPOSED_FPS) }
+        set { amiga.configure(.PROPOSED_FPS, value: newValue) }
+    }
     var palette: Int {
         get { return amiga.getConfig(.PALETTE) }
         set { amiga.configure(.PALETTE, value: newValue) }

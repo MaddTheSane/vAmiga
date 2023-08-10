@@ -11,6 +11,8 @@
 
 #include "ADFFile.h"
 
+namespace vamiga {
+
 class EXEFile : public FloppyFile {
 
     ADFFile adf;
@@ -34,14 +36,14 @@ public:
     EXEFile(const u8 *buf, isize len) throws { init(buf, len); }
     
     const char *getDescription() const override { return "EXE"; }
-        
+
     
     //
     // Methods from AmigaFile
     //
     
     FileType type() const override { return FILETYPE_EXE; }
-    u64 fnv() const override { return adf.fnv(); }
+    u64 fnv64() const override { return adf.fnv64(); }
     bool isCompatiblePath(const string &path) const override { return isCompatible(path); }
     bool isCompatibleStream(std::istream &stream) const override { return isCompatible(stream); }
     void finalizeRead() throws override;
@@ -71,3 +73,5 @@ public:
     void readSector(u8 *target, isize t, isize s) const override { return adf.readSector(target, t, s); }
     void encodeDisk(class FloppyDisk &disk) const throws override { return adf.encodeDisk(disk); }
 };
+
+}

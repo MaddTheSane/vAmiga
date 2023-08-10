@@ -8,18 +8,21 @@
 // -----------------------------------------------------------------------------
 
 extension MyController {
-    
+
+    func cmdKeyIcon(_ state: Bool) -> NSImage? {
+
+        return NSImage(named: state ? "amigaKeyTemplate" : "cmdKeyTemplate")
+    }
+
     var hourglassIcon: NSImage? {
-        
-        switch pref.warpMode {
-        case .auto where amiga.warpMode:
-            return NSImage(named: "hourglass3Template")
-        case .auto:
-            return NSImage(named: "hourglass1Template")
-        case .off:
-            return NSImage(named: "warpOffTemplate")
-        case .on:
-            return NSImage(named: "warpOnTemplate")
+
+        if WarpMode(rawValue: config.warpMode) == .AUTO {
+
+            return NSImage(named: amiga.isWarping ? "hourglass3Template" : "hourglass1Template")
+
+        } else {
+
+            return NSImage(named: amiga.isWarping ? "warpOnTemplate" : "warpOffTemplate")
         }
     }
     
@@ -27,7 +30,7 @@ extension MyController {
         
         let running = amiga.running
         let halted = amiga.cpu.halted
-        let warp = amiga.warpMode
+        let warp = amiga.isWarping
 
         // Df0 - Df3
         for n in 0...3 where drv[n] != nil {
@@ -48,7 +51,13 @@ extension MyController {
             refreshStatusBar(drive: n, cylinder: hdn.currentCyl)
             refreshStatusBar(drive: n, icon: hdn.templateIcon, toolTip: hdn.toolTip)
         }
-                        
+
+        // Command key icon
+        let mapLeft = myAppDelegate.mapLeftCmdKey
+        let mapRight = myAppDelegate.mapRightCmdKey
+        cmdLeftIcon.image = cmdKeyIcon(mapLeft)
+        cmdRightIcon.image = cmdKeyIcon(mapRight)
+
         // Remote server icon
         debugIcon.image = amiga.remoteManager.icon
         
@@ -74,7 +83,8 @@ extension MyController {
             cylSlot3: true,
 
             haltIcon: halted,
-            cmdLock: myAppDelegate.mapCommandKeys,
+            cmdLeftIcon: false, // mapLeft || mapRight,
+            cmdRightIcon: false, // mapLeft || mapRight,
             debugIcon: true,
             muteIcon: warp || muted,
 
@@ -175,13 +185,13 @@ extension MyController {
                 
                 metal.adjustHeight(-26.0)
                 window?.setContentBorderThickness(26.0, for: .minY)
-                adjustWindowSize(26.0)
+                adjustWindowSize(dy: 26.0)
 
             } else {
                 
                 metal.adjustHeight(26.0)
                 window?.setContentBorderThickness(0.0, for: .minY)
-                adjustWindowSize(-26.0)
+                adjustWindowSize(dy: -26.0)
             }
             
             statusBar = value
@@ -191,33 +201,59 @@ extension MyController {
     
     func updateSpeedometer() {
 
+        func setColor(color: [NSColor]) {
+
+            let min = activityBar.minValue
+            let max = activityBar.maxValue
+            let cur = (activityBar.doubleValue - min) / (max - min)
+
+            let index =
+            cur < 0.15 ? 0 :
+            cur < 0.40 ? 1 :
+            cur < 0.60 ? 2 :
+            cur < 0.85 ? 3 : 4
+
+            activityBar.fillColor = color[index]
+        }
+
         let clock = amiga.cpu.clock
 
         speedometer.updateWith(cycle: clock,
                                emuFrame: Int64(amiga.agnus.frameCount),
                                gpuFrame: renderer.frames)
-        
+
+        // Set value
         switch activityType.selectedTag() {
 
         case 0:
             let mhz = speedometer.mhz
             activityBar.doubleValue = 10 * mhz
             activityInfo.stringValue = String(format: "%.2f MHz", mhz)
+            setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])
 
         case 1:
             let fps = speedometer.emuFps
             activityBar.doubleValue = fps
             activityInfo.stringValue = String(format: "%d Hz", Int(fps))
+            setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])
 
         case 2:
             let cpu = amiga.cpuLoad
             activityBar.integerValue = cpu
             activityInfo.stringValue = String(format: "%d%% CPU", cpu)
-            
+            setColor(color: [.systemGreen, .systemGreen, .systemGreen, .systemYellow, .systemRed])
+
         case 3:
             let fps = speedometer.gpsFps
             activityBar.doubleValue = fps
             activityInfo.stringValue = String(format: "%d FPS", Int(fps))
+            setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])
+
+        case 4:
+            let fill = amiga.paula.muxerStats.fillLevel * 100.0
+            activityBar.doubleValue = fill
+            activityInfo.stringValue = String(format: "Fill level %d%%", Int(fill))
+            setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])
 
         default:
             activityBar.integerValue = 0
@@ -228,17 +264,6 @@ extension MyController {
     //
     // Action methods
     //
-    
-    @IBAction func warpAction(_ sender: Any!) {
-                
-        switch pref.warpMode {
-        case .auto: pref.warpMode = .off
-        case .off: pref.warpMode = .on
-        case .on: pref.warpMode = .auto
-        }
-        
-        refreshStatusBar()
-    }
 
     @IBAction func activityTypeAction(_ sender: NSPopUpButton!) {
         
@@ -250,6 +275,7 @@ extension MyController {
         case 1: min = 0; max = 120; warn = 75; crit = 100
         case 2: min = 0; max = 100; warn = 50; crit = 75
         case 3: min = 0; max = 120; warn = 75; crit = 100
+        case 4: min = 0; max = 100; warn = 85; crit = 95
 
         default:
             fatalError()

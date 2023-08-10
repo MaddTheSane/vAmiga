@@ -12,9 +12,9 @@ import simd
 struct TextureSize {
 
     static let background = MTLSizeMake(512, 512, 0)
-    static let original = MTLSizeMake(Int(TPP * HPIXELS), Int(VPIXELS), 0)
-    static let merged = MTLSizeMake(Int(2 * HPIXELS), Int(4 * VPIXELS), 0)
-    static let upscaled = MTLSizeMake(Int(2 * HPIXELS), Int(4 * VPIXELS), 0)
+    static let original = MTLSizeMake(Int(TPP) * HPIXELS, VPIXELS, 0)
+    static let merged = MTLSizeMake(2 * HPIXELS, 4 * VPIXELS, 0)
+    static let upscaled = MTLSizeMake(2 * HPIXELS, 4 * VPIXELS, 0)
 }
 
 extension Renderer {
@@ -27,7 +27,7 @@ extension Renderer {
         buildLayers()
         buildPipeline()
         buildVertexBuffers()
-        
+
         reshape()
     }
 
@@ -160,7 +160,7 @@ extension Renderer {
         let aspect = Float(size.width) / Float(size.height)
         var xs = Float(1.0)
 
-        debug(.metal, "buildMatrices2D: aspect = \(aspect)")
+        // debug(.metal, "buildMatrices2D: aspect = \(aspect)")
 
         // Scale horizontal coordinates if necessary
         if parent.pref.keepAspectRatio && abs(aspect - (4/3)) > 0.1 {

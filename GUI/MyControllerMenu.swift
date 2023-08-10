@@ -43,12 +43,12 @@ extension MyController: NSMenuItemValidation {
         
         switch item.action {
             
-        // Machine menu
+            // Machine menu
         case #selector(MyController.captureScreenAction(_:)):
             item.title = recording ? "Stop Recording" : "Record Screen"
             return true
 
-        // Edit menu
+            // Edit menu
         case #selector(MyController.stopAndGoAction(_:)):
             item.title = running ? "Pause" : "Continue"
             return true
@@ -58,21 +58,27 @@ extension MyController: NSMenuItemValidation {
             return true
             
         case #selector(MyController.stepIntoAction(_:)),
-             #selector(MyController.stepOverAction(_:)),
-             #selector(MyController.stopAndGoAction(_:)):
+            #selector(MyController.stepOverAction(_:)),
+            #selector(MyController.stopAndGoAction(_:)):
             return paused
 
-        // View menu
+            // View menu
         case #selector(MyController.toggleStatusBarAction(_:)):
             item.title = statusBar ? "Hide Status Bar" : "Show Status Bar"
             return true
             
-        // Keyboard menu
-        case #selector(MyController.mapCmdKeysAction(_:)):
-            item.state = (myAppDelegate.eventTap != nil) ? .on : .off
+            // Keyboard menu
+        case #selector(MyController.mapLeftCmdKeyAction(_:)):
+            item.state = myAppDelegate.mapLeftCmdKey ? .on : .off
             return true
-            
-        // Df<n> menu
+        case #selector(MyController.mapRightCmdKeyAction(_:)):
+            item.state = myAppDelegate.mapRightCmdKey ? .on : .off
+            return true
+        case #selector(MyController.mapCapsLockWarpAction(_:)):
+            item.state = myAppDelegate.mapCapsLockWarp ? .on : .off
+            return true
+
+            // Df<n> menu
         case #selector(MyController.insertRecentDiskAction(_:)):
             return validateURLlist(myAppDelegate.insertedFloppyDisks, image: smallDisk)
             
@@ -81,10 +87,10 @@ extension MyController: NSMenuItemValidation {
             #selector(MyController.inspectFloppyDiskAction(_:)),
             #selector(MyController.inspectDfnVolumeAction(_:)):
             return dfn.hasDisk
-                        
+
         case #selector(MyController.exportRecentDiskDummyAction(_:)):
             return amiga.df(item)!.hasDisk
-                        
+
         case #selector(MyController.exportRecentDiskAction(_:)):
             return validateURLlist(myAppDelegate.exportedFloppyDisks[driveNr],
                                    image: smallDisk)
@@ -92,8 +98,8 @@ extension MyController: NSMenuItemValidation {
         case #selector(MyController.writeProtectAction(_:)):
             item.state = dfn.hasProtectedDisk ? .on : .off
             return dfn.hasDisk
-             
-        // Hd<n> menu
+
+            // Hd<n> menu
         case #selector(MyController.attachRecentHdrAction(_:)):
             return validateURLlist(myAppDelegate.attachedHardDrives, image: smallHdr)
 
@@ -169,22 +175,30 @@ extension MyController: NSMenuItemValidation {
     }
     
     //
-    // Action methods (File menu)
+    // Action methods (Machine menu)
     //
     
-    func openConfigurator(tab: String = "") {
+    func openConfiguratorAsSheet(tab: String = "") {
         
         if configurator == nil {
             configurator = ConfigurationController(with: self, nibName: "Configuration")
         }
         configurator?.showSheet(tab: tab)
     }
-    
+
+    func openConfiguratorAsWindow() {
+
+        if configurator == nil {
+            configurator = ConfigurationController(with: self, nibName: "Configuration")
+        }
+        configurator?.showAsWindow()
+    }
+
     @IBAction func configureAction(_ sender: Any!) {
         
-        openConfigurator()
+        openConfiguratorAsWindow()
     }
- 
+
     @IBAction func inspectorAction(_ sender: Any!) {
         
         if inspector == nil {
@@ -200,7 +214,7 @@ extension MyController: NSMenuItemValidation {
         }
         monitor?.showWindow(self)
     }
- 
+
     @IBAction func consoleAction(_ sender: Any!) {
         
         if renderer.console.isVisible {
@@ -229,11 +243,11 @@ extension MyController: NSMenuItemValidation {
         if snapshotBrowser == nil {
             snapshotBrowser = SnapshotDialog(with: self, nibName: "SnapshotDialog")
         }
-        snapshotBrowser?.showSheet()
+        snapshotBrowser?.showAsSheet()
     }
     
     @IBAction func takeScreenshotAction(_ sender: Any!) {
-                
+
         // Determine screenshot format
         let format = ScreenshotSource(rawValue: pref.screenshotSource)!
         
@@ -256,15 +270,14 @@ extension MyController: NSMenuItemValidation {
         if screenshotBrowser == nil {
             screenshotBrowser = ScreenshotDialog(with: self, nibName: "ScreenshotDialog")
         }
-        screenshotBrowser?.showSheet()
+        screenshotBrowser?.showAsSheet()
     }
     
     @IBAction func captureScreenAction(_ sender: Any!) {
-                
+
         if amiga.recorder.recording {
             
             amiga.recorder.stopRecording()
-            exportVideoAction(self)
             return
         }
         
@@ -277,16 +290,9 @@ extension MyController: NSMenuItemValidation {
             }
             return
         }
-        
-        var rect: CGRect
-        if pref.captureSource == 0 {
-            rect = renderer.canvas.textureRectAbs
-        } else {
-            rect = renderer.canvas.entire
-        }
-        
+
         do {
-            try amiga.recorder.startRecording(rect: rect,
+            try amiga.recorder.startRecording(rect: renderer.recordingRect,
                                               rate: pref.bitRate,
                                               ax: pref.aspectX,
                                               ay: pref.aspectY)
@@ -297,9 +303,9 @@ extension MyController: NSMenuItemValidation {
     }
     
     @IBAction func exportVideoAction(_ sender: Any!) {
-                
+
         let exporter = VideoExporter(with: self, nibName: "VideoExporter")
-        exporter?.showSheet()
+        exporter?.showAsSheet()
     }
     
     //
@@ -307,7 +313,7 @@ extension MyController: NSMenuItemValidation {
     //
     
     @IBAction func paste(_ sender: Any!) {
-                
+
         let pasteBoard = NSPasteboard.general
         guard let text = pasteBoard.string(forType: .string) else {
             
@@ -357,6 +363,22 @@ extension MyController: NSMenuItemValidation {
         }
     }
 
+    @IBAction func warpAction(_ sender: Any!) {
+
+        switch WarpMode(rawValue: config.warpMode) {
+
+        case .AUTO: config.warpMode = WarpMode.NEVER.rawValue
+        case .NEVER: config.warpMode = WarpMode.ALWAYS.rawValue
+        case .ALWAYS: config.warpMode = WarpMode.AUTO.rawValue
+
+        default:
+            fatalError()
+        }
+
+        refreshStatusBar()
+        myAppDelegate.prefController?.refresh()
+    }
+    
     //
     // Action methods (View menu)
     //
@@ -387,13 +409,25 @@ extension MyController: NSMenuItemValidation {
         }
         virtualKeyboard?.showWindow()
     }
-     
-    @IBAction func mapCmdKeysAction(_ sender: Any!) {
-        
-        myAppDelegate.mapCommandKeys = !myAppDelegate.mapCommandKeys
+
+    @IBAction func mapLeftCmdKeyAction(_ sender: NSMenuItem!) {
+
+        myAppDelegate.mapLeftCmdKey = !myAppDelegate.mapLeftCmdKey
         refreshStatusBar()
     }
-    
+
+    @IBAction func mapRightCmdKeyAction(_ sender: NSMenuItem!) {
+
+        myAppDelegate.mapRightCmdKey = !myAppDelegate.mapRightCmdKey
+        refreshStatusBar()
+    }
+
+    @IBAction func mapCapsLockWarpAction(_ sender: NSMenuItem!) {
+
+        myAppDelegate.mapCapsLockWarp = !myAppDelegate.mapCapsLockWarp
+        refreshStatusBar()
+    }
+
     @IBAction func clearKeyboardMatrixAction(_ sender: Any!) {
         
         amiga.keyboard.releaseAllKeys()
@@ -436,7 +470,7 @@ extension MyController: NSMenuItemValidation {
     }
 
     @IBAction func insertDiskAction(_ sender: NSMenuItem!) {
-       
+
         let drive = amiga.df(sender.tag)!
         
         // Ask the user if an unsafed disk should be replaced
@@ -455,7 +489,7 @@ extension MyController: NSMenuItemValidation {
             if result == .OK, let url = openPanel.url {
                 
                 do {
-                    let types: [FileType] = [ .ADF, .EXT, .DMS, .EXE, .DIR ]
+                    let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
                     try self.mydocument.addMedia(url: url,
                                                  allowedTypes: types,
                                                  df: sender.tag)
@@ -476,7 +510,7 @@ extension MyController: NSMenuItemValidation {
 
     func insertRecentDiskAction(drive: Int, slot: Int) {
         
-        let types: [FileType] = [ .ADF, .EXT, .DMS, .EXE, .DIR ]
+        let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
 
         if let url = myAppDelegate.getRecentlyInsertedDiskURL(slot) {
 
@@ -496,13 +530,13 @@ extension MyController: NSMenuItemValidation {
         amiga.df(sender)!.toggleWriteProtection()
         amiga.resume()
     }
-        
+
     @IBAction func exportRecentDiskDummyAction(_ sender: NSMenuItem!) {}
     @IBAction func exportRecentDiskAction(_ sender: NSMenuItem!) {
-                
+
         let n = sender.tag / 10
         let slot = sender.tag % 10
-                
+
         exportRecentAction(df: n, slot: slot)
     }
     
@@ -622,11 +656,11 @@ extension MyController: NSMenuItemValidation {
         
         let drive = sender.tag / 10
         let slot  = sender.tag % 10
-                    
+
         if let url = myAppDelegate.getRecentlyAttachedHdrURL(slot) {
             
             do {
-                let types: [FileType] = [ .ADF, .EXT, .DMS, .EXE, .DIR ]
+                let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
                 try self.mydocument.addMedia(url: url,
                                              allowedTypes: types,
                                              hd: drive)
@@ -647,13 +681,13 @@ extension MyController: NSMenuItemValidation {
             showAlert(.cantDetach, error: error)
         }
     }
-        
+
     @IBAction func exportRecentHdDummyAction(_ sender: NSMenuItem!) {}
     @IBAction func exportRecentHdrAction(_ sender: NSMenuItem!) {
-                
+
         let n = sender.tag / 10
         let slot = sender.tag % 10
-                
+
         exportRecentAction(hd: n, slot: slot)
     }
 
@@ -663,12 +697,12 @@ extension MyController: NSMenuItemValidation {
 
         if let url = myAppDelegate.getRecentlyExportedHdrURL(slot, hd: n) {
             
-             do {
-                 try mydocument.export(hardDrive: n, to: url)
-                 
-             } catch {
-                 showAlert(.cantExport(url: url), error: error)
-             }
+            do {
+                try mydocument.export(hardDrive: n, to: url)
+
+            } catch {
+                showAlert(.cantExport(url: url), error: error)
+            }
         }
     }
     
@@ -742,8 +776,25 @@ extension MyController: NSMenuItemValidation {
     
     @IBAction func writeThroughFinderAction(_ sender: NSMenuItem!) {
         
-        if let url = UserDefaults.mediaUrl(name: "") {            
+        if let url = UserDefaults.mediaUrl(name: "") {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    //
+    // Action methods (Window menu)
+    //
+
+    // Resizes the window such that every texture line hits a display line
+    @IBAction func autoResizeWindow(_ sender: NSMenuItem!) {
+
+        let height = renderer.canvas.visible.height * 2
+
+        debug(.metal, "Old metal view: \(metal.frame)")
+        debug(.metal, "Visible texture lines: \(height)")
+
+        adjustWindowSize(height: height)
+
+        debug(.metal, "New metal view: \(metal.frame)")
     }
 }

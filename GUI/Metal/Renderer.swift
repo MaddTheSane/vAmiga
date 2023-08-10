@@ -25,10 +25,17 @@ class Renderer: NSObject, MTKViewDelegate {
     
     var prefs: Preferences { return parent.pref }
     var config: Configuration { return parent.config }
+    var amiga: AmigaProxy { return parent.amiga }
 
     // Number of drawn frames since power up
     var frames: Int64 = 0
-    
+
+    // The current GPU frame rate
+    var fps = 60
+
+    // Time stamp used for auto-detecting the frame rate
+    var timestamp = CACurrentMediaTime()
+
     // Frame synchronization semaphore
     var semaphore = DispatchSemaphore(value: 1)
 
@@ -107,6 +114,23 @@ class Renderer: NSObject, MTKViewDelegate {
         self.view.device = device
         self.view.delegate = self
 
+        /*
+        let screens = NSScreen.screens
+        if #available(macOS 12.0, *) {
+
+            for screen in screens {
+
+                let fps = screen.maximumFramesPerSecond
+                let min = 1.0 / screen.minimumRefreshInterval
+                let max = 1.0 / screen.maximumRefreshInterval
+                let name = screen.localizedName
+                print("\(name):  Min = \(min) Hz, Max = \(max) Hz maxfps = \(fps)")
+            }
+        }
+
+        view.preferredFramesPerSecond = 60
+        */
+        
         setup()
     }
     
@@ -143,7 +167,24 @@ class Renderer: NSObject, MTKViewDelegate {
         // Rebuild depth buffer
         ressourceManager.buildDepthBuffer()
     }
-    
+
+    var recordingRect: CGRect {
+
+        var result: CGRect
+
+        switch prefs.captureSource {
+
+        case .visible:  result = canvas.textureRectAbs
+        case .entire:   result = canvas.entire
+        }
+
+        // Make sure the screen dimensions are even
+        if Int(result.size.width) % 2 == 1 { result.size.width -= 1 }
+        if Int(result.size.height) % 2 == 1 { result.size.height -= 1 }
+
+        return result
+    }
+
     //
     //  Drawing
     //
@@ -183,14 +224,38 @@ class Renderer: NSObject, MTKViewDelegate {
         console.update(frames: frames)
         canvas.update(frames: frames)
         monitors.update(frames: frames)
+        parent.update(frames: frames)
+
+        measureFps(frames: frames)
     }
-    
+
+    func measureFps(frames: Int64) {
+
+        let interval = Int64(10)
+
+        if frames % interval == 0 {
+
+            let now = CACurrentMediaTime()
+            let elapsed = now - timestamp
+            timestamp = now
+
+            let newfps = Int(round(Double(interval) / elapsed))
+            if newfps != fps {
+
+                fps = newfps
+                parent.amiga.host.refreshRate = Int(fps)
+                debug(.vsync, "New GPU frame rate: \(fps)")
+            }
+        }
+    }
+
     //
     // Methods from MTKViewDelegate
     //
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
 
+        parent.amiga.host.frameBufferSize = size
         reshape(withSize: size)
     }
 
@@ -200,8 +265,7 @@ class Renderer: NSObject, MTKViewDelegate {
         update(frames: frames)
 
         semaphore.wait()
-        canvas.updateTexture()
-        
+
         if let drawable = metalLayer.nextDrawable() {
 
             // Create the command buffer
@@ -209,6 +273,7 @@ class Renderer: NSObject, MTKViewDelegate {
             
             // Create the command encoder
             guard let encoder = makeCommandEncoder(drawable, buffer) else {
+
                 semaphore.signal()
                 return
             }
@@ -224,8 +289,5 @@ class Renderer: NSObject, MTKViewDelegate {
             buffer.present(drawable)
             buffer.commit()
         }
-        
-        // Perform periodic events inside the controller
-        if frames % 5 == 0 { parent.timerFunc() }
     }
 }

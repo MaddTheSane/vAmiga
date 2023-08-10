@@ -12,8 +12,10 @@
 #include "RemoteServer.h"
 #include "RingBuffer.h"
 
+namespace vamiga {
+
 class SerServer : public RemoteServer {
-      
+
     // A ringbuffer for buffering incoming bytes
     util::SortedRingBuffer <u8, 8096> buffer;
     
@@ -26,7 +28,7 @@ class SerServer : public RemoteServer {
      * at the end of a transmission.
      */
     bool buffering = true;
-        
+
     // Used to determine when we need to leave buffering mode
     i64 skippedTransmissions = 0;
     
@@ -43,7 +45,7 @@ public:
     
 
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 protected:
@@ -53,7 +55,7 @@ protected:
 
     
     //
-    // Methods from AmigaComponent
+    // Methods from CoreComponent
     //
 
     void resetConfig() override;
@@ -85,5 +87,7 @@ public:
     void serviceSerEvent();
     
     // Schedules the next event in the SER slot
-    void scheduleNextEvent();    
+    void scheduleNextEvent();
 };
+
+}

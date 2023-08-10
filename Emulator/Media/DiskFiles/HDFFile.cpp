@@ -16,6 +16,8 @@
 #include "OSDescriptors.h"
 #include "StringUtils.h"
 
+namespace vamiga {
+
 bool
 HDFFile::isCompatible(const string &path)
 {
@@ -99,10 +101,10 @@ HDFFile::getGeometryDescriptor() const
     if (auto rdb = seekRDB(); rdb) {
 
         // Read the information from the rigid disk block
-        result.cylinders    = R32BE_ALIGNED(rdb + 64);
-        result.sectors      = R32BE_ALIGNED(rdb + 68);
-        result.heads        = R32BE_ALIGNED(rdb + 72);
-        result.bsize        = R32BE_ALIGNED(rdb + 16);
+        result.cylinders    = R32BE(rdb + 64);
+        result.sectors      = R32BE(rdb + 68);
+        result.heads        = R32BE(rdb + 72);
+        result.bsize        = R32BE(rdb + 16);
 
     } else {
         
@@ -115,7 +117,7 @@ HDFFile::getGeometryDescriptor() const
         // Use the first match by default
         if (geometries.size()) result = geometries.front();
     }
-        
+
     return result;
 }
 
@@ -128,20 +130,20 @@ HDFFile::getPartitionDescriptor(isize part) const
         
         // Extract information from the partition block
         result.name           = util::createStr(pb + 37, 31);
-        result.flags          = R32BE_ALIGNED(pb + 20);
-        result.sizeBlock      = R32BE_ALIGNED(pb + 132);
-        result.heads          = R32BE_ALIGNED(pb + 140);
-        result.sectors        = R32BE_ALIGNED(pb + 148);
-        result.reserved       = R32BE_ALIGNED(pb + 152);
-        result.interleave     = R32BE_ALIGNED(pb + 160);
-        result.lowCyl         = R32BE_ALIGNED(pb + 164);
-        result.highCyl        = R32BE_ALIGNED(pb + 168);
-        result.numBuffers     = R32BE_ALIGNED(pb + 172);
-        result.bufMemType     = R32BE_ALIGNED(pb + 176);
-        result.maxTransfer    = R32BE_ALIGNED(pb + 180);
-        result.mask           = R32BE_ALIGNED(pb + 184);
-        result.bootPri        = R32BE_ALIGNED(pb + 188);
-        result.dosType        = R32BE_ALIGNED(pb + 192);
+        result.flags          = R32BE(pb + 20);
+        result.sizeBlock      = R32BE(pb + 132);
+        result.heads          = R32BE(pb + 140);
+        result.sectors        = R32BE(pb + 148);
+        result.reserved       = R32BE(pb + 152);
+        result.interleave     = R32BE(pb + 160);
+        result.lowCyl         = R32BE(pb + 164);
+        result.highCyl        = R32BE(pb + 168);
+        result.numBuffers     = R32BE(pb + 172);
+        result.bufMemType     = R32BE(pb + 176);
+        result.maxTransfer    = R32BE(pb + 180);
+        result.mask           = R32BE(pb + 184);
+        result.bootPri        = R32BE(pb + 188);
+        result.dosType        = R32BE(pb + 192);
         
     } else {
         
@@ -182,12 +184,12 @@ HDFFile::getDriverDescriptor(isize driver) const
     if (auto fsh = seekFSH(driver); fsh) {
         
         // Extract information from the file system header block
-        result.dosType      = R32BE_ALIGNED(fsh + 32);
-        result.dosVersion   = R32BE_ALIGNED(fsh + 36);
-        result.patchFlags   = R32BE_ALIGNED(fsh + 40);
+        result.dosType      = R32BE(fsh + 32);
+        result.dosVersion   = R32BE(fsh + 36);
+        result.patchFlags   = R32BE(fsh + 40);
 
         // Traverse the seglist
-        auto lsegRef = R32BE_ALIGNED(fsh + 72);
+        auto lsegRef = R32BE(fsh + 72);
         
         for (isize i = 0; lsegRef != u32(-1); i++) {
 
@@ -201,7 +203,7 @@ HDFFile::getDriverDescriptor(isize driver) const
             }
             
             result.blocks.push_back(lsegRef);
-            lsegRef = R32BE_ALIGNED(lsegBlock + 16);
+            lsegRef = R32BE(lsegBlock + 16);
         }
     }
 
@@ -212,7 +214,7 @@ std::vector<DriverDescriptor>
 HDFFile::getDriverDescriptors() const
 {
     std::vector<DriverDescriptor> result;
-        
+
     for (isize i = 0; i < 16 && seekFSH(i); i++) {
         result.push_back(getDriverDescriptor(i));
     }
@@ -224,7 +226,7 @@ FileSystemDescriptor
 HDFFile::getFileSystemDescriptor(isize nr) const
 {
     FileSystemDescriptor result;
-        
+
     auto &part = ptable[nr];
     
     auto c = part.highCyl - part.lowCyl + 1;
@@ -261,7 +263,7 @@ HDFFile::getFileSystemDescriptor(isize nr) const
     while (ref && ref < (Block)result.numBlocks) {
 
         const u8 *p = dptr + (ref * 512) + offset;
-    
+
         // Collect all references to bitmap blocks stored in this block
         for (isize i = 0; i < cnt; i++, p += 4) {
             if (Block bmb = FSBlock::read32(p)) {
@@ -325,7 +327,7 @@ HDFFile::predictNumBlocks() const
     };
     
     if (auto root = seekRB(); root) {
-                        
+
         // Predict block count by analyzing the file size
         highKey = data.size / bsize() - 1;
         if (match()) return highKey + 1;
@@ -390,11 +392,11 @@ HDFFile::seekPB(isize nr) const
     if (auto rdb = seekRDB(); rdb) {
         
         // Go to the first partition block
-        result = seekBlock(R32BE_ALIGNED(rdb + 28));
+        result = seekBlock(R32BE(rdb + 28));
         
         // Traverse the linked list
         for (isize i = 0; i < nr && result; i++) {
-            result = seekBlock(R32BE_ALIGNED(result + 16));
+            result = seekBlock(R32BE(result + 16));
         }
 
         // Make sure the reached block is a partition block
@@ -413,11 +415,11 @@ HDFFile::seekFSH(isize nr) const
     if (auto rdb = seekRDB(); rdb) {
         
         // Go to the first file system header block
-        result = seekBlock(R32BE_ALIGNED(rdb + 32));
+        result = seekBlock(R32BE(rdb + 32));
         
         // Traverse the linked list
         for (isize i = 0; i < nr && result; i++) {
-            result = seekBlock(R32BE_ALIGNED(result + 16));
+            result = seekBlock(R32BE(result + 16));
         }
 
         // Make sure the reached block is a partition block
@@ -451,6 +453,7 @@ HDFFile::dos(isize blockNr) const
     return FS_NODOS;
 }
 
+/*
 void
 HDFFile::readDriver(isize nr, Buffer<u8> &driver)
 {
@@ -469,6 +472,7 @@ HDFFile::readDriver(isize nr, Buffer<u8> &driver)
         offset += bytesPerBlock;
     }
 }
+*/
 
 isize
 HDFFile::writePartitionToFile(const string &path, isize nr)
@@ -477,4 +481,6 @@ HDFFile::writePartitionToFile(const string &path, isize nr)
     auto size = partitionSize(nr);
     
     return writeToFile(path, offset, size);
+}
+
 }

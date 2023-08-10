@@ -17,8 +17,53 @@ extension ConfigurationController {
         // CPU
         csCpuRevision.selectItem(withTag: config.cpuRev)
         csCpuSpeed.selectItem(withTag: config.cpuSpeed)
-        csCpuInfo1.stringValue = "Motorola MC68000"
-        csCpuInfo2.stringValue = "All models"
+        switch CPURevision(rawValue: config.cpuRev) {
+
+        case ._68000:
+            csCpuInfo1.stringValue = "Motorola MC68000"
+            csCpuInfo2.stringValue = "Original Amigas"
+
+        case ._68010:
+            csCpuInfo1.stringValue = "Motorola MC68010"
+            csCpuInfo2.stringValue = ""
+
+        case ._68EC020:
+            csCpuInfo1.stringValue = "Motorola 68EC020"
+            csCpuInfo2.stringValue = "A1200, A2500"
+
+            /*
+        case ._68020:
+            csCpuInfo1.stringValue = "Motorola MC68020"
+            csCpuInfo2.stringValue = ""
+
+        case ._68EC030:
+            csCpuInfo1.stringValue = "Motorola 68EC030"
+            csCpuInfo2.stringValue = ""
+
+        case ._68030:
+            csCpuInfo1.stringValue = "Motorola MC68030"
+            csCpuInfo2.stringValue = ""
+
+        case ._68EC040:
+            csCpuInfo1.stringValue = "Motorola 68EC040"
+            csCpuInfo2.stringValue = ""
+
+        case ._68LC040:
+            csCpuInfo1.stringValue = "Motorola 68LC040"
+            csCpuInfo2.stringValue = ""
+
+        case ._68040:
+            csCpuInfo1.stringValue = "Motorola 68040"
+            csCpuInfo2.stringValue = ""
+             */
+            
+        default:
+            csCpuInfo1.stringValue = "Invalid"
+            csCpuInfo2.stringValue = ""
+        }
+
+        // Warp
+        csWarpMode.selectItem(withTag: config.warpMode)
 
         // Agnus
         csMachineType.selectItem(withTag: config.machineType)
@@ -106,7 +151,7 @@ extension ConfigurationController {
         }
         
         // Disable some controls if emulator is powered on
-        csCpuRevision.isEnabled = poweredOff
+        // csCpuRevision.isEnabled = poweredOff
         csAgnusRevision.isEnabled = poweredOff
         csDeniseRevision.isEnabled = poweredOff
         csCiaRevision.isEnabled = poweredOff
@@ -131,6 +176,12 @@ extension ConfigurationController {
     @IBAction func csCpuSpeedAction(_ sender: NSPopUpButton!) {
 
         config.cpuSpeed = sender.selectedTag()
+        refresh()
+    }
+
+    @IBAction func csWarpModeAction(_ sender: NSPopUpButton!) {
+
+        config.warpMode = sender.selectedTag()
         refresh()
     }
 

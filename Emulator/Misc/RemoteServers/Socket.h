@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "AmigaObject.h"
+#include "CoreObject.h"
 
 #ifdef _WIN32
 
@@ -25,12 +25,14 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-typedef int SOCKET;
+namespace vamiga { typedef int SOCKET; }
 #define INVALID_SOCKET  -1
 
 #endif
 
-class Socket : public AmigaObject {
+namespace vamiga {
+
+class Socket : public CoreObject {
 
     SOCKET socket;
 
@@ -55,10 +57,10 @@ public:
     ~Socket();
 
     void create();
-        
+
     
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 private:
@@ -91,3 +93,5 @@ public:
     void send(char c) { send((u8)c); }
     void send(const string &s);
 };
+
+}

@@ -9,7 +9,9 @@
 
 #pragma once
 
-#include "AmigaComponent.h"
+#include "CoreComponent.h"
+
+namespace vamiga {
 
 class Agnus;
 class Amiga;
@@ -27,6 +29,7 @@ class DmaDebugger;
 class FloppyDrive;
 class HardDrive;
 class HdController;
+class Host;
 class GdbServer;
 class Joystick;
 class Keyboard;
@@ -41,15 +44,14 @@ class RemoteManager;
 class RetroShell;
 class RshServer;
 class RTC;
-class Scheduler;
 class SerialPort;
 class UART;
 class ZorroManager;
 
-/* This class extends the AmigaComponent class with references to all components
+/* This class extends the CoreComponent class with references to all components
  * that are part of the Amiga class.
  */
-class SubComponent : public AmigaComponent {
+class SubComponent : public CoreComponent {
 
 protected:
 
@@ -78,6 +80,7 @@ protected:
     HdController &hd1con;
     HdController &hd2con;
     HdController &hd3con;
+    Host &host;
     Keyboard &keyboard;
     Memory &mem;
     MsgQueue &msgQueue;
@@ -88,7 +91,6 @@ protected:
     RemoteManager &remoteManager;
     RetroShell &retroShell;
     RTC &rtc;
-    Scheduler &scheduler;
     SerialPort &serialPort;
     UART &uart;
     ZorroManager &zorro;
@@ -111,3 +113,5 @@ public:
     
     void prefix() const override;
 };
+
+}

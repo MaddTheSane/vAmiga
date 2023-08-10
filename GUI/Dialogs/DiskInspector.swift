@@ -91,12 +91,12 @@ class DiskInspector: DialogController {
         if decoder == nil {
             
             // Run the extended ADF decoder
-            decoder = try? EXTFileProxy.make(with: drive!)
+            decoder = try? EADFFileProxy.make(with: drive!)
         }
 
         let protected = drive!.hasProtectedDisk
         image = (decoder as? FloppyFileProxy)?.icon(protected: protected)
-        showWindow()
+        showAsWindow()
     }
     
     func show(hardDrive nr: Int) {
@@ -107,11 +107,13 @@ class DiskInspector: DialogController {
         decoder = try? HDFFileProxy.make(with: amiga.hd(nr)!)
 
         image = NSImage(named: "hdf")!
-        showWindow()
+        showAsWindow()
     }
             
-    override func sheetWillShow() {
-                            
+    override func dialogWillShow() {
+
+        super.dialogWillShow()
+
         cylinderStepper.maxValue = .greatestFiniteMagnitude
         headStepper.maxValue = .greatestFiniteMagnitude
         trackStepper.maxValue = .greatestFiniteMagnitude
@@ -147,9 +149,9 @@ class DiskInspector: DialogController {
             
         case is HDFFileProxy: subTitle1.stringValue = "Standard Hard Drive"
         case is ADFFileProxy: subTitle1.stringValue = "Amiga Floppy Disk"
+        case is EADFFileProxy: subTitle1.stringValue = "Amiga Floppy Disk (Ext)"
         case is IMGFileProxy: subTitle1.stringValue = "PC Disk"
-        case is EXTFileProxy: subTitle1.stringValue = "Amiga Floppy Disk (Ext)"
-            
+
         default:
             subTitle1.stringValue = "Raw MFM stream"
             subTitle2.stringValue = ""

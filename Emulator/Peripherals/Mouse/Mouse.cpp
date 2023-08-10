@@ -11,9 +11,9 @@
 #include "Mouse.h"
 #include "Amiga.h"
 #include "Chrono.h"
-// #include "ControlPort.h"
 #include "IOUtils.h"
-// #include "MsgQueue.h"
+
+namespace vamiga {
 
 Mouse::Mouse(Amiga& ref, ControlPort& pref) : SubComponent(ref), port(pref)
 {
@@ -31,6 +31,7 @@ void Mouse::_reset(bool hard)
     RESET_SNAPSHOT_ITEMS(hard)
     
     leftButton = false;
+    middleButton = false;
     rightButton = false;
     mouseX = 0;
     mouseY = 0;
@@ -81,7 +82,7 @@ Mouse::setConfigItem(Option option, i64 value)
             
             config.pullUpResistors = value;
             return;
- 
+
         case OPT_SHAKE_DETECTION:
             
             config.shakeDetection = value;
@@ -122,11 +123,13 @@ Mouse::_dump(Category category, std::ostream& os) const
         os << tab("Velocity");
         os << dec(config.velocity) << std::endl;
     }
-    
+
     if (category == Category::State) {
-        
+
         os << tab("leftButton");
         os << bol(leftButton) << std::endl;
+        os << tab("middleButton");
+        os << bol(middleButton) << std::endl;
         os << tab("rightButton");
         os << bol(rightButton) << std::endl;
         os << tab("mouseX");
@@ -151,12 +154,19 @@ Mouse::_dump(Category category, std::ostream& os) const
 void
 Mouse::changePotgo(u16 &potgo) const
 {
-    u16 mask = port.isPort1() ? 0x0400 : 0x4000;
+    u16 maskR = port.isPort1() ? 0x0400 : 0x4000;
+    u16 maskM = port.isPort1() ? 0x0100 : 0x1000;
 
     if (rightButton || HOLD_MOUSE_R) {
-        potgo &= ~mask;
+        potgo &= ~maskR;
     } else if (config.pullUpResistors) {
-        potgo |= mask;
+        potgo |= maskR;
+    }
+
+    if (middleButton || HOLD_MOUSE_M) {
+        potgo &= ~maskM;
+    } else if (config.pullUpResistors) {
+        potgo |= maskM;
     }
 }
 
@@ -258,6 +268,15 @@ Mouse::setLeftButton(bool value)
 }
 
 void
+Mouse::setMiddleButton(bool value)
+{
+    trace(PRT_DEBUG, "setMiddleButton(%d)\n", value);
+
+    middleButton = value;
+    port.setDevice(CPD_MOUSE);
+}
+
+void
 Mouse::setRightButton(bool value)
 {
     trace(PRT_DEBUG, "setRightButton(%d)\n", value);
@@ -277,6 +296,8 @@ Mouse::trigger(GamePadAction event)
 
         case PRESS_LEFT: setLeftButton(true); break;
         case RELEASE_LEFT: setLeftButton(false); break;
+        case PRESS_MIDDLE: setMiddleButton(true); break;
+        case RELEASE_MIDDLE: setMiddleButton(false); break;
         case PRESS_RIGHT: setRightButton(true); break;
         case RELEASE_RIGHT: setRightButton(false); break;
         default: break;
@@ -305,14 +326,14 @@ ShakeDetector::isShakingRel(double dx) {
     
     // Check for a direction reversal
     if (dx * dxsign < 0) {
-    
+
         u64 dt = util::Time::now().asNanoseconds() - lastTurn;
         dxsign = -dxsign;
 
         // A direction reversal is considered part of a shake, if the
         // previous reversal happened a short while ago.
         if (dt < 400 * 1000 * 1000) {
-  
+
             // Eliminate jitter by demanding that the mouse has travelled
             // a long enough distance.
             if (dxsum > 400) {
@@ -355,6 +376,16 @@ Mouse::pressAndReleaseLeft(Cycle duration, Cycle delay)
 }
 
 void
+Mouse::pressAndReleaseMiddle(Cycle duration, Cycle delay)
+{
+    if (port.isPort1()) {
+        agnus.scheduleRel <SLOT_MSE1> (delay, MSE_PUSH_MIDDLE, duration);
+    } else {
+        agnus.scheduleRel <SLOT_MSE2> (delay, MSE_PUSH_MIDDLE, duration);
+    }
+}
+
+void
 Mouse::pressAndReleaseRight(Cycle duration, Cycle delay)
 {
     if (port.isPort1()) {
@@ -375,25 +406,37 @@ Mouse::serviceMouseEvent()
         case MSE_PUSH_LEFT:
             
             setLeftButton(true);
-            agnus.scheduleRel <s> (duration, MSE_RELEASE_LEFT);
+            agnus.scheduleRel<s>(duration, MSE_RELEASE_LEFT);
             break;
             
         case MSE_RELEASE_LEFT:
             
             setLeftButton(false);
-            agnus.cancel <s> ();
+            agnus.cancel<s>();
+            break;
+
+        case MSE_PUSH_MIDDLE:
+
+            setMiddleButton(true);
+            agnus.scheduleRel<s>(duration, MSE_RELEASE_MIDDLE);
+            break;
+
+        case MSE_RELEASE_MIDDLE:
+
+            setMiddleButton(false);
+            agnus.cancel<s>();
             break;
 
         case MSE_PUSH_RIGHT:
             
             setRightButton(true);
-            agnus.scheduleRel <s> (duration, MSE_RELEASE_RIGHT);
+            agnus.scheduleRel<s>(duration, MSE_RELEASE_RIGHT);
             break;
             
         case MSE_RELEASE_RIGHT:
             
             setRightButton(false);
-            agnus.cancel <s> ();
+            agnus.cancel<s>();
             break;
 
         default:
@@ -403,3 +446,5 @@ Mouse::serviceMouseEvent()
 
 template void Mouse::serviceMouseEvent<SLOT_MSE1>();
 template void Mouse::serviceMouseEvent<SLOT_MSE2>();
+
+}

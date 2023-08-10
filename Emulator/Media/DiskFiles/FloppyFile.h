@@ -13,6 +13,10 @@
 #include "BootBlockImage.h"
 #include "FloppyDisk.h"
 
+namespace vamiga {
+
+class FloppyDisk;
+
 class FloppyFile : public DiskFile {
 
     //
@@ -40,10 +44,11 @@ public:
     //
     
 public:
-        
+
     // Informs about the disk type
     virtual Diameter getDiameter() const = 0;
     virtual Density getDensity() const = 0;
+    virtual FloppyDiskDescriptor getDescriptor() const;
     bool isSD() { return getDensity() == DENSITY_SD; }
     bool isDD() { return getDensity() == DENSITY_DD; }
     bool isHD() { return getDensity() == DENSITY_HD; }
@@ -64,9 +69,11 @@ public:
     //
     // Encoding
     //
- 
+
 public:
     
-    virtual void encodeDisk(class FloppyDisk &disk) const throws { fatalError; }
-    virtual void decodeDisk(class FloppyDisk &disk) throws { fatalError; }
+    virtual void encodeDisk(FloppyDisk &disk) const throws { fatalError; }
+    virtual void decodeDisk(FloppyDisk &disk) throws { fatalError; }
 };
+
+}

@@ -9,7 +9,9 @@
 
 #pragma once
 
-#include "AmigaObject.h"
+#include "CoreObject.h"
+
+namespace vamiga {
 
 struct FSString {
     
@@ -66,3 +68,5 @@ struct FSTime {
     string timeStr() const;
     string str() const;
 };
+
+}

@@ -57,6 +57,16 @@ extension ConfigurationController {
         vidHCenterLabel.textColor = config.center == 0 ? .labelColor : .disabledControlTextColor
         vidVCenterLabel.textColor = config.center == 0 ? .labelColor : .disabledControlTextColor
 
+        // Frame rate
+        let syncMode = config.syncMode
+        let fps = config.proposedFps
+        vidSyncMode.item(at: 1)?.title = "Fixed (\(fps) fps)"
+        vidSyncMode.selectItem(withTag: syncMode)
+        vidFpsSlider.integerValue = fps
+        vidFpsSlider.isHidden = syncMode != 1
+        vidFpsMin.isHidden = syncMode != 1
+        vidFpsMax.isHidden = syncMode != 1
+
         // Upscalers
         vidEnhancerPopUp.selectItem(withTag: config.enhancer)
         vidUpscalerPopUp.selectItem(withTag: config.upscaler)
@@ -128,7 +138,76 @@ extension ConfigurationController {
         config.saturation = sender.integerValue
         refresh()
     }
-    
+
+    //
+    // Action methods (Geometry)
+    //
+
+    @IBAction func vidZoomAction(_ sender: NSPopUpButton) {
+
+        config.zoom = sender.selectedTag()
+        debug(.config, "zoom = \(config.zoom)")
+        refresh()
+    }
+
+    @IBAction func vidHZoomAction(_ sender: NSSlider!) {
+
+        let value = sender.floatValue / 1000
+        debug(.config, "hZoom = \(value)")
+
+        config.hZoom = value
+        refresh()
+    }
+
+    @IBAction func vidVZoomAction(_ sender: NSSlider!) {
+
+        let value = sender.floatValue / 1000
+        debug(.config, "vZoom = \(value)")
+
+        config.vZoom = value
+        refresh()
+    }
+
+    @IBAction func vidCenterAction(_ sender: NSPopUpButton) {
+
+        config.center = sender.selectedTag()
+        debug(.config, "zoom = \(config.center)")
+        refresh()
+    }
+
+    @IBAction func vidHCenterAction(_ sender: NSSlider!) {
+
+        let value = sender.floatValue / 1000
+        debug(.config, "hCenter = \(value)")
+
+        config.hCenter = value
+        refresh()
+    }
+
+    @IBAction func vidVCenterAction(_ sender: NSSlider!) {
+
+        let value = sender.floatValue / 1000
+
+        config.vCenter = value
+        refresh()
+    }
+
+    //
+    // Action methods (Refresh rate)
+    //
+
+    @IBAction func vidSyncModeAction(_ sender: NSPopUpButton!) {
+
+        config.syncMode = sender.selectedTag()
+        refresh()
+    }
+
+    @IBAction func vidFpsAction(_ sender: NSSlider!) {
+
+        config.proposedFps = sender.integerValue
+        refresh()
+    }
+
     //
     // Action methods (Effects)
     //
@@ -238,60 +317,6 @@ extension ConfigurationController {
     @IBAction func vidDisalignmentVAction(_ sender: NSSlider!) {
 
         config.disalignmentV = sender.floatValue
-        refresh()
-    }
-    
-    //
-    // Action methods (Geometry)
-    //
-
-    @IBAction func vidZoomAction(_ sender: NSPopUpButton) {
-
-        config.zoom = sender.selectedTag()
-        debug(.config, "zoom = \(config.zoom)")
-        refresh()
-    }
-
-    @IBAction func vidHZoomAction(_ sender: NSSlider!) {
-
-        let value = sender.floatValue / 1000
-        debug(.config, "hZoom = \(value)")
-
-        config.hZoom = value
-        refresh()
-    }
-
-    @IBAction func vidVZoomAction(_ sender: NSSlider!) {
-
-        let value = sender.floatValue / 1000
-        debug(.config, "vZoom = \(value)")
-
-        config.vZoom = value
-        refresh()
-    }
-
-    @IBAction func vidCenterAction(_ sender: NSPopUpButton) {
-
-        config.center = sender.selectedTag()
-        debug(.config, "zoom = \(config.center)")
-        refresh()
-    }
-
-    @IBAction func vidHCenterAction(_ sender: NSSlider!) {
-
-        let value = sender.floatValue / 1000
-        debug(.config, "hCenter = \(value)")
-
-        config.hCenter = value
-        refresh()
-    }
-    
-    @IBAction func vidVCenterAction(_ sender: NSSlider!) {
-
-        let value = sender.floatValue / 1000
-        debug(.config, "vCenter = \(value)")
-
-        config.vCenter = value
         refresh()
     }
 

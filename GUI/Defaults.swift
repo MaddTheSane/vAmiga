@@ -239,7 +239,7 @@ extension DefaultsProxy {
     
     func registerUserDefaults() {
         
-        debug(.lifetime, "Registering user defaults")
+        debug(.defaults, "Registering user defaults")
         
         registerGeneralUserDefaults()
         registerControlsUserDefaults()
@@ -258,7 +258,7 @@ extension Preferences {
 
     func applyUserDefaults() {
         
-        debug(.defaults)
+        debug(.defaults, "Applying user defaults")
         
         applyGeneralUserDefaults()
         applyControlsUserDefaults()
@@ -307,10 +307,7 @@ struct Keys {
         // Fullscreen
         static let keepAspectRatio        = "General.FullscreenKeepAspectRatio"
         static let exitOnEsc              = "General.FullscreenExitOnEsc"
-        
-        // Warp mode
-        static let warpMode               = "General.WarpMode"
-        
+
         // Miscellaneous
         static let ejectWithoutAsking     = "General.EjectWithoutAsking"
         static let detachWithoutAsking    = "General.DetachWithoutAsking"
@@ -343,10 +340,7 @@ extension DefaultsProxy {
         // Fullscreen
         register(Keys.Gen.keepAspectRatio, false)
         register(Keys.Gen.exitOnEsc, true)
-        
-        // Warp mode
-        register(Keys.Gen.warpMode, WarpMode.off.rawValue)
-        
+
         // Misc
         register(Keys.Gen.ejectWithoutAsking, false)
         register(Keys.Gen.detachWithoutAsking, false)
@@ -372,9 +366,7 @@ extension DefaultsProxy {
                      
                      Keys.Gen.keepAspectRatio,
                      Keys.Gen.exitOnEsc,
-                     
-                     Keys.Gen.warpMode,
-                     
+
                      Keys.Gen.ejectWithoutAsking,
                      Keys.Gen.detachWithoutAsking,
                      Keys.Gen.closeWithoutAsking,
@@ -399,16 +391,14 @@ extension Preferences {
         defaults.set(Keys.Gen.screenshotTarget, screenshotTargetIntValue)
         
         defaults.set(Keys.Gen.ffmpegPath, ffmpegPath)
-        defaults.set(Keys.Gen.captureSource, captureSource)
+        defaults.set(Keys.Gen.captureSource, captureSourceIntValue)
         defaults.set(Keys.Gen.bitRate, bitRate)
         defaults.set(Keys.Gen.aspectX, aspectX)
         defaults.set(Keys.Gen.aspectY, aspectY)
         
         defaults.set(Keys.Gen.keepAspectRatio, keepAspectRatio)
         defaults.set(Keys.Gen.exitOnEsc, exitOnEsc)
-        
-        defaults.set(Keys.Gen.warpMode, warpModeIntValue)
-        
+
         defaults.set(Keys.Gen.ejectWithoutAsking, ejectWithoutAsking)
         defaults.set(Keys.Gen.detachWithoutAsking, detachWithoutAsking)
         defaults.set(Keys.Gen.closeWithoutAsking, closeWithoutAsking)
@@ -429,16 +419,14 @@ extension Preferences {
         screenshotTargetIntValue = defaults.int(Keys.Gen.screenshotTarget)
         
         ffmpegPath = defaults.string(Keys.Gen.ffmpegPath)
-        captureSource = defaults.int(Keys.Gen.captureSource)
+        captureSourceIntValue = defaults.int(Keys.Gen.captureSource)
         bitRate = defaults.int(Keys.Gen.bitRate)
         aspectX = defaults.int(Keys.Gen.aspectX)
         aspectY = defaults.int(Keys.Gen.aspectY)
         
         keepAspectRatio = defaults.bool(Keys.Gen.keepAspectRatio)
         exitOnEsc = defaults.bool(Keys.Gen.exitOnEsc)
-        
-        warpModeIntValue = defaults.int(Keys.Gen.warpMode)
-        
+
         ejectWithoutAsking = defaults.bool(Keys.Gen.ejectWithoutAsking)
         detachWithoutAsking = defaults.bool(Keys.Gen.detachWithoutAsking)
         closeWithoutAsking = defaults.bool(Keys.Gen.closeWithoutAsking)
@@ -698,6 +686,7 @@ extension DefaultsProxy {
         remove(.VIDEO_FORMAT)
         remove(.CPU_REVISION)
         remove(.CPU_OVERCLOCKING)
+        remove(.WARP_MODE)
         remove(.AGNUS_REVISION)
         remove(.DENISE_REVISION)
         remove(.CIA_REVISION)
@@ -717,6 +706,7 @@ extension Configuration {
         machineType = defaults.get(.VIDEO_FORMAT)
         cpuRev = defaults.get(.CPU_REVISION)
         cpuSpeed = defaults.get(.CPU_OVERCLOCKING)
+        warpMode = defaults.get(.WARP_MODE)
         agnusRev = defaults.get(.AGNUS_REVISION)
         deniseRev = defaults.get(.DENISE_REVISION)
         ciaRev = defaults.get(.CIA_REVISION)
@@ -735,6 +725,7 @@ extension Configuration {
         defaults.set(.VIDEO_FORMAT, machineType)
         defaults.set(.CPU_REVISION, cpuRev)
         defaults.set(.CPU_OVERCLOCKING, cpuSpeed)
+        defaults.set(.WARP_MODE, warpMode)
         defaults.set(.AGNUS_REVISION, agnusRev)
         defaults.set(.DENISE_REVISION, deniseRev)
         defaults.set(.CIA_REVISION, ciaRev)
@@ -845,9 +836,10 @@ extension DefaultsProxy {
         
         remove(.DRIVE_CONNECT, [0, 1, 2, 3])
         remove(.DRIVE_TYPE, [0, 1, 2, 3])
+        remove(.DRIVE_RPM, [0, 1, 2, 3])
         remove(.HDC_CONNECT, [0, 1, 2, 3])
         remove(.HDR_TYPE, [0, 1, 2, 3])
-        remove(.SERIAL_DEVICE)
+        remove(.SER_DEVICE)
         remove(.SRV_PORT, nr: ServerType.SER.rawValue)
         removeKey(Keys.Per.gameDevice1)
         removeKey(Keys.Per.gameDevice2)
@@ -873,6 +865,11 @@ extension Configuration {
         defaults.set(.DRIVE_TYPE, 2, df2Type)
         defaults.set(.DRIVE_TYPE, 3, df3Type)
 
+        defaults.set(.DRIVE_RPM, 0, df0Rpm)
+        defaults.set(.DRIVE_RPM, 1, df1Rpm)
+        defaults.set(.DRIVE_RPM, 2, df2Rpm)
+        defaults.set(.DRIVE_RPM, 3, df3Rpm)
+
         defaults.set(.HDC_CONNECT, 0, hd0Connected)
         defaults.set(.HDC_CONNECT, 1, hd1Connected)
         defaults.set(.HDC_CONNECT, 2, hd2Connected)
@@ -883,7 +880,7 @@ extension Configuration {
         defaults.set(.HDR_TYPE, 2, hd2Type)
         defaults.set(.HDR_TYPE, 3, hd3Type)
 
-        defaults.set(.SERIAL_DEVICE, serialDevice)
+        defaults.set(.SER_DEVICE, serialDevice)
         defaults.set(.SRV_PORT, ServerType.SER.rawValue, serialDevicePort)
 
         defaults.set(Keys.Per.gameDevice1, gameDevice1)
@@ -911,6 +908,11 @@ extension Configuration {
         df2Type = defaults.get(.DRIVE_TYPE, 2)
         df3Type = defaults.get(.DRIVE_TYPE, 3)
 
+        df0Rpm = defaults.get(.DRIVE_RPM, 0)
+        df1Rpm = defaults.get(.DRIVE_RPM, 1)
+        df2Rpm = defaults.get(.DRIVE_RPM, 2)
+        df3Rpm = defaults.get(.DRIVE_RPM, 3)
+
         hd0Connected = defaults.get(.HDC_CONNECT, 0) != 0
         hd1Connected = defaults.get(.HDC_CONNECT, 1) != 0
         hd2Connected = defaults.get(.HDC_CONNECT, 2) != 0
@@ -921,7 +923,7 @@ extension Configuration {
         hd2Type = defaults.get(.HDR_TYPE, 2)
         hd3Type = defaults.get(.HDR_TYPE, 3)
 
-        serialDevice = defaults.get(.SERIAL_DEVICE)
+        serialDevice = defaults.get(.SER_DEVICE)
         serialDevicePort = defaults.get(.SRV_PORT, ServerType.SER.rawValue)
 
         gameDevice1 = defaults.int(Keys.Per.gameDevice1)
@@ -954,7 +956,7 @@ extension DefaultsProxy {
         remove(.CLX_SPR_PLF)
         remove(.CLX_PLF_PLF)
         remove(.DRIVE_SPEED)
-        remove(.EMULATE_MECHANICS, [ 0, 1, 2, 3])
+        remove(.DRIVE_MECHANICS, [ 0, 1, 2, 3])
         remove(.LOCK_DSKSYNC)
         remove(.AUTO_DSKSYNC)
         remove(.ACCURATE_KEYBOARD)
@@ -977,7 +979,7 @@ extension Configuration {
         defaults.set(.CLX_SPR_PLF, clxSprPlf)
         defaults.set(.CLX_PLF_PLF, clxPlfPlf)
         defaults.set(.DRIVE_SPEED, driveSpeed)
-        defaults.set(.EMULATE_MECHANICS, [0, 1, 2, 3], mechanicalDelays)
+        defaults.set(.DRIVE_MECHANICS, [0, 1, 2, 3], driveMechanics)
         defaults.set(.LOCK_DSKSYNC, lockDskSync)
         defaults.set(.AUTO_DSKSYNC, autoDskSync)
         defaults.set(.ACCURATE_KEYBOARD, accurateKeyboard)
@@ -1000,7 +1002,7 @@ extension Configuration {
         clxSprPlf = defaults.get(.CLX_SPR_PLF) != 0
         clxPlfPlf = defaults.get(.CLX_PLF_PLF) != 0
         driveSpeed = defaults.get(.DRIVE_SPEED)
-        mechanicalDelays = defaults.get(.EMULATE_MECHANICS, 0) != 0
+        driveMechanics = defaults.get(.DRIVE_MECHANICS, 0)
         lockDskSync = defaults.get(.LOCK_DSKSYNC) != 0
         autoDskSync = defaults.get(.AUTO_DSKSYNC) != 0
         accurateKeyboard = defaults.get(.ACCURATE_KEYBOARD) != 0
@@ -1037,7 +1039,6 @@ extension DefaultsProxy {
         remove(.INSERT_VOLUME, [0, 1, 2, 3])
         remove(.EJECT_VOLUME, [0, 1, 2, 3])
         remove(.FILTER_TYPE)
-        remove(.FILTER_ALWAYS_ON)
     }
 }
 
@@ -1074,7 +1075,6 @@ extension Configuration {
         defaults.set(.INSERT_VOLUME, [0, 1, 2, 3], insertVolume)
         defaults.set(.EJECT_VOLUME, [0, 1, 2, 3], ejectVolume)
         defaults.set(.FILTER_TYPE, filterType)
-        defaults.set(.FILTER_ALWAYS_ON, filterAlwaysOn)
         defaults.save()
         
         amiga.resume()
@@ -1115,7 +1115,6 @@ extension Configuration {
         insertVolume = defaults.get(.INSERT_VOLUME, 0)
         ejectVolume = defaults.get(.EJECT_VOLUME, 0)
         filterType = defaults.get(.FILTER_TYPE)
-        filterAlwaysOn = defaults.get(.FILTER_ALWAYS_ON) != 0
 
         amiga.resume()
     }
@@ -1277,10 +1276,18 @@ extension Configuration {
     func saveVideoUserDefaults() {
         
         debug(.defaults)
-        
+        let defaults = AmigaProxy.defaults!
+
+        amiga.suspend()
+
+        defaults.set(.SYNC_MODE, syncMode)
+        defaults.set(.PROPOSED_FPS, proposedFps)
+
         saveColorUserDefaults()
         saveGeometryUserDefaults()
         saveShaderUserDefaults()
+
+        amiga.resume()
     }
          
     func saveColorUserDefaults() {

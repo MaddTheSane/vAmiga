@@ -15,6 +15,8 @@
 #include "RshServer.h"
 #include "GdbServer.h"
 
+namespace vamiga {
+
 class RemoteManager : public SubComponent {
 
 public:
@@ -28,7 +30,7 @@ public:
     std::vector <RemoteServer *> servers = {
         &serServer, &rshServer, &gdbServer
     };
-     
+
     
     //
     // Initializing
@@ -41,7 +43,7 @@ public:
     
     
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 protected:
@@ -51,7 +53,7 @@ protected:
     
     
     //
-    // Methods from AmigaComponent
+    // Methods from CoreComponent
     //
     
 private:
@@ -68,7 +70,7 @@ private:
     //
     
 public:
-            
+
     i64 getConfigItem(Option option, long id) const;
     void setConfigItem(Option option, i64 value);
     void setConfigItem(Option option, long id, i64 value);
@@ -86,7 +88,7 @@ public:
     isize numConnected() const;
     isize numErroneous() const;
 
- 
+
     //
     // Servicing events
     //
@@ -95,3 +97,5 @@ public:
     
     void serviceServerEvent();
 };
+
+}

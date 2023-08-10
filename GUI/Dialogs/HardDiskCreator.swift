@@ -74,7 +74,7 @@ class HardDiskCreator: DialogController {
     func show(forDrive nr: Int) {
                 
         self.nr = nr
-        super.showSheet()
+        super.showAsSheet()
     }
             
     override public func awakeFromNib() {
@@ -88,14 +88,6 @@ class HardDiskCreator: DialogController {
         
         setCapacity(mb: capacity.selectedTag())
         update()
-    }
-    
-    override func windowDidLoad() {
-
-    }
-    
-    override func sheetDidShow() {
-     
     }
     
     func setCapacity(mb: Int) {
@@ -224,7 +216,7 @@ class HardDiskCreator: DialogController {
         do {
             try drive?.attach(c: cylinders, h: heads, s: sectors, b: bsize)
             try drive?.format(fs: fs, name: name)
-            hideSheet()
+            hide()
             
         } catch {
             

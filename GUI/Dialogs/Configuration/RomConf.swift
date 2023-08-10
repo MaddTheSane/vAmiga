@@ -13,21 +13,22 @@ extension ConfigurationController {
 
         let poweredOff      = amiga.poweredOff
 
-        let romIdentifier   = amiga.mem.romIdentifier
-        let hasRom          = romIdentifier != .MISSING
-        let hasArosRom      = amiga.mem.isArosRom(romIdentifier)
-        let hasDiagRom      = amiga.mem.isDiagRom(romIdentifier)
-        let hasCommodoreRom = amiga.mem.isCommodoreRom(romIdentifier)
-        let hasHyperionRom  = amiga.mem.isHyperionRom(romIdentifier)
-        let hasPatchedRom   = amiga.mem.isPatchedRom(romIdentifier)
+        let romCrc          = amiga.mem.romFingerprint
+        let hasRom          = romCrc != CRC32_MISSING
+        let hasArosRom      = amiga.mem.isArosRom(romCrc)
+        let hasDiagRom      = amiga.mem.isDiagRom(romCrc)
+        let hasCommodoreRom = amiga.mem.isCommodoreRom(romCrc)
+        let hasHyperionRom  = amiga.mem.isHyperionRom(romCrc)
+        let hasPatchedRom   = amiga.mem.isPatchedRom(romCrc)
+        let isRelocatedRom  = amiga.mem.isRelocated
 
-        let extIdentifier   = amiga.mem.extIdentifier
-        let hasExt          = extIdentifier != .MISSING
-        let hasArosExt      = amiga.mem.isArosRom(extIdentifier)
-        let hasDiagExt      = amiga.mem.isDiagRom(extIdentifier)
-        let hasCommodoreExt = amiga.mem.isCommodoreRom(extIdentifier)
-        let hasHyperionExt  = amiga.mem.isHyperionRom(extIdentifier)
-        let hasPatchedExt   = amiga.mem.isPatchedRom(extIdentifier)
+        let extCrc          = amiga.mem.extFingerprint
+        let hasExt          = extCrc != CRC32_MISSING
+        let hasArosExt      = amiga.mem.isArosRom(extCrc)
+        let hasDiagExt      = amiga.mem.isDiagRom(extCrc)
+        let hasCommodoreExt = amiga.mem.isCommodoreRom(extCrc)
+        let hasHyperionExt  = amiga.mem.isHyperionRom(extCrc)
+        let hasPatchedExt   = amiga.mem.isPatchedRom(extCrc)
 
         let romMissing      = NSImage(named: "rom_missing")
         let romOrig         = NSImage(named: "rom_original")
@@ -36,7 +37,8 @@ extension ConfigurationController {
         let romDiag         = NSImage(named: "rom_diag")
         let romPatched      = NSImage(named: "rom_patched")
         let romUnknown      = NSImage(named: "rom_unknown")
-        
+        let romRelocated    = NSImage(named: "rom_broken")
+
         // Lock controls if emulator is powered on
         romDropView.isEnabled = poweredOff
         romDeleteButton.isEnabled = poweredOff
@@ -46,20 +48,21 @@ extension ConfigurationController {
         
         // Icons
         romDropView.image =
-            hasHyperionRom  ? romHyperion :
-            hasArosRom      ? romAros :
-            hasDiagRom      ? romDiag :
-            hasCommodoreRom ? romOrig :
-            hasPatchedRom   ? romPatched :
-            hasRom          ? romUnknown : romMissing
+        isRelocatedRom  ? romRelocated :
+        hasHyperionRom  ? romHyperion :
+        hasArosRom      ? romAros :
+        hasDiagRom      ? romDiag :
+        hasCommodoreRom ? romOrig :
+        hasPatchedRom   ? romPatched :
+        hasRom          ? romUnknown : romMissing
 
         extDropView.image =
-            hasHyperionExt  ? romHyperion :
-            hasArosExt      ? romAros :
-            hasDiagExt      ? romDiag :
-            hasCommodoreExt ? romOrig :
-            hasPatchedExt   ? romPatched :
-            hasExt          ? romUnknown : romMissing
+        hasHyperionExt  ? romHyperion :
+        hasArosExt      ? romAros :
+        hasDiagExt      ? romDiag :
+        hasCommodoreExt ? romOrig :
+        hasPatchedExt   ? romPatched :
+        hasExt          ? romUnknown : romMissing
 
         // Titles and subtitles
         romTitle.stringValue = amiga.mem.romTitle
@@ -79,11 +82,6 @@ extension ConfigurationController {
         extMapText.isHidden = !hasExt
         extMapAddr.isHidden = !hasExt
 
-        // Explanation
-        romExpImage.isHidden = !poweredOff
-        romExpInfo1.isHidden = !poweredOff
-        romExpInfo2.isHidden = !poweredOff
-
         // Lock
         romLockImage.isHidden = poweredOff
         romLockInfo1.isHidden = poweredOff
@@ -91,6 +89,26 @@ extension ConfigurationController {
 
         // Buttons
         romPowerButton.isHidden = !bootable
+
+        // Explanation
+        if isRelocatedRom {
+            romExpImage.image = NSImage(named: "NSCaution")
+            romExpImage.isHidden = false
+            // romExpInfo1.stringValue = "The selected Kickstart Rom is a relocation image."
+            // romExpInfo1.stringValue = "The selected Kickstart Rom won't work in the Rom slot."
+            romExpInfo1.stringValue = "The selected Kickstart Rom is a relocation image."
+            romExpInfo1.isHidden = false
+            // romExpInfo2.stringValue = "It won't work in the Rom slot and needs to be loaded from disk."
+            romExpInfo2.stringValue = "It won't work in the Rom slot."
+            romExpInfo2.isHidden = false
+        } else {
+            romExpImage.image = NSImage(named: "NSInfo")
+            romExpImage.isHidden = !poweredOff
+            romExpInfo1.stringValue = "To add a Rom, drag a Rom image file onto one of the chip icons."
+            romExpInfo1.isHidden = !poweredOff
+            romExpInfo2.stringValue = "Original Roms are protected by copyright. Please obey legal regulations."
+            romExpInfo2.isHidden = !poweredOff
+        }
     }
 
     func refreshRomSelector() {
@@ -101,9 +119,9 @@ extension ConfigurationController {
 
         for item in romArosPopup.itemArray where item.tag != 0 {
 
-            switch amiga.mem.romIdentifier(of: u64(item.tag)) {
+            switch UInt32(item.tag) {
 
-            case .AROS_54705, .AROS_55696, .DIAG121:
+            case CRC32_AROS_54705, CRC32_AROS_55696, CRC32_DIAG121:
                 item.isEnabled = true
 
             default:
@@ -146,21 +164,20 @@ extension ConfigurationController {
 
     @IBAction func installRomAction(_ sender: NSButton!) {
 
-        let hash = sender.selectedTag()
-        let id = amiga.mem.romIdentifier(of: UInt64(hash))
+        let crc32 = sender.selectedTag()
 
-        switch id {
-        case .AROS_54705: // Taken from UAE
+        switch UInt32(crc32) {
+        case CRC32_AROS_54705: // Taken from UAE
             installAros(rom: "aros-svn54705-rom", ext: "aros-svn54705-ext")
 
-        case .AROS_55696: // Taken from SAE
+        case CRC32_AROS_55696: // Taken from SAE
             installAros(rom: "aros-svn55696-rom", ext: "aros-svn55696-ext")
 
-        case .DIAG121:
+        case CRC32_DIAG121:
             install(rom: "diagrom-121")
 
         default:
-            if let url = UserDefaults.romUrl(fingerprint: hash) {
+            if let url = UserDefaults.romUrl(fingerprint: crc32) {
                 try? amiga.mem.loadRom(url)
             }
         }
@@ -182,17 +199,17 @@ extension ConfigurationController {
 
     func installAros() {
 
-        installAros(id: .AROS_55696)
+        installAros(crc32: CRC32_AROS_55696)
     }
 
-    func installAros(id: RomIdentifier) {
+    func installAros(crc32: UInt32) {
 
-        switch id {
+        switch crc32 {
 
-        case .AROS_54705: // Taken from UAE
+        case CRC32_AROS_54705: // Taken from UAE
             installAros(rom: "aros-svn54705-rom", ext: "aros-svn54705-ext")
 
-        case .AROS_55696: // Taken from SAE
+        case CRC32_AROS_55696: // Taken from SAE
             installAros(rom: "aros-svn55696-rom", ext: "aros-svn55696-ext")
 
         default:

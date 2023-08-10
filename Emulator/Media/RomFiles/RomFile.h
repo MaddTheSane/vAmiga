@@ -12,11 +12,13 @@
 #include "RomFileTypes.h"
 #include "AmigaFile.h"
 
+namespace vamiga {
+
 class RomFile : public AmigaFile {
 
     // Accepted header signatures
     static const u8 bootRomHeaders[1][8];
-    static const u8 kickRomHeaders[7][7];
+    static const u8 kickRomHeaders[8][7];
     static const u8 encrRomHeaders[1][11];
 
     // Path to the rom.key file (if needed)
@@ -30,22 +32,20 @@ public:
     static bool isRomBuffer(const u8 *buf, isize len);
     static bool isRomFile(const string &path);
 
-    // Translates a CRC-32 checksum into a ROM identifier
-    static RomIdentifier identifier(u32 fingerprint);
-
     // Classifies a ROM identifier by type
-    static bool isBootRom(RomIdentifier rev);
-    static bool isArosRom(RomIdentifier rev);
-    static bool isDiagRom(RomIdentifier rev);
-    static bool isCommodoreRom(RomIdentifier rev);
-    static bool isHyperionRom(RomIdentifier rev);
-    static bool isPatchedRom(RomIdentifier rev);
+    static bool isBootRom(u32 crc32);
+    static bool isArosRom(u32 crc32);
+    static bool isDiagRom(u32 crc32);
+    static bool isCommodoreRom(u32 crc32);
+    static bool isHyperionRom(u32 crc32);
+    static bool isPatchedRom(u32 crc32);
 
     // Translates a ROM indentifier into a textual description
-    static const char *title(RomIdentifier rev);
-    static const char *version(RomIdentifier rev);
-    static const char *released(RomIdentifier rev);
-    static const char *model(RomIdentifier rev);
+    static const char *shortName(u32 crc32);
+    static const char *title(u32 crc32);
+    static const char *version(u32 crc32);
+    static const char *released(u32 crc32);
+    static const char *model(u32 crc32);
 
 
     //
@@ -84,3 +84,5 @@ public:
      */
     void decrypt() throws;
 };
+
+}

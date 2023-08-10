@@ -16,6 +16,8 @@
 #include "HDFFile.h"
 #include "MemUtils.h"
 
+namespace vamiga {
+
 class HardDrive : public Drive {
     
     friend class HDFFile;
@@ -43,10 +45,10 @@ class HardDrive : public Drive {
     
     // Partition table
     std::vector <PartitionDescriptor> ptable;
-            
+
     // Loadable file system drivers
     std::vector <DriverDescriptor> drivers;
-        
+
     // Disk data
     Buffer<u8> data;
     
@@ -96,7 +98,7 @@ private:
 
     
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 private:
@@ -106,7 +108,7 @@ private:
     
     
     //
-    // Methods from AmigaComponent
+    // Methods from CoreComponent
     //
     
 private:
@@ -176,13 +178,12 @@ public:
     Head currentHead() const override { return head.head; }
     isize currentOffset() const override { return head.offset; }
 
-    u64 fnv() const override;
     bool hasDisk() const override;
     bool hasModifiedDisk() const override;
     bool hasProtectedDisk() const override;
     void setModificationFlag(bool value) override;
     void setProtectionFlag(bool value) override;
-        
+
     
     //
     // Configuring
@@ -209,7 +210,7 @@ private:
 public:
 
     // Returns information about the disk or one of its partitions
-    HardDriveInfo getInfo() const { return AmigaComponent::getInfo(info); }
+    HardDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
     const PartitionDescriptor &getPartitionInfo(isize nr);
     
     // Returns the disk geometry
@@ -227,7 +228,7 @@ public:
     // Gets or sets the 'modification' flag
     bool isModified() const { return modified; }
     void setModified(bool value) { modified = value; }
-       
+
     // Returns the current controller state
     HdcState getHdcState();
 
@@ -266,7 +267,7 @@ public:
     void readDriver(isize nr, Buffer<u8> &driver);
     
 private:
-        
+
     // Checks the given argument list for consistency
     i8 verify(isize offset, isize length, u32 addr);
 
@@ -318,3 +319,5 @@ public:
     template <EventSlot s> void serviceHdrEvent();
     
 };
+
+}

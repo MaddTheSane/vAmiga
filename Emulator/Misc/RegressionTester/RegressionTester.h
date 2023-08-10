@@ -13,18 +13,26 @@
 #include "Constants.h"
 #include "AmigaTypes.h"
 
+namespace vamiga {
+
 class RegressionTester : public SubComponent {
 
+    // Pixel area ritten to the test image
+    static constexpr isize X1 = 4 * 0x31;
+    static constexpr isize Y1 = VBLANK_MAX + 1;
+    static constexpr isize X2 = HPIXELS;
+    static constexpr isize Y2 = VPIXELS - 2;
+
 public:
-        
+
     // Filename of the test image
     string dumpTexturePath = "texture";
-    
-    // Texture cutout
-    isize x1 = 4 * 0x31;
-    isize y1 = VBLANK_MAX + 1;
-    isize x2 = HPIXELS;
-    isize y2 = VPIXELS - 2;
+
+    // Pixel ares observed by this regression test
+    isize x1 = X1;
+    isize y1 = Y1;
+    isize x2 = X2;
+    isize y2 = Y2;
     
 private:
     
@@ -42,7 +50,7 @@ public:
     
     
     //
-    // Methods from AmigaObject
+    // Methods from CoreObject
     //
     
 private:
@@ -52,18 +60,12 @@ private:
 
     
     //
-    // Methods from AmigaComponent
+    // Methods from CoreComponent
     //
-        
+
 private:
     
     void _reset(bool hard) override { };
-    
-    
-    //
-    // Serializing
-    //
-    
     isize _size() override { return 0; }
     u64 _checksum() override { return 0; }
     isize _load(const u8 *buffer) override { return 0; }
@@ -76,16 +78,16 @@ private:
 
 public:
 
-    // Reverts everything to factory settings
-    void prepare(ConfigScheme scheme, string rom, string ext = "");
+    // Reverts to factory settings
+    void prepare(ConfigScheme scheme, string rom = "", string ext = "");
     
     // Runs a test case
     void run(string adf);
     
     // Creates the test image and exits the emulator
-    void dumpTexture(class Amiga &amiga);
-    void dumpTexture(class Amiga &amiga, const string &filename);
-    void dumpTexture(class Amiga &amiga, std::ostream& os);
+    void dumpTexture(Amiga &amiga);
+    void dumpTexture(Amiga &amiga, const string &filename);
+    void dumpTexture(Amiga &amiga, std::ostream& os);
 
     
     //
@@ -97,3 +99,5 @@ public:
     // Assigns the return code
     void setErrorCode(u8 value);
 };
+
+}

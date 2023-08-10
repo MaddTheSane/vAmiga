@@ -38,7 +38,7 @@ class FloppyCreator: DialogController {
     func showSheet(forDrive nr: Int) {
                 
         self.nr = nr
-        super.showSheet()
+        super.showAsSheet()
     }
             
     override public func awakeFromNib() {
@@ -77,14 +77,6 @@ class FloppyCreator: DialogController {
         fileSystem.selectItem(withTag: 1)
         
         update()
-    }
-    
-    override func windowDidLoad() {
-
-    }
-    
-    override func sheetDidShow() {
-     
     }
     
     //
@@ -148,7 +140,7 @@ class FloppyCreator: DialogController {
 
             try drive?.insertNew(fileSystem: fs, bootBlock: bb, name: name)
             myAppDelegate.clearRecentlyExportedDiskURLs(df: nr)
-            hideSheet()
+            hide()
             
         } catch {
             

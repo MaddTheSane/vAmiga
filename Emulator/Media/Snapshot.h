@@ -12,7 +12,7 @@
 #include "AmigaFile.h"
 #include "Constants.h"
 
-class Amiga;
+namespace vamiga {
 
 struct Thumbnail {
     
@@ -26,7 +26,7 @@ struct Thumbnail {
     time_t timestamp;
     
     // Takes a screenshot from a given Amiga
-    void take(Amiga &amiga, isize dx = 2, isize dy = 1);
+    void take(class Amiga &amiga, isize dx = 2, isize dy = 1);
 };
 
 struct SnapshotHeader {
@@ -39,13 +39,16 @@ struct SnapshotHeader {
     u8 minor;
     u8 subminor;
     u8 beta;
-    
+
+    // Padding bytes
+    u8 reserved[6];
+
     // Preview image
     Thumbnail screenshot;
 };
 
 class Snapshot : public AmigaFile {
- 
+
 public:
     
     static bool isCompatible(const string &path);
@@ -62,7 +65,7 @@ public:
     Snapshot(Amiga &amiga);
     
     const char *getDescription() const override { return "Snapshot"; }
-            
+
     
     //
     // Methods from AmigaFile
@@ -98,3 +101,5 @@ public:
     // Takes a screenshot
     void takeScreenshot(Amiga &amiga);
 };
+
+}

@@ -21,5 +21,6 @@ public extension Int {
     static let lifetime     = 0     // Object management, delegation calls
     static let media        = 0     // Media files, screenshots, snapshots
     static let metal        = 0     // GPU drawing, shaders
+    static let vsync        = 0     // VSYNC mode
     static let shutdown     = 0     // Termination procedure
 }

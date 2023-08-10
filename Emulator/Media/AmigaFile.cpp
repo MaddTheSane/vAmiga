@@ -12,7 +12,7 @@
 #include "Snapshot.h"
 #include "ADFFile.h"
 #include "ExtendedRomFile.h"
-#include "EXTFile.h"
+#include "EADFFile.h"
 #include "IMGFile.h"
 #include "DMSFile.h"
 #include "EXEFile.h"
@@ -20,6 +20,8 @@
 #include "HDFFile.h"
 #include "RomFile.h"
 #include "Script.h"
+
+namespace vamiga {
 
 void
 AmigaFile::init(const string &path)
@@ -45,6 +47,13 @@ AmigaFile::init(std::istream &stream)
 }
 
 void
+AmigaFile::init(isize len)
+{
+    data.init(len);
+    data.clear();
+}
+
+void
 AmigaFile::init(const u8 *buf, isize len)
 {    
     assert(buf);
@@ -67,13 +76,11 @@ AmigaFile::init(FILE *file)
     int c; while ((c = fgetc(file)) != EOF) { stream.put((char)c); }
     init(stream);
 }
-    
+
 AmigaFile::~AmigaFile()
 {
-    // if (data) delete[] data;
+
 }
-
-
 
 void
 AmigaFile::flash(u8 *buf, isize offset, isize len) const
@@ -109,13 +116,13 @@ AmigaFile::type(const string &path)
 
         if (ADFFile::isCompatible(path) &&
             ADFFile::isCompatible(stream)) return FILETYPE_ADF;
-        
+
+        if (EADFFile::isCompatible(path) &&
+            EADFFile::isCompatible(stream)) return FILETYPE_EADF;
+
         if (HDFFile::isCompatible(path) &&
             HDFFile::isCompatible(stream)) return FILETYPE_HDF;
-        
-        if (EXTFile::isCompatible(path) &&
-            EXTFile::isCompatible(stream)) return FILETYPE_EXT;
-        
+
         if (IMGFile::isCompatible(path) &&
             IMGFile::isCompatible(stream)) return FILETYPE_IMG;
         
@@ -271,4 +278,6 @@ isize
 AmigaFile::writeToBuffer(Buffer<u8> &buffer)
 {
     return writeToBuffer(buffer, 0, data.size);
+}
+
 }

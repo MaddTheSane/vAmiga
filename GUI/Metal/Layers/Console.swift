@@ -19,7 +19,7 @@ class Console: Layer {
     
     let scrollView = NSTextView.scrollableTextView()
     var textView: NSTextView
-        
+
     var isDirty = false
         
     //
@@ -33,7 +33,7 @@ class Console: Layer {
         textView = (scrollView.documentView as? NSTextView)!
         textView.isEditable = false
         textView.backgroundColor = NSColor(r: 0x80, g: 0x80, b: 0x80, a: 0x80)
-        
+
         super.init(renderer: renderer)
         
         resize()
@@ -47,7 +47,7 @@ class Console: Layer {
     }
 
     override func update(frames: Int64) {
-        
+
         super.update(frames: frames)
 
         if isDirty {
@@ -67,8 +67,11 @@ class Console: Layer {
                                     value: cursorColor,
                                     range: NSRange(location: string.length + cpos, length: 1))
                 textView.textStorage?.setAttributedString(string)
+
+            } else {
+                fatalError()
             }
-            
+
             textView.scrollToEndOfDocument(self)
             isDirty = false
         }
@@ -103,9 +106,14 @@ class Console: Layer {
     func keyDown(with event: NSEvent) {
         
         let macKey = MacKey(event: event)
-        
+        let shift  = macKey.modifierFlags.contains(.shift)
+        let ctrl   = macKey.modifierFlags.contains(.control)
+
         switch macKey.keyCode {
-        
+
+        case kVK_ANSI_A where ctrl: amiga.retroShell.pressHome()
+        case kVK_ANSI_E where ctrl: amiga.retroShell.pressEnd()
+        case kVK_ANSI_K where ctrl: amiga.retroShell.pressCut()
         case kVK_UpArrow: amiga.retroShell.pressUp()
         case kVK_DownArrow: amiga.retroShell.pressDown()
         case kVK_LeftArrow: amiga.retroShell.pressLeft()
@@ -114,7 +122,7 @@ class Console: Layer {
         case kVK_End: amiga.retroShell.pressEnd()
         case kVK_Delete: amiga.retroShell.pressBackspace()
         case kVK_ForwardDelete: amiga.retroShell.pressDelete()
-        case kVK_Return: amiga.retroShell.pressReturn()
+        case kVK_Return: shift ? amiga.retroShell.pressShiftReturn() : amiga.retroShell.pressReturn()
         case kVK_Tab: amiga.retroShell.pressTab()
         case kVK_Escape: close()
         

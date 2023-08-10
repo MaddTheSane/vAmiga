@@ -16,6 +16,12 @@ import Carbon.HIToolbox
  * See class "Configuration" for instance specific settings.
  */
 
+public enum CaptureSource: Int {
+
+    case visible = 0
+    case entire = 1
+}
+
 class Preferences {
     
     //
@@ -41,12 +47,17 @@ class Preferences {
     // Screen captures
     var ffmpegPath = "" {
         didSet {
-            for amiga in myAppDelegate.proxies {
-                amiga.recorder.path = ffmpegPath
+            for proxy in myAppDelegate.proxies {
+                proxy.recorder.path = ffmpegPath
             }
         }
     }
-    var captureSource = 0
+    var captureSource: CaptureSource = .visible
+    var captureSourceIntValue: Int {
+        get { return Int(captureSource.rawValue) }
+        set { captureSource = CaptureSource(rawValue: Int(newValue)) ?? .visible }
+    }
+
     var bitRate = 512 {
         didSet {
             if bitRate < 64 { bitRate = 64 }
@@ -69,16 +80,7 @@ class Preferences {
     // Fullscreen
     var keepAspectRatio = false
     var exitOnEsc = false
-            
-    // Warp mode
-    var warpMode = WarpMode.off {
-        didSet { for c in myAppDelegate.controllers { c.updateWarp() } }
-    }
-    var warpModeIntValue: Int {
-        get { return Int(warpMode.rawValue) }
-        set { warpMode = WarpMode(rawValue: newValue)! }
-    }
-    
+
     // Misc
     var ejectWithoutAsking = false
     var detachWithoutAsking = false

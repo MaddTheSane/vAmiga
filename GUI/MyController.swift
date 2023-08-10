@@ -9,12 +9,14 @@
 
 import AVFoundation
 
+/*
 enum WarpMode: Int {
     
     case auto
     case off
     case on
 }
+*/
 
 protocol MessageReceiver {
     func processMessage(_ msg: Message)
@@ -65,10 +67,7 @@ class MyController: NSWindowController, MessageReceiver {
     
     // Speedometer to measure clock frequence and frames per second
     var speedometer: Speedometer!
-    
-    // Used inside the timer function to fine tune timed events
-    var animationCounter = 0
-    
+
     // Remembers if audio is muted (master volume of both channels is 0)
     var muted = false
     
@@ -111,7 +110,8 @@ class MyController: NSWindowController, MessageReceiver {
     @IBOutlet weak var iconSlot3: NSButton!
     
     @IBOutlet weak var haltIcon: NSButton!
-    @IBOutlet weak var cmdLock: NSButton!
+    @IBOutlet weak var cmdLeftIcon: NSButton!
+    @IBOutlet weak var cmdRightIcon: NSButton!
     @IBOutlet weak var debugIcon: NSButton!
     @IBOutlet weak var muteIcon: NSButton!
     
@@ -196,9 +196,9 @@ extension MyController {
 
         // Setup window
         configureWindow()
-                                
-        // Enable message processing
-        registerAsListener()
+
+        // Launch the emulator
+        launch()
 
         // Add media file (if provided on startup)
         mydocument.addMedia()
@@ -218,11 +218,11 @@ extension MyController {
             // Open the Rom dialog after a small delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
                 
-                self.openConfigurator(tab: "Roms")
+                self.openConfiguratorAsSheet(tab: "Roms")
                 self.configurator!.installAros()
             }
         }
-        
+
         // Create speed monitor
         speedometer = Speedometer()
         
@@ -249,45 +249,45 @@ extension MyController {
         // Enable fullscreen mode
         window?.collectionBehavior = .fullScreenPrimary
     }
-    
-    func registerAsListener() {
-        
+
+    func launch() {
+
         // Convert 'self' to a void pointer
         let myself = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        
-        amiga.setListener(myself) { (ptr, type, d1, d2, d3, d4) in
-            
+
+        amiga.launch(myself) { (ptr, msg: Message) in
+
             // Convert void pointer back to 'self'
             let myself = Unmanaged<MyController>.fromOpaque(ptr!).takeUnretainedValue()
-            
+
             // Process message in the main thread
             DispatchQueue.main.async {
-                myself.processMessage(Message(type: MsgType(rawValue: type)!,
-                                              data1: d1, data2: d2, data3: d3, data4: d4))
+                myself.processMessage(msg)
             }
         }
     }
-    
+
     //
     // Timer and message processing
     //
     
-    func timerFunc() {
-        
-        animationCounter += 1
-        
-        // Animate the inspector
-        if inspector?.window?.isVisible == true { inspector!.continuousRefresh() }
+    func update(frames: Int64) {
+
+        if frames % 5 == 0 {
+
+            // Animate the inspector
+            if inspector?.window?.isVisible == true { inspector!.continuousRefresh() }
+        }
         
         // Do less times...
-        if (animationCounter % 3) == 0 {
+        if frames % 16 == 0 {
             
             updateSpeedometer()
             updateMonitoringPanels()
         }
         
         // Do lesser times...
-        if (animationCounter % 32) == 0 {
+        if frames % 256 == 0 {
             
             // Let the cursor disappear in fullscreen mode
             if renderer.fullscreen &&
@@ -297,20 +297,7 @@ extension MyController {
             }
         }
     }
-    
-    func updateWarp() {
-        
-        var warp: Bool
-        
-        switch pref.warpMode {
-        case .auto: warp = amiga.diskController.isSpinning
-        case .off: warp = false
-        case .on: warp = true
-        }
-        
-        if warp != amiga.warpMode { amiga.warpMode = warp }
-    }
-    
+
     func addValue(_ nr: Int, _ v: Float) {
         if let monitor = renderer.monitors.monitors[nr] as? BarChart {
             monitor.addValue(v)
@@ -364,42 +351,39 @@ extension MyController {
     
     func processMessage(_ msg: Message) {
 
-        var data1: Int { return Int(msg.data1) }
-        var data2: Int { return Int(msg.data2) }
-        var data3: Int { return Int(msg.data3) }
-        var data4: Int { return Int(msg.data4) }
-
-        var nr: Int { return data1 }
-        var cyl: Int { return data2 }
-        var volume: Int { return data3 }
-        var pan: Int { return data4 }
-        var pc: Int { return Int(UInt32(bitPattern: msg.data1)) }
-        var vector: Int { return data2 }
-        var acceleration: Double { return Double(data1 == 0 ? 1 : data1) }
+        var value: Int { return Int(msg.value) }
+        var nr: Int { return Int(msg.drive.nr) }
+        var cyl: Int { return Int(msg.drive.value) }
+        var pc: Int { return Int(msg.cpu.pc) }
+        var vector: Int { return Int(msg.cpu.vector) }
+        var volume: Int { return Int(msg.drive.volume) }
+        var pan: Int { return Int(msg.drive.pan) }
+        var acceleration: Double { return Double(msg.value == 0 ? 1 : msg.value) }
 
         // Only proceed if the proxy object is still alive
         guard let amiga = amiga else { return }
         
         switch msg.type {
-            
-        case .REGISTER:
-            debug(.lifetime, "Successfully connected to message queue")
-            
+                        
         case .CONFIG:
             inspector?.fullRefresh()
             
-        case .POWER_ON:
-            renderer.canvas.open(delay: 1.5)
-            serialIn = ""
-            serialOut = ""
-            virtualKeyboard = nil
-            toolbar.updateToolbar()
-            inspector?.powerOn()
-            
-        case .POWER_OFF:
-            toolbar.updateToolbar()
-            inspector?.powerOff()
-            
+        case .POWER:
+
+            if value != 0 {
+
+                renderer.canvas.open(delay: 1.5)
+                serialIn = ""
+                serialOut = ""
+                toolbar.updateToolbar()
+                inspector?.powerOn()
+
+            } else {
+
+                toolbar.updateToolbar()
+                inspector?.powerOff()
+            }
+
         case .RUN:
             needsSaving = true
             toolbar.updateToolbar()
@@ -417,13 +401,15 @@ extension MyController {
             
         case .RESET:
             inspector?.reset()
-            updateWarp()
-            
-        case .CLOSE_CONSOLE:
+
+        case .CONSOLE_CLOSE:
             renderer.console.close(delay: 0.25)
             
-        case .UPDATE_CONSOLE:
+        case .CONSOLE_UPDATE:
             renderer.console.isDirty = true
+
+        case .CONSOLE_DEBUGGER:
+            break
 
         case .SCRIPT_DONE, .SCRIPT_PAUSE, .SCRIPT_ABORT:
             break
@@ -431,22 +417,18 @@ extension MyController {
         case .SCRIPT_WAKEUP:
             amiga.continueScript()
             
-        case .HALT:
+        case .SHUTDOWN:
             shutDown()
             
         case .ABORT:
-            debug(.shutdown, "Aborting with exit code \(msg.data1)")
-            exit(msg.data1)
+            debug(.shutdown, "Aborting with exit code \(value)")
+            exit(Int32(value))
             
-        case .MUTE_ON:
-            muted = true
+        case .MUTE:
+            muted = value != 0
             refreshStatusBar()
-            
-        case .MUTE_OFF:
-            muted = false
-            refreshStatusBar()
-            
-        case .WARP_ON, .WARP_OFF, .DEBUG_ON, .DEBUG_OFF:
+
+        case .WARP, .TRACK:
             refreshStatusBar()
             
         case .POWER_LED_ON:
@@ -458,19 +440,17 @@ extension MyController {
         case .POWER_LED_OFF:
             powerLED.image = NSImage(named: "ledGrey")
                         
-        case .DMA_DEBUG_ON:
-            renderer.zoomTextureOut()
+        case .DMA_DEBUG:
 
-        case .DMA_DEBUG_OFF:
-            renderer.zoomTextureIn()
+            msg.value != 0 ? renderer.zoomTextureOut() : renderer.zoomTextureIn()
 
         case .VIDEO_FORMAT:
             renderer.canvas.updateTextureRect()
 
         case .OVERCLOCKING:
             speedometer.acceleration = acceleration
-            activityBar.maxValue = 140.0 * acceleration
-            activityBar.warningValue = 77.0 * acceleration
+            activityBar.maxValue = 140.0 * acceleration // TODO: REMOVE??
+            activityBar.warningValue = 77.0 * acceleration 
             activityBar.criticalValue = 105.0 * acceleration
 
         case .BREAKPOINT_UPDATED, .WATCHPOINT_UPDATED, .CATCHPOINT_UPDATED,
@@ -499,26 +479,29 @@ extension MyController {
             refreshStatusBar()
             
         case .VIEWPORT:
-            // debug(1, "(\(data1),\(data2)) - (\(data3),\(data4))")
-            
-            renderer.canvas.updateTextureRect(hstrt: data1,
-                                              vstrt: data2,
-                                              hstop: data3,
-                                              vstop: data4)
+            renderer.canvas.updateTextureRect(hstrt: Int(msg.viewport.hstrt),
+                                              vstrt: Int(msg.viewport.vstrt),
+                                              hstop: Int(msg.viewport.hstop),
+                                              vstop: Int(msg.viewport.vstop))
 
         case .MEM_LAYOUT:
             inspector?.fullRefresh()
             
         case .DRIVE_CONNECT:
-            hideOrShowDriveMenus()
-            assignSlots()
-            refreshStatusBar()
-            
-        case .DRIVE_DISCONNECT:
-            hideOrShowDriveMenus()
-            assignSlots()
-            refreshStatusBar()
-            
+
+            if msg.value != 0 {
+
+                hideOrShowDriveMenus()
+                assignSlots()
+                refreshStatusBar()
+
+            } else {
+
+                hideOrShowDriveMenus()
+                assignSlots()
+                refreshStatusBar()
+            }
+
         case .DRIVE_SELECT:
             refreshStatusBar(writing: nil)
             
@@ -528,13 +511,12 @@ extension MyController {
         case .DRIVE_WRITE:
             refreshStatusBar(writing: true)
             
-        case .DRIVE_LED_ON, .DRIVE_LED_OFF:
+        case .DRIVE_LED:
             refreshStatusBar()
             
-        case .DRIVE_MOTOR_ON, .DRIVE_MOTOR_OFF:
+        case .DRIVE_MOTOR:
             refreshStatusBar()
-            updateWarp()
-            
+
         case .DRIVE_STEP:
             macAudio.playSound(MacAudio.Sounds.step, volume: volume, pan: pan)
             refreshStatusBar(drive: nr, cylinder: cyl)
@@ -551,18 +533,23 @@ extension MyController {
             macAudio.playSound(MacAudio.Sounds.eject, volume: volume, pan: pan)
             refreshStatusBar()
             
-        case .DISK_UNSAVED, .DISK_SAVED, .DISK_PROTECT, .DISK_UNPROTECT:
+        case .DISK_PROTECTED:
             refreshStatusBar()
 
         case .HDC_CONNECT:
-            hideOrShowDriveMenus()
-            assignSlots()
-            refreshStatusBar()
-            
-        case .HDC_DISCONNECT:
-            hideOrShowDriveMenus()
-            assignSlots()
-            refreshStatusBar()
+
+            if msg.value != 0 {
+
+                hideOrShowDriveMenus()
+                assignSlots()
+                refreshStatusBar()
+
+            } else {
+
+                hideOrShowDriveMenus()
+                assignSlots()
+                refreshStatusBar()
+            }
 
         case .HDC_STATE:
             refreshStatusBar()
@@ -578,11 +565,19 @@ extension MyController {
             resetAction(self)
             
         case .SER_IN:
-            serialIn += String(UnicodeScalar(data1 & 0xFF)!)
-            
+            var c = amiga.serialPort.readIncomingPrintableByte()
+            while c != -1 {
+                serialIn += String(UnicodeScalar(UInt8(c)))
+                c = amiga.serialPort.readIncomingPrintableByte()
+            }
+
         case .SER_OUT:
-            serialOut += String(UnicodeScalar(data1 & 0xFF)!)
-            
+            var c = amiga.serialPort.readOutgoingPrintableByte()
+            while c != -1 {
+                serialOut += String(UnicodeScalar(UInt8(c)))
+                c = amiga.serialPort.readOutgoingPrintableByte()
+            }
+
         case .AUTO_SNAPSHOT_TAKEN:
             mydocument.snapshots.append(amiga.latestAutoSnapshot)
             
@@ -591,20 +586,21 @@ extension MyController {
             renderer.flash()
             
         case .SNAPSHOT_RESTORED:
-            // renderer.blend(steps: 50)
             renderer.flash(steps: 60)
             hideOrShowDriveMenus()
             assignSlots()
-            updateWarp()
             refreshStatusBar()
             
         case .RECORDING_STARTED:
             window?.backgroundColor = .warningColor
+            window?.styleMask.remove(.resizable)
             refreshStatusBar()
             
         case .RECORDING_STOPPED:
             window?.backgroundColor = .windowBackgroundColor
+            window?.styleMask.insert(.resizable)
             refreshStatusBar()
+            exportVideoAction(self)
 
         case .RECORDING_ABORTED:
             refreshStatusBar()
@@ -621,7 +617,10 @@ extension MyController {
             
         case .SRV_RECEIVE, .SRV_SEND:
             break
-            
+
+        case .ALARM:
+            debug(.events, "Received Alarm \(msg.value)")
+
         default:
             warn("Unknown message: \(msg)")
             fatalError()

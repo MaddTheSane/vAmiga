@@ -176,7 +176,7 @@ class VolumeInspector: DialogController {
         let adf = try ADFFileProxy.make(with: dfn)
         vol = try FileSystemProxy.make(withADF: adf)
         
-        showWindow()
+        showAsWindow()
     }
     
     func show(hardDrive nr: Int) throws {
@@ -208,21 +208,23 @@ class VolumeInspector: DialogController {
         let hdf = try HDFFileProxy.make(with: hdn)
         vol = try FileSystemProxy.make(withHDF: hdf, partition: partition)
         
-        showWindow()
+        showAsWindow()
     }
     
     func showSheet(fs: FileSystemProxy) {
      
         vol = fs
-        showWindow()
+        showAsWindow()
     }
         
     override func windowDidLoad() {
                 
     }
 
-    override func sheetWillShow() {
-             
+    override func dialogWillShow() {
+
+        super.dialogWillShow()
+
         // Register to receive mouse click events
         previewTable.action = #selector(clickAction(_:))
         
@@ -241,10 +243,6 @@ class VolumeInspector: DialogController {
         updateDiagnoseImage()
         
         update()
-    }
-
-    override func sheetDidShow() {
-        
     }
      
     //

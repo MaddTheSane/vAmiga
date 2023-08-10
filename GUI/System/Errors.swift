@@ -11,8 +11,8 @@
 // Logging / Debugging
 //
 
-public func debug(_ enable: Int, _ msg: String = "",
-                  path: String = #file, function: String = #function, line: Int = #line) {
+public func log(_ enable: Int, _ msg: String = "",
+                path: String = #file, function: String = #function, line: Int = #line) {
 
     if enable > 0 {
 
@@ -26,10 +26,16 @@ public func debug(_ enable: Int, _ msg: String = "",
     }
 }
 
+public func debug(_ enable: Int, _ msg: String = "",
+                  path: String = #file, function: String = #function, line: Int = #line) {
+
+    if !releaseBuild { log(enable, msg, path: path, function: function, line: line) }
+}
+
 public func warn(_ msg: String = "",
                  path: String = #file, function: String = #function, line: Int = #line) {
 
-    debug(1, msg, path: path, function: function, line: line)
+    log(1, "Warning: " + msg, path: path, function: function, line: line)
 }
 
 //
@@ -196,14 +202,14 @@ enum Failure {
             "Visit FFmpeg.org for installation instructions."
             
         case .noMetalSupport: return
-            "vAmiga can only run on machines supporting the Metal graphics " +
+            "The emulator can only run on machines supporting the Metal graphics " +
             "technology (2012 models and above)."
             
         case .recorderAborted: return
             "Failed to write to the FFmpeg pipes."
         
         case let .recorderSandboxed(exec): return
-            "vAmiga is running as a sandboxed application and has no " +
+            "The emulator is running as a sandboxed application and has no " +
             "permission to access file \"\(exec)\"" +
             "Please copy the file to the Applications folder."
             

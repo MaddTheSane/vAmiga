@@ -27,7 +27,7 @@ class PartitionSelector: DialogController {
     func showSheet(hardDrive nr: Int, completionHandler:(() -> Void)? = nil) {
                 
         self.nr = nr
-        super.showSheet(completionHandler: completionHandler)
+        super.showAsSheet(completionHandler: completionHandler)
     }
             
     override public func awakeFromNib() {
@@ -47,15 +47,7 @@ class PartitionSelector: DialogController {
 
         update()
     }
-    
-    override func windowDidLoad() {
         
-    }
-    
-    override func sheetDidShow() {
-        
-    }
-    
     //
     // Updating the displayed information
     //

@@ -29,7 +29,27 @@ class Inspector: DialogController {
     @IBOutlet weak var cpuTraceView: TraceTableView!
     @IBOutlet weak var cpuBreakView: BreakTableView!
     @IBOutlet weak var cpuWatchView: WatchTableView!
+    @IBOutlet weak var cpuDasmStyle1: NSPopUpButton!
+    @IBOutlet weak var cpuDasmStyle2: NSPopUpButton!
+    @IBOutlet weak var cpuDasmRev1: NSPopUpButton!
+    @IBOutlet weak var cpuDasmRev2: NSPopUpButton!
     @IBOutlet weak var cpuPC: NSTextField!
+    @IBOutlet weak var cpuIRD: NSTextField!
+    @IBOutlet weak var cpuIRC: NSTextField!
+    @IBOutlet weak var cpuISP: NSTextField!
+    @IBOutlet weak var cpuUSP: NSTextField!
+    @IBOutlet weak var cpuMSP: NSTextField!
+    @IBOutlet weak var cpuMSPlabel: NSTextField!
+    @IBOutlet weak var cpuVBR: NSTextField!
+    @IBOutlet weak var cpuVBRlabel: NSTextField!
+    @IBOutlet weak var cpuSFC: NSTextField!
+    @IBOutlet weak var cpuSFClabel: NSTextField!
+    @IBOutlet weak var cpuDFC: NSTextField!
+    @IBOutlet weak var cpuDFClabel: NSTextField!
+    @IBOutlet weak var cpuCACR: NSTextField!
+    @IBOutlet weak var cpuCACRlabel: NSTextField!
+    @IBOutlet weak var cpuCAAR: NSTextField!
+    @IBOutlet weak var cpuCAARlabel: NSTextField!
     @IBOutlet weak var cpuD0: NSTextField!
     @IBOutlet weak var cpuD1: NSTextField!
     @IBOutlet weak var cpuD2: NSTextField!
@@ -46,11 +66,14 @@ class Inspector: DialogController {
     @IBOutlet weak var cpuA5: NSTextField!
     @IBOutlet weak var cpuA6: NSTextField!
     @IBOutlet weak var cpuA7: NSTextField!
-    @IBOutlet weak var cpuUSP: NSTextField!
-    @IBOutlet weak var cpuSSP: NSTextField!
 
-    @IBOutlet weak var cpuT: NSButton!
+    @IBOutlet weak var cpuT1: NSButton!
+    @IBOutlet weak var cpuT1label: NSTextField!
+    @IBOutlet weak var cpuT0: NSButton!
+    @IBOutlet weak var cpuT0label: NSTextField!
     @IBOutlet weak var cpuS: NSButton!
+    @IBOutlet weak var cpuM: NSButton!
+    @IBOutlet weak var cpuMlabel: NSTextField!
     @IBOutlet weak var cpuI2: NSButton!
     @IBOutlet weak var cpuI1: NSButton!
     @IBOutlet weak var cpuI0: NSButton!
@@ -59,6 +82,13 @@ class Inspector: DialogController {
     @IBOutlet weak var cpuZ: NSButton!
     @IBOutlet weak var cpuV: NSButton!
     @IBOutlet weak var cpuC: NSButton!
+    @IBOutlet weak var cpuIPL2: NSButton!
+    @IBOutlet weak var cpuIPL1: NSButton!
+    @IBOutlet weak var cpuIPL0: NSButton!
+    @IBOutlet weak var cpuFC2: NSButton!
+    @IBOutlet weak var cpuFC1: NSButton!
+    @IBOutlet weak var cpuFC0: NSButton!
+    @IBOutlet weak var cpuHalt: NSButton!
 
     @IBOutlet weak var cpuTraceClearButton: NSButton!
 
@@ -318,17 +348,6 @@ class Inspector: DialogController {
     @IBOutlet weak var bltLF7Val: NSTextField!
     @IBOutlet weak var bltLFD: NSTextField!
 
-    // Currently unused
-    @IBOutlet weak var bltMinterm: NSTextField!
-    @IBOutlet weak var bltFirstWordTime1: NSButton!
-    @IBOutlet weak var bltFirstWordTime2: NSButton!
-    @IBOutlet weak var bltLastWordTime: NSButton!
-    @IBOutlet weak var bltSecPlusWordTime: NSButton!
-    @IBOutlet weak var bltFillCarryIn: NSButton!
-    @IBOutlet weak var bltFillCarryOut: NSButton!
-    @IBOutlet weak var bltFillEnable: NSButton!
-    @IBOutlet weak var bltStoreToDest: NSButton!
-
     // Denise panel
     @IBOutlet weak var deniseBPLCON0: NSTextField!
     @IBOutlet weak var deniseHIRES: NSButton!
@@ -587,7 +606,7 @@ class Inspector: DialogController {
     override func showWindow(_ sender: Any?) {
 
         super.showWindow(self)
-        amiga.debugMode = true
+        amiga.trackMode = true
         updateInspectionTarget()
     }
 
@@ -659,7 +678,9 @@ class Inspector: DialogController {
     
     func scrollToPC() {
 
-        scrollToPC(pc: Int(cpuInfo.pc0))
+        if cpuInfo != nil {
+            scrollToPC(pc: Int(cpuInfo.pc0))
+        }
     }
 
     func scrollToPC(pc: Int) {
@@ -773,7 +794,7 @@ extension Inspector {
         super.windowWillClose(notification)
 
         // Leave debug mode
-        amiga?.debugMode = false
+        amiga?.trackMode = false
         amiga?.removeInspectionTarget()
     }
 }
@@ -786,16 +807,16 @@ extension Inspector: NSTabViewDelegate {
 
             switch id {
 
-            case "CPU":     parent?.amiga.inspectionTarget = .CPU
-            case "CIA":     parent?.amiga.inspectionTarget = .CIA
-            case "Memory":  parent?.amiga.inspectionTarget = .MEM
-            case "Agnus":   parent?.amiga.inspectionTarget = .AGNUS
-            case "Copper":  parent?.amiga.inspectionTarget = .AGNUS
-            case "Blitter": parent?.amiga.inspectionTarget = .AGNUS
-            case "Denise":  parent?.amiga.inspectionTarget = .DENISE
-            case "Paula":   parent?.amiga.inspectionTarget = .PAULA
-            case "Ports":   parent?.amiga.inspectionTarget = .PORTS
-            case "Events":  parent?.amiga.inspectionTarget = .EVENTS
+            case "CPU":     amiga.inspectionTarget = .CPU
+            case "CIA":     amiga.inspectionTarget = .CIA
+            case "Memory":  amiga.inspectionTarget = .MEM
+            case "Agnus":   amiga.inspectionTarget = .AGNUS
+            case "Copper":  amiga.inspectionTarget = .AGNUS
+            case "Blitter": amiga.inspectionTarget = .AGNUS
+            case "Denise":  amiga.inspectionTarget = .DENISE
+            case "Paula":   amiga.inspectionTarget = .PAULA
+            case "Ports":   amiga.inspectionTarget = .PORTS
+            case "Events":  amiga.inspectionTarget = .EVENTS
             default:        break
             }
             

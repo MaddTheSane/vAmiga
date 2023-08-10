@@ -9,11 +9,13 @@
 
 #pragma once
 
-#include "AmigaObject.h"
+#include "CoreObject.h"
 #include "Buffer.h"
 #include <vector>
 
 using util::Buffer;
+
+namespace vamiga {
 
 #define HUNK_UNIT       999
 #define HUNK_NAME       1000
@@ -48,7 +50,7 @@ struct HunkTypeEnum { static string key(u32 value); };
 struct MemFlagsEnum { static string key(u32 value); };
 
 struct SectionDescriptor {
-  
+
     // Section type
     u32 type = 0;
     
@@ -90,7 +92,7 @@ struct HunkDescriptor {
     // Returns the offset to the first section of a certain type
     std::optional <isize> seek(u32 type);
 
-        
+
     //
     // Printing debug information
     //
@@ -134,3 +136,5 @@ struct ProgramUnitDescriptor {
     void dump(Category category) const;
     void dump(Category category, std::ostream& os) const;
 };
+
+}

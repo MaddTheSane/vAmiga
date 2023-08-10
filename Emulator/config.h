@@ -15,28 +15,18 @@
 
 // Version number
 #define VER_MAJOR 2
-#define VER_MINOR 1
+#define VER_MINOR 4
 #define VER_SUBMINOR 0
-#define VER_BETA 5
+#define VER_BETA 0
 
 // Snapshot version number
 #define SNP_MAJOR 2
-#define SNP_MINOR 1
+#define SNP_MINOR 4
 #define SNP_SUBMINOR 0
-#define SNP_BETA 5
+#define SNP_BETA 0
 
 // Uncomment this setting in a release build
 #define RELEASEBUILD
-
-//
-// Build settings
-//
-
-#if defined(__clang__)
-#pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma GCC diagnostic ignored "-Wgnu-anonymous-struct"
-#pragma GCC diagnostic ignored "-Wnested-anon-types"
-#endif
 
 
 //
@@ -56,7 +46,7 @@
 */
 
 // Uncomment to colorize a certain scanline
-// #define LINE_DEBUG (vpos == 0 || vpos == 160 || vpos == 300)
+// #define LINE_DEBUG (vpos == 0 || vpos == 160)
 // #define LINE_DEBUG (vpos == 200)
 
 
@@ -100,7 +90,7 @@
 //
 
 // Type alias for the datatype used by the host machine's audio backend
-struct FloatStereo; typedef struct FloatStereo SampleType;
+#define SAMPLE_T FloatStereo
 
 // Scaling factor used by the FloatStereo SampleType
 #define AUD_SCALE 0.00001f
@@ -134,6 +124,7 @@ static const int SNP_DEBUG       = 0; // Serialization (snapshots)
 
 // CPU
 static const int CPU_DEBUG       = 0; // CPU
+static const int FPU_DEBUG       = 0; // Floating point unit
 static const int CST_DEBUG       = 0; // Call stack recording
 
 // Memory access
@@ -214,6 +205,7 @@ static const int PRT_DEBUG       = 0; // Control ports and connected devices
 static const int SER_DEBUG       = 0; // Serial interface
 static const int POT_DEBUG       = 0; // Potentiometer inputs
 static const int HOLD_MOUSE_L    = 0; // Hold down the left mouse button
+static const int HOLD_MOUSE_M    = 0; // Hold down the middle mouse button
 static const int HOLD_MOUSE_R    = 0; // Hold down the right mouse button
 
 // Expansion boards
@@ -259,6 +251,7 @@ static const int FORCE_HDR_UNSUPPORTED_C        = 0;
 static const int FORCE_HDR_UNSUPPORTED_H        = 0;
 static const int FORCE_HDR_UNSUPPORTED_S        = 0;
 static const int FORCE_HDR_UNSUPPORTED_B        = 0;
+static const int FORCE_HDR_UNKNOWN_GEOMETRY     = 0;
 static const int FORCE_HDR_MODIFIED             = 0;
 static const int FORCE_FS_WRONG_BSIZE           = 0;
 static const int FORCE_FS_WRONG_CAPACITY        = 0;

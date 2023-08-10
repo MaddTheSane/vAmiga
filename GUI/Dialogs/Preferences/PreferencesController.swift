@@ -38,9 +38,6 @@ class PreferencesController: DialogController {
     @IBOutlet weak var genAspectRatioButton: NSButton!
     @IBOutlet weak var genExitOnEscButton: NSButton!
         
-    // Warp mode
-    @IBOutlet weak var genWarpMode: NSPopUpButton!
-
     // Misc
     @IBOutlet weak var genEjectWithoutAskingButton: NSButton!
     @IBOutlet weak var genDetachWithoutAskingButton: NSButton!
@@ -79,6 +76,8 @@ class PreferencesController: DialogController {
 
     @IBOutlet weak var conMouseLeft: NSTextField!
     @IBOutlet weak var conMouseLeftButton: NSButton!
+    @IBOutlet weak var conMouseMiddle: NSTextField!
+    @IBOutlet weak var conMouseMiddleButton: NSButton!
     @IBOutlet weak var conMouseRight: NSTextField!
     @IBOutlet weak var conMouseRightButton: NSButton!
 
@@ -138,7 +137,7 @@ class PreferencesController: DialogController {
     func showSheet(tab: String) {
         
         firstTab = tab
-        showSheet()
+        showAsSheet()
     }
 
     override func awakeFromNib() {
@@ -149,8 +148,9 @@ class PreferencesController: DialogController {
         refresh()
     }
 
-    override func sheetDidShow() {
+    override func dialogDidShow() {
 
+        super.dialogDidShow()
         if let id = firstTab { tabView?.selectTabViewItem(withIdentifier: id) }
     }
 

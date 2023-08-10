@@ -23,8 +23,8 @@ class Canvas: Layer {
     var prevLOF = true
 
     // Used to determine if the GPU texture needs to be updated
-    var prevBuffer: UnsafeMutablePointer<u32>?
-    
+    var prevNr = 0
+
     // Variable used to emulate interlace flickering
     var flickerCnt = 0
 
@@ -52,7 +52,7 @@ class Canvas: Layer {
     var mergeTexture: MTLTexture! = nil
 
     /* Bloom textures to emulate blooming (512 x 512)
-     * To emulate a bloom effect, the C64 texture is first split into it's
+     * To emulate a bloom effect, the emulator texture is first split into it's
      * R, G, and B parts. Each texture is then run through a Gaussian blur
      * filter with a large radius. These blurred textures are passed into
      * the fragment shader as secondary textures where they are recomposed
@@ -197,7 +197,13 @@ class Canvas: Layer {
     }
 
     func screenshot(texture: MTLTexture, rect: CGRect) -> NSImage? {
-        
+
+        blitTexture(texture: texture)
+        return NSImage.make(texture: texture, rect: rect)
+    }
+
+    func blitTexture(texture: MTLTexture) {
+
         // Use the blitter to copy the texture data back from the GPU
         let queue = texture.device.makeCommandQueue()!
         let commandBuffer = queue.makeCommandBuffer()!
@@ -206,8 +212,6 @@ class Canvas: Layer {
         blitEncoder.endEncoding()
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
-        
-        return NSImage.make(texture: texture, rect: rect)
     }
 
     //
@@ -217,8 +221,14 @@ class Canvas: Layer {
     override func update(frames: Int64) {
             
         super.update(frames: frames)
+
+        // Grab the current texture
+        updateTexture()
+
+        // Let the emulator compute the next frame
+        amiga.wakeUp()
     }
-    
+
     func updateTexture() {
         
         precondition(lfTexture != nil)
@@ -235,27 +245,33 @@ class Canvas: Layer {
 
             // Update the GPU texture
             if currLOF {
-                lfTexture.replace(w: Int(TPP * HPIXELS), h: Int(VPIXELS), buffer: buffer)
+                lfTexture.replace(w: Int(TPP) * HPIXELS, h: VPIXELS, buffer: buffer)
             } else {
-                sfTexture.replace(w: Int(TPP * HPIXELS), h: Int(VPIXELS), buffer: buffer)
+                sfTexture.replace(w: Int(TPP) * HPIXELS, h: VPIXELS, buffer: buffer)
             }
 
         } else {
 
             // Get the emulator texture
-            let buffer = amiga.denise.stableBuffer!
-            if prevBuffer == buffer { return }
-            prevBuffer = buffer
-            
-            // Determine if the new texture is a long frame or a short frame
-            prevLOF = currLOF
-            currLOF = amiga.denise.longFrame
-            
+            var buffer: UnsafeMutablePointer<u32>!
+            var nr = 0
+            amiga.denise.getStableBuffer(&buffer, nr: &nr, lof: &currLOF, prevlof: &prevLOF)
+
+            // Check for duplicate frames or frame drops
+            if nr != prevNr + 1 {
+
+                debug(.vsync, "Frame sync mismatch (\(prevNr) -> \(nr))")
+
+                // Return immediately if we alredy have this texture
+                if nr == prevNr { return }
+            }
+            prevNr = nr
+
             // Update the GPU texture
             if currLOF {
-                lfTexture.replace(w: Int(TPP * HPIXELS), h: Int(VPIXELS), buffer: buffer)
+                lfTexture.replace(w: Int(TPP) * HPIXELS, h: VPIXELS, buffer: buffer)
             } else {
-                sfTexture.replace(w: Int(TPP * HPIXELS), h: Int(VPIXELS), buffer: buffer)
+                sfTexture.replace(w: Int(TPP) * HPIXELS, h: VPIXELS, buffer: buffer)
             }
         }        
     }

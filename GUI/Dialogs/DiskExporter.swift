@@ -48,7 +48,7 @@ class DiskExporter: DialogController {
     // Results of the different decoders
     var hdf: HDFFileProxy?
     var adf: ADFFileProxy?
-    var ext: EXTFileProxy?
+    var ext: EADFFileProxy?
     var img: IMGFileProxy?
     var vol: FileSystemProxy?
     
@@ -60,7 +60,7 @@ class DiskExporter: DialogController {
         adf = try? ADFFileProxy.make(with: dfn!)
 
         // Run the extended ADF decoder
-        ext = try? EXTFileProxy.make(with: dfn!)
+        ext = try? EADFFileProxy.make(with: dfn!)
 
         // Run the DOS decoder
         img = try? IMGFileProxy.make(with: dfn!)
@@ -68,7 +68,7 @@ class DiskExporter: DialogController {
         // Select the export partition
         select(partition: 0)
         
-        super.showSheet()
+        super.showAsSheet()
     }
 
     func showSheet(hardDrive nr: Int) {
@@ -81,7 +81,7 @@ class DiskExporter: DialogController {
         // Select the export partition
         select(partition: numPartitions == 1 ? 0 : nil)
         
-        super.showSheet()
+        super.showAsSheet()
     }
     
     func select(partition nr: Int?) {
@@ -155,11 +155,7 @@ class DiskExporter: DialogController {
     override func windowDidLoad() {
                     
     }
-    
-    override func sheetDidShow() {
         
-    }
-    
     func update() {
           
         // Update icons
@@ -378,7 +374,7 @@ class DiskExporter: DialogController {
             dfn!.markDiskAsUnmodified()
             myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: dfn!.nr)
             
-            hideSheet()
+            hide()
 
         } catch {
             parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
@@ -388,22 +384,35 @@ class DiskExporter: DialogController {
     func exportHardDisk(url: URL) {
         
         do {
-            
-            if let nr = partition {
 
-                debug(.media, "Exporting partiton \(nr) to \(url)")
-                try hdf?.writeToFile(url: url, partition: nr)
+            switch formatPopup.selectedTag() {
 
-            } else {
+            case Format.hdf:
 
-                debug(.media, "Exporting entire HDF to \(url)")
-                try hdf?.writeToFile(url: url)
+                if let nr = partition {
+
+                    debug(.media, "Exporting partiton \(nr) to \(url)")
+                    try hdf?.writeToFile(url: url, partition: nr)
+
+                } else {
+
+                    debug(.media, "Exporting entire HDF to \(url)")
+                    try hdf?.writeToFile(url: url)
+                }
+
+            case Format.vol:
+
+                debug(.media, "Exporting file system")
+                try vol!.export(url: url)
+
+            default:
+                fatalError()
             }
-            
+
             hdn!.markDiskAsUnmodified()
             myAppDelegate.noteNewRecentlyExportedHdrURL(url, hd: hdn!.nr)
             
-            hideSheet()
+            hide()
             
         } catch {
             parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
