@@ -18,6 +18,30 @@ namespace vamiga {
 
 class HdController : public ZorroBoard {
     
+    Descriptions descriptions = {
+        {
+            .name           = "hdc0",
+            .description    = "Hard Drive Controller 0"
+        },
+        {
+            .name           = "hdc1",
+            .description    = "Hard Drive Controller 1"
+        },
+        {
+            .name           = "hdc2",
+            .description    = "Hard Drive Controller 2"
+        },
+        {
+            .name           = "hcd3",
+            .description    = "Hard Drive Controller 3"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_HDC_CONNECT
+    };
+
     // Number of this controller
     isize nr;
 
@@ -58,7 +82,6 @@ public:
     
 private:
     
-    const char *getDescription() const override;
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -68,31 +91,29 @@ private:
     
 private:
     
+    void _initialize() override;
     void _reset(bool hard) override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (util::isSoftResetter(worker)) return;
+
         worker
-        
+
+        << baseAddr
+        << state
+        << hdcState
+        << numPartitions
+        << pointer;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
         << config.connected;
     }
 
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << baseAddr
-            << state
-            << hdcState
-            << numPartitions
-            << pointer;
-        }
-    }
-    
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }

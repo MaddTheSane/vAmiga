@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -13,11 +13,6 @@
 #include "IOUtils.h"
 
 namespace vamiga {
-
-Host::Host(Amiga& ref) : SubComponent(ref)
-{
-
-}
 
 void
 Host::_dump(Category category, std::ostream& os) const
@@ -72,6 +67,52 @@ Host::setFrameBufferSize(std::pair<isize, isize> size)
 {
     frameBufferWidth = size.first;
     frameBufferHeight = size.second;
+}
+
+fs::path
+Host::tmp() const
+{
+    SYNCHRONIZED
+
+    static fs::path base;
+
+    if (base.empty()) {
+
+        // Use /tmp as default folder for temporary files
+        base = "/tmp";
+
+        // Open a file to see if we have write permissions
+        std::ofstream logfile(base / "virtualc64.log");
+
+        // If /tmp is not accessible, use a different directory
+        if (!logfile.is_open()) {
+
+            base = fs::temp_directory_path();
+            logfile.open(base / "vAmiga.log");
+
+            if (!logfile.is_open()) {
+
+                throw Error(ERROR_DIR_NOT_FOUND);
+            }
+        }
+
+        logfile.close();
+        fs::remove(base / "vAmiga.log");
+    }
+
+    return base;
+}
+
+fs::path
+Host::tmp(const string &name, bool unique) const
+{
+    auto base = tmp();
+    auto result = base / name;
+
+    // Make the file name unique if requested
+    if (unique) result = fs::path(util::makeUniquePath(result));
+
+    return result;
 }
 
 }

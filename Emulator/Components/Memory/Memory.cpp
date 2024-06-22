@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -208,10 +208,10 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_CHIP_RAM:
             
             if (!isPoweredOff()) {
-                throw VAError(ERROR_OPT_LOCKED);
+                throw Error(ERROR_OPT_LOCKED);
             }
             if (value != 256 && value != 512 && value != 1024 && value != 2048) {
-                throw VAError(ERROR_OPT_INVARG, "256, 512, 1024, 2048");
+                throw Error(ERROR_OPT_INVARG, "256, 512, 1024, 2048");
             }
             
             mem.allocChip((i32)KB(value));
@@ -220,10 +220,10 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_SLOW_RAM:
             
             if (!isPoweredOff()) {
-                throw VAError(ERROR_OPT_LOCKED);
+                throw Error(ERROR_OPT_LOCKED);
             }
             if ((value % 256) != 0 || value > 1536) {
-                throw VAError(ERROR_OPT_INVARG, "0, 256, 512, ..., 1536");
+                throw Error(ERROR_OPT_INVARG, "0, 256, 512, ..., 1536");
             }
 
             mem.allocSlow((i32)KB(value));
@@ -232,10 +232,10 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_FAST_RAM:
             
             if (!isPoweredOff()) {
-                throw VAError(ERROR_OPT_LOCKED);
+                throw Error(ERROR_OPT_LOCKED);
             }
             if ((value % 64) != 0 || value > 8192) {
-                throw VAError(ERROR_OPT_INVARG, "0, 64, 128, ..., 8192");
+                throw Error(ERROR_OPT_INVARG, "0, 64, 128, ..., 8192");
             }
 
             mem.allocFast((i32)KB(value));
@@ -244,10 +244,10 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_EXT_START:
             
             if (!isPoweredOff()) {
-                throw VAError(ERROR_OPT_LOCKED);
+                throw Error(ERROR_OPT_LOCKED);
             }
             if (value != 0xE0 && value != 0xF0) {
-                throw VAError(ERROR_OPT_INVARG, "E0, F0");
+                throw Error(ERROR_OPT_INVARG, "E0, F0");
             }
             
             config.extStart = (u32)value;
@@ -269,7 +269,7 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_BANKMAP:
         {
             if (!BankMapEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, BankMapEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, BankMapEnum::keyList());
             }
             
             SUSPENDED
@@ -280,7 +280,7 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_UNMAPPING_TYPE:
         {
             if (!UnmappedMemoryEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, UnmappedMemoryEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, UnmappedMemoryEnum::keyList());
             }
             
             SUSPENDED
@@ -290,7 +290,7 @@ Memory::setConfigItem(Option option, i64 value)
         case OPT_RAM_INIT_PATTERN:
 
             if (!RamInitPatternEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, RamInitPatternEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, RamInitPatternEnum::keyList());
             }
 
         { SUSPENDED config.ramInitPattern = (RamInitPattern)value; }
@@ -315,8 +315,7 @@ Memory::_size()
     i32 slowSize = config.slowSize;
     i32 fastSize = config.fastSize;
 
-    applyToPersistentItems(counter);
-    applyToResetItems(counter);
+    serialize(counter);
     
     counter
     << romSize
@@ -341,8 +340,7 @@ Memory::_checksum()
 {
     util::SerChecker checker;
     
-    applyToPersistentItems(checker);
-    applyToResetItems(checker);
+    serialize(checker);
     
     if (config.chipSize) {
         for (isize i = 0; i < config.chipSize; i++) checker << chip[i];
@@ -373,12 +371,12 @@ Memory::didLoadFromBuffer(const u8 *buffer)
     << fastSize;
     
     // Check the integrity of the new values before allocating memory
-    if (romSize > KB(512)) throw VAError(ERROR_SNAP_CORRUPTED);
-    if (womSize > KB(256)) throw VAError(ERROR_SNAP_CORRUPTED);
-    if (extSize > KB(512)) throw VAError(ERROR_SNAP_CORRUPTED);
-    if (chipSize > MB(2)) throw VAError(ERROR_SNAP_CORRUPTED);
-    if (slowSize > KB(1792)) throw VAError(ERROR_SNAP_CORRUPTED);
-    if (fastSize > MB(8)) throw VAError(ERROR_SNAP_CORRUPTED);
+    if (romSize > KB(512)) throw Error(ERROR_SNAP_CORRUPTED);
+    if (womSize > KB(256)) throw Error(ERROR_SNAP_CORRUPTED);
+    if (extSize > KB(512)) throw Error(ERROR_SNAP_CORRUPTED);
+    if (chipSize > MB(2)) throw Error(ERROR_SNAP_CORRUPTED);
+    if (slowSize > KB(1792)) throw Error(ERROR_SNAP_CORRUPTED);
+    if (fastSize > MB(8)) throw Error(ERROR_SNAP_CORRUPTED);
 
     // Allocate ROM space (only if Roms are included in the snapshot)
     if (romSize) allocRom(romSize, false);
@@ -438,16 +436,16 @@ void
 Memory::_isReady() const
 {    
     if (!hasRom() || FORCE_ROM_MISSING) {
-        throw VAError(ERROR_ROM_MISSING);
+        throw Error(ERROR_ROM_MISSING);
     }
     if (!hasChipRam() || FORCE_CHIP_RAM_MISSING) {
-        throw VAError(ERROR_CHIP_RAM_MISSING);
+        throw Error(ERROR_CHIP_RAM_MISSING);
     }
     if ((hasArosRom() && !hasExt()) || FORCE_AROS_NO_EXTROM) {
-        throw VAError(ERROR_AROS_NO_EXTROM);
+        throw Error(ERROR_AROS_NO_EXTROM);
     }
     if ((hasArosRom() && ramSize() < MB(1)) || FORCE_AROS_RAM_LIMIT) {
-        throw VAError(ERROR_AROS_RAM_LIMIT);
+        throw Error(ERROR_AROS_RAM_LIMIT);
     }
 }
 
@@ -980,6 +978,14 @@ Memory::inRom(u32 addr)
     memSrc == MEM_EXT;
 }
 
+bool 
+Memory::isUnmapped(u32 addr)
+{
+    if (addr > 0xFFFFFF) return true;
+
+    return cpuMemSrc[addr >> 16] == MEM_NONE;
+}
+
 
 //
 // Peek (CPU)
@@ -1207,7 +1213,7 @@ Memory::peek8 <ACCESSOR_CPU, MEM_AUTOCONF> (u32 addr)
     ASSERT_AUTO_ADDR(addr);
     
     // Experimental code to match UAE output (for debugging)
-    if constexpr (MIMIC_UAE) {
+    if (MIMIC_UAE) {
         if (fastRamSize() == 0) {
             dataBus = (addr & 0b10) ? 0xE8 : 0x02;
             return (u8)dataBus;
@@ -1525,6 +1531,13 @@ Memory::spypeek16 <ACCESSOR_AGNUS> (u32 addr) const
     }
 }
 
+template<> u8
+Memory::spypeek8 <ACCESSOR_AGNUS> (u32 addr) const
+{
+    auto word = spypeek16 <ACCESSOR_AGNUS> (addr & ~1);
+    return IS_EVEN(addr) ? HI_BYTE(word) : LO_BYTE(word);
+}
+
 
 //
 // Poke (CPU)
@@ -1549,7 +1562,7 @@ Memory::poke8 <ACCESSOR_CPU, MEM_CHIP> (u32 addr, u8 value)
 {
     ASSERT_CHIP_ADDR(addr);
     
-    if constexpr (BLT_MEM_GUARD) {
+    if (BLT_MEM_GUARD) {
         if (blitter.checkMemguard(addr & mem.chipMask)) {
             trace(true, "CPU(8) OVERWRITES BLITTER AT ADDR %x\n", addr);
         }
@@ -1567,7 +1580,7 @@ Memory::poke16 <ACCESSOR_CPU, MEM_CHIP> (u32 addr, u16 value)
 {
     ASSERT_CHIP_ADDR(addr);
     
-    if constexpr (BLT_MEM_GUARD) {
+    if (BLT_MEM_GUARD) {
         if (blitter.checkMemguard(addr & mem.chipMask)) {
             trace(true, "CPU(16) OVERWRITES BLITTER AT ADDR %x\n", addr);
         }
@@ -2092,7 +2105,7 @@ Memory::peekCustom16(u32 addr)
 
     }
 
-    trace(OCSREG_DEBUG, "peekCustom16(%X [%s]) = %X\n", addr, regName(addr), result);
+    trace(OCSREG_DEBUG, "peekCustom16(%X [%s]) = %X\n", addr, Debugger::regName(addr), result);
 
     dataBus = result;
     return result;
@@ -2171,7 +2184,7 @@ Memory::pokeCustom16(u32 addr, u16 value)
     if ((addr & 0xFFF) == 0x30) {
         trace(OCSREG_DEBUG, "pokeCustom16(SERDAT, '%c')\n", (char)value);
     } else {
-        trace(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, regName(addr), value);
+        trace(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, Debugger::regName(addr), value);
     }
 
     dataBus = value;
@@ -2455,165 +2468,133 @@ Memory::pokeCustom16(u32 addr, u16 value)
         case 0x13E >> 1: // SPR7PTL
             agnus.pokeSPRxPTL<7,s>(value); return;
         case 0x140 >> 1: // SPR0POS
-            agnus.pokeSPRxPOS<0>(value);
-            denise.pokeSPRxPOS<0>(value);
-            return;
+            agnus.pokeSPRxPOS<0,s>(value); denise.pokeSPRxPOS<0>(value); return;
         case 0x142 >> 1: // SPR0CTL
-            agnus.pokeSPRxCTL<0>(value);
-            denise.pokeSPRxCTL<0>(value);
-            return;
+            agnus.pokeSPRxCTL<0,s>(value); denise.pokeSPRxCTL<0>(value); return;
         case 0x144 >> 1: // SPR0DATA
             denise.pokeSPRxDATA<0>(value); return;
         case 0x146 >> 1: // SPR0DATB
             denise.pokeSPRxDATB<0>(value); return;
         case 0x148 >> 1: // SPR1POS
-            agnus.pokeSPRxPOS<1>(value);
-            denise.pokeSPRxPOS<1>(value);
-            return;
+            agnus.pokeSPRxPOS<1,s>(value); denise.pokeSPRxPOS<1>(value); return;
         case 0x14A >> 1: // SPR1CTL
-            agnus.pokeSPRxCTL<1>(value);
-            denise.pokeSPRxCTL<1>(value);
-            return;
+            agnus.pokeSPRxCTL<1,s>(value); denise.pokeSPRxCTL<1>(value); return;
         case 0x14C >> 1: // SPR1DATA
             denise.pokeSPRxDATA<1>(value); return;
         case 0x14E >> 1: // SPR1DATB
             denise.pokeSPRxDATB<1>(value); return;
         case 0x150 >> 1: // SPR2POS
-            agnus.pokeSPRxPOS<2>(value);
-            denise.pokeSPRxPOS<2>(value);
-            return;
+            agnus.pokeSPRxPOS<2,s>(value); denise.pokeSPRxPOS<2>(value); return;
         case 0x152 >> 1: // SPR2CTL
-            agnus.pokeSPRxCTL<2>(value);
-            denise.pokeSPRxCTL<2>(value);
-            return;
+            agnus.pokeSPRxCTL<2,s>(value); denise.pokeSPRxCTL<2>(value); return;
         case 0x154 >> 1: // SPR2DATA
             denise.pokeSPRxDATA<2>(value); return;
         case 0x156 >> 1: // SPR2DATB
             denise.pokeSPRxDATB<2>(value); return;
         case 0x158 >> 1: // SPR3POS
-            agnus.pokeSPRxPOS<3>(value);
-            denise.pokeSPRxPOS<3>(value);
-            return;
+            agnus.pokeSPRxPOS<3,s>(value); denise.pokeSPRxPOS<3>(value); return;
         case 0x15A >> 1: // SPR3CTL
-            agnus.pokeSPRxCTL<3>(value);
-            denise.pokeSPRxCTL<3>(value);
-            return;
+            agnus.pokeSPRxCTL<3,s>(value); denise.pokeSPRxCTL<3>(value); return;
         case 0x15C >> 1: // SPR3DATA
             denise.pokeSPRxDATA<3>(value); return;
         case 0x15E >> 1: // SPR3DATB
             denise.pokeSPRxDATB<3>(value); return;
         case 0x160 >> 1: // SPR4POS
-            agnus.pokeSPRxPOS<4>(value);
-            denise.pokeSPRxPOS<4>(value);
-            return;
+            agnus.pokeSPRxPOS<4,s>(value); denise.pokeSPRxPOS<4>(value); return;
         case 0x162 >> 1: // SPR4CTL
-            agnus.pokeSPRxCTL<4>(value);
-            denise.pokeSPRxCTL<4>(value);
-            return;
+            agnus.pokeSPRxCTL<4,s>(value); denise.pokeSPRxCTL<4>(value); return;
         case 0x164 >> 1: // SPR4DATA
             denise.pokeSPRxDATA<4>(value); return;
         case 0x166 >> 1: // SPR4DATB
             denise.pokeSPRxDATB<4>(value); return;
         case 0x168 >> 1: // SPR5POS
-            agnus.pokeSPRxPOS<5>(value);
-            denise.pokeSPRxPOS<5>(value);
-            return;
+            agnus.pokeSPRxPOS<5,s>(value); denise.pokeSPRxPOS<5>(value); return;
         case 0x16A >> 1: // SPR5CTL
-            agnus.pokeSPRxCTL<5>(value);
-            denise.pokeSPRxCTL<5>(value);
-            return;
+            agnus.pokeSPRxCTL<5,s>(value); denise.pokeSPRxCTL<5>(value); return;
         case 0x16C >> 1: // SPR5DATA
             denise.pokeSPRxDATA<5>(value); return;
         case 0x16E >> 1: // SPR5DATB
             denise.pokeSPRxDATB<5>(value); return;
         case 0x170 >> 1: // SPR6POS
-            agnus.pokeSPRxPOS<6>(value);
-            denise.pokeSPRxPOS<6>(value);
-            return;
+            agnus.pokeSPRxPOS<6,s>(value); denise.pokeSPRxPOS<6>(value); return;
         case 0x172 >> 1: // SPR6CTL
-            agnus.pokeSPRxCTL<6>(value);
-            denise.pokeSPRxCTL<6>(value);
-            return;
+            agnus.pokeSPRxCTL<6,s>(value); denise.pokeSPRxCTL<6>(value); return;
         case 0x174 >> 1: // SPR6DATA
             denise.pokeSPRxDATA<6>(value); return;
         case 0x176 >> 1: // SPR6DATB
             denise.pokeSPRxDATB<6>(value); return;
         case 0x178 >> 1: // SPR7POS
-            agnus.pokeSPRxPOS<7>(value);
-            denise.pokeSPRxPOS<7>(value);
-            return;
+            agnus.pokeSPRxPOS<7,s>(value); denise.pokeSPRxPOS<7>(value); return;
         case 0x17A >> 1: // SPR7CTL
-            agnus.pokeSPRxCTL<7>(value);
-            denise.pokeSPRxCTL<7>(value);
-            return;
+            agnus.pokeSPRxCTL<7,s>(value); denise.pokeSPRxCTL<7>(value); return;
         case 0x17C >> 1: // SPR7DATA
             denise.pokeSPRxDATA<7>(value); return;
         case 0x17E >> 1: // SPR7DATB
             denise.pokeSPRxDATB<7>(value); return;
         case 0x180 >> 1: // COLOR00
-            denise.pokeCOLORxx<s,0>(value); return;
+            denise.pokeCOLORxx<0,s>(value); return;
         case 0x182 >> 1: // COLOR01
-            denise.pokeCOLORxx<s,1>(value); return;
+            denise.pokeCOLORxx<1,s>(value); return;
         case 0x184 >> 1: // COLOR02
-            denise.pokeCOLORxx<s,2>(value); return;
+            denise.pokeCOLORxx<2,s>(value); return;
         case 0x186 >> 1: // COLOR03
-            denise.pokeCOLORxx<s,3>(value); return;
+            denise.pokeCOLORxx<3,s>(value); return;
         case 0x188 >> 1: // COLOR04
-            denise.pokeCOLORxx<s,4>(value); return;
+            denise.pokeCOLORxx<4,s>(value); return;
         case 0x18A >> 1: // COLOR05
-            denise.pokeCOLORxx<s,5>(value); return;
+            denise.pokeCOLORxx<5,s>(value); return;
         case 0x18C >> 1: // COLOR06
-            denise.pokeCOLORxx<s,6>(value); return;
+            denise.pokeCOLORxx<6,s>(value); return;
         case 0x18E >> 1: // COLOR07
-            denise.pokeCOLORxx<s,7>(value); return;
+            denise.pokeCOLORxx<7,s>(value); return;
         case 0x190 >> 1: // COLOR08
-            denise.pokeCOLORxx<s,8>(value); return;
+            denise.pokeCOLORxx<8,s>(value); return;
         case 0x192 >> 1: // COLOR09
-            denise.pokeCOLORxx<s,9>(value); return;
+            denise.pokeCOLORxx<9,s>(value); return;
         case 0x194 >> 1: // COLOR10
-            denise.pokeCOLORxx<s,10>(value); return;
+            denise.pokeCOLORxx<10,s>(value); return;
         case 0x196 >> 1: // COLOR11
-            denise.pokeCOLORxx<s,11>(value); return;
+            denise.pokeCOLORxx<11,s>(value); return;
         case 0x198 >> 1: // COLOR12
-            denise.pokeCOLORxx<s,12>(value); return;
+            denise.pokeCOLORxx<12,s>(value); return;
         case 0x19A >> 1: // COLOR13
-            denise.pokeCOLORxx<s,13>(value); return;
+            denise.pokeCOLORxx<13,s>(value); return;
         case 0x19C >> 1: // COLOR14
-            denise.pokeCOLORxx<s,14>(value); return;
+            denise.pokeCOLORxx<14,s>(value); return;
         case 0x19E >> 1: // COLOR15
-            denise.pokeCOLORxx<s,15>(value); return;
+            denise.pokeCOLORxx<15,s>(value); return;
         case 0x1A0 >> 1: // COLOR16
-            denise.pokeCOLORxx<s,16>(value); return;
+            denise.pokeCOLORxx<16,s>(value); return;
         case 0x1A2 >> 1: // COLOR17
-            denise.pokeCOLORxx<s,17>(value); return;
+            denise.pokeCOLORxx<17,s>(value); return;
         case 0x1A4 >> 1: // COLOR18
-            denise.pokeCOLORxx<s,18>(value); return;
+            denise.pokeCOLORxx<18,s>(value); return;
         case 0x1A6 >> 1: // COLOR19
-            denise.pokeCOLORxx<s,19>(value); return;
+            denise.pokeCOLORxx<19,s>(value); return;
         case 0x1A8 >> 1: // COLOR20
-            denise.pokeCOLORxx<s,20>(value); return;
+            denise.pokeCOLORxx<20,s>(value); return;
         case 0x1AA >> 1: // COLOR21
-            denise.pokeCOLORxx<s,21>(value); return;
+            denise.pokeCOLORxx<21,s>(value); return;
         case 0x1AC >> 1: // COLOR22
-            denise.pokeCOLORxx<s,22>(value); return;
+            denise.pokeCOLORxx<22,s>(value); return;
         case 0x1AE >> 1: // COLOR23
-            denise.pokeCOLORxx<s,23>(value); return;
+            denise.pokeCOLORxx<23,s>(value); return;
         case 0x1B0 >> 1: // COLOR24
-            denise.pokeCOLORxx<s,24>(value); return;
+            denise.pokeCOLORxx<24,s>(value); return;
         case 0x1B2 >> 1: // COLOR25
-            denise.pokeCOLORxx<s,25>(value); return;
+            denise.pokeCOLORxx<25,s>(value); return;
         case 0x1B4 >> 1: // COLOR26
-            denise.pokeCOLORxx<s,26>(value); return;
+            denise.pokeCOLORxx<26,s>(value); return;
         case 0x1B6 >> 1: // COLOR27
-            denise.pokeCOLORxx<s,27>(value); return;
+            denise.pokeCOLORxx<27,s>(value); return;
         case 0x1B8 >> 1: // COLOR28
-            denise.pokeCOLORxx<s,28>(value); return;
+            denise.pokeCOLORxx<28,s>(value); return;
         case 0x1BA >> 1: // COLOR29
-            denise.pokeCOLORxx<s,29>(value); return;
+            denise.pokeCOLORxx<29,s>(value); return;
         case 0x1BC >> 1: // COLOR30
-            denise.pokeCOLORxx<s,30>(value); return;
+            denise.pokeCOLORxx<30,s>(value); return;
         case 0x1BE >> 1: // COLOR31
-            denise.pokeCOLORxx<s,31>(value); return;
+            denise.pokeCOLORxx<31,s>(value); return;
         case 0x1DC >> 1: // BEAMCON0
             agnus.pokeBEAMCON0(value); return;
         case 0x1E4 >> 1: // DIWHIGH (ECS)
@@ -2624,10 +2605,10 @@ Memory::pokeCustom16(u32 addr, u16 value)
     
     if (addr <= 0x1E) {
         trace(INVREG_DEBUG,
-              "pokeCustom16(%X [%s]): READ-ONLY\n", addr, regName(addr));
+              "pokeCustom16(%X [%s]): READ-ONLY\n", addr, Debugger::regName(addr));
     } else {
         trace(INVREG_DEBUG,
-              "pokeCustom16(%X [%s]): NON-OCS\n", addr, regName(addr));
+              "pokeCustom16(%X [%s]): NON-OCS\n", addr, Debugger::regName(addr));
     }
 }
 
@@ -2722,67 +2703,6 @@ Memory::patch(u32 addr, u8 *buf, isize len)
     }
 }
 
-const char *
-Memory::regName(u32 addr)
-{
-    return ChipsetRegEnum::key((addr >> 1) & 0xFF);
-}
-
-template <Accessor A> const char *
-Memory::ascii(u32 addr, isize numBytes)
-{
-    assert(numBytes < 256);
-
-    for (isize i = 0; i < numBytes; i += 2) {
-        u16 word = spypeek16 <A> ((u32)(addr + i));
-        str[i] = isprint(HI_BYTE(word)) ? HI_BYTE(word) : '.';
-        str[i+1] = isprint(LO_BYTE(word)) ? LO_BYTE(word) : '.';
-    }
-    str[numBytes] = 0;
-    return str;
-}
-
-template <Accessor A> const char *
-Memory::hex(u32 addr, isize numBytes)
-{
-    assert(numBytes % 2 == 0);
-    char *p = str;
-    
-    for (isize i = 0; i < numBytes; i += 2, p += 5) {
-
-        u16 word = spypeek16 <A> ((u32)(addr + i));
-        
-        u8 digit1 = (word >> 12) & 0xF;
-        u8 digit2 = (word >> 8) & 0xF;
-        u8 digit3 = (word >> 4) & 0xF;
-        u8 digit4 = (word >> 0) & 0xF;
-        
-        p[0] = digit1 < 10 ? '0' + digit1 : 'A' + digit1 - 10;
-        p[1] = digit2 < 10 ? '0' + digit2 : 'A' + digit2 - 10;
-        p[2] = digit3 < 10 ? '0' + digit3 : 'A' + digit3 - 10;
-        p[3] = digit4 < 10 ? '0' + digit4 : 'A' + digit4 - 10;
-        p[4] = i == numBytes - 2 ? char(0) : ' ';
-    }
-
-    return str;
-}
-
-template <Accessor A> void
-Memory::memDump(std::ostream& os, u32 addr, isize numLines)
-{
-    addr &= ~0xF;
-
-    for (isize i = 0; i < numLines; i++, addr += 16) {
-
-        os << std::setfill('0') << std::hex << std::right << std::setw(6) << isize(addr);
-        os << ":  ";
-        os << hex<A>(addr, 16);
-        os << "  ";
-        os << ascii<A>(addr, 16);
-        os << std::endl;
-    }
-}
-
 std::vector <u32>
 Memory::search(u64 pattern, isize bytes)
 {
@@ -2819,14 +2739,5 @@ Memory::search(u64 pattern, isize bytes)
 
 template void Memory::pokeCustom16 <ACCESSOR_CPU> (u32 addr, u16 value);
 template void Memory::pokeCustom16 <ACCESSOR_AGNUS> (u32 addr, u16 value);
-
-template const char *Memory::ascii <ACCESSOR_CPU> (u32 addr, isize numBytes);
-template const char *Memory::ascii <ACCESSOR_AGNUS> (u32 addr, isize numBytes);
-
-template const char *Memory::hex <ACCESSOR_CPU> (u32 addr, isize numBytes);
-template const char *Memory::hex <ACCESSOR_AGNUS> (u32 addr, isize numBytes);
-
-template void Memory::memDump <ACCESSOR_CPU> (std::ostream& os, u32 addr, isize numLines);
-template void Memory::memDump <ACCESSOR_AGNUS> (std::ostream& os, u32 addr, isize numLines);
 
 }

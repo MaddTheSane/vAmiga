@@ -2,9 +2,7 @@
 // This file is part of Moira - A Motorola 68k emulator
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
-//
-// See https://www.gnu.org for license information
+// Published under the terms of the MIT License
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -45,7 +43,7 @@ Guards::~Guards()
 }
 
 Guard *
-Guards::guardNr(long nr)const
+Guards::guardNr(long nr) const
 {
     return nr < count ? &guards[nr] : nullptr;
 }
@@ -68,7 +66,7 @@ Guards::guardAddr(long nr) const
 }
 
 void
-Guards::setAt(u32 addr)
+Guards::setAt(u32 addr, long ignores)
 {
     if (isSetAt(addr)) return;
 
@@ -81,7 +79,10 @@ Guards::setAt(u32 addr)
         capacity *= 2;
     }
 
-    guards[count++].addr = addr;
+    guards[count].addr = addr;
+    guards[count].ignore = ignores;
+    count++;
+
     setNeedsCheck(true);
 }
 
@@ -372,7 +373,7 @@ Debugger::vectorName(u8 vectorNr)
 void
 Debugger::jump(u32 addr)
 {
-    moira.reg.pc = addr;
+    moira.reg.pc = addr & ~1;
     moira.fullPrefetch<C68000, POLL>();
 }
 

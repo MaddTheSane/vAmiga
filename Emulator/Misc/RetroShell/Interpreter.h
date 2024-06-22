@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -29,54 +29,68 @@ struct ScriptInterruption: util::Exception {
     using Exception::Exception;
 };
 
-class Interpreter: SubComponent
+class Interpreter: public SubComponent
 {
+    Descriptions descriptions = {{
+
+        .name           = "interpreter",
+        .description    = "Shell Command Interpreter"
+    }};
+
+    ConfigOptions options = {
+
+    };
+
     enum class Shell { Command, Debug };
 
     // The currently active shell
     Shell shell = Shell::Command;
 
     // Commands of the command shell
-    Command *commandShellRoot = new Command();
+    Command commandShellRoot; //  = new Command();
 
     // Commands of the debug shell
-    Command *debugShellRoot = new Command();
+    Command debugShellRoot; //  = new Command();
 
-    
+
     //
     // Initializing
     //
 
 public:
-    
-    Interpreter(Amiga &ref);
+
+    using SubComponent::SubComponent;
 
 private:
-    
+
     void initCommons(Command &root);
     void initCommandShell(Command &root);
     void initDebugShell(Command &root);
 
-    
+
     //
     // Methods from CoreObject
     //
-    
+
 private:
-    
-    const char *getDescription() const override { return "Interpreter"; }
+
     void _dump(Category category, std::ostream& os) const override { }
 
-    
+
     //
     // Methods from CoreComponent
     //
-    
+
 private:
-    
+
+    void _initialize() override;
     void _reset(bool hard) override { }
-    
-    
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Serializing
     //
@@ -88,29 +102,53 @@ private:
     isize _load(const u8 *buffer) override {return 0; }
     isize _save(u8 *buffer) override { return 0; }
 
-    
+
     //
     // Parsing input
     //
-    
+
 public:
-    
+
     // Auto-completes a user command
     string autoComplete(const string& userInput);
-    
+
 private:
-    
+
     // Splits an input string into an argument list
     Arguments split(const string& userInput);
 
     // Auto-completes an argument list
     void autoComplete(Arguments &argv);
 
-    // Parses an argument of a certain type
-    bool parseBool(Arguments &argv, isize n = 0) { return util::parseBool(argv[n]); }
-    bool parseOnOff(Arguments &argv, isize n = 0) { return util::parseOnOff(argv[n]); }
-    long parseNum(Arguments &argv, isize n = 0) { return util::parseNum(argv[n]); }
-    template <typename T> long parseEnum(Arguments &argv, isize n = 0) { return util::parseEnum<T>(argv[n]); }
+    // Checks or parses an argument of a certain type
+    bool isBool(const string &argv);
+    bool parseBool(const string  &argv);
+    bool parseBool(const string  &argv, bool fallback);
+    bool parseBool(const Arguments &argv, long nr, long fallback);
+
+    bool isOnOff(const string &argv);
+    bool parseOnOff(const string &argv);
+    bool parseOnOff(const string &argv, bool fallback);
+    bool parseOnOff(const Arguments &argv, long nr, long fallback);
+
+    long isNum(const string &argv);
+    long parseNum(const string &argv);
+    long parseNum(const string &argv, long fallback);
+    long parseNum(const Arguments &argv, long nr, long fallback);
+
+    u32 parseAddr(const string &argv) { return (u32)parseNum(argv); }
+    u32 parseAddr(const string &argv, long fallback) { return (u32)parseNum(argv, fallback); }
+    u32 parseAddr(const Arguments &argv, long nr, long fallback) { return (u32)parseNum(argv, nr, fallback); }
+
+    string parseSeq(const string &argv);
+    string parseSeq(const string &argv, const string &fallback);
+
+    template <typename T> long parseEnum(const string &argv) {
+        return util::parseEnum<T>(argv);
+    }
+    template <typename T> long parseEnum(const string &argv, long fallback) {
+        try { return util::parseEnum<T>(argv); } catch(...) { return fallback; }
+    }
 
 
     //
@@ -132,7 +170,7 @@ public:
     //
     // Executing commands
     //
-    
+
 public:
 
     // Executes a single command
@@ -141,12 +179,19 @@ public:
 
     // Prints a usage string for a command
     void usage(const Command &command);
-    
+
     // Displays a help text for a (partially typed in) command
     void help(const string &userInput);
     void help(const Arguments &argv);
     void help(const Command &command);
 
+private:
+
+    // Execution handlers (debug shell)
+    void execRead(Arguments &argv, isize sz);
+    void execWrite(Arguments &argv, isize sz);
+    void execCopy(Arguments &argv, isize sz);
+    void execFind(Arguments &argv, isize sz);
 };
 
 }

@@ -31,7 +31,9 @@ extension DefaultsProxy {
 
         let exception = ExceptionWrapper()
         load(url, exception: exception)
-        if exception.errorCode != .OK { throw VAError(exception) }        
+        if exception.errorCode != .OK { throw VAError(exception) }     
+
+        debug(.defaults, "Successfully loaded user defaults from \(url)")
     }
 
     func load() {
@@ -44,7 +46,6 @@ extension DefaultsProxy {
             
             do {
                 try load(url: path)
-                debug(.defaults, "Successfully loaded user defaults from file \(path)")
             } catch {
                 warn("Failed to load user defaults from file \(path)")
             }
@@ -59,6 +60,8 @@ extension DefaultsProxy {
         let exception = ExceptionWrapper()
         save(url, exception: exception)
         if exception.errorCode != .OK { throw VAError(exception) }
+
+        debug(.defaults, "Successfully saved user defaults to \(url)")
     }
     
     func save() {
@@ -71,7 +74,6 @@ extension DefaultsProxy {
             
             do {
                 try save(url: path)
-                debug(.defaults, "Successfully saved user defaults to file \(path)")
             } catch {
                 warn("Failed to save user defaults file \(path)")
             }
@@ -272,9 +274,9 @@ extension Configuration {
     
         debug(.defaults)
         
-        applyChipsetUserDefaults()
-        applyMemoryUserDefaults()
+        applyHardwareUserDefaults()
         applyPeripheralsUserDefaults()
+        applyPerformanceUserDefaults()
         applyCompatibilityUserDefaults()
         applyAudioUserDefaults()
         applyVideoUserDefaults()
@@ -290,6 +292,7 @@ struct Keys {
     struct Gen {
                 
         // Snapshots
+        static let snapshotStorage        = "General.SnapshotStorage"
         static let autoSnapshots          = "General.AutoSnapshots"
         static let autoSnapshotInterval   = "General.ScreenshotInterval"
 
@@ -323,6 +326,7 @@ extension DefaultsProxy {
         debug(.defaults)
         
         // Snapshots
+        register(Keys.Gen.snapshotStorage, 512)
         register(Keys.Gen.autoSnapshots, false)
         register(Keys.Gen.autoSnapshotInterval, 20)
         
@@ -352,7 +356,8 @@ extension DefaultsProxy {
         
         debug(.defaults)
         
-        let keys = [ Keys.Gen.autoSnapshots,
+        let keys = [ Keys.Gen.snapshotStorage,
+                     Keys.Gen.autoSnapshots,
                      Keys.Gen.autoSnapshotInterval,
                      
                      Keys.Gen.screenshotSource,
@@ -382,8 +387,9 @@ extension Preferences {
     func saveGeneralUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
+        defaults.set(Keys.Gen.snapshotStorage, snapshotStorage)
         defaults.set(Keys.Gen.autoSnapshots, autoSnapshots)
         defaults.set(Keys.Gen.autoSnapshotInterval, snapshotInterval)
         
@@ -410,8 +416,9 @@ extension Preferences {
     func applyGeneralUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
+        snapshotStorage = defaults.int(Keys.Gen.snapshotStorage)
         autoSnapshots = defaults.bool(Keys.Gen.autoSnapshots)
         snapshotInterval = defaults.int(Keys.Gen.autoSnapshotInterval)
         
@@ -541,7 +548,7 @@ extension Preferences {
     func saveControlsUserDefaults() {
     
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
                 
         defaults.encode(Keys.Con.mouseKeyMap, keyMaps[0])
         defaults.encode(Keys.Con.joyKeyMap1, keyMaps[1])
@@ -566,7 +573,7 @@ extension Preferences {
     func applyControlsUserDefaults() {
            
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         defaults.decode(Keys.Con.mouseKeyMap, &keyMaps[0])
         defaults.decode(Keys.Con.joyKeyMap1, &keyMaps[1])
@@ -615,7 +622,7 @@ extension Preferences {
     func saveDevicesUserDefaults() {
     
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
                         
         defaults.save()
     }
@@ -636,7 +643,7 @@ extension Configuration {
 
         debug(.defaults)
 
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         let fm = FileManager.default
         var url: URL?
 
@@ -668,7 +675,41 @@ extension Configuration {
 }
 
 //
-// User defaults (Chipset)
+// User defaults (Hardware)
+//
+
+extension DefaultsProxy {
+
+    func registerHardwareUserDefaults() {
+
+        registerChipsetUserDefaults()
+        registerMemoryUserDefaults()
+    }
+
+    func removeHardwareUserDefaults() {
+
+        removeChipsetUserDefaults()
+        removeMemoryUserDefaults()
+    }
+}
+
+extension Configuration {
+
+    func applyHardwareUserDefaults() {
+
+        applyChipsetUserDefaults()
+        applyMemoryUserDefaults()
+    }
+
+    func saveHardwareUserDefaults() {
+
+        saveChipsetUserDefaults()
+        saveMemoryUserDefaults()
+    }
+}
+
+//
+// User defaults (Hardware::Chipset)
 //
 
 extension DefaultsProxy {
@@ -686,7 +727,6 @@ extension DefaultsProxy {
         remove(.VIDEO_FORMAT)
         remove(.CPU_REVISION)
         remove(.CPU_OVERCLOCKING)
-        remove(.WARP_MODE)
         remove(.AGNUS_REVISION)
         remove(.DENISE_REVISION)
         remove(.CIA_REVISION)
@@ -699,14 +739,13 @@ extension Configuration {
     func applyChipsetUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
 
         machineType = defaults.get(.VIDEO_FORMAT)
         cpuRev = defaults.get(.CPU_REVISION)
         cpuSpeed = defaults.get(.CPU_OVERCLOCKING)
-        warpMode = defaults.get(.WARP_MODE)
         agnusRev = defaults.get(.AGNUS_REVISION)
         deniseRev = defaults.get(.DENISE_REVISION)
         ciaRev = defaults.get(.CIA_REVISION)
@@ -718,14 +757,13 @@ extension Configuration {
     func saveChipsetUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
 
         defaults.set(.VIDEO_FORMAT, machineType)
         defaults.set(.CPU_REVISION, cpuRev)
         defaults.set(.CPU_OVERCLOCKING, cpuSpeed)
-        defaults.set(.WARP_MODE, warpMode)
         defaults.set(.AGNUS_REVISION, agnusRev)
         defaults.set(.DENISE_REVISION, deniseRev)
         defaults.set(.CIA_REVISION, ciaRev)
@@ -737,7 +775,7 @@ extension Configuration {
 }
 
 //
-// User defaults (Memory)
+// User defaults (Hardware::Memory)
 //
 
 extension DefaultsProxy {
@@ -768,7 +806,7 @@ extension Configuration {
     func saveMemoryUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
         
@@ -788,7 +826,7 @@ extension Configuration {
     func applyMemoryUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
 
@@ -851,7 +889,7 @@ extension Configuration {
     func savePeripheralsUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
         
@@ -894,7 +932,7 @@ extension Configuration {
     func applyPeripheralsUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
 
@@ -934,6 +972,81 @@ extension Configuration {
 }
 
 //
+// User defaults (Performance)
+//
+
+extension DefaultsProxy {
+
+    func registerPerformanceUserDefaults() {
+
+        debug(.defaults)
+        // No GUI related items in this sections
+    }
+
+    func removePerformanceUserDefaults() {
+
+        debug(.defaults)
+
+        remove(.WARP_MODE)
+        remove(.WARP_BOOT)
+        remove(.CLX_SPR_SPR)
+        remove(.CLX_SPR_PLF)
+        remove(.CLX_PLF_PLF)
+        remove(.CIA_IDLE_SLEEP)
+        remove(.FRAME_SKIPPING)
+        remove(.AUD_FASTPATH)
+        remove(.VSYNC)
+        remove(.TIME_LAPSE)
+    }
+}
+
+extension Configuration {
+
+    func applyPerformanceUserDefaults() {
+
+        debug(.defaults)
+        let defaults = EmulatorProxy.defaults!
+
+        amiga.suspend()
+
+        warpMode = defaults.get(.WARP_MODE)
+        warpBoot = defaults.get(.WARP_BOOT)
+        clxSprSpr = defaults.get(.CLX_SPR_SPR) != 0
+        clxSprPlf = defaults.get(.CLX_SPR_PLF) != 0
+        clxPlfPlf = defaults.get(.CLX_PLF_PLF) != 0
+        ciaIdleSleep = defaults.get(.CIA_IDLE_SLEEP) != 0
+        frameSkipping = defaults.get(.FRAME_SKIPPING)
+        audioFastPath = defaults.get(.AUD_FASTPATH) != 0
+        vsync = defaults.get(.VSYNC) != 0
+        timeLapse = defaults.get(.TIME_LAPSE)
+
+        amiga.resume()
+    }
+
+    func savePerformanceUserDefaults() {
+
+        debug(.defaults)
+        let defaults = EmulatorProxy.defaults!
+
+        amiga.suspend()
+
+        defaults.set(.WARP_MODE, warpMode)
+        defaults.set(.WARP_BOOT, warpBoot)
+        defaults.set(.CLX_SPR_SPR, clxSprSpr)
+        defaults.set(.CLX_SPR_PLF, clxSprPlf)
+        defaults.set(.CLX_PLF_PLF, clxPlfPlf)
+        defaults.set(.CIA_IDLE_SLEEP, ciaIdleSleep)
+        defaults.set(.FRAME_SKIPPING, frameSkipping)
+        defaults.set(.AUD_FASTPATH, audioFastPath)
+        defaults.set(.VSYNC, vsync)
+        defaults.set(.TIME_LAPSE, timeLapse)
+        defaults.save()
+
+        amiga.resume()
+    }
+}
+
+//
 // User defaults (Compatibility)
 //
 
@@ -952,9 +1065,6 @@ extension DefaultsProxy {
         remove(.BLITTER_ACCURACY)
         remove(.TODBUG)
         remove(.ECLOCK_SYNCING)
-        remove(.CLX_SPR_SPR)
-        remove(.CLX_SPR_PLF)
-        remove(.CLX_PLF_PLF)
         remove(.DRIVE_SPEED)
         remove(.DRIVE_MECHANICS, [ 0, 1, 2, 3])
         remove(.LOCK_DSKSYNC)
@@ -968,16 +1078,13 @@ extension Configuration {
     func saveCompatibilityUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
         
         defaults.set(.BLITTER_ACCURACY, blitterAccuracy)
         defaults.set(.TODBUG, todBug)
         defaults.set(.ECLOCK_SYNCING, eClockSyncing)
-        defaults.set(.CLX_SPR_SPR, clxSprSpr)
-        defaults.set(.CLX_SPR_PLF, clxSprPlf)
-        defaults.set(.CLX_PLF_PLF, clxPlfPlf)
         defaults.set(.DRIVE_SPEED, driveSpeed)
         defaults.set(.DRIVE_MECHANICS, [0, 1, 2, 3], driveMechanics)
         defaults.set(.LOCK_DSKSYNC, lockDskSync)
@@ -991,16 +1098,13 @@ extension Configuration {
     func applyCompatibilityUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
         
         blitterAccuracy = defaults.get(.BLITTER_ACCURACY)
         todBug = defaults.get(.TODBUG) != 0
         eClockSyncing = defaults.get(.ECLOCK_SYNCING) != 0
-        clxSprSpr = defaults.get(.CLX_SPR_SPR) != 0
-        clxSprPlf = defaults.get(.CLX_SPR_PLF) != 0
-        clxPlfPlf = defaults.get(.CLX_PLF_PLF) != 0
         driveSpeed = defaults.get(.DRIVE_SPEED)
         driveMechanics = defaults.get(.DRIVE_MECHANICS, 0)
         lockDskSync = defaults.get(.LOCK_DSKSYNC) != 0
@@ -1047,7 +1151,7 @@ extension Configuration {
     func saveAudioUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
         
@@ -1083,7 +1187,7 @@ extension Configuration {
     func applyAudioUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         amiga.suspend()
 
@@ -1276,12 +1380,8 @@ extension Configuration {
     func saveVideoUserDefaults() {
         
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
 
         amiga.suspend()
-
-        defaults.set(.SYNC_MODE, syncMode)
-        defaults.set(.PROPOSED_FPS, proposedFps)
 
         saveColorUserDefaults()
         saveGeometryUserDefaults()
@@ -1293,7 +1393,7 @@ extension Configuration {
     func saveColorUserDefaults() {
 
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
         
@@ -1310,7 +1410,7 @@ extension Configuration {
     func saveGeometryUserDefaults() {
 
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
                 
@@ -1329,7 +1429,7 @@ extension Configuration {
     func saveShaderUserDefaults() {
 
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
                         
@@ -1369,7 +1469,7 @@ extension Configuration {
     func applyColorUserDefaults() {
     
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
         
@@ -1384,7 +1484,7 @@ extension Configuration {
     func applyGeometryUserDefaults() {
     
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
           
@@ -1401,7 +1501,7 @@ extension Configuration {
     func applyShaderUserDefaults() {
     
         debug(.defaults)
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
         
         amiga.suspend()
                         

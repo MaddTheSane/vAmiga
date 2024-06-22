@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -100,13 +100,13 @@ void
 FileSystemDescriptor::checkCompatibility() const
 {
     if (numBytes() > MB(504) || FORCE_FS_WRONG_CAPACITY) {
-        throw VAError(ERROR_FS_WRONG_CAPACITY);
+        throw Error(ERROR_FS_WRONG_CAPACITY);
     }
     if (bsize != 512 || FORCE_FS_WRONG_BSIZE) {
-        throw VAError(ERROR_FS_WRONG_BSIZE);
+        throw Error(ERROR_FS_WRONG_BSIZE);
     }
     if (!FSVolumeTypeEnum::isValid(dos) || FORCE_FS_WRONG_DOS_TYPE) {
-        throw VAError(ERROR_FS_WRONG_DOS_TYPE);
+        throw Error(ERROR_FS_WRONG_DOS_TYPE);
     }
 }
 

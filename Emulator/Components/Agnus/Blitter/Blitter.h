@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -30,8 +30,19 @@ namespace vamiga {
  * Level 0 and 1 invoke the FastBlitter. Level 2 invokes the SlowBlitter.
  */
 
-class Blitter : public SubComponent
+class Blitter : public SubComponent, public Inspectable<BlitterInfo>
 {
+    Descriptions descriptions = {{
+
+        .name           = "blitter",
+        .description    = "Blitter"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_BLITTER_ACCURACY
+    };
+
     friend class Agnus;
     
     // Current configuration
@@ -196,7 +207,6 @@ private:
     
 private:
     
-    const char *getDescription() const override { return "Blitter"; }
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -209,18 +219,9 @@ private:
     void _initialize() override;
     void _reset(bool hard) override;
     void _run() override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        worker
-        
-        << config.accuracy;
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
         
@@ -274,6 +275,12 @@ private:
         << birq
         
         << remaining;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
+        << config.accuracy;
     }
     
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -281,7 +288,11 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Configuring
     //
@@ -301,9 +312,9 @@ public:
     
 public:
     
-    BlitterInfo getInfo() const { return CoreComponent::getInfo(info); }
-    
-    
+    // BlitterInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(BlitterInfo &result) const override;
+
     //
     // Accessing
     //

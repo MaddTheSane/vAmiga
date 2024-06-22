@@ -2,14 +2,14 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "GdbServer.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include "CPU.h"
 #include "IOUtils.h"
 #include "Memory.h"
@@ -19,11 +19,6 @@
 #include "RetroShell.h"
 
 namespace vamiga {
-
-GdbServer::GdbServer(Amiga& ref) : RemoteServer(ref)
-{
-
-}
 
 void
 GdbServer::_dump(Category category, std::ostream& os) const
@@ -104,7 +99,7 @@ GdbServer::doProcess(const string &payload)
         
         process(latestCmd);
         
-    } catch (VAError &err) {
+    } catch (Error &err) {
         
         auto msg = "GDB server error: " + string(err.what());
         debug(SRV_DEBUG, "%s\n", msg.c_str());
@@ -120,7 +115,7 @@ GdbServer::doProcess(const string &payload)
 void
 GdbServer::didStart()
 {
-    amiga.pause();
+    emulator.pause();
 }
 
 void

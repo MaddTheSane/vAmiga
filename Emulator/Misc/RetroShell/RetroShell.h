@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -20,11 +20,29 @@ namespace vamiga {
 
 class RetroShell : public SubComponent {
 
+    Descriptions descriptions = {{
+
+        .name           = "rshell",
+        .description    = "Retro Shell"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_SRV_PORT,
+        OPT_SRV_PROTOCOL,
+        OPT_SRV_AUTORUN,
+        OPT_SRV_VERBOSE
+    };
+
     friend class RshServer;
     friend class Interpreter;
     
+    //
+    // Sub components
+    //
+    
     // The command interpreter (parses commands typed into the console window)
-    Interpreter interpreter;
+    Interpreter interpreter = Interpreter(amiga);
 
     
     //
@@ -84,7 +102,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "RetroShell"; }
     void _dump(Category category, std::ostream& os) const override { }
     
     
@@ -101,6 +118,10 @@ private:
     u64 _checksum() override { return 0; }
     isize _load(const u8 *buffer) override {return 0; }
     isize _save(u8 *buffer) override { return 0; }
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //

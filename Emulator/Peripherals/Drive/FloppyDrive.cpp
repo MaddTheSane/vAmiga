@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -21,32 +21,33 @@ namespace vamiga {
 
 FloppyDrive::FloppyDrive(Amiga& ref, isize nr) : Drive(ref, nr)
 {
+
+}
+
+void
+FloppyDrive::_initialize()
+{
+    CoreComponent::_initialize();
+
     string path;
-    
+
     if (nr == 0) path = INITIAL_DF0;
     if (nr == 1) path = INITIAL_DF1;
     if (nr == 2) path = INITIAL_DF2;
     if (nr == 3) path = INITIAL_DF3;
-    
+
     if (path != "") {
-        
+
         try {
-            
+
             auto adf = ADFFile(path);
             disk = std::make_unique<FloppyDisk>(adf);
-            
+
         } catch (...) {
-            
+
             warn("Cannot open ADF file %s\n", path.c_str());
         }
     }
-}
-
-const char *
-FloppyDrive::getDescription() const
-{
-    assert(usize(nr) < 4);
-    return nr == 0 ? "Df0" : nr == 1 ? "Df1" : nr == 2 ? "Df2" : "Df3";
 }
 
 void
@@ -109,10 +110,10 @@ FloppyDrive::setConfigItem(Option option, i64 value)
         case OPT_DRIVE_TYPE:
             
             if (!FloppyDriveTypeEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, FloppyDriveTypeEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, FloppyDriveTypeEnum::keyList());
             }
             if (value != DRIVE_DD_35 && value != DRIVE_HD_35) {
-                throw VAError(ERROR_OPT_UNSUPPORTED);
+                throw Error(ERROR_OPT_UNSUPPORTED);
             }
             
             config.type = (FloppyDriveType)value;
@@ -121,7 +122,7 @@ FloppyDrive::setConfigItem(Option option, i64 value)
         case OPT_DRIVE_MECHANICS:
 
             if (!DriveMechanicsEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, DriveMechanicsEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, DriveMechanicsEnum::keyList());
             }
 
             config.mechanics = (DriveMechanics)value;
@@ -129,12 +130,12 @@ FloppyDrive::setConfigItem(Option option, i64 value)
 
         case OPT_DRIVE_RPM:
 
-            config.rpm = value;
+            config.rpm = (isize)value;
             return;
 
         case OPT_DISK_SWAP_DELAY:
 
-            config.diskSwapDelay = value;
+            config.diskSwapDelay = (Cycle)value;
             return;
 
         case OPT_DRIVE_PAN:
@@ -167,8 +168,8 @@ FloppyDrive::setConfigItem(Option option, i64 value)
     }
 }
 
-void
-FloppyDrive::_inspect() const
+void 
+FloppyDrive::cacheInfo(FloppyDriveInfo &info) const
 {
     {   SYNCHRONIZED
         
@@ -295,8 +296,7 @@ FloppyDrive::_size()
 {
     util::SerCounter counter;
 
-    applyToPersistentItems(counter);
-    applyToResetItems(counter);
+    serialize(counter);
     
     // Add the size of the boolean indicating whether a disk is inserted
     counter.count += sizeof(bool);
@@ -305,7 +305,7 @@ FloppyDrive::_size()
 
         // Add the disk type and disk state
         counter << disk->getDiameter() << disk->getDensity();
-        disk->applyToPersistentItems(counter);
+        disk->serialize(counter);
     }
 
     return counter.count;
@@ -318,8 +318,7 @@ FloppyDrive::_load(const u8 *buffer)
     isize result;
     
     // Read own state
-    applyToPersistentItems(reader);
-    applyToResetItems(reader);
+    serialize(reader);
 
     // Check if the snapshot includes a disk
     bool diskInSnapshot; reader << diskInSnapshot;
@@ -348,8 +347,7 @@ FloppyDrive::_save(u8 *buffer)
     isize result;
     
     // Write own state
-    applyToPersistentItems(writer);
-    applyToResetItems(writer);
+    serialize(writer);
 
     // Indicate whether this drive has a disk is inserted
     writer << hasDisk();
@@ -360,7 +358,7 @@ FloppyDrive::_save(u8 *buffer)
         writer << disk->getDiameter() << disk->getDensity();
 
         // Write the disk's state
-        disk->applyToPersistentItems(writer);
+        disk->serialize(writer);
     }
     
     result = (isize)(writer.ptr - buffer);
@@ -612,9 +610,6 @@ FloppyDrive::setMotor(bool value)
     // Inform the GUI
     msgQueue.put(MSG_DRIVE_LED, DriveMsg { i16(nr), value, 0, 0 });
     msgQueue.put(MSG_DRIVE_MOTOR, DriveMsg { i16(nr), value, 0, 0 });
-
-    // Enable or disable warp mode if applicable
-    amiga.updateWarpState();
 
     debug(DSK_DEBUG, "Motor %s [%d]\n", motor ? "on" : "off", idCount);
 }
@@ -945,7 +940,7 @@ FloppyDrive::insertDisk(std::unique_ptr<FloppyDisk> disk, Cycle delay)
     debug(DSK_DEBUG, "insertDisk <%ld> (%lld)\n", s, delay);
 
     // Only proceed if the provided disk is compatible with this drive
-    if (!isInsertable(*disk)) throw VAError(ERROR_DISK_INCOMPATIBLE);
+    if (!isInsertable(*disk)) throw Error(ERROR_DISK_INCOMPATIBLE);
 
     {   SUSPENDED
         
@@ -970,7 +965,7 @@ FloppyDrive::catchFile(const string &path)
         
         // Seek file
         auto file = fs.seekFile(path);
-        if (file == nullptr) throw VAError(ERROR_FILE_NOT_FOUND);
+        if (file == nullptr) throw Error(ERROR_FILE_NOT_FOUND);
         
         // Extract file
         Buffer<u8> buffer;
@@ -981,7 +976,7 @@ FloppyDrive::catchFile(const string &path)
         
         // Seek the code section and read the first instruction word
         auto offset = descr.seek(HUNK_CODE);
-        if (!offset) throw VAError(ERROR_HUNK_CORRUPTED);
+        if (!offset) throw Error(ERROR_HUNK_CORRUPTED);
         u16 instr = HI_LO(buffer[*offset + 8], buffer[*offset + 9]);
         
         // Replace the first instruction word by a software trap
@@ -1041,7 +1036,7 @@ FloppyDrive::swapDisk(std::unique_ptr<FloppyDisk> disk)
     debug(DSK_DEBUG, "swapDisk()\n");
     
     // Only proceed if the provided disk is compatible with this drive
-    if (!isInsertable(*disk)) throw VAError(ERROR_DISK_INCOMPATIBLE);
+    if (!isInsertable(*disk)) throw Error(ERROR_DISK_INCOMPATIBLE);
 
     // Determine delay (in pause mode, we insert immediately)
     auto delay = isRunning() ? config.diskSwapDelay : 0;

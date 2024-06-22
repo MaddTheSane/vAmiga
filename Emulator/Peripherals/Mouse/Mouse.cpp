@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -18,12 +18,6 @@ namespace vamiga {
 Mouse::Mouse(Amiga& ref, ControlPort& pref) : SubComponent(ref), port(pref)
 {
 
-}
-
-const char *
-Mouse::getDescription() const
-{
-    return port.isPort1() ? "Mouse1" : "Mouse2";
 }
 
 void Mouse::_reset(bool hard)
@@ -91,7 +85,7 @@ Mouse::setConfigItem(Option option, i64 value)
         case OPT_MOUSE_VELOCITY:
             
             if (value < 0 || value > 255) {
-                throw VAError(ERROR_OPT_INVARG, "0...255");
+                throw Error(ERROR_OPT_INVARG, "0...255");
             }
             config.velocity = (isize)value;
             updateScalingFactors();

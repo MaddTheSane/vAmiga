@@ -49,7 +49,7 @@ EXEFile::finalizeRead()
     
     // Add the executable
     FSBlock *file = volume.createFile("file", data.ptr, data.size);
-    if (!file) throw VAError(ERROR_FS_OUT_OF_SPACE);
+    if (!file) throw Error(ERROR_FS_OUT_OF_SPACE);
     
     // Add a script directory
     volume.createDir("s");
@@ -57,7 +57,7 @@ EXEFile::finalizeRead()
     
     // Add a startup sequence
     file = volume.createFile("startup-sequence", "file");
-    if (!file) throw VAError(ERROR_FS_OUT_OF_SPACE);
+    if (!file) throw Error(ERROR_FS_OUT_OF_SPACE);
 
     // Finalize
     volume.updateChecksums();
@@ -66,7 +66,7 @@ EXEFile::finalizeRead()
     volume.changeDir("/");
 
     // Print some debug information about the volume
-    if constexpr (FS_DEBUG) {
+    if (FS_DEBUG) {
         volume.dump(Category::State);
         volume.printDirectory(true);
     }
@@ -75,7 +75,7 @@ EXEFile::finalizeRead()
     FSErrorReport report = volume.check(true);
     if (report.corruptedBlocks > 0) {
         warn("Found %ld corrupted blocks\n", report.corruptedBlocks);
-        if constexpr (FS_DEBUG) volume.dump(Category::Blocks);
+        if (FS_DEBUG) volume.dump(Category::Blocks);
     }
 
     // Convert the volume into an ADF

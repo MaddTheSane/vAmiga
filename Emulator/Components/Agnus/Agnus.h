@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -32,15 +32,28 @@ static constexpr usize DRAW_ODD =  0b001;
 static constexpr usize DRAW_EVEN = 0b010;
 static constexpr usize DRAW_BOTH = 0b011;
 
-class Agnus : public SubComponent {
+class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
+
+    Descriptions descriptions = {{
+
+        .name           = "Agnus",
+        .description    = "DMA Controller"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_AGNUS_REVISION,
+        OPT_SLOW_RAM_MIRROR,
+        OPT_PTR_DROPS
+    };
 
     // Current configuration
     AgnusConfig config = {};
 
     // Result of the latest inspection
     mutable AgnusInfo info = {};
-    mutable EventInfo eventInfo = {};
-    mutable EventSlotInfo slotInfo[SLOT_COUNT];
+    // mutable EventInfo eventInfo = {};
+    // mutable EventSlotInfo slotInfo[SLOT_COUNT];
 
     // Current workload
     AgnusStats stats = {};
@@ -158,7 +171,9 @@ public:
     // Recorded DMA usage for all cycles in the current rasterline
     BusOwner busOwner[HPOS_CNT] = { };
 
-    
+    // Remembers the last write to SPRxCTL (EXPERIMENTAL)
+    u8 lastCtlWrite[8] = { };
+
     //
     // Signals from other components
     //
@@ -213,7 +228,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "Agnus"; }
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -224,39 +238,21 @@ private:
 private:
     
     void _reset(bool hard) override;
-    void _inspect() const override;
 
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
-        worker
-
-        << config.revision
-        << config.slowRamMirror
-        << ptrMask;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-
-            << clock;
-        }
-
         worker
         
         << trigger
         << id
         << data
         << nextTrigger
-        >> changeRecorder
+        << changeRecorder
         << syncEvent
         
-        >> pos
-        >> latchedPos
+        << pos
+        << latchedPos
         
         << bplcon0
         << bplcon0Initial
@@ -277,6 +273,7 @@ private:
         
         << busValue
         << busOwner
+        << lastCtlWrite
 
         << audxDR
         << audxDSR
@@ -285,6 +282,20 @@ private:
         << sprVStrt
         << sprVStop
         << sprDmaState;
+
+        if (util::isSoftResetter(worker)) return;
+
+        worker
+
+        << clock;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
+        << config.revision
+        << config.slowRamMirror
+        << ptrMask;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -292,6 +303,10 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
     
     //
     // Configuring
@@ -341,15 +356,10 @@ public:
     
 public:
     
-    AgnusInfo getInfo() const { return CoreComponent::getInfo(info); }
-    EventInfo getEventInfo() const { return CoreComponent::getInfo(eventInfo); }
-    EventSlotInfo getSlotInfo(isize nr) const;
-    const AgnusStats &getStats() { return stats; }
-    
+    void cacheInfo(AgnusInfo &result) const override;
+
 private:
     
-    void inspectSlot(EventSlot nr) const;
-    void clearStats();
     void updateStats();
 
 
@@ -419,6 +429,9 @@ private:
 
     // Executes the second sprite DMA cycle
     template <isize nr> void executeSecondSpriteCycle();
+
+    // Checks whether the sprite DMA cycle is blocked by bitplane DMA
+    bool spriteCycleIsBlocked();
 
     // Updates the sprite DMA status in cycle 0xDF
     void updateSpriteDMA();
@@ -539,8 +552,11 @@ public:
     void pokeBPL2MOD(u16 value);
     void setBPL2MOD(u16 value);
     
-    template <int x> void pokeSPRxPOS(u16 value);
-    template <int x> void pokeSPRxCTL(u16 value);
+    template <int x, Accessor> void pokeSPRxPOS(u16 value);
+    template <int x> void setSPRxPOS(u16 value);
+
+    template <int x, Accessor> void pokeSPRxCTL(u16 value);
+    template <int x> void setSPRxCTL(u16 value);
 
     void pokeBEAMCON0(u16 value);
 
@@ -656,7 +672,7 @@ public:
         if constexpr (isTertiarySlot(s)) {
             if (cycle < trigger[SLOT_TER]) trigger[SLOT_TER] = cycle;
         }
-        if constexpr (isSecondarySlot(s)) {
+        if constexpr (isSecondarySlot(s) || isTertiarySlot(s)) {
             if (cycle < trigger[SLOT_SEC]) trigger[SLOT_SEC] = cycle;
         }
     }

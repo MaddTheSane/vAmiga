@@ -16,8 +16,21 @@
 
 namespace vamiga {
 
-class DiskController : public SubComponent
+class DiskController : public SubComponent, public Inspectable<DiskControllerInfo>
 {
+    Descriptions descriptions = {{
+
+        .name           = "dc",
+        .description    = "Disk Controller"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_DRIVE_SPEED,
+        OPT_AUTO_DSKSYNC,
+        OPT_LOCK_DSKSYNC
+    };
+
     // Current configuration
     DiskControllerConfig config = {};
 
@@ -107,27 +120,14 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "DiskController"; }
     void _dump(Category category, std::ostream& os) const override;
     
 private:
     
     void _reset(bool hard) override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        worker
-
-        << config.connected
-        << config.speed
-        << config.lockDskSync
-        << config.autoDskSync;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
 
@@ -144,6 +144,15 @@ private:
         << dsklen
         << dsksync
         << prb;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
+        << config.connected
+        << config.speed
+        << config.lockDskSync
+        << config.autoDskSync;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -151,7 +160,11 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Configuring
     //
@@ -176,8 +189,8 @@ public:
     
 public:
     
-    DiskControllerInfo getInfo() const { return CoreComponent::getInfo(info); }
-
+    // DiskControllerInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(DiskControllerInfo &result) const override;
 
     //
     // Accessing

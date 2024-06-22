@@ -107,6 +107,7 @@ RomFile::isDiagRom(u32 crc32)
         case CRC32_DIAG11:
         case CRC32_DIAG12:
         case CRC32_DIAG121:
+        case CRC32_DIAG13:
         case CRC32_LOGICA20: return true;
 
         default: return false;
@@ -180,6 +181,17 @@ RomFile::isHyperionRom(u32 crc32)
         case CRC32_HYP322_47_111_A3000:
         case CRC32_HYP322_47_111_A4000:
         case CRC32_HYP322_47_111_A4000T: return true;
+
+        default: return false;
+    }
+}
+
+bool
+RomFile::isEmutosRom(u32 crc32)
+{
+    switch (crc32) {
+
+        case CRC32_EMUTOS13:    return true;
 
         default: return false;
     }
@@ -263,6 +275,8 @@ RomFile::shortName(u32 crc32)
         case CRC32_HYP322_47_111_A4000:     return "Hyperion 3.2.2 47.111 A4000";
         case CRC32_HYP322_47_111_A4000T:    return "Hyperion 3.2.2 47.111 A4000T";
 
+        case CRC32_EMUTOS13:                return "EmuTOS 1.3";
+
         case CRC32_AROS_54705:              return "AROS SVN 54705";
         case CRC32_AROS_54705_EXT:          return "AROS SVN 54705 Extension";
         case CRC32_AROS_55696:              return "AROS SVN 55696";
@@ -273,6 +287,7 @@ RomFile::shortName(u32 crc32)
         case CRC32_DIAG11:                  return "DiagROM 1.1";
         case CRC32_DIAG12:                  return "DiagROM 1.2";
         case CRC32_DIAG121:                 return "DiagROM 1.2.1";
+        case CRC32_DIAG13:                  return "DiagROM 1.3";
         case CRC32_LOGICA20:                return "Logica Diagnostic 2.0";
 
         default:
@@ -345,6 +360,8 @@ RomFile::title(u32 crc32)
         case CRC32_HYP322_47_111_A4000:
         case CRC32_HYP322_47_111_A4000T:    return "Kickstart 3.2.2 (Hyperion)";
 
+        case CRC32_EMUTOS13:                return "EmuTOS Kickstart replacement";
+
         case CRC32_AROS_54705:
         case CRC32_AROS_55696:
         case CRC32_AROS_1ED13DE6E3:         return "AROS Kickstart replacement";
@@ -354,7 +371,8 @@ RomFile::title(u32 crc32)
 
         case CRC32_DIAG11:
         case CRC32_DIAG12:
-        case CRC32_DIAG121:                 return "Amiga DiagROM";
+        case CRC32_DIAG121:
+        case CRC32_DIAG13 :                 return "Amiga DiagROM";
         case CRC32_LOGICA20:                return "Logica Diagnostic";
 
         default:                            return "Unknown or patched Rom";
@@ -427,6 +445,8 @@ RomFile::version(u32 crc32)
         case CRC32_HYP322_47_111_A4000:
         case CRC32_HYP322_47_111_A4000T:    return "Rev 47.111";
 
+        case CRC32_EMUTOS13:                return "Version 1.3";
+
         case CRC32_AROS_54705:
         case CRC32_AROS_54705_EXT:          return "SVN 54705";
         case CRC32_AROS_55696:
@@ -437,6 +457,7 @@ RomFile::version(u32 crc32)
         case CRC32_DIAG11:                  return "Version 1.1";
         case CRC32_DIAG12:                  return "Version 1.2";
         case CRC32_DIAG121:                 return "Version 1.2.1";
+        case CRC32_DIAG13:                  return "Version 1.3";
         case CRC32_LOGICA20:                return "Version 2.0";
 
         default:
@@ -509,6 +530,8 @@ RomFile::released(u32 crc32)
         case CRC32_HYP322_47_111_A4000:
         case CRC32_HYP322_47_111_A4000T:    return "March 2023";
 
+        case CRC32_EMUTOS13:                return "March 2024";
+
         case CRC32_AROS_54705:              return "May 2017";
         case CRC32_AROS_54705_EXT:          return "May 2017";
         case CRC32_AROS_55696:              return "February 2019";
@@ -519,6 +542,7 @@ RomFile::released(u32 crc32)
         case CRC32_DIAG11:                  return "October 2018";
         case CRC32_DIAG12:                  return "August 2019";
         case CRC32_DIAG121:                 return "July 2020";
+        case CRC32_DIAG13:                  return "April 2023";
         case CRC32_LOGICA20:                return "";
 
         default:                            return "";
@@ -589,6 +613,7 @@ RomFile::model(u32 crc32)
         case CRC32_HYP322_47_111_A4000:     return "A4000";
         case CRC32_HYP322_47_111_A4000T:    return "A4000T";
 
+        case CRC32_EMUTOS13:                return "";
 
         case CRC32_AROS_54705:              return "UAE version";
         case CRC32_AROS_54705_EXT:          return "UAE version";
@@ -600,6 +625,7 @@ RomFile::model(u32 crc32)
         case CRC32_DIAG11:                  return "";
         case CRC32_DIAG12:                  return "";
         case CRC32_DIAG121:                 return "";
+        case CRC32_DIAG13:                  return "";
         case CRC32_LOGICA20:                return "";
 
         default:                            return "";
@@ -687,7 +713,7 @@ RomFile::decrypt()
 
     // Load the rom.key file
     romKey.init(romKeyPath);
-    if (romKey.empty()) throw VAError(ERROR_MISSING_ROM_KEY);
+    if (romKey.empty()) throw Error(ERROR_MISSING_ROM_KEY);
     
     // Decrypt
     decrypted.alloc(data.size - headerSize);
@@ -700,7 +726,7 @@ RomFile::decrypt()
     
     // Check if we've got a valid ROM
     if (!isRomBuffer(data.ptr, data.size)) {
-        throw VAError(ERROR_INVALID_ROM_KEY);
+        throw Error(ERROR_INVALID_ROM_KEY);
     }
 }
 

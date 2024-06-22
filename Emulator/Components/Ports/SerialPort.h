@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -23,7 +23,19 @@ namespace vamiga {
 #define DTR_MASK (1 << 20)
 #define RI_MASK  (1 << 22)
 
-class SerialPort : public SubComponent {
+class SerialPort : public SubComponent, public Inspectable<SerialPortInfo> {
+
+    Descriptions descriptions = {{
+
+        .name           = "Serial",
+        .description    = "Serial Port"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_SER_DEVICE,
+        OPT_SER_VERBOSE
+    };
 
     friend class UART;
     
@@ -37,8 +49,8 @@ class SerialPort : public SubComponent {
     u32 port = 0;
 
     // Temporary storage for incoming and outgoing bytes
-    string incoming;
-    string outgoing;
+    std::u16string incoming;
+    std::u16string outgoing;
 
 
     //
@@ -56,7 +68,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "SerialPort"; }
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -67,28 +78,29 @@ private:
 private:
     
     void _reset(bool hard) override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        worker
-
-        << config.device;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
 
         << port;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
+        << config.device;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
     
     //
@@ -110,8 +122,8 @@ public:
     
 public:
 
-    SerialPortInfo getInfo() const { return CoreComponent::getInfo(info); }
-
+    // SerialPortInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(SerialPortInfo &info) const override;
 
     //
     // Accessing port pins
@@ -156,8 +168,8 @@ private:
 public:
 
     // Reads and removes the contents of one of the record buffers
-    string readIncoming();
-    string readOutgoing();
+    std::u16string readIncoming();
+    std::u16string readOutgoing();
 
     // Reads and removes a single byte from one of the record buffers
     int readIncomingByte();
@@ -165,14 +177,18 @@ public:
     int readIncomingPrintableByte();
     int readOutgoingPrintableByte();
 
+    // Feed a string into the UART
+    void operator<<(char c);
+    void operator<<(const string &s);
+
 private:
 
     // Called by the UART when a byte has been received or sent
-    void recordIncomingByte(u8 byte);
-    void recordOutgoingByte(u8 byte);
+    void recordIncomingByte(int byte);
+    void recordOutgoingByte(int byte);
 
     // Dumps a byte to RetroShell
-    void dumpByte(u8 byte);
+    void dumpByte(int byte);
 };
 
 }

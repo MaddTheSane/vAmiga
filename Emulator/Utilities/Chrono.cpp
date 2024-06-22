@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -197,9 +197,27 @@ Time::operator-(const Time &rhs) const
 }
 
 Time
-Time::operator*(const int i) const
+Time::operator*(const long i) const
 {
-    return Time(i * this->ticks);
+    return Time(this->ticks * i);
+}
+
+Time
+Time::operator*(const double d) const
+{
+    return Time(i64(this->ticks * d));
+}
+
+Time
+Time::operator/(const long i) const
+{
+    return Time(this->ticks / i);
+}
+
+Time
+Time::operator/(const double d) const
+{
+    return Time(i64(this->ticks / d));
 }
 
 Time&
@@ -215,9 +233,27 @@ Time::operator-=(const Time &rhs)
 }
 
 Time&
-Time::operator*=(const int i)
+Time::operator*=(const long i)
 {
     return *this = *this * i;
+}
+
+Time&
+Time::operator*=(const double d)
+{
+    return *this = *this * d;
+}
+
+Time&
+Time::operator/=(const long i)
+{
+    return *this = *this / i;
+}
+
+Time&
+Time::operator/=(const double d)
+{
+    return *this = *this / d;
 }
 
 Time

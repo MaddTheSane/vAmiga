@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -115,6 +115,12 @@ enum_long(ERROR_CODE)
     
     // Recorder
     ERROR_REC_LAUNCH,
+
+    // Debugger
+    ERROR_REG_READ_ONLY,
+    ERROR_REG_WRITE_ONLY,
+    ERROR_REG_UNUSED,
+    ERROR_ADDR_UNALIGNED,
 
     // OS Debugger
     ERROR_OSDB,
@@ -284,6 +290,11 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode>
             case ERROR_INVALID_ROM_KEY:             return "INVALID_ROM_KEY";
                 
             case ERROR_REC_LAUNCH:                  return "REC_LAUNCH";
+
+            case ERROR_REG_READ_ONLY:               return "REG_READ_ONLY";
+            case ERROR_REG_WRITE_ONLY:              return "REG_WRITE_ONLY";
+            case ERROR_REG_UNUSED:                  return "REG_UNUSED";
+            case ERROR_ADDR_UNALIGNED:              return "ADDR_UNALIGNED";
 
             case ERROR_OSDB:                        return "OSDB";
             case ERROR_HUNK_BAD_COOKIE:             return "HUNK_BAD_COOKIE";

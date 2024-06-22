@@ -57,16 +57,6 @@ extension ConfigurationController {
         vidHCenterLabel.textColor = config.center == 0 ? .labelColor : .disabledControlTextColor
         vidVCenterLabel.textColor = config.center == 0 ? .labelColor : .disabledControlTextColor
 
-        // Frame rate
-        let syncMode = config.syncMode
-        let fps = config.proposedFps
-        vidSyncMode.item(at: 1)?.title = "Fixed (\(fps) fps)"
-        vidSyncMode.selectItem(withTag: syncMode)
-        vidFpsSlider.integerValue = fps
-        vidFpsSlider.isHidden = syncMode != 1
-        vidFpsMin.isHidden = syncMode != 1
-        vidFpsMax.isHidden = syncMode != 1
-
         // Upscalers
         vidEnhancerPopUp.selectItem(withTag: config.enhancer)
         vidUpscalerPopUp.selectItem(withTag: config.upscaler)
@@ -193,22 +183,6 @@ extension ConfigurationController {
     }
 
     //
-    // Action methods (Refresh rate)
-    //
-
-    @IBAction func vidSyncModeAction(_ sender: NSPopUpButton!) {
-
-        config.syncMode = sender.selectedTag()
-        refresh()
-    }
-
-    @IBAction func vidFpsAction(_ sender: NSSlider!) {
-
-        config.proposedFps = sender.integerValue
-        refresh()
-    }
-
-    //
     // Action methods (Effects)
     //
     
@@ -326,22 +300,22 @@ extension ConfigurationController {
     
     @IBAction func vidPresetAction(_ sender: NSMenuItem!) {
               
-        let defaults = AmigaProxy.defaults!
+        let defaults = EmulatorProxy.defaults!
 
         switch sender.tag {
             
         case 0: // Recommended settings (all)
             
-            AmigaProxy.defaults.removeVideoUserDefaults()
+            EmulatorProxy.defaults.removeVideoUserDefaults()
 
         case 10: // Recommended settings (geometry)
 
-            AmigaProxy.defaults.removeGeometryUserDefaults()
+            EmulatorProxy.defaults.removeGeometryUserDefaults()
 
         case 11: // My personal monitor (ViewSonic VP191b)
 
             debug(1, "ViewSonic VP191b")
-            AmigaProxy.defaults.removeGeometryUserDefaults()
+            EmulatorProxy.defaults.removeGeometryUserDefaults()
             defaults.set(Keys.Vid.zoom, 0)
             defaults.set(Keys.Vid.hZoom, 0.6763221)
             defaults.set(Keys.Vid.vZoom, 0.032)
@@ -351,18 +325,18 @@ extension ConfigurationController {
 
         case 20: // Recommended settings (colors + shader)
 
-            AmigaProxy.defaults.removeColorUserDefaults()
-            AmigaProxy.defaults.removeShaderUserDefaults()
+            EmulatorProxy.defaults.removeColorUserDefaults()
+            EmulatorProxy.defaults.removeShaderUserDefaults()
 
         case 21: // TFT monitor
 
-            AmigaProxy.defaults.removeColorUserDefaults()
-            AmigaProxy.defaults.removeShaderUserDefaults()
+            EmulatorProxy.defaults.removeColorUserDefaults()
+            EmulatorProxy.defaults.removeShaderUserDefaults()
 
         case 22: // CRT monitor
 
-            AmigaProxy.defaults.removeColorUserDefaults()
-            AmigaProxy.defaults.removeShaderUserDefaults()
+            EmulatorProxy.defaults.removeColorUserDefaults()
+            EmulatorProxy.defaults.removeShaderUserDefaults()
             defaults.set(Keys.Vid.blurRadius, 1.5)
             defaults.set(Keys.Vid.bloom, 1)
             defaults.set(Keys.Vid.dotMask, 1)

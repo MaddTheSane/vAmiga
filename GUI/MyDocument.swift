@@ -18,11 +18,11 @@ class MyDocument: NSDocument {
     var launchUrl: URL?
 
     // Gateway to the core emulator
-    var amiga: AmigaProxy!
+    var amiga: EmulatorProxy!
 
     // Snapshots
-    private(set) var snapshots = ManagedArray<SnapshotProxy>(capacity: 32)
-        
+    private(set) var snapshots = ManagedArray<SnapshotProxy>(maxSize: 512 * 1024 * 1024)
+
     //
     // Initializing
     //
@@ -42,13 +42,13 @@ class MyDocument: NSDocument {
         }
                 
         // Register all GUI related user defaults
-        AmigaProxy.defaults.registerUserDefaults()
+        EmulatorProxy.defaults.registerUserDefaults()
         
         // Load the user default settings
-        AmigaProxy.defaults.load()
+        EmulatorProxy.defaults.load()
         
         // Create an emulator instance
-        amiga = AmigaProxy()
+        amiga = EmulatorProxy()
     }
  
     override open func makeWindowControllers() {
@@ -91,7 +91,10 @@ class MyDocument: NSDocument {
                     
                 case .IMG:
                     return try IMGFileProxy.make(with: newUrl)
-                    
+
+                case .ST:
+                    return try STFileProxy.make(with: newUrl)
+
                 case .DMS:
                     return try DMSFileProxy.make(with: newUrl)
                     
@@ -129,10 +132,9 @@ class MyDocument: NSDocument {
         debug(.media)
 
         let types: [FileType] =
-        [ .SNAPSHOT, .SCRIPT, .ADF, .EADF, .HDF, .IMG, .DMS, .EXE, .DIR ]
+        [ .SNAPSHOT, .SCRIPT, .ADF, .EADF, .HDF, .IMG, .ST, .DMS, .EXE, .DIR ]
 
         do {
-
             try addMedia(url: url, allowedTypes: types)
             
         } catch let error as VAError {
@@ -236,7 +238,7 @@ class MyDocument: NSDocument {
     func processSnapshotFile(_ proxy: SnapshotProxy, force: Bool = false) throws {
         
         try amiga.loadSnapshot(proxy)
-        snapshots.append(proxy)
+        snapshots.append(proxy, size: proxy.size)
     }
     
     //

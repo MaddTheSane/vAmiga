@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -13,6 +13,7 @@
 #include "SubComponent.h"
 #include "RomFileTypes.h"
 #include "MemUtils.h"
+#include "Buffer.h"
 
 using util::Allocator;
 using util::Buffer;
@@ -102,6 +103,25 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 
 
 class Memory : public SubComponent {
+
+    Descriptions descriptions = {{
+
+        .name           = "mem",
+        .description    = "Memory"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_CHIP_RAM,
+        OPT_SLOW_RAM,
+        OPT_FAST_RAM,
+        OPT_EXT_START,
+        OPT_SAVE_ROMS,
+        OPT_SLOW_RAM_DELAY,
+        OPT_BANKMAP,
+        OPT_UNMAPPING_TYPE,
+        OPT_RAM_INIT_PATTERN
+    };
 
     // Current configuration
     MemoryConfig config = {};
@@ -210,7 +230,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "Memory"; }
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -224,19 +243,7 @@ private:
     void _reset(bool hard) override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        worker
-        
-        << config.slowRamDelay
-        << config.bankMap
-        << config.ramInitPattern
-        << config.unmappingType
-        << config.extStart;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
 
@@ -244,6 +251,16 @@ private:
         << cpuMemSrc
         << agnusMemSrc
         << dataBus;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
+        << config.slowRamDelay
+        << config.bankMap
+        << config.ramInitPattern
+        << config.unmappingType
+        << config.extStart;
     }
 
     isize _size() override;
@@ -253,7 +270,11 @@ private:
     isize didLoadFromBuffer(const u8 *buffer) override;
     isize didSaveToBuffer(u8 *buffer) override;
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Configuring
     //
@@ -411,8 +432,8 @@ public:
     bool inFastRam(u32 addr);
     bool inRam(u32 addr);
     bool inRom(u32 addr);
+    bool isUnmapped(u32 addr);
 
-    
 private:
 
     void updateCpuMemSrcTable();
@@ -497,18 +518,6 @@ public:
     //
     
 public:
-    
-    // Returns the name of a chipset register
-    static const char *regName(u32 addr);
-    
-    // Returns 16 bytes of memory as an ASCII string
-    template <Accessor A> const char *ascii(u32 addr, isize numBytes);
-    
-    // Returns a certain amount of bytes as a string containing hex words
-    template <Accessor A> const char *hex(u32 addr, isize numBytes);
-
-    // Creates a memory dump
-    template <Accessor A> void memDump(std::ostream& os, u32 addr, isize numLines = 16);
 
     // Searches RAM and ROM for a certain byte sequence
     std::vector <u32> search(u64 pattern, isize bytes);

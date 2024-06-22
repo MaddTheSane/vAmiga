@@ -17,7 +17,30 @@
 namespace vamiga {
 
 template <isize nr>
-class StateMachine : public SubComponent {
+class StateMachine : public SubComponent, public Inspectable<StateMachineInfo> {
+
+    Descriptions descriptions = {
+        {
+            .name           = "StateMachine1",
+            .description    = "Audio State Machine 1"
+        },
+        {
+            .name           = "StateMachine2",
+            .description    = "Audio State Machine 2"
+        },
+        {
+            .name           = "StateMachine3",
+            .description    = "Audio State Machine 3"
+        },
+        {
+            .name           = "StateMachine4",
+            .description    = "Audio State Machine 4"
+        }
+    };
+
+    ConfigOptions options = {
+
+    };
 
     // Result of the latest inspection
     mutable StateMachineInfo info = {};
@@ -90,7 +113,6 @@ public:
     
 private:
     
-    const char *getDescription() const override;
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -101,24 +123,10 @@ private:
 private:
     
     void _reset(bool hard) override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
-        
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << clock;
-        }
-
         worker
         
         << state
@@ -135,6 +143,12 @@ private:
         << intreq2
         << enablePenlo
         << enablePenhi;
+
+        if (util::isSoftResetter(worker)) return;
+
+        worker
+
+        << clock;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -142,16 +156,20 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Analyzing
     //
     
 public:
     
-    StateMachineInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // StateMachineInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(StateMachineInfo &result) const override;
 
-    
     //
     // Performing state machine actions
     //

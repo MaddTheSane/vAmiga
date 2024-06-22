@@ -2,21 +2,24 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "RetroShell.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include "Parser.h"
 
 namespace vamiga {
 
-RetroShell::RetroShell(Amiga& ref) : SubComponent(ref), interpreter(ref)
+RetroShell::RetroShell(Amiga& ref) : SubComponent(ref)
 {    
+    subComponents = std::vector<CoreComponent *> {
 
+        &interpreter
+    };
 }
 
 void
@@ -46,6 +49,11 @@ RetroShell::operator<<(char value)
 {
     storage << value;
     remoteManager.rshServer << value;
+
+    if (serialPort.getConfig().device == SPD_COMMANDER) {
+
+        serialPort << value;
+    }
     needsDisplay();
     return *this;
 }
@@ -55,6 +63,11 @@ RetroShell::operator<<(const string& value)
 {
     storage << value;
     remoteManager.rshServer << value;
+
+    if (serialPort.getConfig().device == SPD_COMMANDER) {
+
+        serialPort << value;
+    }
     needsDisplay();
     return *this;
 }
@@ -173,7 +186,7 @@ RetroShell::welcome()
         *this << Amiga::build() << '\n';
         *this << '\n';
         *this << "Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de" << '\n';
-        *this << "Licensed under the GNU General Public License v3" << '\n';
+        *this << "https://github.com/dirkwhoffmann/vAmiga" << '\n';
         *this << '\n';
     }
 
@@ -399,10 +412,10 @@ RetroShell::execUserCommand(const string &command)
 
         } else {
 
-            if (amiga.isRunning()) {
-                amiga.pause();
+            if (emulator.isRunning()) {
+                emulator.pause();
             } else {
-                amiga.stepInto();
+                debugger.stepInto();
             }
         }
 
@@ -552,7 +565,7 @@ RetroShell::describe(const std::exception &e)
         return;
     }
     
-    if (auto err = dynamic_cast<const VAError *>(&e)) {
+    if (auto err = dynamic_cast<const Error *>(&e)) {
 
         *this << err->what();
         *this << '\n';

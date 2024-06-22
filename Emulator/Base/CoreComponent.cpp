@@ -2,16 +2,37 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "CoreComponent.h"
+#include "Emulator.h"
 #include "Checksum.h"
 
 namespace vamiga {
+
+const char *
+CoreComponent::objectName() const
+{
+    assert(isize(getDescriptions().size()) > objid);
+    return getDescriptions().at(objid).name;
+}
+
+const char *
+CoreComponent::description() const
+{
+    assert(isize(getDescriptions().size()) > objid);
+    return getDescriptions().at(objid).description;
+}
+
+bool
+CoreComponent::operator== (CoreComponent &other)
+{
+    return checksum() == other.checksum();
+}
 
 void
 CoreComponent::initialize()
@@ -33,13 +54,6 @@ CoreComponent::reset(bool hard)
 {
     for (CoreComponent *c : subComponents) { c->reset(hard); }
     _reset(hard);
-}
-
-void
-CoreComponent::inspect() const
-{
-    for (CoreComponent *c : subComponents) { c->inspect(); }
-    _inspect();
 }
 
 isize
@@ -94,7 +108,7 @@ CoreComponent::load(const u8 *buffer)
 
     // Check integrity
     if (hash != _checksum() || FORCE_SNAP_CORRUPTED) {
-        throw VAError(ERROR_SNAP_CORRUPTED);
+        throw Error(ERROR_SNAP_CORRUPTED);
     }
     
     debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", result, size());
@@ -150,6 +164,54 @@ CoreComponent::didSave()
     }
 
     _didSave();
+}
+
+bool
+CoreComponent::isPoweredOff() const
+{
+    return emulator.isPoweredOff();
+}
+
+bool
+CoreComponent::isPoweredOn() const
+{
+    return emulator.isPoweredOn();
+}
+
+bool
+CoreComponent::isPaused() const
+{
+    return emulator.isPaused();
+}
+
+bool
+CoreComponent::isRunning() const
+{
+    return emulator.isRunning();
+}
+
+bool
+CoreComponent::isSuspended() const
+{
+    return emulator.isSuspended();
+}
+
+bool
+CoreComponent::isHalted() const
+{
+    return emulator.isHalted();
+}
+
+void
+CoreComponent::suspend()
+{
+    return emulator.suspend();
+}
+
+void
+CoreComponent::resume()
+{
+    return emulator.resume();
 }
 
 void

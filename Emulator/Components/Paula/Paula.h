@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -21,8 +21,18 @@
 
 namespace vamiga {
 
-class Paula : public SubComponent {
-    
+class Paula : public SubComponent, public Inspectable<PaulaInfo> {
+
+    Descriptions descriptions = {{
+
+        .name           = "Paula",
+        .description    = "Audio, Interrupts, Disk Control"
+    }};
+
+    ConfigOptions options = {
+
+    };
+
 private:
 
     // Result of the latest inspection
@@ -114,7 +124,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "Paula"; }
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -129,24 +138,10 @@ private:
     void _pause() override;
     void _warpOn() override;
     void _warpOff() override;
-    void _inspect() const override;
 
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
-        
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-
-            worker
-
-            << audioClock;
-        }
-
         worker
         
         << intreq
@@ -163,6 +158,12 @@ private:
         << chargeX1
         << chargeY1
         << adkcon;
+
+        if (util::isSoftResetter(worker)) return;
+
+        worker
+
+        << audioClock;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -171,6 +172,10 @@ private:
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
     
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
     
     //
     // Analyzing
@@ -178,7 +183,8 @@ private:
     
 public:
     
-    PaulaInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // PaulaInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(PaulaInfo &result) const override;
 
 
     //

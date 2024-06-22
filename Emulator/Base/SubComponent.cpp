@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -13,7 +13,7 @@
 
 namespace vamiga {
 
-SubComponent::SubComponent(Amiga& ref) :
+SubComponent::SubComponent(Amiga& ref) : CoreComponent(ref.emulator),
 agnus(ref.agnus),
 amiga(ref),
 blitter(ref.agnus.blitter),
@@ -23,6 +23,7 @@ controlPort1(ref.controlPort1),
 controlPort2(ref.controlPort2),
 copper(ref.agnus.copper),
 cpu(ref.cpu),
+debugger(ref.debugger),
 denise(ref.denise),
 diagBoard(ref.diagBoard),
 diskController(ref.paula.diskController),

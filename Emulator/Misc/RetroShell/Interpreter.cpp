@@ -2,21 +2,25 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include <sstream>
 
 namespace vamiga {
 
-Interpreter::Interpreter(Amiga &ref) : SubComponent(ref)
+void
+Interpreter::_initialize()
 {
-    initCommandShell(*commandShellRoot);
-    initDebugShell(*debugShellRoot);
+    CoreComponent::_initialize();
+
+    // Register commands
+    initCommandShell(commandShellRoot);
+    initDebugShell(debugShellRoot);
 }
 
 Arguments
@@ -89,13 +93,97 @@ Interpreter::autoComplete(Arguments &argv)
     }
 }
 
+bool 
+Interpreter::isBool(const string &argv) 
+{
+    return util::isBool(argv);
+}
+
+bool
+Interpreter::isOnOff(const string  &argv) 
+{
+    return util::isOnOff(argv);
+}
+
+long
+Interpreter::isNum(const string &argv) 
+{
+    return util::isNum(argv);
+}
+
+bool
+Interpreter::parseBool(const string &argv)
+{
+    return util::parseBool(argv);
+}
+
+bool
+Interpreter::parseBool(const string &argv, bool fallback)
+{
+    try { return parseBool(argv); } catch(...) { return fallback; }
+}
+
+bool
+Interpreter::parseBool(const Arguments &argv, long nr, long fallback)
+{
+    return nr < long(argv.size()) ? parseBool(argv[nr]) : fallback;
+}
+
+bool
+Interpreter::parseOnOff(const string &argv) 
+{
+    return util::parseOnOff(argv);
+}
+
+bool
+Interpreter::parseOnOff(const string &argv, bool fallback)
+{
+    try { return parseOnOff(argv); } catch(...) { return fallback; }
+}
+
+bool
+Interpreter::parseOnOff(const Arguments &argv, long nr, long fallback)
+{
+    return nr < long(argv.size()) ? parseOnOff(argv[nr]) : fallback;
+}
+
+long
+Interpreter::parseNum(const string &argv) 
+{
+    return util::parseNum(argv);
+}
+
+long
+Interpreter::parseNum(const string &argv, long fallback)
+{
+    try { return parseNum(argv); } catch(...) { return fallback; }
+}
+
+long
+Interpreter::parseNum(const Arguments &argv, long nr, long fallback)
+{
+    return nr < long(argv.size()) ? parseNum(argv[nr]) : fallback;
+}
+
+string
+Interpreter::parseSeq(const string &argv) 
+{
+    return util::parseSeq(argv);
+}
+
+string
+Interpreter::parseSeq(const string &argv, const string &fallback)
+{
+    try { return parseSeq(argv); } catch(...) { return fallback; }
+}
+
 Command &
 Interpreter::getRoot()
 {
     switch (shell) {
 
-        case Shell::Command: return *commandShellRoot;
-        case Shell::Debug: return *debugShellRoot;
+        case Shell::Command: return commandShellRoot;
+        case Shell::Debug: return debugShellRoot;
 
         default:
             fatalError;
@@ -108,13 +196,13 @@ Interpreter::switchInterpreter()
     if (inCommandShell()) {
 
         shell = Shell::Debug;
-        amiga.trackOn(1);
+        emulator.trackOn(1);
         msgQueue.put(MSG_CONSOLE_DEBUGGER, true);
 
     } else {
 
         shell = Shell::Command;
-        amiga.trackOff(1);
+        emulator.trackOff(1);
         msgQueue.put(MSG_CONSOLE_DEBUGGER, false);
     }
 
@@ -218,7 +306,7 @@ Interpreter::help(const Command& current)
 
     // Print the usage string
     usage(current);
-    
+
     // Determine tabular positions to align the output
     isize tab = 0;
     for (auto &it : current.subCommands) {
@@ -233,7 +321,7 @@ Interpreter::help(const Command& current)
         // Only proceed if the command is visible
         if (it.hidden) continue;
 
-        // Print group description (when a new group begins)
+        // Print group description when a new group begins
         if (group != it.group) {
 
             group = it.group;
@@ -249,7 +337,7 @@ Interpreter::help(const Command& current)
         retroShell << it.fullName;
         retroShell.tab(tab);
         retroShell << " : ";
-        retroShell << it.help;
+        retroShell << it.help.second;
         retroShell << '\n';
     }
 

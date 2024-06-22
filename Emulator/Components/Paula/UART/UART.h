@@ -16,8 +16,18 @@
 
 namespace vamiga {
 
-class UART : public SubComponent {
-    
+class UART : public SubComponent, public Inspectable<UARTInfo> {
+
+    Descriptions descriptions = {{
+
+        .name           = "UART",
+        .description    = "Universal Asynchronous Receiver Transmitter"
+    }};
+
+    ConfigOptions options = {
+
+    };
+
     friend class SerServer;
     
     // Result of the latest inspection
@@ -43,6 +53,9 @@ class UART : public SubComponent {
     // Bit reception counter
     u8 recCnt;
 
+    // Experimental
+    string payload;
+
 
     //
     // Initializing
@@ -59,7 +72,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "UART"; }
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -70,16 +82,9 @@ private:
 private:
     
     void _reset(bool hard) override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
 
@@ -98,15 +103,19 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Analyzing
     //
 
 public:
 
-    UARTInfo getInfo() const { return CoreComponent::getInfo(info); }
-
+    // UARTInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(UARTInfo &result) const override;
 
     //
     // Accessing
@@ -159,13 +168,17 @@ public:
     // Called when the RXD port pin changes it's value
     void rxdHasChanged(bool value);
 
+    // Feeds text into the UART
+    void operator<<(char c);
+    void operator<<(const string &s);
+
 private:
 
     // Called when a byte has been received
-    void recordIncomingByte(u8 byte);
+    void recordIncomingByte(int byte);
 
     // Called when a byte has been sent
-    void recordOutgoingByte(u8 byte);
+    void recordOutgoingByte(int byte);
 
 
     //

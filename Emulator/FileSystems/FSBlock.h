@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -54,7 +54,7 @@ struct FSBlock : CoreObject {
     
 protected:
     
-    const char *getDescription() const override;
+    const char *objectName() const override;
     void _dump(Category category, std::ostream& os) const override { }
     
     

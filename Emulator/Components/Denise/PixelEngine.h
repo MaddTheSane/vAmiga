@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -18,6 +18,20 @@
 namespace vamiga {
 
 class PixelEngine : public SubComponent {
+
+    Descriptions descriptions = {{
+
+        .name           = "pixelengine",
+        .description    = "Pixel Engine"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_PALETTE,
+        OPT_BRIGHTNESS,
+        OPT_CONTRAST,
+        OPT_SATURATION
+    };
 
     friend class Denise;
 
@@ -91,7 +105,7 @@ public:
     
 public:
     
-    PixelEngine(Amiga& ref);
+    using SubComponent::SubComponent;
 
     // Initializes both frame buffers with a checkerboard pattern
     void clearAll();
@@ -103,7 +117,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "PixelEngine"; }
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -137,18 +150,12 @@ public:
 private:
     
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
 
-        >> colChanges
-        >> color
+        << colChanges
+        << color
         << hamMode
         << shresMode;
     }
@@ -159,7 +166,11 @@ private:
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Controlling
     //
@@ -222,9 +233,6 @@ public:
     // Returns a pointer to randon noise
     Texel *getNoise() const;
 
-    // Called after each line in the VBLANK area
-    void endOfVBlankLine();
-
     // Called after each frame to switch the frame buffers
     void vsyncHandler();
 
@@ -237,7 +245,10 @@ public:
 
 public:
 
-    // Applies a register change
+    // Applies all recorded color register changes
+    void replayColRegChanges();
+
+    // Applies a single register change
     void applyRegisterChange(const RegChange &change);
 
 

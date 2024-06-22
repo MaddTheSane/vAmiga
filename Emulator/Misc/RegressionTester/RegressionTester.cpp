@@ -2,14 +2,14 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "RegressionTester.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include "IOUtils.h"
 
 #include <fstream>
@@ -20,10 +20,10 @@ void
 RegressionTester::prepare(ConfigScheme scheme, string rom, string ext)
 {
     // Only proceed if the /tmp folder exisits
-    if (!util::fileExists("/tmp")) throw VAError(ERROR_DIR_NOT_FOUND, "/tmp");
+    if (!util::fileExists("/tmp")) throw Error(ERROR_DIR_NOT_FOUND, "/tmp");
 
     // Check if we've got write permissions
-    if (amiga.tmp() != "/tmp") throw VAError(ERROR_DIR_ACCESS_DENIED, "/tmp");
+    if (host.tmp() != "/tmp") throw Error(ERROR_DIR_ACCESS_DENIED, "/tmp");
     
     // Initialize the emulator according to the specified scheme
     amiga.revertToFactorySettings();
@@ -39,7 +39,7 @@ RegressionTester::prepare(ConfigScheme scheme, string rom, string ext)
     constexpr isize warpSource = 1;
     
     // Run as fast as possible
-    amiga.warpOn(warpSource);
+    emulator.warpOn(warpSource);
 }
 
 void
@@ -49,8 +49,8 @@ RegressionTester::run(string adf)
     df0.swapDisk(adf);
 
     // Run the emulator
-    amiga.powerOn();
-    amiga.run();
+    emulator.powerOn();
+    emulator.run();
 }
 
 void

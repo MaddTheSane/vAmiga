@@ -2,27 +2,26 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "ErrorTypes.h"
 #include "Exception.h"
-
-//
-// VAError
-//
+#include <filesystem>
 
 namespace vamiga {
 
-struct VAError : public util::Exception
+struct Error : public util::Exception
 {
-    VAError(ErrorCode code, const string &s);
-    VAError(ErrorCode code, long v) : VAError(code, std::to_string(v)) { };
-    VAError(ErrorCode code) : VAError(code, "") { }
+    Error(ErrorCode code, const string &s);
+    Error(ErrorCode code, const char *s) : Error(code, string(s)) { };
+    Error(ErrorCode code, const std::filesystem::path &path) : Error(code, path.string()) { };
+    Error(ErrorCode code, long v) : Error(code, std::to_string(v)) { };
+    Error(ErrorCode code) : Error(code, "") { }
     
     const char *what() const throw() override;
 };

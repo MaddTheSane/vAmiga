@@ -594,7 +594,7 @@ class Inspector: DialogController {
     var port2Info: ControlPortInfo!
     var serInfo: SerialPortInfo!
     var uartInfo: UARTInfo!
-    var eventInfo: EventInfo!
+    // var eventInfo: EventInfo!
     var isRunning = true
 
     // Returns the number of the currently inspected sprite
@@ -773,17 +773,17 @@ class Inspector: DialogController {
     
     @IBAction func stopAndGoAction(_ sender: NSButton!) {
 
-        amiga.stopAndGo()
+        amiga.debugger.stopAndGo()
     }
     
     @IBAction func stepIntoAction(_ sender: NSButton!) {
 
-        amiga.stepInto()
+        amiga.debugger.stepInto()
     }
     
     @IBAction func stepOverAction(_ sender: NSButton!) {
 
-        amiga.stepOver()
+        amiga.debugger.stepOver()
     }
 }
 
@@ -811,8 +811,8 @@ extension Inspector: NSTabViewDelegate {
             case "CIA":     amiga.inspectionTarget = .CIA
             case "Memory":  amiga.inspectionTarget = .MEM
             case "Agnus":   amiga.inspectionTarget = .AGNUS
-            case "Copper":  amiga.inspectionTarget = .AGNUS
-            case "Blitter": amiga.inspectionTarget = .AGNUS
+            case "Copper":  amiga.inspectionTarget = .COPPER
+            case "Blitter": amiga.inspectionTarget = .BLITTER
             case "Denise":  amiga.inspectionTarget = .DENISE
             case "Paula":   amiga.inspectionTarget = .PAULA
             case "Ports":   amiga.inspectionTarget = .PORTS

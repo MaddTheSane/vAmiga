@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -43,6 +43,16 @@ public:
 
 class CopperDebugger: public SubComponent {
 
+    Descriptions descriptions = {{
+
+        .name           = "cdebugger",
+        .description    = "Copper Debugger"
+    }};
+
+    ConfigOptions options = {
+
+    };
+
     friend class Amiga;
     friend class Copper;
     
@@ -77,7 +87,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "CopperDebugger"; }
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -94,6 +103,10 @@ private:
     isize _load(const u8 *buffer) override { return 0; }
     isize _save(u8 *buffer) override { return 0; }
     
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
 
     //
     // Tracking the Copper
@@ -125,16 +138,18 @@ public:
     // Manages the breakpoint and watchpoint lists
     //
 
-    void setBreakpoint(u32 addr) throws;
+    void setBreakpoint(u32 addr, isize ignores = 0) throws;
     void deleteBreakpoint(isize nr) throws;
     void enableBreakpoint(isize nr) throws;
     void disableBreakpoint(isize nr) throws;
+    void toggleBreakpoint(isize nr) throws;
     void ignoreBreakpoint(isize nr, isize count) throws;
 
-    void setWatchpoint(u32 addr) throws;
+    void setWatchpoint(u32 addr, isize ignores = 0) throws;
     void deleteWatchpoint(isize nr) throws;
     void enableWatchpoint(isize nr) throws;
     void disableWatchpoint(isize nr) throws;
+    void toggleWatchpoint(isize nr) throws;
     void ignoreWatchpoint(isize nr, isize count) throws;
 };
 

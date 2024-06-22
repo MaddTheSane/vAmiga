@@ -30,7 +30,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "RamExpansion"; }
     void _dump(Category category, std::ostream& os) const override;
 
     
@@ -43,27 +42,24 @@ private:
     void _reset(bool hard) override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (util::isSoftResetter(worker)) return;
 
-    }
+        worker
 
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << state
-            << baseAddr;
-        }
+        << state
+        << baseAddr;
     }
     
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
     
     //

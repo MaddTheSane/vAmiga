@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -26,7 +26,7 @@ FloppyDisk::init(Diameter dia, Density den)
     if (dia == INCH_525 && den == DENSITY_DD) trackLength = 12668;
     
     if (trackLength == 0 || FORCE_DISK_INVALID_LAYOUT) {
-        throw VAError(ERROR_DISK_INVALID_LAYOUT);
+        throw Error(ERROR_DISK_INVALID_LAYOUT);
     }
     
     for (isize i = 0; i < 168; i++) length.track[i] = trackLength;
@@ -44,7 +44,7 @@ void
 FloppyDisk::init(util::SerReader &reader, Diameter dia, Density den)
 {
     init(dia, den);
-    applyToPersistentItems(reader);
+    serialize(reader);
 }
 
 FloppyDisk::~FloppyDisk()
@@ -303,7 +303,7 @@ FloppyDisk::encodeDisk(const FloppyFile &file)
 void
 FloppyDisk::shiftTracks(isize offset)
 {
-    debug(true, "Shifting tracks by %zd bytes against each other\n", offset);
+    debug(DSK_DEBUG, "Shifting tracks by %ld bytes against each other\n", offset);
 
     u8 spare[2 * 32768];
 

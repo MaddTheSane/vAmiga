@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -108,7 +108,6 @@ enum_long(SLOT)
     SLOT_MSE2,                      // Port 2 mouse
     SLOT_RSH,                       // Retro Shell
     SLOT_KEY,                       // Auto-typing
-    SLOT_WBT,                       // Warp boot
     SLOT_SRV,                       // Remote server manager
     SLOT_SER,                       // Serial remote server
     SLOT_ALA,                       // Alarms (set by the GUI)
@@ -165,7 +164,6 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
             case SLOT_MSE2:  return "MSE2";
             case SLOT_RSH:   return "RSH";
             case SLOT_KEY:   return "KEY";
-            case SLOT_WBT:   return "WBT";
             case SLOT_SRV:   return "SRV";
             case SLOT_SER:   return "SER";
             case SLOT_ALA:   return "ALA";
@@ -373,10 +371,6 @@ enum_i8(EventID)
     KEY_RELEASE,
     KEY_EVENT_COUNT,
 
-    // Warp boot
-    WBT_DISABLE         = 1,
-    WBT_EVENT_COUNT,
-
     // Remote server manager
     SRV_LAUNCH_DAEMON   = 1,
     SRV_EVENT_COUNT,
@@ -395,21 +389,14 @@ enum_i8(EventID)
     INS_MEM,
     INS_CIA,
     INS_AGNUS,
+    INS_BLITTER,
+    INS_COPPER,
     INS_PAULA,
     INS_DENISE,
     INS_PORTS,
     INS_EVENTS,
     INS_EVENT_COUNT
 };
-
-/*
-static inline bool isRegEvent(EventID id) { return id < REG_EVENT_COUNT; }
-static inline bool isCiaEvent(EventID id) { return id < CIA_EVENT_COUNT; }
-static inline bool isBplEvent(EventID id) { return id < BPL_EVENT_COUNT; }
-static inline bool isDasEvent(EventID id) { return id < DAS_EVENT_COUNT; }
-static inline bool isCopEvent(EventID id) { return id < COP_EVENT_COUNT; }
-static inline bool isBltEvent(EventID id) { return id < BLT_EVENT_COUNT; }
-*/
 
 static inline bool isBplxEvent(EventID id, int x)
 {
@@ -469,38 +456,6 @@ AgnusConfig;
 
 typedef struct
 {
-    isize vpos;
-    isize hpos;
-
-    u16 dmacon;
-    u16 bplcon0;
-    u16 ddfstrt;
-    u16 ddfstop;
-    u16 diwstrt;
-    u16 diwstop;
-
-    u16 bpl1mod;
-    u16 bpl2mod;
-    u16 bltamod;
-    u16 bltbmod;
-    u16 bltcmod;
-    u16 bltdmod;
-    u16 bltcon0;
-    
-    u32 coppc0;
-    u32 dskpt;
-    u32 bplpt[6];
-    u32 audpt[4];
-    u32 audlc[4];
-    u32 bltpt[4];
-    u32 sprpt[8];
-
-    bool bls;
-}
-AgnusInfo;
-
-typedef struct
-{
     EventSlot slot;
     EventID eventId;
     const char *eventName;
@@ -530,6 +485,41 @@ typedef struct
     long hpos;
 }
 EventInfo;
+
+typedef struct
+{
+    isize vpos;
+    isize hpos;
+
+    u16 dmacon;
+    u16 bplcon0;
+    u16 ddfstrt;
+    u16 ddfstop;
+    u16 diwstrt;
+    u16 diwstop;
+
+    u16 bpl1mod;
+    u16 bpl2mod;
+    u16 bltamod;
+    u16 bltbmod;
+    u16 bltcmod;
+    u16 bltdmod;
+    u16 bltcon0;
+    
+    u32 coppc0;
+    u32 dskpt;
+    u32 bplpt[6];
+    u32 audpt[4];
+    u32 audlc[4];
+    u32 bltpt[4];
+    u32 sprpt[8];
+
+    bool bls;
+
+    EventInfo eventInfo;
+    EventSlotInfo slotInfo[SLOT_COUNT];
+}
+AgnusInfo;
 
 typedef struct
 {

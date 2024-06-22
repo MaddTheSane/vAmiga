@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -21,25 +21,7 @@ std::fstream HardDrive::wtStream[4];
 
 HardDrive::HardDrive(Amiga& ref, isize nr) : Drive(ref, nr)
 {
-    string path;
-    
-    if (nr == 0) path = INITIAL_HD0;
-    if (nr == 1) path = INITIAL_HD1;
-    if (nr == 2) path = INITIAL_HD2;
-    if (nr == 3) path = INITIAL_HD3;
-    
-    if (path != "") {
 
-        try {
-            
-            auto hdf = HDFFile(path);
-            init(hdf);
-
-        } catch (...) {
-            
-            warn("Cannot open HDF file %s\n", path.c_str());
-        }
-    }
 }
 
 HardDrive::~HardDrive()
@@ -166,7 +148,7 @@ HardDrive::init(const HDFFile &hdf)
     
     // Print some debug information
     debug(HDR_DEBUG, "%zu (needed) file system drivers\n", drivers.size());
-    if constexpr (HDR_DEBUG) {
+    if (HDR_DEBUG) {
         for (auto &driver : drivers) driver.dump();
     }
 }
@@ -178,11 +160,30 @@ HardDrive::init(const string &path) throws
     init(hdf);
 }
 
-const char *
-HardDrive::getDescription() const
+void
+HardDrive::_initialize()
 {
-    assert(usize(nr) < 4);
-    return nr == 0 ? "Hd0" : nr == 1 ? "Hd1" : nr == 2 ? "Hd2" : "Hd3";
+    CoreComponent::_initialize();
+
+    string path;
+
+    if (nr == 0) path = INITIAL_HD0;
+    if (nr == 1) path = INITIAL_HD1;
+    if (nr == 2) path = INITIAL_HD2;
+    if (nr == 3) path = INITIAL_HD3;
+
+    if (path != "") {
+
+        try {
+
+            auto hdf = HDFFile(path);
+            init(hdf);
+
+        } catch (...) {
+
+            warn("Cannot open HDF file %s\n", path.c_str());
+        }
+    }
 }
 
 void
@@ -190,7 +191,7 @@ HardDrive::_reset(bool hard)
 {
     RESET_SNAPSHOT_ITEMS(hard)
     
-    if constexpr (FORCE_HDR_MODIFIED) { modified = true; }
+    if (FORCE_HDR_MODIFIED) { modified = true; }
 }
 
 void
@@ -233,7 +234,7 @@ HardDrive::setConfigItem(Option option, i64 value)
         case OPT_HDR_TYPE:
             
             if (!HardDriveTypeEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, HardDriveTypeEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, HardDriveTypeEnum::keyList());
             }
             config.type = (HardDriveType)value;
             return;
@@ -271,9 +272,9 @@ HardDrive::connect()
 
             debug(WT_DEBUG, "Success\n");
 
-        } catch (VAError &e) {
+        } catch (Error &e) {
 
-            warn("Error: %s\n", e.what());
+            warn("%s\n", e.what());
         }
     }
     
@@ -314,7 +315,7 @@ HardDrive::isCompatible()
 }
 
 void
-HardDrive::_inspect() const
+HardDrive::cacheInfo(HardDriveInfo &info) const
 {
     {   SYNCHRONIZED
         
@@ -495,12 +496,12 @@ HardDrive::saveWriteThroughImage()
     
     // Only proceed if a storage file is given
     if (path.empty()) {
-        throw VAError(ERROR_WT, "No storage path specified");
+        throw Error(ERROR_WT, "No storage path specified");
     }
     
     // Only proceed if no other emulator instance is using the storage file
     if (wtStream[nr].is_open()) {
-        throw VAError(ERROR_WT_BLOCKED);
+        throw Error(ERROR_WT_BLOCKED);
     }
     
     // Delete the old storage file
@@ -509,12 +510,12 @@ HardDrive::saveWriteThroughImage()
     // Recreate the storage file with the contents of this disk
     writeToFile(path);
     if (!util::fileExists(path)) {
-        throw VAError(ERROR_WT, "Can't create storage file");
+        throw Error(ERROR_WT, "Can't create storage file");
     }
     // Open file
     wtStream[nr].open(path, std::ios::binary | std::ios::in | std::ios::out);
     if (!wtStream[nr].is_open()) {
-        throw VAError(ERROR_WT, "Can't open storage file");
+        throw Error(ERROR_WT, "Can't open storage file");
     }
 }
 
@@ -531,7 +532,7 @@ HardDrive::defaultName(isize partition)
 void
 HardDrive::format(FSVolumeType fsType, string name)
 {
-    if constexpr (HDR_DEBUG) {
+    if (HDR_DEBUG) {
 
         msg("Formatting hard drive\n");
         msg("    File system : %s\n", FSVolumeTypeEnum::key(fsType));
@@ -575,7 +576,7 @@ HardDrive::changeGeometry(const GeometryDescriptor &geometry)
 
     } else {
         
-        throw VAError(ERROR_HDR_UNMATCHED_GEOMETRY);
+        throw Error(ERROR_HDR_UNMATCHED_GEOMETRY);
     }
 }
 

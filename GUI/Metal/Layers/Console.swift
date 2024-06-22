@@ -53,7 +53,7 @@ class Console: Layer {
         if isDirty {
             
             if let text = amiga.retroShell.getText() {
-                
+
                 let cursorColor = NSColor(r: 255, g: 255, b: 255, a: 128)
                 let monoFont = NSFont.monospaced(ofSize: 14, weight: .medium)
                 let cpos = amiga.retroShell.cursorRel - 1
@@ -72,7 +72,16 @@ class Console: Layer {
                 fatalError()
             }
 
+            // Scroll to the end and update the text view
             textView.scrollToEndOfDocument(self)
+            textView.layoutManager!.invalidateGlyphs(
+                forCharacterRange: NSRange(location: 0, length: textView.string.utf16.count),
+                changeInLength: 0,
+                actualCharacterRange: nil)
+            textView.layoutManager!.invalidateLayout(
+                forCharacterRange: NSRange(location: 0, length: textView.string.utf16.count),
+                actualCharacterRange: nil)
+
             isDirty = false
         }
     }

@@ -2,73 +2,69 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "CoreComponentTypes.h"
+#include "EmulatorTypes.h"
+#include "ThreadTypes.h"
 #include "CoreObject.h"
+#include "Inspectable.h"
+#include "Synchronizable.h"
+#include "Configurable.h"
+#include "Suspendable.h"
 #include "Serialization.h"
 #include "Concurrency.h"
 #include <vector>
 
 namespace vamiga {
 
-/* The following macro can be utilized to prevent multiple threads to enter the
- * same code block. It mimics the behaviour of the well known Java construct
- * 'synchronized(this) { }'. To secure a code-block, use the following syntax:
- *
- *     { SYNCHRONIZED <commands> }
- *
- * To prevent concurrent execution of a single static function, use:
- *
- *     { STATIC_SYNCHRONIZED <commands> }
- */
-#define SYNCHRONIZED util::AutoMutex _am(mutex);
-#define STATIC_SYNCHRONIZED static std::mutex m; std::lock_guard<std::mutex> lock(m);
+struct Description {
 
-struct NoCopy
-{
-    NoCopy() { };
-    NoCopy(NoCopy const&) = delete;
+    const char *name;
+    const char *description;
 };
 
-struct NoAssign
-{
-    NoAssign() { };
-    NoAssign& operator=(NoAssign const&) = delete;
-};
+typedef std::vector<Description> Descriptions;
 
-class CoreComponent : public CoreObject, NoCopy, NoAssign {
+class CoreComponent : 
+public CoreObject, public Synchronizable, public Suspendable {
 
-protected:
+public:
     
-    // Set to false to silence all debug messages for this component
-    bool verbose = true;
+    // Reference to the emulator this instance belongs to
+    class Emulator &emulator;
+
+    // Object identifier (to distinguish instances of the same component)
+    const isize objid;
 
     // Sub components
     std::vector<CoreComponent *> subComponents;
-
-    /* Mutex for implementing the 'synchronized' macro. The macro can be used
-     * to prevent multiple threads to enter the same code block. It mimics the
-     * behaviour of the well known Java construct 'synchronized(this) { }'.
-     */
-    mutable util::ReentrantMutex mutex;
 
 
     //
     // Initializing
     //
-    
+
 public:
+
+    CoreComponent(Emulator& ref) : emulator(ref), objid(0) { }
+    CoreComponent(Emulator& ref, isize id) : emulator(ref), objid(id) { }
+
+    // Returns a reference to the description of this component
+    virtual const Descriptions &getDescriptions() const = 0;
+    const char *objectName() const override;
+    const char *description() const override;
     
-    /* Initializes the component and it's subcomponents. The initialization
-     * procedure is initiated once, in the constructor of the Amiga class. By
-     * default, a component enters it's initial configuration. Custom actions
-     * can be performed by implementing the _initialize() delegation function.
+    bool operator== (CoreComponent &other);
+    bool operator!= (CoreComponent &other) { return !(other == *this); }
+
+    /* This function is called inside the emulator's launch routine. It iterates
+     * through all components and calls the _initialize() delegate. By default
+     * the initial configuration is setup.
      */
     void initialize();
     virtual void _initialize() { resetConfig(); }
@@ -92,16 +88,16 @@ public:
     
 public:
     
-    virtual bool isPoweredOff() const = 0;
-    virtual bool isPoweredOn() const = 0;
-    virtual bool isPaused() const = 0;
-    virtual bool isRunning() const = 0;
-    virtual bool isSuspended() const = 0;
-    virtual bool isHalted() const = 0;
+    virtual bool isPoweredOff() const;
+    virtual bool isPoweredOn() const;
+    virtual bool isPaused() const;
+    virtual bool isRunning() const;
+    virtual bool isSuspended() const;
+    virtual bool isHalted() const;
 
-    virtual void suspend() = 0;
-    virtual void resume() = 0;
-
+    void suspend() override;
+    void resume() override;
+    
     // Throws an exception if the emulator is not ready to power on
     virtual void isReady() const throws;
 
@@ -144,38 +140,6 @@ public:
     // Initializes all configuration items with their default values
     virtual void resetConfig() { };
 
-
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    /* Collects information about the component and it's subcomponents. Many
-     * components contain an info variable of a class specific type (e.g.,
-     * CPUInfo, MemoryInfo, ...). These variables contain the information shown
-     * in the GUI's inspector window and are updated by calling this function.
-     * Note: Because this function accesses the internal emulator state with
-     * many non-atomic operations, it must not be called on a running emulator.
-     * To carry out inspections while the emulator is running, set up an
-     * inspection target via Amiga::setInspectionTarget().
-     */
-    void inspect() const;
-    virtual void _inspect() const { }
-
-    /* Base method for building the class specific getInfo() methods. When the
-     * emulator is running, the result of the most recent inspection is
-     * returned. If the emulator isn't running, the function first updates the
-     * cached values in order to return up-to-date results.
-     */
-    template<class T> T getInfo(T &cachedValues) const {
-        
-        {   SYNCHRONIZED
-            
-            if (!isRunning()) inspect();
-            return cachedValues;
-        }
-    }
     
     //
     // Serializing
@@ -216,31 +180,32 @@ public:
 //
 
 #define RESET_SNAPSHOT_ITEMS(hard) \
-util::SerResetter resetter; \
-applyToResetItems(resetter, hard);
+if (hard) { \
+util::SerHardResetter resetter; \
+serialize(resetter); \
+} else { \
+util::SerSoftResetter resetter; \
+serialize(resetter); \
+}
 
 #define COMPUTE_SNAPSHOT_SIZE \
 util::SerCounter counter; \
-applyToPersistentItems(counter); \
-applyToResetItems(counter); \
+serialize(counter); \
 return counter.count;
 
 #define COMPUTE_SNAPSHOT_CHECKSUM \
 util::SerChecker checker; \
-applyToPersistentItems(checker); \
-applyToResetItems(checker); \
+serialize(checker); \
 return checker.hash;
 
 #define LOAD_SNAPSHOT_ITEMS \
 util::SerReader reader(buffer); \
-applyToPersistentItems(reader); \
-applyToResetItems(reader); \
+serialize(reader); \
 return (isize)(reader.ptr - buffer);
 
 #define SAVE_SNAPSHOT_ITEMS \
 util::SerWriter writer(buffer); \
-applyToPersistentItems(writer); \
-applyToResetItems(writer); \
+serialize(writer); \
 return (isize)(writer.ptr - buffer);
 
 }

@@ -38,6 +38,7 @@ public:
     static bool isDiagRom(u32 crc32);
     static bool isCommodoreRom(u32 crc32);
     static bool isHyperionRom(u32 crc32);
+    static bool isEmutosRom(u32 crc32);
     static bool isPatchedRom(u32 crc32);
 
     // Translates a ROM indentifier into a textual description
@@ -56,7 +57,7 @@ public:
     RomFile(const string &path, std::istream &stream) throws { init(path, stream); }
     RomFile(const u8 *buf, isize len) throws { init(buf, len); }
 
-    const char *getDescription() const override { return "ROM"; }
+    const char *objectName() const override { return "ROM"; }
 
 
     //

@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -56,25 +56,25 @@ Recorder::_dump(Category category, std::ostream& os) const
 string
 Recorder::videoPipePath()
 {
-    return amiga.tmp("videoPipe").string();
+    return host.tmp("videoPipe").string();
 }
 
 string
 Recorder::audioPipePath()
 {
-    return amiga.tmp("audioPipe").string();
+    return host.tmp("audioPipe").string();
 }
 
 string
 Recorder::videoStreamPath()
 {
-    return amiga.tmp("video.mp4").string();
+    return host.tmp("video.mp4").string();
 }
 
 string
 Recorder::audioStreamPath()
 {
-    return amiga.tmp("audio.mp4").string();
+    return host.tmp("audio.mp4").string();
 }
 
 util::Time
@@ -96,17 +96,17 @@ Recorder::startRecording(isize x1, isize y1, isize x2, isize y2,
           x1, y1, x2, y2, bitRate, aspectX, aspectY);
     
     if (isRecording()) {
-        throw VAError(ERROR_REC_LAUNCH, "Recording in progress.");
+        throw Error(ERROR_REC_LAUNCH, "Recording in progress.");
     }
     
     // Create pipes
     debug(REC_DEBUG, "Creating pipes...\n");
     
     if (!videoPipe.create(videoPipePath())) {
-        throw VAError(ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
+        throw Error(ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
     }
     if (!audioPipe.create(audioPipePath())) {
-        throw VAError(ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
+        throw Error(ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
     }
     
     debug(REC_DEBUG, "Pipes created\n");
@@ -213,7 +213,7 @@ Recorder::startRecording(isize x1, isize y1, isize x2, isize y2,
     debug(REC_DEBUG, "%s\n", cmd1.c_str());
     
     if (!videoFFmpeg.launch(cmd1)) {
-        throw VAError(ERROR_REC_LAUNCH, "Unable to launch the FFmpeg video encoder.");
+        throw Error(ERROR_REC_LAUNCH, "Unable to launch the FFmpeg video encoder.");
     }
     
     // Launch the audio encoder
@@ -221,21 +221,21 @@ Recorder::startRecording(isize x1, isize y1, isize x2, isize y2,
     debug(REC_DEBUG, "%s\n", cmd2.c_str());
     
     if (!audioFFmpeg.launch(cmd2)) {
-        throw VAError(ERROR_REC_LAUNCH, "Unable to launch the FFmpeg audio encoder.");
+        throw Error(ERROR_REC_LAUNCH, "Unable to launch the FFmpeg audio encoder.");
     }
     
     // Open the video pipe
     debug(REC_DEBUG, "Opening video pipe\n");
     
     if (!videoPipe.open()) {
-        throw VAError(ERROR_REC_LAUNCH, "Unable to open the video pipe.");
+        throw Error(ERROR_REC_LAUNCH, "Unable to open the video pipe.");
     }
     
     // Open the audio pipe
     debug(REC_DEBUG, "Opening audio pipe\n");
     
     if (!audioPipe.open()) {
-        throw VAError(ERROR_REC_LAUNCH, "Unable to launch the audio pipe.");
+        throw Error(ERROR_REC_LAUNCH, "Unable to launch the audio pipe.");
     }
     
     debug(REC_DEBUG, "Success\n");

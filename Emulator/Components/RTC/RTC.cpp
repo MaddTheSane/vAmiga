@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -35,10 +35,10 @@ RTC::setConfigItem(Option option, i64 value)
         case OPT_RTC_MODEL:
 
             if (!isPoweredOff()) {
-                throw VAError(ERROR_OPT_LOCKED);
+                throw Error(ERROR_OPT_LOCKED);
             }
             if (!RTCRevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, RTCRevisionEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, RTCRevisionEnum::keyList());
             }
             
             config.model = (RTCRevision)value;

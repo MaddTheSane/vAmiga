@@ -30,7 +30,7 @@ class MyController: NSWindowController, MessageReceiver {
     var mydocument: MyDocument!
     
     // Amiga proxy (bridge between the Swift frontend and the C++ backend)
-    var amiga: AmigaProxy!
+    var amiga: EmulatorProxy!
     
     // Inspector panel of this emulator instance
     var inspector: Inspector?
@@ -579,10 +579,12 @@ extension MyController {
             }
 
         case .AUTO_SNAPSHOT_TAKEN:
-            mydocument.snapshots.append(amiga.latestAutoSnapshot)
-            
+            let latest = amiga.latestAutoSnapshot!
+            mydocument.snapshots.append(latest, size: latest.size)
+
         case .USER_SNAPSHOT_TAKEN:
-            mydocument.snapshots.append(amiga.latestUserSnapshot)
+            let latest = amiga.latestUserSnapshot!
+            mydocument.snapshots.append(latest, size: latest.size)
             renderer.flash()
             
         case .SNAPSHOT_RESTORED:

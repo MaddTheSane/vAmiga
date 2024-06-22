@@ -17,10 +17,10 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Add the emulator library
-add_library(vAmigaCore Components/Amiga.cpp)
+add_library(vAmigaCore VAmiga.cpp config.cpp)
 
 # Add the console app (vAmiga Headless)
-add_executable(vAmigaConsole Headless.cpp)
+add_executable(vAmigaConsole Headless.cpp config.cpp)
 target_link_libraries(vAmigaConsole vAmigaCore)
 
 # Specify compile options
@@ -29,7 +29,7 @@ if(WIN32)
   target_link_libraries(vAmigaConsole ws2_32)
 endif()
 if(MSVC)
-  target_compile_options(vAmigaCore PUBLIC /W4 /bigobj) # /WX disabled for now
+  target_compile_options(vAmigaCore PUBLIC /W4 /bigobj /Zc:preprocessor) # /WX disabled for now
   target_compile_options(vAmigaCore PUBLIC /wd4100 /wd4201 /wd4324 /wd4458 /wd4091 /wd4430)
   set_source_files_properties(CPU/Moira/Moira.cpp PROPERTIES COMPILE_FLAGS "/wd4127")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -37,7 +37,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(vAmigaCore PUBLIC -Wno-unused-parameter)
   target_compile_options(vAmigaCore PUBLIC -fconcepts)
   target_compile_options(vAmigaCore PUBLIC -Wno-restrict)
-  target_compile_options(vAmigaCore PUBLIC -Wno-dangling-pointer)
+  # target_compile_options(vAmigaCore PUBLIC -Wno-dangling-pointer)
   target_compile_options(vAmigaCore PUBLIC -Wno-array-bounds)
 else()
   target_compile_options(vAmigaCore PUBLIC -Wall -Werror)
@@ -62,7 +62,8 @@ add_subdirectory(Utilities)
 # Add libraries
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(vAmigaCore xdms softfloat Threads::Threads)
+target_link_libraries(vAmigaCore xdms Threads::Threads)
 
 # Add tests
-add_test(NAME SelfTest COMMAND vAmigaConsole --selftest)
+add_test(NAME SelfTest1 COMMAND vAmigaConsole --size)
+add_test(NAME SelfTest2 COMMAND vAmigaConsole --check)

@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -34,13 +34,14 @@ Defaults::Defaults()
     setFallback(OPT_VIDEO_FORMAT, PAL);
     setFallback(OPT_WARP_BOOT, 0);
     setFallback(OPT_WARP_MODE, WARP_NEVER);
-    setFallback(OPT_SYNC_MODE, SYNC_NATIVE_FPS);
-    setFallback(OPT_PROPOSED_FPS, 60);
+    setFallback(OPT_VSYNC, false);
+    setFallback(OPT_TIME_LAPSE, 100);
     setFallback(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
     setFallback(OPT_SLOW_RAM_MIRROR, true);
     setFallback(OPT_PTR_DROPS, true);
     setFallback(OPT_DENISE_REVISION, DENISE_OCS);
     setFallback(OPT_VIEWPORT_TRACKING, true);
+    setFallback(OPT_FRAME_SKIPPING, 16);
     setFallback(OPT_PALETTE, PALETTE_COLOR);
     setFallback(OPT_BRIGHTNESS, 50);
     setFallback(OPT_CONTRAST, 100);
@@ -113,6 +114,7 @@ Defaults::Defaults()
     setFallback(OPT_CIA_REVISION, CIA_MOS_8520_DIP);
     setFallback(OPT_TODBUG, true);
     setFallback(OPT_ECLOCK_SYNCING, true);
+    setFallback(OPT_CIA_IDLE_SLEEP, true);
     setFallback(OPT_ACCURATE_KEYBOARD, true);
     setFallback(OPT_PULLUP_RESISTORS, true);
     setFallback(OPT_SHAKE_DETECTION, true);
@@ -127,6 +129,7 @@ Defaults::Defaults()
     setFallback(OPT_AUDVOL, { 0, 1, 2, 3 }, 100);
     setFallback(OPT_AUDVOLL, 50);
     setFallback(OPT_AUDVOLR, 50);
+    setFallback(OPT_AUD_FASTPATH, true);
     setFallback(OPT_DIAG_BOARD, false);
     setFallback(OPT_SRV_PORT, SERVER_SER, 8080);
     setFallback(OPT_SRV_PROTOCOL, SERVER_SER, SRVPROT_DEFAULT);
@@ -175,7 +178,7 @@ Defaults::load(const fs::path &path)
     auto fs = std::ifstream(path, std::ifstream::binary);
     
     if (!fs.is_open()) {
-        throw VAError(ERROR_FILE_NOT_FOUND);
+        throw Error(ERROR_FILE_NOT_FOUND);
     }
     
     debug(DEF_DEBUG, "Loading user defaults from %s...\n", path.string().c_str());
@@ -253,7 +256,7 @@ Defaults::load(std::stringstream &stream)
                 continue;
             }
             
-            throw VAError(ERROR_SYNTAX, line);
+            throw Error(ERROR_SYNTAX, line);
         }
 
         if (accepted || skipped) {
@@ -268,7 +271,7 @@ Defaults::save(const fs::path &path)
     auto fs = std::ofstream(path, std::ofstream::binary);
     
     if (!fs.is_open()) {
-        throw VAError(ERROR_FILE_CANT_WRITE);
+        throw Error(ERROR_FILE_CANT_WRITE);
     }
     
     save(fs);
@@ -339,7 +342,7 @@ Defaults::getString(const string &key)
 
     warn("Invalid key: %s\n", key.c_str());
     assert(false);
-    throw VAError(ERROR_INVALID_KEY, key);
+    throw Error(ERROR_INVALID_KEY, key);
 }
 
 i64
@@ -380,7 +383,7 @@ Defaults::getFallback(const string &key)
 
         warn("Invalid key: %s\n", key.c_str());
         assert(false);
-        throw VAError(ERROR_INVALID_KEY, key);
+        throw Error(ERROR_INVALID_KEY, key);
     }
     
     return fallbacks[key];
@@ -397,7 +400,7 @@ Defaults::setString(const string &key, const string &value)
 
             warn("Invalid key: %s\n", key.c_str());
             assert(false);
-            throw VAError(ERROR_INVALID_KEY, key);
+            throw Error(ERROR_INVALID_KEY, key);
         }
         
         values[key] = value;
@@ -490,7 +493,7 @@ Defaults::remove(const string &key)
 
             warn("Invalid key: %s\n", key.c_str());
             assert(false);
-            throw VAError(ERROR_INVALID_KEY, key);
+            throw Error(ERROR_INVALID_KEY, key);
         }
         if (values.contains(key)) {
             values.erase(key);

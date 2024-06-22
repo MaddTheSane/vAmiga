@@ -26,7 +26,7 @@ Folder::init(const string &path)
     debug(FS_DEBUG, "make(%s)\n", path.c_str());
 
     // Only proceed if the provided filename points to a directory
-    if (!isCompatiblePath(path)) throw VAError(ERROR_FILE_TYPE_MISMATCH);
+    if (!isCompatiblePath(path)) throw Error(ERROR_FILE_TYPE_MISMATCH);
 
     // Create a file system and import the directory
     MutableFileSystem volume(FS_OFS, path.c_str());
@@ -42,7 +42,7 @@ Folder::init(const string &path)
     FSErrorReport report = volume.check(true);
     if (report.corruptedBlocks > 0) {
         warn("Found %ld corrupted blocks\n", report.corruptedBlocks);
-        if constexpr (FS_DEBUG) volume.dump(Category::Blocks);
+        if (FS_DEBUG) volume.dump(Category::Blocks);
     }
 
     // Convert the file system into an ADF

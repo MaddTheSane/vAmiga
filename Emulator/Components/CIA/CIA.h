@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -70,8 +70,27 @@ constexpr u64 CIADelayMask = ~CIALast
 & ~CIAReadIcr0 & ~CIAClearIcr0 & ~CIAAckIcr0 & ~CIASetIcr0 & ~CIATODInt0
 & ~CIASerInt0 & ~CIASdrToSsr0 & ~CIASsrToSdr0 & ~CIASerClk0;
 
-class CIA : public SubComponent {
+class CIA : public SubComponent, public Inspectable<CIAInfo> {
     
+    Descriptions descriptions = {
+        {
+            .name           = "CIAA",
+            .description    = "Complex Interface Adapter A"
+        },
+        {
+            .name           = "CIAB",
+            .description    = "Complex Interface Adapter B"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_CIA_REVISION,
+        OPT_TODBUG,
+        OPT_ECLOCK_SYNCING,
+        OPT_CIA_IDLE_SLEEP
+    };
+
     friend class TOD;
     
 protected:
@@ -286,30 +305,8 @@ private:
     void _reset(bool hard) override;
 
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
-        worker
-        
-        << config.revision
-        << config.todBug
-        << config.eClockSyncing;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << clock
-            << idleCycles
-            << tiredness
-            << sleeping
-            << sleepCycle
-            << wakeUpCycle;
-        }
-
         worker
         
         << delay
@@ -338,14 +335,37 @@ private:
         << sdr
         << ssr
         << serCounter;
+
+        if (util::isSoftResetter(worker)) return;
+
+        worker
+
+        << clock
+        << idleCycles
+        << tiredness
+        << sleeping
+        << sleepCycle
+        << wakeUpCycle;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
+        << config.revision
+        << config.todBug
+        << config.eClockSyncing;
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-    
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Configuring
     //
@@ -364,12 +384,9 @@ public:
     
 public:
     
-    CIAInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // CIAInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(CIAInfo &result) const override;
     Cycle getClock() const { return clock; }
-    
-protected:
-    
-    void _inspect() const override;
 
     
     //
@@ -548,8 +565,6 @@ public:
     CIAA(Amiga& ref) : CIA(0, ref) { };
     
 private:
-
-    const char *getDescription() const override { return "CIAA"; }
     
     void _powerOn() override;
     void _powerOff() override;
@@ -588,8 +603,6 @@ public:
     CIAB(Amiga& ref) : CIA(1, ref) { };
     
 private:
-
-    const char *getDescription() const override { return "CIAB"; }
 
     void pullDownInterruptLine() override;
     void releaseInterruptLine() override;

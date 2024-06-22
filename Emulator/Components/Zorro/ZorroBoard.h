@@ -16,6 +16,18 @@ namespace vamiga {
 
 class ZorroBoard : public SubComponent {
     
+protected:
+    
+    Descriptions descriptions = {{
+
+        .name           = "Board",
+        .description    = "Zorro Board"
+    }};
+
+    ConfigOptions options = {
+
+    };
+
     friend class ZorroManager;
     
 protected:
@@ -44,7 +56,11 @@ protected:
 
     void _dump(Category category, std::ostream& os) const override;
 
+public:
 
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+    
     //
     // Querying
     //

@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -15,6 +15,7 @@ namespace vamiga {
 
 DmaDebugger::DmaDebugger(Amiga &ref) : SubComponent(ref)
 {
+    
 }
 
 void
@@ -90,7 +91,7 @@ DmaDebugger::setConfigItem(Option option, i64 value)
         case OPT_DMA_DEBUG_MODE:
             
             if (!DmaDisplayModeEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, DmaDisplayModeEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, DmaDisplayModeEnum::keyList());
             }
             
             config.displayMode = (DmaDisplayMode)value;

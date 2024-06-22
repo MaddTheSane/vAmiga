@@ -11,7 +11,7 @@ class MemTableView: NSTableView {
 
     @IBOutlet weak var inspector: Inspector!
 
-    var amiga: AmigaProxy { return inspector.amiga}
+    var amiga: EmulatorProxy { return inspector.amiga}
 
     // Displayed memory bank
     var bank = 0
@@ -48,7 +48,7 @@ class MemTableView: NSTableView {
         for i in 0 ..< rows {
 
             addrInRow[i] = addr
-            asciiInRow[i] = amiga.mem.ascii(inspector.accessor, addr: addr, bytes: 16)
+            asciiInRow[i] = amiga.debugger.ascDump(inspector.accessor, addr: addr, bytes: 16)
 
             for _ in 0 ..< 8 {
 

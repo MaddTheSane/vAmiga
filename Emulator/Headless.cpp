@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -25,9 +25,10 @@ int main(int argc, char *argv[])
         
     } catch (vamiga::SyntaxError &e) {
         
-        std::cout << "Usage: vAmigaCore [-svm] | { [-vm] <script> } " << std::endl;
+        std::cout << "Usage: vAmigaCore [-csvm] | { [-vm] <script> } " << std::endl;
         std::cout << std::endl;
-        std::cout << "       -s or --selftest  Checks the integrity of the build" << std::endl;
+        std::cout << "       -c or --check     Checks the integrity of the build" << std::endl;
+        std::cout << "       -s or --size      Reports the size of certain objects" << std::endl;
         std::cout << "       -v or --verbose   Print executed script lines" << std::endl;
         std::cout << "       -m or --messages  Observe the message queue" << std::endl;
         std::cout << std::endl;
@@ -38,9 +39,9 @@ int main(int argc, char *argv[])
         
         return 1;
 
-    } catch (vamiga::VAError &e) {
+    } catch (vamiga::Error &e) {
 
-        std::cout << "VAError: " << std::endl;
+        std::cout << "Error: " << std::endl;
         std::cout << e.what() << std::endl;
         return 1;
         
@@ -60,38 +61,29 @@ int main(int argc, char *argv[])
 
 namespace vamiga {
 
+Headless::Headless() { // }: amiga(&vamiga.emu->main) {
+
+}
+
 int
 Headless::main(int argc, char *argv[])
 {
-    std::cout << "vAmiga Headless v" << amiga.version();
+    std::cout << "vAmiga Headless v" << VAmiga::version();
     std::cout << " - (C)opyright Dirk W. Hoffmann" << std::endl << std::endl;
 
     // Parse all command line arguments
     parseArguments(argc, argv);
 
-    // Redirect shell output to the console in verbose mode
-    if (keys.find("verbose") != keys.end()) amiga.retroShell.setStream(std::cout);
+    // Check for the --size option
+    if (keys.find("size") != keys.end()) {
 
-    // Read the input script
-    Script script(keys["arg1"]);
-    
-    // Register message receiver
-    // amiga.msgQueue.setListener(this, vamiga::process);
+        reportSize();
+        return 0;
 
-    // Launch the emulator thread
-    amiga.launch(this, vamiga::process);
+    } else {
 
-    // Execute the script
-    barrier.lock();
-    script.execute(amiga);
-
-    while (!returnCode) {
-        
-        barrier.lock();
-        amiga.retroShell.continueScript();
+        return execScript();
     }
-
-    return *returnCode;
 }
 
 #ifdef _WIN32
@@ -99,7 +91,8 @@ Headless::main(int argc, char *argv[])
 void
 Headless::parseArguments(int argc, char *argv[])
 {
-    keys["selftest"] = "1";
+    keys["check"] = "1";
+    keys["size"] = "1";
     keys["verbose"] = "1";
     keys["arg1"] = selfTestScript();
 }
@@ -111,7 +104,8 @@ Headless::parseArguments(int argc, char *argv[])
 {
     static struct option long_options[] = {
         
-        { "selftest",   no_argument,    NULL,   's' },
+        { "check",      no_argument,    NULL,   'c' },
+        { "size",       no_argument,    NULL,   's' },
         { "verbose",    no_argument,    NULL,   'v' },
         { "messages",   no_argument,    NULL,   'm' },
         { NULL,         0,              NULL,    0  }
@@ -126,13 +120,17 @@ Headless::parseArguments(int argc, char *argv[])
     // Parse all options
     while (1) {
         
-        int arg = getopt_long(argc, argv, ":svm", long_options, NULL);
+        int arg = getopt_long(argc, argv, ":csvm", long_options, NULL);
         if (arg == -1) break;
 
         switch (arg) {
                 
+            case 'c':
+                keys["check"] = "1";
+                break;
+
             case 's':
-                keys["selftest"] = "1";
+                keys["size"] = "1";
                 break;
 
             case 'v':
@@ -163,7 +161,7 @@ Headless::parseArguments(int argc, char *argv[])
     checkArguments();
 
     // Create the selftest script if needed
-    if (keys.find("selftest") != keys.end()) keys["arg1"] = selfTestScript();
+    if (keys.find("check") != keys.end()) keys["arg1"] = selfTestScript();
 }
 
 #endif
@@ -171,11 +169,11 @@ Headless::parseArguments(int argc, char *argv[])
 void
 Headless::checkArguments()
 {
-    if (keys.find("selftest") != keys.end()) {
+    if (keys.find("check") != keys.end() || keys.find("size") != keys.end()) {
 
         // No input file must be given
         if (keys.find("arg1") != keys.end()) {
-            throw SyntaxError("No script file must be given in selftest mode");
+            throw SyntaxError("No script file must be given");
         }
 
     } else {
@@ -248,6 +246,64 @@ Headless::process(Message msg)
     }
 
     barrier.unlock();
+}
+
+void 
+Headless::reportSize()
+{
+    msg("             Amiga : %zu bytes\n", sizeof(Amiga));
+    msg("             Agnus : %zu bytes\n", sizeof(Agnus));
+    msg("       AudioFilter : %zu bytes\n", sizeof(AudioFilter));
+    msg("               CIA : %zu bytes\n", sizeof(CIA));
+    msg("       ControlPort : %zu bytes\n", sizeof(ControlPort));
+    msg("               CPU : %zu bytes\n", sizeof(CPU));
+    msg("            Denise : %zu bytes\n", sizeof(Denise));
+    msg("             Drive : %zu bytes\n", sizeof(FloppyDrive));
+    msg("          Keyboard : %zu bytes\n", sizeof(Keyboard));
+    msg("            Memory : %zu bytes\n", sizeof(Memory));
+    msg("moira::Breakpoints : %zu bytes\n", sizeof(moira::Breakpoints));
+    msg("moira::Watchpoints : %zu bytes\n", sizeof(moira::Watchpoints));
+    msg("   moira::Debugger : %zu bytes\n", sizeof(moira::Debugger));
+    msg("      moira::Moira : %zu bytes\n", sizeof(moira::Moira));
+    msg("             Muxer : %zu bytes\n", sizeof(Muxer));
+    msg("             Paula : %zu bytes\n", sizeof(Paula));
+    msg("       PixelEngine : %zu bytes\n", sizeof(PixelEngine));
+    msg("     RemoteManager : %zu bytes\n", sizeof(RemoteManager));
+    msg("               RTC : %zu bytes\n", sizeof(RTC));
+    msg("        RetroShell : %zu bytes\n", sizeof(RetroShell));
+    msg("           Sampler : %zu bytes\n", sizeof(Sampler));
+    msg("        SerialPort : %zu bytes\n", sizeof(SerialPort));
+    msg("            Volume : %zu bytes\n", sizeof(Volume));
+    msg("             Zorro : %zu bytes\n", sizeof(ZorroManager));
+    msg("\n");
+}
+
+int
+Headless::execScript()
+{
+    // Create an emulator instance
+    VAmiga vamiga;
+    
+    // Redirect shell output to the console in verbose mode
+    if (keys.find("verbose") != keys.end()) vamiga.amiga.amiga->retroShell.setStream(std::cout);
+
+    // Read the input script
+    Script script(keys["arg1"]);
+
+    // Launch the emulator thread
+    vamiga.launch(this, vamiga::process);
+
+    // Execute the script
+    barrier.lock();
+    script.execute(*vamiga.amiga.amiga);
+
+    while (!returnCode) {
+
+        barrier.lock();
+        vamiga.amiga.amiga->retroShell.continueScript();
+    }
+
+    return *returnCode;
 }
 
 }

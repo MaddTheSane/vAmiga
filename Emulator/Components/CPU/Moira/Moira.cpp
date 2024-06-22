@@ -29,6 +29,8 @@ namespace vamiga::moira {
 
 Moira::Moira(Amiga &ref) : SubComponent(ref)
 {
+    exec = new ExecPtr[65536];
+    loop = new ExecPtr[65536];
     if (BUILD_INSTR_INFO_TABLE) info = new InstrInfo[65536];
     if (ENABLE_DASM) dasm = new DasmPtr[65536];
 
@@ -53,6 +55,8 @@ Moira::Moira(Amiga &ref) : SubComponent(ref)
 
 Moira::~Moira()
 {
+    if (exec) delete [] exec;
+    if (loop) delete [] loop;
     if (info) delete [] info;
     if (dasm) delete [] dasm;
 }
@@ -60,16 +64,16 @@ Moira::~Moira()
 void
 Moira::setModel(Model cpuModel, Model dasmModel)
 {
-    // Only proceed if the model changes
-    if (this->cpuModel == cpuModel && this->dasmModel == dasmModel) return;
+    if (this->cpuModel != cpuModel || this->dasmModel != dasmModel) {
+        
+        this->cpuModel = cpuModel;
+        this->dasmModel = dasmModel;
 
-    this->cpuModel = cpuModel;
-    this->dasmModel = dasmModel;
-
-    createJumpTable(cpuModel, dasmModel);
-
-    reg.cacr &= cacrMask();
-    flags &= ~CPU_IS_LOOPING;
+        createJumpTable(cpuModel, dasmModel);
+        
+        reg.cacr &= cacrMask();
+        flags &= ~CPU_IS_LOOPING;
+    }
 }
 
 void
@@ -101,7 +105,7 @@ Moira::setNumberFormat(DasmStyle &style, const DasmNumberFormat &value)
 }
 
 bool
-Moira::hasCPI()
+Moira::hasCPI() const
 {
     switch (cpuModel) {
 
@@ -114,7 +118,7 @@ Moira::hasCPI()
 }
 
 bool
-Moira::hasMMU()
+Moira::hasMMU() const
 {
     switch (cpuModel) {
 
@@ -127,7 +131,7 @@ Moira::hasMMU()
 }
 
 bool
-Moira::hasFPU()
+Moira::hasFPU() const
 {
     switch (cpuModel) {
 
@@ -167,9 +171,11 @@ Moira::addrMask() const
     if constexpr (C == C68020) {
 
         return cpuModel == M68EC020 ? 0x00FFFFFF : 0xFFFFFFFF;
-    }
 
-    return 0x00FFFFFF;
+    } else {
+
+        return 0x00FFFFFF;
+    }
 }
 
 void
@@ -196,8 +202,6 @@ Moira::reset()
     fcl = 0;
     fcSource = 0;
 
-    fpu = { };
-
     SYNC(16);
 
     // Read the initial (supervisor) stack pointer from memory
@@ -216,6 +220,7 @@ Moira::reset()
     SYNC(2);
     prefetch<C>();
 
+    // Reset subcomponents
     debugger.reset();
 
     // Inform the delegate
@@ -379,7 +384,7 @@ Moira::processException(const std::exception &exc)
             throw df;
         }
 
-    } catch (DoubleFault & df) {
+    } catch (DoubleFault &df) {
 
         halt();
         return;
@@ -825,9 +830,9 @@ Moira::getIrqVector(u8 level) const {
 }
 
 InstrInfo
-Moira::getInfo(u16 op) const
+Moira::getInstrInfo(u16 op) const
 {
-    if (BUILD_INSTR_INFO_TABLE == false) {
+    if constexpr (BUILD_INSTR_INFO_TABLE == false) {
         throw std::runtime_error("This feature requires BUILD_INSTR_INFO_TABLE = true\n");
     }
 

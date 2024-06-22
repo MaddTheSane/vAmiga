@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -52,7 +52,7 @@ SerialPort::setConfigItem(Option option, i64 value)
         case OPT_SER_DEVICE:
             
             if (!SerialPortDeviceEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, SerialPortDeviceEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, SerialPortDeviceEnum::keyList());
             }
             
             config.device = (SerialPortDevice)value;
@@ -69,7 +69,7 @@ SerialPort::setConfigItem(Option option, i64 value)
 }
 
 void
-SerialPort::_inspect() const
+SerialPort::cacheInfo(SerialPortInfo &info) const
 {
     {   SYNCHRONIZED
         
@@ -125,8 +125,8 @@ SerialPort::_reset(bool hard)
 {
     RESET_SNAPSHOT_ITEMS(hard)
 
-    incoming = "";
-    outgoing = "";
+    incoming.clear();
+    outgoing.clear();
 }
 
 bool
@@ -178,24 +178,24 @@ SerialPort::setPort(u32 mask, bool value)
     if ((oldPort ^ port) & RXD_MASK) uart.rxdHasChanged(value);
 }
 
-string
+std::u16string
 SerialPort::readIncoming()
 {
     {   SYNCHRONIZED
 
-        string result = incoming;
-        incoming = "";
+        auto result = incoming;
+        incoming.clear();
         return result;
     }
 }
 
-string
+std::u16string
 SerialPort::readOutgoing()
 {
     {   SYNCHRONIZED
 
-        string result = outgoing;
-        outgoing = "";
+        auto result = outgoing;
+        outgoing.clear();
         return result;
     }
 }
@@ -252,8 +252,20 @@ SerialPort::readOutgoingPrintableByte()
     }
 }
 
+void 
+SerialPort::operator<<(char c)
+{
+    uart << c;
+}
+
 void
-SerialPort::recordIncomingByte(u8 byte)
+SerialPort::operator<<(const string &text)
+{
+    uart << text;
+}
+
+void
+SerialPort::recordIncomingByte(int byte)
 {
     {   SYNCHRONIZED
 
@@ -271,7 +283,7 @@ SerialPort::recordIncomingByte(u8 byte)
 }
 
 void
-SerialPort::recordOutgoingByte(u8 byte)
+SerialPort::recordOutgoingByte(int byte)
 {
     {   SYNCHRONIZED
 
@@ -284,15 +296,36 @@ SerialPort::recordOutgoingByte(u8 byte)
         if (outgoing.length() == 1) msgQueue.put(MSG_SER_OUT);
 
         // Inform RetroShell
-        if (config.verbose) dumpByte(byte);
+        if (config.device == SPD_RETROSHELL || config.device == SPD_COMMANDER) dumpByte(byte);
     }
 }
 
 void
-SerialPort::dumpByte(u8 byte)
+SerialPort::dumpByte(int byte)
 {
-    if (isprint(byte) || byte == '\n') {
-        retroShell << (char)byte;
+    char c = char(byte);
+
+    if (config.device == SPD_RETROSHELL) {
+
+        if (isprint(c) || c == '\n') {
+            retroShell << c;
+        }
+    }
+
+    if (config.device == SPD_COMMANDER) {
+
+        switch (c) {
+
+            case '\n':
+
+                retroShell.press(RSKEY_RETURN);
+                break;
+
+            default:
+
+                if (isprint(c)) retroShell.press(c);
+                break;
+        }
     }
 }
 

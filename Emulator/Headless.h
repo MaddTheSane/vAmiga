@@ -2,14 +2,18 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "vamiga.h"
+#include "config.h"
+#include "VAmiga.h"
+#include "Emulator.h"
+#include "Amiga.h"
+#include "Media.h"
 
 using std::map;
 using std::vector;
@@ -27,14 +31,20 @@ class Headless {
     // Parsed command line arguments
     map<string,string> keys;
 
-    // The emulator instance
-    Amiga amiga;
-
     // Barrier for syncing script execution
     util::Mutex barrier;
 
     // Return code
     std::optional<int> returnCode;
+
+
+    //
+    // Initializing
+    //
+
+public:
+
+    Headless();
 
     
     //
@@ -57,13 +67,19 @@ private:
     // Returns the path to the self-test script
     string selfTestScript();
 
+    // Executes the provided script
+    int execScript();
 
+    
     //
     // Running
     //
 
 public:
     
+    // Reports size information
+    void reportSize();
+
     // Processes an incoming message
     void process(Message msg);
 };
@@ -99,8 +115,9 @@ static const char *script[] = {
     "amiga defaults",
     "amiga set type PAL",
     "amiga set type NTSC",
-    "amiga set fps 50",
-    "amiga set fps 60",
+    "amiga set warpboot true",
+    "amiga set warpboot false",
+
     "amiga init A1000_OCS_1MB",
     "amiga init A500_OCS_1MB",
     "amiga init A500_ECS_1MB",
@@ -345,6 +362,7 @@ static const char *script[] = {
     "serial set device NONE",
     "serial set device NULLMODEM",
     "serial set device LOOPBACK",
+    "serial set device RETROSHELL",
 
     "df0",
     "df0 eject",
@@ -414,139 +432,108 @@ static const char *script[] = {
     "break at 1024",
     "break at $A000",
     "break at 0xB000",
-    "break",
-    "break enable 0",
-    "break disable 1",
     "break delete 2",
-    "break ignore 0 20",
-    "break",
 
     "",
     "watch",
     "watch at 1024",
     "watch at $A000",
     "watch at 0xB000",
-    "watch",
-    "watch enable 0",
-    "watch disable 1",
     "watch delete 2",
-    "watch ignore 0 20",
-    "watch",
 
     "catch",
     "catch vector 12",
     "catch interrupt 2",
     "catch trap 12",
-    "catch",
-    "catch enable 0",
-    "catch disable 1",
     "catch delete 2",
-    "catch ignore 0 20",
-    "catch",
 
     "cbreak",
     "cbreak at 1024",
     "cbreak at $A000",
     "cbreak at 0xB000",
-    "cbreak",
-    "cbreak enable 0",
-    "cbreak disable 1",
     "cbreak delete 2",
-    "cbreak ignore 0 20",
-    "cbreak",
 
     "",
     "cwatch",
     "cwatch at 1024",
     "cwatch at $A000",
     "cwatch at 0xB000",
-    "cwatch",
-    "cwatch enable 0",
-    "cwatch disable 1",
     "cwatch delete 2",
-    "cwatch ignore 0 20",
-    "cwatch",
 
     "",
-    "amiga",
-    "host",
+    "i amiga",
 
     "",
-    "memory",
-    "memory dump $A00000",
-    "memory bankmap",
-    "memory write $A00000, $FFFF",
+    "i memory",
+    "i memory bankmap",
 
     "",
-    "cpu",
-    "cpu vectors",
+    "i cpu",
 
     "",
-    "ciaa",
-    "ciaa tod",
+    "i ciaa",
+    "i ciaa tod",
 
     "",
-    "ciab",
-    "ciab tod",
+    "i ciab",
+    "i ciab tod",
 
     "",
-    "agnus",
-    "agnus beam",
-    "agnus dma",
-    "agnus events",
+    "i agnus",
+    "i agnus beam",
+    "i agnus dma",
+    "i agnus sequencer",
+    "i agnus events",
 
     "",
-    "blitter",
+    "i blitter",
 
     "",
-    "copper",
-    "copper list 1",
-    "copper list 2",
+    "i paula audio",
+    "i paula audio filter",
+    "i paula dc",
+    "i paula uart",
 
     "",
-    "paula",
-    "paula audio",
-    "paula audio filter",
-    "paula dc",
-    "paula uart",
+    "i denise",
 
     "",
-    "denise",
+    "i rtc",
 
     "",
-    "rtc",
+    "i zorro",
+    "i zorro board 0",
+    "i zorro board 1",
 
     "",
-    "zorro",
-    "zorro inspect 0",
-    "zorro inspect 1",
+    "i controlport 1",
+    "i controlport 2",
 
     "",
-    "controlport 1",
-    "controlport 2",
+    "i serial",
 
     "",
-    "serial",
+    "i keyboard",
 
     "",
-    "keyboard",
+    "i mouse 1",
+    "i mouse 2",
 
     "",
-    "mouse 1",
-    "mouse 2",
+    "i joystick 1",
+    "i joystick 2",
 
-    "",
-    "joystick 1",
-    "joystick 2",
+    "i df0",
+    "i df0 disk",
+    "i df1",
+    "i df1 disk",
+    "i df2",
+    "i df2 disk",
+    "i df3",
+    "i df3 disk",
 
-    "df0",
-    "df0 disk",
-    "df1",
-    "df1 disk",
-    "df2",
-    "df2 disk",
-    "df3",
-    "df3 disk",
+    "i host",
+    "i server"
 };
 
 }

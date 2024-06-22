@@ -2,14 +2,15 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "Error.h"
+#include "Dumpable.h"
 
 namespace vamiga {
 
@@ -44,44 +45,29 @@ namespace vamiga {
  * the emulator's state model (off, paused, running, suspended).
  */
 
-enum class Category
-{    
-    BankMap, Beam, Blocks, Breakpoints, Bus, Catchpoints, Config, Current,
-    Defaults, Disk, Dma, Drive, Events, FileSystem, Fpu, Geometry, Hunks,
-    List1, List2, Parameters, Partitions, Properties,
-    Registers, Sections, Segments, Signals, Slots, State, Stats, Status, SwTraps,
-    Tod, Vectors, Volumes, Watchpoints
-};
-
-class CoreObject {
+class CoreObject : public Dumpable {
 
 protected:
-    
+
+    // Set to false to disable all debug messages
     static bool verbose;
-    
+
     //
     // Initializing
     //
 
 public:
 
-    virtual ~CoreObject() { };
-    
-    
-    //
-    // Printing debug information
-    //
-    
+    virtual ~CoreObject() = default;
+
     // Returns the name for this component (e.g., "Agnus" or "Denise")
-    virtual const char *getDescription() const = 0;
+    virtual const char *objectName() const = 0;
+
+    // Returns a textual description for this component
+    virtual const char *description() const { return ""; }
     
     // Called by debug() and trace() to produce a detailed debug output
     virtual void prefix() const;
-    
-    // Prints debug information about this component
-    void dump(Category category, std::ostream& ss) const;
-    void dump(Category category) const;
-    virtual void _dump(Category category, std::ostream& ss) const = 0;
 };
 
 /* This file provides several macros for printing messages:
@@ -110,41 +96,30 @@ public:
  */
 
 #define msg(format, ...) \
-fprintf(stderr, format, ##__VA_ARGS__);
+fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__);
 
 #define warn(format, ...) \
-fprintf(stderr, "Warning: " format, ##__VA_ARGS__);
+fprintf(stderr, "Warning: " format __VA_OPT__(,) __VA_ARGS__);
 
 #define fatal(format, ...) \
-{ fprintf(stderr, "Fatal: " format, ##__VA_ARGS__); exit(1); }
-
-#ifndef NDEBUG
+{ fprintf(stderr, "Fatal: " format __VA_OPT__(,) __VA_ARGS__); exit(1); }
 
 #define debug(enable, format, ...) \
-if constexpr (enable) { if (verbose) { \
-fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }}
+if (enable) { if (verbose) { \
+fprintf(stderr, "%s:%d " format, objectName(), __LINE__ __VA_OPT__(,) __VA_ARGS__); }}
 
 #define plain(enable, format, ...) \
-if constexpr (enable) { if (verbose) { \
-fprintf(stderr, format, ##__VA_ARGS__); }}
+if (enable) { if (verbose) { \
+fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__); }}
 
 #define trace(enable, format, ...) \
-if constexpr (enable) { if (verbose) { \
+if (enable) { if (verbose) { \
 prefix(); \
-fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }}
+fprintf(stderr, "%s:%d " format, objectName(), __LINE__ __VA_OPT__(,) __VA_ARGS__); }}
 
 #define xfiles(format, ...) \
-if constexpr (XFILES) { if (verbose) { \
+if (XFILES) { if (verbose) { \
 prefix(); \
-fprintf(stderr, "XFILES: " format, ##__VA_ARGS__); }}
-
-#else
-
-#define debug(enable, format, ...)
-#define plain(enable, format, ...)
-#define trace(enable, format, ...)
-#define xfiles(format, ...)
-
-#endif
+fprintf(stderr, "XFILES: " format __VA_OPT__(,) __VA_ARGS__); }}
 
 }

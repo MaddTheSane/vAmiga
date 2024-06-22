@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -20,8 +20,40 @@
 
 namespace vamiga {
 
-class FloppyDrive : public Drive {
-    
+class FloppyDrive : public Drive, public Inspectable<FloppyDriveInfo> {
+
+    Descriptions descriptions = {
+        {
+            .name           = "df0",
+            .description    = "Floppy Drive 0"
+        },
+        {
+            .name           = "df1",
+            .description    = "Floppy Drive 1"
+        },
+        {
+            .name           = "df2",
+            .description    = "Floppy Drive 2"
+        },
+        {
+            .name           = "df3",
+            .description    = "Floppy Drive 3"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_DRIVE_TYPE,
+        OPT_DRIVE_MECHANICS,
+        OPT_DRIVE_RPM,
+        OPT_DISK_SWAP_DELAY,
+        OPT_DRIVE_PAN,
+        OPT_STEP_VOLUME,
+        OPT_POLL_VOLUME,
+        OPT_INSERT_VOLUME,
+        OPT_EJECT_VOLUME
+    };
+
     friend class DiskController;
 
     // Current configuration
@@ -103,7 +135,6 @@ public:
     
 private:
     
-    const char *getDescription() const override;
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -113,12 +144,34 @@ private:
     
 private:
     
+    void _initialize() override;
     void _reset(bool hard) override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (util::isSoftResetter(worker)) return;
+
+        worker
+
+        << head.cylinder
+        << head.head
+        << head.offset
+        << motor
+        << switchCycle
+        << switchSpeed
+        << idCount
+        << idBit
+        << latestStepUp
+        << latestStepDown
+        << latestStep
+        << dskchange
+        << dsklen
+        << prb
+        << cylinderHistory;
+
+        if (util::isResetter(worker)) return;
+
         worker
 
         << config.type
@@ -126,37 +179,16 @@ private:
         << config.rpm;
     }
 
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << head.cylinder
-            << head.head
-            << head.offset
-            << motor
-            << switchCycle
-            << switchSpeed
-            << idCount
-            << idBit
-            << latestStepUp
-            << latestStepDown
-            << latestStep
-            << dskchange
-            << dsklen
-            << prb
-            << cylinderHistory;
-        }
-    }
-
     isize _size() override;
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override;
     isize _save(u8 *buffer) override;
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Methods from Drive
     //
@@ -199,7 +231,8 @@ public:
 public:
     
     // Returns the result of the latest inspection
-    FloppyDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // FloppyDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(FloppyDriveInfo &info) const override;
 
     // Return the identification pattern of this drive
     u32 getDriveId() const;

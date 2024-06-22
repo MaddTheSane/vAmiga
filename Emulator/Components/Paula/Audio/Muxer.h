@@ -43,6 +43,21 @@ namespace vamiga {
 
 class Muxer : public SubComponent {
 
+    Descriptions descriptions = {{
+
+        .name           = "Muxer",
+        .description    = "Audio Muxer"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_SAMPLING_METHOD,
+        OPT_AUDVOLL,
+        OPT_AUDVOLR,
+        OPT_AUD_FASTPATH,
+        OPT_FILTER_TYPE
+    };
+
     friend class Paula;
     
     // Current configuration
@@ -112,7 +127,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "Muxer"; }
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -122,13 +136,17 @@ private:
     
 private:
     
+    void _initialize() override;
     void _reset(bool hard) override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+     
+        if (util::isResetter(worker)) return;
+
         worker
-        
+
         << config.samplingMethod
         << config.pan
         << config.vol
@@ -140,19 +158,17 @@ private:
         << volR;
     }
 
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        
-    }
-
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
     
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Configuring
     //

@@ -2,15 +2,16 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "Aliases.h"
 #include "Reflection.h"
+#include "ThreadTypes.h"
 
 //
 // Enumerations
@@ -72,35 +73,6 @@ struct WarpModeEnum : util::Reflection<WarpModeEnum, WarpMode>
 };
 #endif
 
-enum_long(SYNC_MODE)
-{
-    SYNC_NATIVE_FPS,
-    SYNC_FIXED_FPS,
-    SYNC_VSYNC
-};
-typedef SYNC_MODE SyncMode;
-
-#ifdef __cplusplus
-struct SyncModeEnum : util::Reflection<SyncModeEnum, SyncMode>
-{
-    static constexpr long minVal = 0;
-    static constexpr long maxVal = SYNC_VSYNC;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
-
-    static const char *prefix() { return "SYNC"; }
-    static const char *key(SyncMode value)
-    {
-        switch (value) {
-
-            case SYNC_NATIVE_FPS:   return "NATIVE_FPS";
-            case SYNC_FIXED_FPS:    return "FIXED_FPS";
-            case SYNC_VSYNC:        return "VSYNC";
-        }
-        return "???";
-    }
-};
-#endif
-
 enum_long(CONFIG_SCHEME)
 {
     CONFIG_A1000_OCS_1MB,
@@ -140,6 +112,8 @@ enum_long(INSPECTION_TARGET)
     INSPECTION_CIA,
     INSPECTION_MEM,
     INSPECTION_AGNUS,
+    INSPECTION_BLITTER,
+    INSPECTION_COPPER,
     INSPECTION_DENISE,
     INSPECTION_PAULA,
     INSPECTION_PORTS,
@@ -165,6 +139,8 @@ struct InspectionTargetEnum : util::Reflection<InspectionTargetEnum, InspectionT
             case INSPECTION_CIA:     return "CIA";
             case INSPECTION_MEM:     return "MEM";
             case INSPECTION_AGNUS:   return "AGNUS";
+            case INSPECTION_BLITTER: return "BLITTER";
+            case INSPECTION_COPPER:  return "COPPER";
             case INSPECTION_DENISE:  return "DENISE";
             case INSPECTION_PAULA:   return "PAULA";
             case INSPECTION_PORTS:   return "PORTS";
@@ -213,7 +189,7 @@ enum_long(REG_CHIPSET)
     REG_SPR1CTL,  REG_SPR1DATA, REG_SPR1DATB, REG_SPR2POS,  REG_SPR2CTL,
     REG_SPR2DATA, REG_SPR2DATB, REG_SPR3POS,  REG_SPR3CTL,  REG_SPR3DATA,
     REG_SPR3DATB, REG_SPR4POS,  REG_SPR4CTL,  REG_SPR4DATA, REG_SPR4DATB,
-    REG_SPR5POS,  REG_PR5CTL,   REG_SPR5DATA, REG_SPR5DATB, REG_SPR6POS,
+    REG_SPR5POS,  REG_SPR5CTL,  REG_SPR5DATA, REG_SPR5DATB, REG_SPR6POS,
     REG_SPR6CTL,  REG_SPR6DATA, REG_SPR6DATB, REG_SPR7POS,  REG_SPR7CTL,
     REG_SPR7DATA, REG_SPR7DATB, REG_COLOR00,  REG_COLOR01,  REG_COLOR02,
     REG_COLOR03,  REG_COLOR04,  REG_COLOR05,  REG_COLOR06,  REG_COLOR07,
@@ -346,10 +322,10 @@ struct ChipsetRegEnum : util::Reflection<ChipsetRegEnum, ChipsetReg>
 typedef struct
 {
     VideoFormat type;
-    isize warpBoot;
     WarpMode warpMode;
-    SyncMode syncMode;
-    isize proposedFps;
+    isize warpBoot;
+    bool vsync;
+    isize timeLapse;
 }
 AmigaConfig;
 

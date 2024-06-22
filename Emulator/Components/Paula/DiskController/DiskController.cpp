@@ -94,7 +94,7 @@ DiskController::setConfigItem(Option option, i64 value)
         case OPT_DRIVE_SPEED:
         {
             if (!isValidDriveSpeed((isize)value)) {
-                throw VAError(ERROR_OPT_INVARG, "-1, 1, 2, 4, 8");
+                throw Error(ERROR_OPT_INVARG, "-1, 1, 2, 4, 8");
             }
             
             SUSPENDED
@@ -142,8 +142,8 @@ DiskController::setConfigItem(Option option, long id, i64 value)
     }
 }
 
-void
-DiskController::_inspect() const
+void 
+DiskController::cacheInfo(DiskControllerInfo &result) const
 {
     {   SYNCHRONIZED
 
@@ -351,7 +351,7 @@ DiskController::readByte()
 void
 DiskController::readBit(bool bit)
 {
-    dataReg = (u16)((u32)dataReg << 1 | bit);
+    dataReg = (u16)((u32)dataReg << 1 | (u32)bit);
 
     // Fill the FIFO if we've received an entire byte
     if (++dataRegCount == 8) {
@@ -447,7 +447,7 @@ DiskController::performDMARead(FloppyDrive *drive, u32 remaining)
         u16 word = readFifo16();
         
         // Write word into memory
-        if constexpr (DSK_CHECKSUM) {
+        if (DSK_CHECKSUM) {
             
             checkcnt++;
             check1 = util::fnvIt32(check1, word);
@@ -487,13 +487,13 @@ DiskController::performDMAWrite(FloppyDrive *drive, u32 remaining)
     do {
 
         // Read next word from memory
-        if constexpr (DSK_CHECKSUM) {
+        if (DSK_CHECKSUM) {
             checkcnt++;
             check2 = util::fnvIt32(check2, agnus.dskpt & agnus.ptrMask);
         }
         u16 word = agnus.doDiskDmaRead();
         
-        if constexpr (DSK_CHECKSUM) {
+        if (DSK_CHECKSUM) {
             check1 = util::fnvIt32(check1, word);
         }
         
@@ -588,7 +588,7 @@ DiskController::performTurboRead(FloppyDrive *drive)
         u16 word = drive->readWordAndRotate();
         
         // Write word into memory
-        if constexpr (DSK_CHECKSUM) {
+        if (DSK_CHECKSUM) {
             
             checkcnt++;
             check1 = util::fnvIt32(check1, word);
@@ -599,7 +599,7 @@ DiskController::performTurboRead(FloppyDrive *drive)
     }
     
     debug(DSK_CHECKSUM, "Turbo read %s: cyl: %ld side: %ld offset: %ld ",
-          drive->getDescription(),
+          drive->objectName(),
           drive->head.cylinder,
           drive->head.head,
           drive->head.offset);
@@ -616,7 +616,7 @@ DiskController::performTurboWrite(FloppyDrive *drive)
         // Read word from memory
         u16 word = mem.peek16 <ACCESSOR_AGNUS> (agnus.dskpt);
         
-        if constexpr (DSK_CHECKSUM) {
+        if (DSK_CHECKSUM) {
             
             checkcnt++;
             check1 = util::fnvIt32(check1, word);
@@ -631,7 +631,7 @@ DiskController::performTurboWrite(FloppyDrive *drive)
     
     debug(DSK_CHECKSUM,
           "Turbo write %s: checkcnt = %llu check1 = %x check2 = %x\n",
-          drive->getDescription(), checkcnt, check1, check2);
+          drive->objectName(), checkcnt, check1, check2);
 }
 
 }

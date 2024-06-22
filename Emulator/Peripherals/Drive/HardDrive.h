@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -18,7 +18,33 @@
 
 namespace vamiga {
 
-class HardDrive : public Drive {
+class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
+    
+    Descriptions descriptions = {
+        {
+            .name           = "hd0",
+            .description    = "Hard Drive 0"
+        },
+        {
+            .name           = "hd1",
+            .description    = "Hard Drive 1"
+        },
+        {
+            .name           = "hd2",
+            .description    = "Hard Drive 2"
+        },
+        {
+            .name           = "hd3",
+            .description    = "Hard Drive 3"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_HDR_TYPE,
+        OPT_HDR_PAN,
+        OPT_HDR_STEP_VOLUME
+    };
     
     friend class HDFFile;
     friend class HdController;
@@ -103,7 +129,6 @@ private:
     
 private:
     
-    const char *getDescription() const override;
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -113,14 +138,25 @@ private:
     
 private:
     
+    void _initialize() override;
     void _reset(bool hard) override;
-    void _inspect() const override;
     
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (util::isSoftResetter(worker)) return;
+
         worker
-        
+
+        << head.cylinder
+        << head.head
+        << head.offset
+        << state;
+
+        if (util::isResetter(worker)) return;
+
+        worker
+
         << config.type
         << config.pan
         << config.stepVolume
@@ -130,27 +166,13 @@ private:
         << controllerVendor
         << controllerProduct
         << controllerRevision
-        >> geometry
-        >> ptable
-        >> drivers
+        << geometry
+        << ptable
+        << drivers
         << data
         << modified
         << writeProtected
         << bootable;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << head.cylinder
-            << head.head
-            << head.offset
-            << state;
-        }
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -158,6 +180,11 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     isize didLoadFromBuffer(const u8 *buffer) override;
+    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
     
     //
     // Methods from Drive
@@ -210,9 +237,11 @@ private:
 public:
 
     // Returns information about the disk or one of its partitions
-    HardDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // HardDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
+    void cacheInfo(HardDriveInfo &info) const override;
+
     const PartitionDescriptor &getPartitionInfo(isize nr);
-    
+
     // Returns the disk geometry
     const GeometryDescriptor &getGeometry() const { return geometry; }
 

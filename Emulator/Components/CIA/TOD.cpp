@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -17,12 +17,6 @@ namespace vamiga {
 TOD::TOD(CIA &ciaref, Amiga& ref) : SubComponent(ref), cia(ciaref)
 {
 
-}
-
-const char *
-TOD::getDescription() const
-{
-    return cia.isCIAA() ? "TODA" : "TODB";
 }
 
 void
@@ -39,7 +33,7 @@ TOD::_reset(bool hard)
 }
 
 void
-TOD::_inspect() const
+TOD::cacheInfo(TODInfo &info) const
 {
     {   SYNCHRONIZED
         

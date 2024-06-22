@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -25,6 +25,7 @@ enum_long(FILETYPE)
     FILETYPE_EADF,
     FILETYPE_HDF,
     FILETYPE_IMG,
+    FILETYPE_ST,
     FILETYPE_DMS,
     FILETYPE_EXE,
     FILETYPE_DIR,
@@ -52,6 +53,7 @@ struct FileTypeEnum : util::Reflection<FileTypeEnum, FileType>
             case FILETYPE_EADF:         return "EADF";
             case FILETYPE_HDF:          return "HDF";
             case FILETYPE_IMG:          return "IMG";
+            case FILETYPE_ST:           return "ST";
             case FILETYPE_DMS:          return "DMS";
             case FILETYPE_EXE:          return "EXE";
             case FILETYPE_DIR:          return "DIR";

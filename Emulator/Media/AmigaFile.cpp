@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -14,6 +14,7 @@
 #include "ExtendedRomFile.h"
 #include "EADFFile.h"
 #include "IMGFile.h"
+#include "STFile.h"
 #include "DMSFile.h"
 #include "EXEFile.h"
 #include "Folder.h"
@@ -27,14 +28,14 @@ void
 AmigaFile::init(const string &path)
 {
     std::ifstream stream(path, std::ifstream::binary);
-    if (!stream.is_open()) throw VAError(ERROR_FILE_NOT_FOUND, path);
+    if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, path);
     init(path, stream);
 }
 
 void
 AmigaFile::init(const string &path, std::istream &stream)
 {
-    if (!isCompatiblePath(path)) throw VAError(ERROR_FILE_TYPE_MISMATCH);
+    if (!isCompatiblePath(path)) throw Error(ERROR_FILE_TYPE_MISMATCH);
     init(stream);
     this->path = path;
 }
@@ -42,7 +43,7 @@ AmigaFile::init(const string &path, std::istream &stream)
 void
 AmigaFile::init(std::istream &stream)
 {
-    if (!isCompatibleStream(stream)) throw VAError(ERROR_FILE_TYPE_MISMATCH);
+    if (!isCompatibleStream(stream)) throw Error(ERROR_FILE_TYPE_MISMATCH);
     readFromStream(stream);
 }
 
@@ -125,7 +126,10 @@ AmigaFile::type(const string &path)
 
         if (IMGFile::isCompatible(path) &&
             IMGFile::isCompatible(stream)) return FILETYPE_IMG;
-        
+
+        if (STFile::isCompatible(path) &&
+            STFile::isCompatible(stream)) return FILETYPE_ST;
+
         if (DMSFile::isCompatible(path) &&
             DMSFile::isCompatible(stream)) return FILETYPE_DMS;
         
@@ -173,7 +177,7 @@ AmigaFile::readFromFile(const string &path)
     std::ifstream stream(path, std::ifstream::binary);
 
     if (!stream.is_open()) {
-        throw VAError(ERROR_FILE_CANT_READ, path);
+        throw Error(ERROR_FILE_CANT_READ, path);
     }
 
     this->path = string(path);
@@ -221,13 +225,13 @@ isize
 AmigaFile::writeToFile(const string &path, isize offset, isize len)
 {
     if (util::isDirectory(path)) {
-        throw VAError(ERROR_FILE_IS_DIRECTORY);
+        throw Error(ERROR_FILE_IS_DIRECTORY);
     }
     
     std::ofstream stream(path, std::ofstream::binary);
 
     if (!stream.is_open()) {
-        throw VAError(ERROR_FILE_CANT_WRITE, path);
+        throw Error(ERROR_FILE_CANT_WRITE, path);
     }
     
     isize result = writeToStream(stream, offset, len);

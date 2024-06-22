@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -13,7 +13,7 @@
 
 namespace vamiga {
 
-VAError::VAError(ErrorCode code, const string &s)
+Error::Error(ErrorCode code, const string &s)
 {
     data = code;
     
@@ -40,7 +40,7 @@ VAError::VAError(ErrorCode code, const string &s)
             break;
 
         case ERROR_OPT_UNSUPPORTED:
-            description = "This option is not supported yet.";
+            description = s == "" ? "This option is not supported yet." : s;
             break;
             
         case ERROR_OPT_INVARG:
@@ -315,6 +315,22 @@ VAError::VAError(ErrorCode code, const string &s)
             description = s;
             break;
 
+        case ERROR_REG_READ_ONLY:
+            description = s + " is a read-only register";
+            break;
+
+        case ERROR_REG_WRITE_ONLY:
+            description = s + " is a write-only register";
+            break;
+
+        case ERROR_REG_UNUSED:
+            description = "Register " + s + " is unused";
+            break;
+
+        case ERROR_ADDR_UNALIGNED:
+            description = "Address not aligned";
+            break;
+
         case ERROR_OSDB:
             description = "OS Debugger: " + s;
             break;
@@ -388,7 +404,7 @@ VAError::VAError(ErrorCode code, const string &s)
 }
 
 const char *
-VAError::what() const throw()
+Error::what() const throw()
 {
     return description.c_str();
 }

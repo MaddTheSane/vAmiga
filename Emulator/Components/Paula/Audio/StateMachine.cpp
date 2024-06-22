@@ -34,15 +34,6 @@ StateMachine<nr>::_dump(Category category, std::ostream& os) const
     }
 }
 
-template <isize nr> const char *
-StateMachine<nr>::getDescription() const
-{
-    if constexpr (nr == 0) return "StateMachine 0";
-    if constexpr (nr == 1) return "StateMachine 1";
-    if constexpr (nr == 2) return "StateMachine 2";
-    if constexpr (nr == 3) return "StateMachine 3";
-}
-
 template <isize nr> void
 StateMachine<nr>::_reset(bool hard)
 {
@@ -50,7 +41,7 @@ StateMachine<nr>::_reset(bool hard)
 }
 
 template <isize nr> void
-StateMachine<nr>::_inspect() const
+StateMachine<nr>::cacheInfo(StateMachineInfo &info) const
 {
     {   SYNCHRONIZED
         
@@ -108,7 +99,7 @@ StateMachine<nr>::AUDxIP() const
 template <isize nr> void
 StateMachine<nr>::AUDxIR() const
 {
-    if constexpr (DISABLE_AUDIRQ) return;
+    if (DISABLE_AUDIRQ) return;
     
     if constexpr (nr == 0) { paula.scheduleIrqRel(INT_AUD0, DMA_CYCLES(1)); }
     if constexpr (nr == 1) { paula.scheduleIrqRel(INT_AUD1, DMA_CYCLES(1)); }
@@ -364,10 +355,10 @@ template StateMachine<1>::StateMachine(Amiga &ref);
 template StateMachine<2>::StateMachine(Amiga &ref);
 template StateMachine<3>::StateMachine(Amiga &ref);
 
-template StateMachineInfo StateMachine<0>::getInfo() const;
-template StateMachineInfo StateMachine<1>::getInfo() const;
-template StateMachineInfo StateMachine<2>::getInfo() const;
-template StateMachineInfo StateMachine<3>::getInfo() const;
+template void StateMachine<0>::cacheInfo(StateMachineInfo &result) const;
+template void StateMachine<1>::cacheInfo(StateMachineInfo &result) const;
+template void StateMachine<2>::cacheInfo(StateMachineInfo &result) const;
+template void StateMachine<3>::cacheInfo(StateMachineInfo &result) const;
 
 template void StateMachine<0>::enableDMA();
 template void StateMachine<1>::enableDMA();

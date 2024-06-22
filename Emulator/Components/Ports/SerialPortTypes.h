@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -20,7 +20,9 @@ enum_long(SPD)
 {
     SPD_NONE,
     SPD_NULLMODEM,
-    SPD_LOOPBACK
+    SPD_LOOPBACK,
+    SPD_RETROSHELL,
+    SPD_COMMANDER
 };
 typedef SPD SerialPortDevice;
 
@@ -28,7 +30,7 @@ typedef SPD SerialPortDevice;
 struct SerialPortDeviceEnum : util::Reflection<SerialPortDeviceEnum, SerialPortDevice>
 {
     static constexpr long minVal = 0;
-    static constexpr long maxVal = SPD_LOOPBACK;
+    static constexpr long maxVal = SPD_COMMANDER;
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "SPD"; }
@@ -36,9 +38,11 @@ struct SerialPortDeviceEnum : util::Reflection<SerialPortDeviceEnum, SerialPortD
     {
         switch (value) {
 
-            case SPD_NONE:      return "NONE";
-            case SPD_NULLMODEM: return "NULLMODEM";
-            case SPD_LOOPBACK:  return "LOOPBACK";
+            case SPD_NONE:          return "NONE";
+            case SPD_NULLMODEM:     return "NULLMODEM";
+            case SPD_LOOPBACK:      return "LOOPBACK";
+            case SPD_RETROSHELL:    return "RETROSHELL";
+            case SPD_COMMANDER:     return "COMMANDER";
         }
         return "???";
     }

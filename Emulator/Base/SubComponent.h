@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -22,6 +22,7 @@ class CIAA;
 class CIAB;
 class ControlPort;
 class Copper;
+class Debugger;
 class Denise;
 class DiagBoard;
 class DiskController;
@@ -64,6 +65,7 @@ protected:
     ControlPort &controlPort2;
     Copper &copper;
     CPU &cpu;
+    Debugger &debugger;
     Denise &denise;
     DiagBoard &diagBoard;
     DiskController &diskController;
@@ -100,6 +102,7 @@ protected:
 public:
 
     SubComponent(Amiga& ref);
+    // SubComponent(Amiga& ref, isize id);
 
     virtual bool isPoweredOff() const override;
     virtual bool isPoweredOn() const override;

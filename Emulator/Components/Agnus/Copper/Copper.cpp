@@ -2,14 +2,14 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "Copper.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include "CopperDebugger.h"
 #include "Checksum.h"
 #include "IOUtils.h"
@@ -37,7 +37,7 @@ Copper::setPC(u32 addr)
     coppc = addr;
 
     // Notify the debugger
-    if (amiga.isTracking()) { debugger.jumped(); }
+    if (emulator.isTracking()) { debugger.jumped(); }
 }
 
 void
@@ -46,7 +46,7 @@ Copper::advancePC()
     coppc += 2;
 
     // Notify the debugger
-    if (amiga.isTracking()) { debugger.advanced(); }
+    if (emulator.isTracking()) { debugger.advanced(); }
 }
 
 void
@@ -204,13 +204,13 @@ Copper::move(u32 addr, u16 value)
     assert(addr < 0x1FF);
     
     trace(COP_DEBUG,
-          "COPPC: %X move(%s, $%X) (%d)\n", coppc0, Memory::regName(addr), value, value);
+          "COPPC: %X move(%s, $%X) (%d)\n", coppc0, Debugger::regName(addr), value, value);
 
     // Catch registers with special timing needs
     if (addr >= 0x180 && addr <= 0x1BE) {
 
         trace(OCSREG_DEBUG,
-              "pokeCustom16(%X [%s], %X)\n", addr, Memory::regName(addr), value);
+              "pokeCustom16(%X [%s], %X)\n", addr, Debugger::regName(addr), value);
 
         // Color registers
         pixelEngine.colChanges.insert(agnus.pos.pixel(), RegChange { addr, value} );
@@ -421,7 +421,7 @@ Copper::eofHandler()
      */
     agnus.scheduleRel <SLOT_COP> (DMA_CYCLES(0), COP_VBLANK);
     
-    if constexpr (COP_CHECKSUM) {
+    if (COP_CHECKSUM) {
         
         if (checkcnt) {
             msg("[%lld] Checksum: %x (%lld) lc1 = %x lc2 = %x\n",

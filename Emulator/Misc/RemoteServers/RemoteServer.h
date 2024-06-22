@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -18,6 +18,20 @@
 namespace vamiga {
 
 class RemoteServer : public SubComponent {
+
+    Descriptions descriptions = {{
+
+        .name           = "server",
+        .description    = "Remote Server"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_SRV_PORT,
+        OPT_SRV_PROTOCOL,
+        OPT_SRV_AUTORUN,
+        OPT_SRV_VERBOSE
+    };
 
     friend class RemoteManager;
 
@@ -58,7 +72,6 @@ public:
     
 public:
     
-    const char *getDescription() const override { return "RemoteServer"; }
     void _dump(Category category, std::ostream& os) const override;
     
     
@@ -72,18 +85,15 @@ private:
     void _powerOff() override;
 
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (util::isResetter(worker)) return;
+
         worker
 
         << config.port
         << config.protocol
         << config.verbose;
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
     }
 
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -92,7 +102,11 @@ private:
     void _didLoad() override;
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Configuring
     //

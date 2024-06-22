@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -15,8 +15,8 @@
 
 namespace vamiga {
 
-void
-Denise::_inspect() const
+void 
+Denise::cacheInfo(DeniseInfo &info) const
 {
     {   SYNCHRONIZED
 
@@ -59,6 +59,8 @@ Denise::_dump(Category category, std::ostream& os) const
         os << DeniseRevisionEnum::key(config.revision) << std::endl;
         os << tab("Viewport tracking");
         os << bol(config.viewportTracking) << std::endl;
+        os << tab("Frame skips in warp mode");
+        os << bol(config.frameSkipping) << std::endl;
         os << tab("Hidden bitplanes");
         os << hex(config.hiddenBitplanes) << std::endl;
         os << tab("Hidden sprites");
@@ -92,12 +94,14 @@ Denise::_dump(Category category, std::ostream& os) const
         os << hex(bplcon2) << std::endl;
         os << tab("BPLCON3");
         os << hex(bplcon3) << std::endl;
+        os << std::endl;
         os << tab("DIWSTART");
         os << hex(diwstrt) << std::endl;
         os << tab("DIWSTOP");
         os << hex(diwstop) << std::endl;
         os << tab("DIWHIGH");
         os << hex(diwhigh) << std::endl;
+        os << std::endl;
         os << tab("SPRxDATA");
         for (isize i = 0; i < 8; i++) os << hex(sprdata[i]) << ' ';
         os << std::endl;

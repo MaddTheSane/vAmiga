@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -14,12 +14,10 @@
 #include "IOUtils.h"
 #include "Memory.h"
 #include "MsgQueue.h"
-#include "softfloat.h"
 
 //
 // Moira
 //
-
 
 namespace vamiga::moira {
 
@@ -97,7 +95,7 @@ Moira::read16OnReset(u32 addr) const
 void
 Moira::write8(u32 addr, u8 val) const
 {
-    if constexpr (XFILES) {
+    if (XFILES) {
         if (addr - reg.pc < 5) xfiles("write8 close to PC %x\n", reg.pc);
     }
     mem.poke8 <ACCESSOR_CPU> (addr, val);
@@ -106,7 +104,7 @@ Moira::write8(u32 addr, u8 val) const
 void
 Moira::write16(u32 addr, u16 val) const
 {
-    if constexpr (XFILES) {
+    if (XFILES) {
         if (addr - reg.pc < 5) xfiles("write16 close to PC %x\n", reg.pc);
     }
     mem.poke16 <ACCESSOR_CPU> (addr, val);
@@ -141,7 +139,13 @@ Moira::willExecute(const char *func, Instr I, Mode M, Size S, u16 opcode)
             break;
 
         default:
+        {
+            
+            char str[128];
+            disassemble(str, reg.pc0);
+            printf("%s\n", str);
             break;
+        }
     }
 }
 
@@ -305,7 +309,7 @@ CPU::setConfigItem(Option option, i64 value)
         case OPT_CPU_REVISION:
 
             if (!CPURevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, CPURevisionEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, CPURevisionEnum::keyList());
             }
 
             suspend();
@@ -317,7 +321,7 @@ CPU::setConfigItem(Option option, i64 value)
         case OPT_CPU_DASM_REVISION:
 
             if (!DasmRevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, DasmRevisionEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, DasmRevisionEnum::keyList());
             }
 
             suspend();
@@ -329,7 +333,7 @@ CPU::setConfigItem(Option option, i64 value)
         case OPT_CPU_DASM_SYNTAX:
 
             if (!DasmSyntaxEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, DasmSyntaxEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, DasmSyntaxEnum::keyList());
             }
 
             suspend();
@@ -365,6 +369,8 @@ CPU::resetConfig()
     std::vector <Option> options = {
 
         OPT_CPU_REVISION,
+        OPT_CPU_DASM_REVISION,
+        OPT_CPU_DASM_SYNTAX,
         OPT_CPU_OVERCLOCKING,
         OPT_CPU_RESET_VAL
     };
@@ -375,7 +381,7 @@ CPU::resetConfig()
 
             setConfigItem(option, defaults.get(option));
 
-        } catch (VAError &e) {
+        } catch (Error &e) {
 
             std::cout << "Config error: " << e.what() << std::endl;
         }
@@ -412,7 +418,7 @@ CPU::_reset(bool hard)
 }
 
 void
-CPU::_inspect() const
+CPU::cacheInfo(CPUInfo &info) const
 {
     {   SYNCHRONIZED
         
@@ -446,10 +452,9 @@ CPU::_dump(Category category, std::ostream& os) const
 
         for (int i = 0; i < guards.elements(); i++) {
 
-            auto bp =  guards.guardNr(i);
-            auto nr = name + std::to_string(i);
+            auto bp = guards.guardNr(i);
 
-            os << util::tab(nr);
+            os << util::tab(name + " " + std::to_string(i));
             os << util::hex(bp->addr);
 
             if (!bp->enabled) os << " (Disabled)";
@@ -545,25 +550,6 @@ CPU::_dump(Category category, std::ostream& os) const
         os << util::tab("Last exception");
         os << util::dec(exception);
     }
-
-    if (category == Category::Fpu) {
-        
-        os << util::tab("FPIAR");
-        os << util::hex(fpu.fpiar) << std::endl;
-        os << util::tab("FPSR");
-        os << util::hex(fpu.fpsr) << std::endl;
-        os << util::tab("FPCR");
-        os << util::hex(fpu.fpcr) << std::endl;
-
-        /*
-         for (isize i = 0; i < 8; i++) {
-
-         auto value = softfloat::floatx80_to_float32(fpu.fpr[i].raw);
-         os << util::tab("FP" + std::to_string(i));
-         os << util::hex(u32(value)) << std::endl;
-         }
-         */
-    }
     
     if (category == Category::Breakpoints) {
 
@@ -639,24 +625,14 @@ CPU::_trackOff()
 }
 
 isize
-CPU::_load(const u8 *buffer)
-{
-    auto oldModel = config.revision;
-
-    util::SerReader reader(buffer);
-    applyToPersistentItems(reader);
-    applyToResetItems(reader);
-
-    if (oldModel != config.revision) {
-        createJumpTable(cpuModel, dasmModel);
-    }
-
-    return isize(reader.ptr - buffer);
-}
-
-isize
 CPU::didLoadFromBuffer(const u8 *buffer)
 {
+    auto cpuModel = (moira::Model)config.revision;
+    auto dasmModel = (moira::Model)config.dasmRevision;
+
+    // Rectify the CPU type
+    setModel(cpuModel, dasmModel);
+
     /* Because we don't save breakpoints and watchpoints in a snapshot, the
      * CPU flags for checking breakpoints and watchpoints can be in a corrupt
      * state after loading. These flags need to be updated according to the
@@ -741,7 +717,7 @@ CPU::disassembleWords(u32 addr, isize len)
 {
     static char result[64];
 
-    dump16(result, addr, len);
+    dump16(result, addr, (int)len);
     return result;
 }
 
@@ -845,18 +821,18 @@ CPU::jump(u32 addr)
 }
 
 void
-CPU::setBreakpoint(u32 addr)
+CPU::setBreakpoint(u32 addr, isize ignores)
 {
-    if (debugger.breakpoints.isSetAt(addr)) throw VAError(ERROR_BP_ALREADY_SET, addr);
+    if (debugger.breakpoints.isSetAt(addr)) throw Error(ERROR_BP_ALREADY_SET, addr);
 
-    debugger.breakpoints.setAt(addr);
+    debugger.breakpoints.setAt(addr, ignores);
     msgQueue.put(MSG_BREAKPOINT_UPDATED);
 }
 
 void
 CPU::deleteBreakpoint(isize nr)
 {
-    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+    if (!debugger.breakpoints.isSet(nr)) throw Error(ERROR_BP_NOT_FOUND, nr);
 
     debugger.breakpoints.remove(nr);
     msgQueue.put(MSG_BREAKPOINT_UPDATED);
@@ -865,7 +841,7 @@ CPU::deleteBreakpoint(isize nr)
 void
 CPU::enableBreakpoint(isize nr)
 {
-    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+    if (!debugger.breakpoints.isSet(nr)) throw Error(ERROR_BP_NOT_FOUND, nr);
 
     debugger.breakpoints.enable(nr);
     msgQueue.put(MSG_BREAKPOINT_UPDATED);
@@ -874,34 +850,40 @@ CPU::enableBreakpoint(isize nr)
 void
 CPU::disableBreakpoint(isize nr)
 {
-    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+    if (!debugger.breakpoints.isSet(nr)) throw Error(ERROR_BP_NOT_FOUND, nr);
 
     debugger.breakpoints.disable(nr);
     msgQueue.put(MSG_BREAKPOINT_UPDATED);
 }
 
+void 
+CPU::toggleBreakpoint(isize nr)
+{
+    debugger.breakpoints.isEnabled(nr) ? disableBreakpoint(nr) : enableBreakpoint(nr);
+}
+
 void
 CPU::ignoreBreakpoint(isize nr, isize count)
 {
-    if (!debugger.breakpoints.isSet(nr)) throw VAError(ERROR_BP_NOT_FOUND, nr);
+    if (!debugger.breakpoints.isSet(nr)) throw Error(ERROR_BP_NOT_FOUND, nr);
 
     debugger.breakpoints.ignore(nr, count);
     msgQueue.put(MSG_BREAKPOINT_UPDATED);
 }
 
 void
-CPU::setWatchpoint(u32 addr)
+CPU::setWatchpoint(u32 addr, isize ignores)
 {
-    if (debugger.watchpoints.isSetAt(addr)) throw VAError(ERROR_WP_ALREADY_SET, addr);
+    if (debugger.watchpoints.isSetAt(addr)) throw Error(ERROR_WP_ALREADY_SET, addr);
 
-    debugger.watchpoints.setAt(addr);
+    debugger.watchpoints.setAt(addr, ignores);
     msgQueue.put(MSG_WATCHPOINT_UPDATED);
 }
 
 void
 CPU::deleteWatchpoint(isize nr)
 {
-    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+    if (!debugger.watchpoints.isSet(nr)) throw Error(ERROR_WP_NOT_FOUND, nr);
 
     debugger.watchpoints.remove(nr);
     msgQueue.put(MSG_WATCHPOINT_UPDATED);
@@ -910,7 +892,7 @@ CPU::deleteWatchpoint(isize nr)
 void
 CPU::enableWatchpoint(isize nr)
 {
-    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+    if (!debugger.watchpoints.isSet(nr)) throw Error(ERROR_WP_NOT_FOUND, nr);
 
     debugger.watchpoints.enable(nr);
     msgQueue.put(MSG_WATCHPOINT_UPDATED);
@@ -919,34 +901,40 @@ CPU::enableWatchpoint(isize nr)
 void
 CPU::disableWatchpoint(isize nr)
 {
-    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+    if (!debugger.watchpoints.isSet(nr)) throw Error(ERROR_WP_NOT_FOUND, nr);
 
     debugger.watchpoints.disable(nr);
     msgQueue.put(MSG_WATCHPOINT_UPDATED);
 }
 
 void
+CPU::toggleWatchpoint(isize nr)
+{
+    debugger.watchpoints.isEnabled(nr) ? disableWatchpoint(nr) : enableWatchpoint(nr);
+}
+
+void
 CPU::ignoreWatchpoint(isize nr, isize count)
 {
-    if (!debugger.watchpoints.isSet(nr)) throw VAError(ERROR_WP_NOT_FOUND, nr);
+    if (!debugger.watchpoints.isSet(nr)) throw Error(ERROR_WP_NOT_FOUND, nr);
 
     debugger.watchpoints.ignore(nr, count);
     msgQueue.put(MSG_WATCHPOINT_UPDATED);
 }
 
 void
-CPU::setCatchpoint(u8 vector)
+CPU::setCatchpoint(u8 vector, isize ignores)
 {
-    if (debugger.catchpoints.isSetAt(vector)) throw VAError(ERROR_CP_ALREADY_SET, vector);
+    if (debugger.catchpoints.isSetAt(vector)) throw Error(ERROR_CP_ALREADY_SET, vector);
 
-    debugger.catchpoints.setAt(vector);
+    debugger.catchpoints.setAt(vector, ignores);
     msgQueue.put(MSG_CATCHPOINT_UPDATED);
 }
 
 void
 CPU::deleteCatchpoint(isize nr)
 {
-    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+    if (!debugger.catchpoints.isSet(nr)) throw Error(ERROR_CP_NOT_FOUND, nr);
 
     debugger.catchpoints.remove(nr);
     msgQueue.put(MSG_CATCHPOINT_UPDATED);
@@ -955,7 +943,7 @@ CPU::deleteCatchpoint(isize nr)
 void
 CPU::enableCatchpoint(isize nr)
 {
-    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+    if (!debugger.catchpoints.isSet(nr)) throw Error(ERROR_CP_NOT_FOUND, nr);
 
     debugger.catchpoints.enable(nr);
     msgQueue.put(MSG_CATCHPOINT_UPDATED);
@@ -964,16 +952,22 @@ CPU::enableCatchpoint(isize nr)
 void
 CPU::disableCatchpoint(isize nr)
 {
-    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+    if (!debugger.catchpoints.isSet(nr)) throw Error(ERROR_CP_NOT_FOUND, nr);
 
     debugger.catchpoints.disable(nr);
     msgQueue.put(MSG_CATCHPOINT_UPDATED);
 }
 
 void
+CPU::toggleCatchpoint(isize nr)
+{
+    debugger.catchpoints.isEnabled(nr) ? disableCatchpoint(nr) : enableCatchpoint(nr);
+}
+
+void
 CPU::ignoreCatchpoint(isize nr, isize count)
 {
-    if (!debugger.catchpoints.isSet(nr)) throw VAError(ERROR_CP_NOT_FOUND, nr);
+    if (!debugger.catchpoints.isSet(nr)) throw Error(ERROR_CP_NOT_FOUND, nr);
 
     debugger.catchpoints.ignore(nr, count);
     msgQueue.put(MSG_CATCHPOINT_UPDATED);

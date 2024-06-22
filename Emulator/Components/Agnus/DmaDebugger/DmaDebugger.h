@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -18,6 +18,19 @@
 namespace vamiga {
 
 class DmaDebugger : public SubComponent {
+
+    Descriptions descriptions = {{
+
+        .name           = "dmadebugger",
+        .description    = "DMA Debugger"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_DMA_DEBUG_ENABLE,
+        OPT_DMA_DEBUG_MODE,
+        OPT_DMA_DEBUG_OPACITY
+    };
 
     // Current configuration
     DmaDebuggerConfig config = {};
@@ -53,7 +66,6 @@ public:
     
 private:
     
-    const char *getDescription() const override { return "DmaDebugger"; }
     void _dump(Category category, std::ostream& os) const override { }
 
     
@@ -64,6 +76,10 @@ private:
 private:
     
     void _reset(bool hard) override { }
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //

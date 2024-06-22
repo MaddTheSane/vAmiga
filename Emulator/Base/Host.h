@@ -2,14 +2,15 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "SubComponent.h"
+#include "IOUtils.h"
 
 namespace vamiga {
 
@@ -18,6 +19,16 @@ namespace vamiga {
  */
 class Host : public SubComponent {
 
+    Descriptions descriptions = {{
+
+        .name           = "Host",
+        .description    = "Host Computer"
+    }};
+
+    ConfigOptions options = {
+
+    };
+    
     // Audio sample rate
     double sampleRate = 44100.0;
 
@@ -35,7 +46,7 @@ class Host : public SubComponent {
 
 public:
 
-    Host(Amiga& ref);
+    using SubComponent::SubComponent;
 
 
     //
@@ -44,13 +55,16 @@ public:
 
 private:
 
-    const char *getDescription() const override { return "Host"; }
     void _dump(Category category, std::ostream& os) const override;
 
 
     //
     // Methods from CoreComponent
     //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
 private:
 
@@ -76,6 +90,18 @@ public:
     std::pair<isize, isize> getFrameBufferSize() const;
     void setFrameBufferSize(std::pair<isize, isize> size);
 
+
+    //
+    // Working with temporary files and folders
+    //
+
+public:
+
+    // Returns a path to a temporary folder
+    fs::path tmp() const throws;
+
+    // Assembles a path to a temporary file
+    fs::path tmp(const string &name, bool unique = false) const throws;
 };
 
 }

@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -23,7 +23,10 @@ namespace vamiga {
 
 CIA::CIA(int n, Amiga& ref) : SubComponent(ref), nr(n)
 {    
-    subComponents = std::vector<CoreComponent *> { &tod };
+    subComponents = std::vector<CoreComponent *> {
+
+        &tod
+    };
 }
 
 void
@@ -51,7 +54,7 @@ CIA::_reset(bool hard)
     latchB = 0xFFFF;
     
     // UAE initializes CRB with 4 (which I think is wrong)
-    if constexpr (MIMIC_UAE) crb = 0x4;
+    if (MIMIC_UAE) crb = 0x4;
 
     updatePA();
     updatePB();
@@ -70,7 +73,8 @@ CIA::resetConfig()
         
         OPT_CIA_REVISION,
         OPT_TODBUG,
-        OPT_ECLOCK_SYNCING
+        OPT_ECLOCK_SYNCING,
+        OPT_CIA_IDLE_SLEEP
     };
     
     for (auto &option : options) {
@@ -86,6 +90,7 @@ CIA::getConfigItem(Option option) const
         case OPT_CIA_REVISION:   return config.revision;
         case OPT_TODBUG:         return config.todBug;
         case OPT_ECLOCK_SYNCING: return config.eClockSyncing;
+        case OPT_CIA_IDLE_SLEEP: return config.idleSleep;
 
         default:
             fatalError;
@@ -100,7 +105,7 @@ CIA::setConfigItem(Option option, i64 value)
         case OPT_CIA_REVISION:
             
             if (!CIARevisionEnum::isValid(value)) {
-                throw VAError(ERROR_OPT_INVARG, CIARevisionEnum::keyList());
+                throw Error(ERROR_OPT_INVARG, CIARevisionEnum::keyList());
             }
             
             config.revision = (CIARevision)value;
@@ -116,13 +121,18 @@ CIA::setConfigItem(Option option, i64 value)
             config.eClockSyncing = value;
             return;
             
+        case OPT_CIA_IDLE_SLEEP:
+
+            config.idleSleep = value;
+            return;
+            
         default:
             fatalError;
     }
 }
 
-void
-CIA::_inspect() const
+void 
+CIA::cacheInfo(CIAInfo &info) const
 {
     {   SYNCHRONIZED
         
@@ -176,24 +186,26 @@ CIA::_dump(Category category, std::ostream& os) const
         os << bol(config.todBug) << std::endl;
         os << tab("Sync with E-clock");
         os << bol(config.eClockSyncing) << std::endl;
+        os << tab("Sleep when idle");
+        os << bol(config.idleSleep) << std::endl;
     }
 
     if (category == Category::Registers) {
-        
-        os << tab("Counter A") << hex(counterA) << std::endl;
-        os << tab("Latch A") << hex(latchA) << std::endl;
-        os << tab("Data register A") << hex(pra) << std::endl;
-        os << tab("Data port direction A") << hex(ddra) << std::endl;
-        os << tab("Data port A") << hex(pa) << std::endl;
-        os << tab("Control register A") << hex(cra) << std::endl;
+
+        os << tab("Counter A");
+        os << hex(counterA) << "    B : " << hex(counterB) << std::endl;
+        os << tab("Latch A");
+        os << hex(latchA) << "    B : " << hex(latchB) << std::endl;
+        os << tab("Data register A");
+        os << hex(pra) << "      B : " << hex(prb) << std::endl;
+        os << tab("Data port direction A");
+        os << hex(ddra) << "      B : " << hex(ddrb) << std::endl;
+        os << tab("Data port A");
+        os << hex(pa) << "      B : " << hex(pb) << std::endl;
+        os << tab("Control register A");
+        os << hex(cra) << "      B : " << hex(crb) << std::endl;
         os << std::endl;
-        os << tab("Counter B") << hex(counterB) << std::endl;
-        os << tab("Latch B") << hex(latchB) << std::endl;
-        os << tab("Data register B") << hex(prb) << std::endl;
-        os << tab("Data port direction B") << hex(ddrb) << std::endl;
-        os << tab("Data port B") << hex(pb) << std::endl;
-        os << tab("Control register B") << hex(crb) << std::endl;
-        os << std::endl;
+
         os << tab("Interrupt control reg") << hex(icr) << std::endl;
         os << tab("Interrupt mask reg") << hex(imr) << std::endl;
         os << std::endl;
@@ -668,7 +680,7 @@ CIA::executeOneCycle()
     this->delay = delay;
 
     // Sleep if threshold is reached
-    if (tiredness > 8 && !CIA_ON_STEROIDS) {
+    if (tiredness > 8 && config.idleSleep) {
         sleep();
         scheduleWakeUp();
     } else {

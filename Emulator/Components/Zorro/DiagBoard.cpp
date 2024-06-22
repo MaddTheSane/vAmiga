@@ -16,11 +16,6 @@
 
 namespace vamiga {
 
-DiagBoard::DiagBoard(Amiga& ref) : ZorroBoard(ref)
-{
-
-}
-
 void
 DiagBoard::_dump(Category category, std::ostream& os) const
 {
@@ -83,7 +78,7 @@ DiagBoard::setConfigItem(Option option, i64 value)
         case OPT_DIAG_BOARD:
 
             if (!isPoweredOff()) {
-                throw VAError(ERROR_OPT_LOCKED);
+                throw Error(ERROR_OPT_LOCKED);
             }
             config.enabled = value;
             return;
@@ -330,7 +325,7 @@ DiagBoard::catchTask(const string &name)
     {   SUSPENDED
         
         if (!diagBoard.pluggedIn()) {
-            throw VAError(ERROR_OSDB, "Diagnose board is not plugged in.");
+            throw Error(ERROR_OSDB, "Diagnose board is not plugged in.");
         }
         if (std::find(targets.begin(), targets.end(), name) == targets.end()) {
             targets.push_back(name);

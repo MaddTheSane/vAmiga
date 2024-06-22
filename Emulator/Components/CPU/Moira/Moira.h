@@ -16,6 +16,7 @@ namespace vamiga::moira {
 
 class Moira : public SubComponent {
 
+    friend class FPU;
     friend class Debugger;
     friend class Breakpoints;
     friend class Watchpoints;
@@ -47,6 +48,9 @@ protected:
 
 public:
 
+    // Floating point unit (not supported yet)
+    // FPU fpu = FPU(*this);
+
     // Breakpoints, watchpoints, catchpoints, instruction tracing
     Debugger debugger = Debugger(*this);
 
@@ -65,9 +69,6 @@ protected:
 
     // The prefetch queue
     PrefetchQueue queue;
-
-    // The floating point unit (not supported yet)
-    FPU fpu;
 
     // The interrupt mode of this CPU
     IrqMode irqMode = IRQ_AUTO;
@@ -106,10 +107,12 @@ private:
 
     // Jump table holding the instruction handlers
     typedef void (Moira::*ExecPtr)(u16);
-    ExecPtr exec[65536];
+    // ExecPtr exec[65536];
+    ExecPtr *exec = nullptr;
 
     // Jump table holding the loop mode instruction handlers (68010 only)
-    ExecPtr loop[65536];
+    // ExecPtr loop[65536];
+    ExecPtr *loop = nullptr;
 
     // Jump table holding the disassebler handlers
     typedef void (Moira::*DasmPtr)(StrWriter&, u32&, u16) const;
@@ -172,13 +175,13 @@ private:
 public:
 
     // Checks if the emulated CPU model has a coprocessor interface
-    bool hasCPI();
+    bool hasCPI() const;
 
     // Checks if the emulated CPU model has a memory managenemt unit
-    bool hasMMU();
+    bool hasMMU() const;
 
     // Checks if the emulated CPU model has a floating point unit
-    bool hasFPU();
+    bool hasFPU() const;
 
     // Returns the cache register mask (accessible CACR bits)
     u32 cacrMask() const;
@@ -243,11 +246,11 @@ public:
     void dump32(char *str, u32 value) const;
 
     // Creates a textual representation for multiple data values
-    void dump16(char *str, u16 values[], isize cnt) const;
-    void dump16(char *str, u32 addr, isize cnt) const;
+    void dump16(char *str, u16 values[], int cnt) const;
+    void dump16(char *str, u32 addr, int cnt) const;
 
     // Return an info struct for a certain opcode
-    InstrInfo getInfo(u16 op) const;
+    InstrInfo getInstrInfo(u16 op) const;
 
 
     //

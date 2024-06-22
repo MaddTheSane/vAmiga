@@ -2,9 +2,9 @@
 // This file is part of vAmiga
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -117,6 +117,16 @@ static constexpr usize UPDATE_DAS_TABLE     = 0b100;
 
 class Sequencer : public SubComponent
 {
+    Descriptions descriptions = {{
+
+        .name           = "Sequencer",
+        .description    = "Agnus Sequencer"
+    }};
+
+    ConfigOptions options = {
+
+    };
+
     friend class Agnus;
     
     //
@@ -159,7 +169,10 @@ public:
     DDFState ddfInitial;
     DDFState ddf;
 
-    
+    // Remembers the cycle when BPRUN goes up the first time
+    isize bprunUp;
+
+
     //
     // Display Window (DIW)
     //
@@ -215,7 +228,6 @@ private:
 
 private:
 
-    const char *getDescription() const override { return "Sequencer"; }
     void _dump(Category category, std::ostream& os) const override;
 
 
@@ -225,16 +237,11 @@ private:
 
 private:
 
+    void _initialize() override;
     void _reset(bool hard) override;
 
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        
-    }
-
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
 
         worker
@@ -248,16 +255,17 @@ private:
 
         << ddfstrt
         << ddfstop
-        >> ddfInitial
-        >> ddf
-        
+        << ddfInitial
+        << ddf
+        << bprunUp
+
         << diwstrt
         << diwstop
         << diwhigh
         << vstrt
         << vstop
 
-        >> sigRecorder
+        << sigRecorder
 
         << hsyncActions;
     }
@@ -267,7 +275,11 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Accessing registers (SequencerRegs.cpp)
     //
