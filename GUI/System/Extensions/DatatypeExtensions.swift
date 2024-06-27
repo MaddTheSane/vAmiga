@@ -13,8 +13,22 @@ import Carbon.HIToolbox
 // Comparable
 //
 
+/// Clamps a variable between `minimum` and `maximum`.
+/// - parameter value: The value to clamp.
+/// - parameter minimum: The minimum value to clamp `value` to.
+/// - parameter maximum: The maximum value to clamp `value` to.
+/// - returns: `value` if it is in-between `minimum` and `maximum`,
+/// or a value that is no less than `minimum` and no greater than `maximum`.
+///
+/// If `minimum` is greater than `maximum`, a fatal error occurs.
+@inlinable func clamp<X: Comparable>(_ value: X, minimum: X, maximum: X) -> X {
+    precondition(minimum <= maximum, "Minimum (\(minimum)) is greater than maximum (\(maximum))!")
+    return max(min(value, maximum), minimum)
+}
+
 extension Comparable {
     
+    @available(*, deprecated, message: "Use the clamp function instead")
     func clamped(_ f: Self, _ t: Self) -> Self {
         
         var r = self
@@ -73,27 +87,30 @@ extension String {
     init?(keyCode: UInt16, carbonFlags: Int) {
         
         let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource().takeRetainedValue()
-        let layoutData = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
-        let dataRef = unsafeBitCast(layoutData, to: CFData.self)
-        let keyLayout = UnsafePointer<CoreServices.UCKeyboardLayout>.self
-        let keyLayoutPtr = unsafeBitCast(CFDataGetBytePtr(dataRef), to: keyLayout)
-        let modifierKeyState = (carbonFlags >> 8) & 0xFF
-        let keyTranslateOptions = OptionBits(CoreServices.kUCKeyTranslateNoDeadKeysBit)
-        var deadKeyState: UInt32 = 0
+        let layoutData = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)!
+        let dataRef = Unmanaged<CFData>.fromOpaque(layoutData).takeUnretainedValue()
+        let data = dataRef as Data
         let maxChars = 1
         var length = 0
         var chars = [UniChar](repeating: 0, count: maxChars)
+        let error = data.withUnsafeBytes { urbp in
+            let keyLayoutPtr = urbp.assumingMemoryBound(to: CoreServices.UCKeyboardLayout.self)
+            let modifierKeyState = (carbonFlags >> 8) & 0xFF
+            let keyTranslateOptions = OptionBits(CoreServices.kUCKeyTranslateNoDeadKeysBit)
+            var deadKeyState: UInt32 = 0
+
+            return CoreServices.UCKeyTranslate(keyLayoutPtr.baseAddress,
+                                               keyCode,
+                                               UInt16(CoreServices.kUCKeyActionDisplay),
+                                               UInt32(modifierKeyState),
+                                               UInt32(LMGetKbdType()),
+                                               keyTranslateOptions,
+                                               &deadKeyState,
+                                               maxChars,
+                                               &length,
+                                               &chars)
+        }
         
-        let error = CoreServices.UCKeyTranslate(keyLayoutPtr,
-                                                keyCode,
-                                                UInt16(CoreServices.kUCKeyActionDisplay),
-                                                UInt32(modifierKeyState),
-                                                UInt32(LMGetKbdType()),
-                                                keyTranslateOptions,
-                                                &deadKeyState,
-                                                maxChars,
-                                                &length,
-                                                &chars)
         if error == noErr {
             self.init(NSString(characters: &chars, length: length))
         } else {

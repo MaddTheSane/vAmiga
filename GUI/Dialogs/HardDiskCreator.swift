@@ -44,7 +44,7 @@ class HardDiskCreator: DialogController {
         
         if newValue != cylinders {
 
-            cylinders = newValue.clamped(Int(HDR_C_MIN), Int(HDR_C_MAX))
+            cylinders = clamp(newValue, minimum: HDR_C_MIN, maximum: HDR_C_MAX)
             update()
         }
     }
@@ -53,7 +53,7 @@ class HardDiskCreator: DialogController {
         
         if newValue != heads {
 
-            heads = newValue.clamped(Int(HDR_H_MIN), Int(HDR_H_MAX))
+            heads = clamp(newValue, minimum: HDR_H_MIN, maximum: HDR_H_MAX)
             update()
         }
     }
@@ -62,7 +62,7 @@ class HardDiskCreator: DialogController {
         
         if newValue != sectors {
               
-            sectors = newValue.clamped(Int(HDR_S_MIN), Int(HDR_S_MAX))
+            sectors = clamp(newValue, minimum: HDR_S_MIN, maximum: HDR_S_MAX)
             update()
         }
     }

@@ -8,7 +8,6 @@
 // -----------------------------------------------------------------------------
 
 import Foundation
-
 import Cocoa
 
 class DragImageView: NSImageView, NSDraggingSource {

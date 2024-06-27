@@ -376,7 +376,7 @@ class VolumeInspector: DialogController {
         
         if newValue != blockNr {
                         
-            blockNr = newValue.clamped(0, vol.numBlocks - 1)
+            blockNr = clamp(newValue, minimum: 0, maximum: vol.numBlocks - 1)
             selection = nil
             update()
         }

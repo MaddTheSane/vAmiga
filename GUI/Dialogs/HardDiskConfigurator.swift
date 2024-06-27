@@ -50,7 +50,7 @@ class HardDiskConfigurator: DialogController {
         
         if newValue != cyls {
 
-            cyls = newValue.clamped(1, 65536)
+            cyls = clamp(newValue, minimum: 1, maximum: 65536)
             update()
         }
     }
@@ -59,7 +59,7 @@ class HardDiskConfigurator: DialogController {
         
         if newValue != heads {
 
-            heads = newValue.clamped(1, 16)
+            heads = clamp(newValue, minimum: 1, maximum: 16)
             update()
         }
     }
@@ -68,7 +68,7 @@ class HardDiskConfigurator: DialogController {
         
         if newValue != sectors {
               
-            sectors = newValue.clamped(16, 64)
+            sectors = clamp(newValue, minimum: 16, maximum: 64)
             update()
         }
     }

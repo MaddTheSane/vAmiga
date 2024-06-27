@@ -45,7 +45,7 @@ extension URL {
     // Working with folders
     //
     
-    // Returns the URL of the application support folder of this application
+    /// Returns the URL of the application support folder of this application
     static func appSupportFolder() throws -> URL {
         
         let fm = FileManager.default
@@ -57,7 +57,7 @@ extension URL {
         return url.appendingPathComponent("vAmiga")
     }
     
-    // Returns the URL of a subdirectory inside the application support folder
+    /// Returns the URL of a subdirectory inside the application support folder
     static func appSupportFolder(_ name: String) throws -> URL {
         
         let support = try URL.appSupportFolder()
@@ -78,7 +78,7 @@ extension URL {
         return folder
     }
         
-    // Returns the URL of an empty temporary folder
+    /// Returns the URL of an empty temporary folder
     static func tmpFolder() throws -> URL {
         
         let tmp = try appSupportFolder("tmp")
@@ -86,7 +86,7 @@ extension URL {
         return tmp
     }
 
-    // Returns all files inside a folder
+    /// Returns all files inside a folder
     func contents(allowedTypes: [String]? = nil) throws -> [URL] {
         
         // Collect files
@@ -108,14 +108,14 @@ extension URL {
         return filtered
     }
     
-    // Deletes all files inside a folder
+    /// Deletes all files inside a folder
     func delete() throws {
         
         let urls = try self.contents()
         for url in urls { try FileManager.default.removeItem(at: url) }
     }
     
-    // Copies a file into the specified folder
+    /// Copies a file into the specified folder
     func copy(to folder: URL, replaceExtensionBy suffix: String) throws -> URL {
         
         // Create the destination URL

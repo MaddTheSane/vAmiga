@@ -254,7 +254,7 @@ class DiskInspector: DialogController {
         
         if newValue != currentCyl {
 
-            let value = newValue.clamped(0, upperCyl)
+            let value = clamp(newValue, minimum: 0, maximum: upperCyl)
 
             currentCyl      = value
             currentTrack    = currentCyl * 2 + currentHead
@@ -268,7 +268,7 @@ class DiskInspector: DialogController {
         
         if newValue != currentHead {
                         
-            let value = newValue.clamped(0, upperHead)
+            let value = clamp(newValue, minimum: 0, maximum: upperHead)
 
             currentHead     = value
             currentTrack    = currentCyl * 2 + currentHead
@@ -282,7 +282,7 @@ class DiskInspector: DialogController {
         
         if newValue != currentTrack {
                    
-            let value = newValue.clamped(0, upperTrack)
+            let value = clamp(newValue, minimum: 0, maximum: upperTrack)
             
             currentTrack    = value
             currentCyl      = currentTrack / 2
@@ -297,7 +297,7 @@ class DiskInspector: DialogController {
         
         if newValue != currentSector {
                   
-            let value = newValue.clamped(0, upperSector)
+            let value = clamp(newValue, minimum: 0, maximum: upperSector)
             
             currentSector   = value
             currentBlock    = currentTrack * numSectors + currentSector
@@ -310,7 +310,7 @@ class DiskInspector: DialogController {
         
         if newValue != currentBlock {
                         
-            let value = newValue.clamped(0, upperBlock)
+            let value = clamp(newValue, minimum: 0, maximum: upperBlock)
 
             currentBlock    = value
             currentTrack    = currentBlock / numSectors
