@@ -104,7 +104,7 @@ vertex ProjectedVertex vertex_main(const device InVertex *vertices [[buffer(0)]]
 // Fragment shader
 //
 
-float3 scanlineWeight(uint2 pixel, uint height, float weight, float brightness, float bloom) {
+static float3 scanlineWeight(uint2 pixel, uint height, float weight, float brightness, float bloom) {
     
     // Calculate distance to nearest scanline
     float dy = ((float(pixel.y % height) / float(height - 1)) - 0.5);
@@ -117,7 +117,7 @@ float3 scanlineWeight(uint2 pixel, uint height, float weight, float brightness, 
     return result;
 }
 
-float3 rgb2hsv(float3 c)
+static float3 rgb2hsv(float3 c)
 {
     float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
     float4 p = mix(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
@@ -128,7 +128,7 @@ float3 rgb2hsv(float3 c)
     return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
-float3 hsv2rgb(float3 c)
+static float3 hsv2rgb(float3 c)
 {
     float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
     float3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
@@ -283,7 +283,7 @@ kernel void bypassupscaler(texture2d<half, access::read>  inTexture   [[ texture
 // EPX upscaler (Eric's Pixel Expansion)
 //
 
-half4x4 doEPX(half4 A, half4 C, half4 P, half4 B, half4 D)
+static half4x4 doEPX(half4 A, half4 C, half4 P, half4 B, half4 D)
 {
     half4x4 result;
 
@@ -391,7 +391,7 @@ half4 df(half4 A, half4 B)
     return abs(A - B);
 }
 
-half d(half3 pixelA, half3 pixelB)
+static half d(half3 pixelA, half3 pixelB)
 {
     half3 rgb = abs(pixelA - pixelB);
     half weight = dot(yuv_weighted, rgb);
@@ -414,10 +414,10 @@ half d(half3 pixelA, half3 pixelB)
     */
 }
 
-half4x4 doXBR(half3 m0, half3 m1, half3 m2, half3 m3, half3 m4, half3 m5,
-              half3 m6, half3 m7, half3 m8, half3 m9, half3 m10, half3 m11,
-              half3 m12, half3 m13, half3 m14, half3 m15, half3 m16, half3 m17,
-              half3 m18, half3 m19, half3 m20)
+static half4x4 doXBR(half3 m0, half3 m1, half3 m2, half3 m3, half3 m4, half3 m5,
+                     half3 m6, half3 m7, half3 m8, half3 m9, half3 m10, half3 m11,
+                     half3 m12, half3 m13, half3 m14, half3 m15, half3 m16, half3 m17,
+                     half3 m18, half3 m19, half3 m20)
 {
     half4x4 result;
 
