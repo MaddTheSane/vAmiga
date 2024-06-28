@@ -37,14 +37,14 @@ class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
     Descriptions descriptions = {{
 
         .name           = "Agnus",
-        .description    = "DMA Controller"
+        .description    = "DMA Controller",
+        .shell          = "agnus"
     }};
 
     ConfigOptions options = {
 
         OPT_AGNUS_REVISION,
-        OPT_SLOW_RAM_MIRROR,
-        OPT_PTR_DROPS
+        OPT_AGNUS_PTR_DROPS
     };
 
     // Current configuration
@@ -60,7 +60,7 @@ class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
 
 
     //
-    // Sub components
+    // Subcomponents
     //
     
 public:
@@ -237,8 +237,6 @@ private:
     
 private:
     
-    void _reset(bool hard) override;
-
     template <class T>
     void serialize(T& worker)
     {
@@ -283,42 +281,42 @@ private:
         << sprVStop
         << sprDmaState;
 
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
         << clock;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
         << config.revision
-        << config.slowRamMirror
+        << config.ptrDrops
         << ptrMask;
     }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
+    void operator << (SerResetter &worker) override;
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override { serialize(worker); }
+    void operator << (SerReader &worker) override { serialize(worker); }
+    void operator << (SerWriter &worker) override { serialize(worker); }
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
     
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const AgnusConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
     void setVideoFormat(VideoFormat newFormat);
 
@@ -346,9 +344,6 @@ public:
     // Returns a bitmask indicating the used bits in DDFSTRT / DDFSTOP
     u16 ddfMask() const { return isOCS() ? 0xFC : 0xFE; }
     
-    // Checks whether Agnus is able to access Slow Ram
-    bool slowRamIsMirroredIn() const;
-
     
     //
     // Analyzing

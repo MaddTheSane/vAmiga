@@ -106,21 +106,23 @@ class Memory : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "mem",
-        .description    = "Memory"
+        .name           = "Memory",
+        .description    = "Memory",
+        .shell          = "mem"
     }};
 
     ConfigOptions options = {
 
-        OPT_CHIP_RAM,
-        OPT_SLOW_RAM,
-        OPT_FAST_RAM,
-        OPT_EXT_START,
-        OPT_SAVE_ROMS,
-        OPT_SLOW_RAM_DELAY,
-        OPT_BANKMAP,
-        OPT_UNMAPPING_TYPE,
-        OPT_RAM_INIT_PATTERN
+        OPT_MEM_CHIP_RAM,
+        OPT_MEM_SLOW_RAM,
+        OPT_MEM_FAST_RAM,
+        OPT_MEM_EXT_START,
+        OPT_MEM_SAVE_ROMS,
+        OPT_MEM_SLOW_RAM_DELAY,
+        OPT_MEM_SLOW_RAM_MIRROR,
+        OPT_MEM_BANKMAP,
+        OPT_MEM_UNMAPPING_TYPE,
+        OPT_MEM_RAM_INIT_PATTERN
     };
 
     // Current configuration
@@ -240,8 +242,7 @@ private:
 private:
     
     void _initialize() override;
-    void _reset(bool hard) override;
-    
+
     template <class T>
     void serialize(T& worker)
     {
@@ -252,40 +253,40 @@ private:
         << agnusMemSrc
         << dataBus;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
+        << config.extStart
         << config.slowRamDelay
+        << config.slowRamMirror
         << config.bankMap
         << config.ramInitPattern
-        << config.unmappingType
-        << config.extStart;
+        << config.unmappingType;
     }
 
-    isize _size() override;
-    u64 _checksum() override;
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    isize didSaveToBuffer(u8 *buffer) override;
-
+    void operator << (SerResetter &worker) override;
+    void operator << (SerChecker &worker) override;
+    void operator << (SerCounter &worker) override;
+    void operator << (SerReader &worker) override;
+    void operator << (SerWriter &worker) override;
+    void _didReset(bool hard) override;
+    
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const MemoryConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
     
     //
@@ -436,10 +437,14 @@ public:
 
 private:
 
+    // Called inside updateMemSrcTables()
     void updateCpuMemSrcTable();
     void updateAgnusMemSrcTable();
 
-    
+    // Checks whether Agnus is able to access Slow Ram
+    bool slowRamIsMirroredIn() const;
+
+
     //
     // Accessing memory
     //

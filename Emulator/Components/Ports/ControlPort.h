@@ -20,12 +20,14 @@ class ControlPort : public SubComponent, public Inspectable<ControlPortInfo> {
 
     Descriptions descriptions = {
         {
-            .name           = "Port1",
-            .description    = "Control Port 1"
+            .name           = "ControlPort1",
+            .description    = "Control Port 1",
+            .shell          = "port1"
         },
         {
-            .name           = "Port2",
-            .description    = "Control Port 2"
+            .name           = "ControlPort2",
+            .description    = "Control Port 2",
+            .shell          = "port2"
         }
     };
 
@@ -36,13 +38,10 @@ class ControlPort : public SubComponent, public Inspectable<ControlPortInfo> {
 
 public:
 
-    static constexpr isize PORT1 = 1;
-    static constexpr isize PORT2 = 2;
+    // [[deprecated]] static constexpr isize PORT1 = 0;
+    // [[deprecated]] static constexpr isize PORT2 = 1;
 
 private:
-    
-    // The represented control port
-    isize nr;
     
     // The connected device
     ControlPortDevice device = CPD_NONE;
@@ -61,7 +60,7 @@ private:
     
     
     //
-    // Sub components
+    // Subcomponents
     //
 
 public:
@@ -94,8 +93,6 @@ private:
     
 private:
     
-    void _reset(bool hard) override { RESET_SNAPSHOT_ITEMS(hard) }
-
     template <class T>
     void serialize(T& worker)
     {
@@ -105,18 +102,23 @@ private:
         << mouseCounterY
         << chargeDX
         << chargeDY;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    } SERIALIZERS(serialize);
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
     
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
+
+
     //
     // Analyzing
     //
@@ -125,8 +127,8 @@ public:
 
     void cacheInfo(ControlPortInfo &result) const override;
 
-    bool isPort1() const { return nr == PORT1; }
-    bool isPort2() const { return nr == PORT2; }
+    bool isPort1() const { return objid == 0; }
+    bool isPort2() const { return objid == 1; }
 
     
     //

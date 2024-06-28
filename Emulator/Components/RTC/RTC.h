@@ -18,8 +18,9 @@ class RTC : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "rtc",
-        .description    = "Real-time Clock"
+        .name           = "RTC",
+        .description    = "Real-time Clock",
+        .shell          = "rtc"
     }};
 
     ConfigOptions options = {
@@ -76,13 +77,11 @@ private:
     //
     
 private:
-    
-    void _reset(bool hard) override;
-    
+        
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
@@ -92,17 +91,18 @@ private:
         << lastMeasure
         << lastMeasuredValue;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
         << config.model;
     }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+
+    void operator << (SerResetter &worker) override;
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override { serialize(worker); }
+    void operator << (SerReader &worker) override { serialize(worker); }
+    void operator << (SerWriter &worker) override { serialize(worker); }
 
 public:
 
@@ -110,17 +110,16 @@ public:
 
     
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const RTCConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
-    
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
+
     bool isPresent() const { return config.model != RTC_NONE; }
 
     

@@ -145,13 +145,14 @@ class AudioFilter : public SubComponent {
     
     Descriptions descriptions = {{
 
-        .name           = "Filter",
-        .description    = "Audio Filter"
+        .name           = "AudioFilter",
+        .description    = "Audio Filter",
+        .shell          = "paula audio filter"
     }};
 
     ConfigOptions options = {
 
-        OPT_FILTER_TYPE
+        OPT_AUD_FILTER_TYPE
     };
 
     friend class Muxer;
@@ -198,23 +199,17 @@ private:
     //
     
 private:
-    
-    void _reset(bool hard) override { RESET_SNAPSHOT_ITEMS(hard) }
-    
+        
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
         << config.filterType;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    } SERIALIZERS(serialize);
     
 public:
 
@@ -222,16 +217,15 @@ public:
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
 
 public:
 
     const AudioFilterConfig &getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
 private:
 

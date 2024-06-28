@@ -14,25 +14,8 @@
 
 namespace vamiga {
 
-void
-SerialPort::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_SER_DEVICE,
-        OPT_SER_VERBOSE
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-SerialPort::getConfigItem(Option option) const
+SerialPort::getOption(Option option) const
 {
     switch (option) {
             
@@ -45,14 +28,14 @@ SerialPort::getConfigItem(Option option) const
 }
 
 void
-SerialPort::setConfigItem(Option option, i64 value)
+SerialPort::setOption(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_SER_DEVICE:
             
             if (!SerialPortDeviceEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, SerialPortDeviceEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, SerialPortDeviceEnum::keyList());
             }
             
             config.device = (SerialPortDevice)value;
@@ -91,10 +74,7 @@ SerialPort::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Connected device");
-        os << SerialPortDeviceEnum::key(config.device) << std::endl;
-        os << tab("Verbose");
-        os << bol(config.verbose) << std::endl;
+        dumpConfig(os);
     }
     
     if (category == Category::State) {
@@ -121,10 +101,8 @@ SerialPort::_dump(Category category, std::ostream& os) const
 }
 
 void
-SerialPort::_reset(bool hard)
+SerialPort::_didReset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS(hard)
-
     incoming.clear();
     outgoing.clear();
 }

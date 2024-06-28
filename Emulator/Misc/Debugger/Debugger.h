@@ -21,7 +21,8 @@ class Debugger : public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "Debugger",
-        .description    = "Hardware Debugger"
+        .description    = "Hardware Debugger",
+        .shell          = ""
     }};
 
     ConfigOptions options = {
@@ -68,22 +69,22 @@ private:
 
 private:
 
-    void _reset(bool hard) override { };
     void _pause() override;
     
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
+
 
     //
-    // Serializing
+    // Methods from Configurable
     //
 
-    isize _size() override { return 0; }
-    u64 _checksum() override { return 0; }
-    isize _load(const u8 *buffer) override { return 0; }
-    isize _save(u8 *buffer) override { return 0; }
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
 
 
     //

@@ -47,18 +47,20 @@ class Mouse : public SubComponent {
     Descriptions descriptions = {
         {
             .name           = "Mouse1",
-            .description    = "Mouse in Port 1"
+            .description    = "Mouse in Port 1",
+            .shell          = "mouse 1"
         },
         {
             .name           = "Mouse2",
-            .description    = "Mouse in Port 2"
+            .description    = "Mouse in Port 2",
+            .shell          = "mouse 2"
         }
     };
 
     ConfigOptions options = {
 
-        OPT_PULLUP_RESISTORS,
-        OPT_SHAKE_DETECTION,
+        OPT_MOUSE_PULLUP_RESISTORS,
+        OPT_MOUSE_SHAKE_DETECTION,
         OPT_MOUSE_VELOCITY
     };
 
@@ -129,22 +131,31 @@ private:
 
 private:
     
-    void _reset(bool hard) override;
-    
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) {
 
-        worker 
+            worker 
 
-        << config.pullUpResistors;
-    }
+            << leftButton
+            << middleButton
+            << rightButton
+            << mouseX
+            << mouseY
+            << oldMouseX
+            << oldMouseY
+            << targetX
+            << targetY;
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+        } else {
+
+            worker
+
+            << config.pullUpResistors;
+        }
+
+    } SERIALIZERS(serialize);
 
 public:
 
@@ -152,16 +163,15 @@ public:
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const MouseConfig &getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
     
 private:
     

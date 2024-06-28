@@ -120,7 +120,8 @@ class Sequencer : public SubComponent
     Descriptions descriptions = {{
 
         .name           = "Sequencer",
-        .description    = "Agnus Sequencer"
+        .description    = "Agnus Sequencer",
+        .shell          = ""
     }};
 
     ConfigOptions options = {
@@ -238,14 +239,12 @@ private:
 private:
 
     void _initialize() override;
-    void _reset(bool hard) override;
-
+    
     template <class T>
     void serialize(T& worker)
     {
-
         worker
-        
+
         << dmaDAS
         << fetch
         << bplEvent
@@ -270,14 +269,24 @@ private:
         << hsyncActions;
     }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    void operator << (SerResetter &worker) override;
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override { serialize(worker); }
+    void operator << (SerReader &worker) override { serialize(worker); }
+    void operator << (SerWriter &worker) override { serialize(worker); }
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
 
 
     //

@@ -18,7 +18,7 @@
 
 namespace vamiga {
 
-class Emulator : public Thread, public Synchronizable {
+class Emulator : public Thread, public Synchronizable, public Inspectable<EmulatorInfo, EmulatorStats> {
 
     friend class API;
     friend class VAmiga;
@@ -28,8 +28,18 @@ public:
     // The virtual Amiga
     Amiga main = Amiga(*this, 0);
 
-    bool initialized = false;
-    
+public:
+
+    // User default settings
+    static Defaults defaults;
+
+    // Incoming external events
+    CmdQueue cmdQueue;
+
+    // Host system information
+    Host host = Host(*this);
+
+
     //
     // Methods
     //
@@ -45,9 +55,6 @@ public:
     // Initializes all components
     void initialize();
 
-    // Checks the initialization state
-    bool isInitialized() const;
-
 
     //
     // Methods from CoreComponent
@@ -60,6 +67,49 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(EmulatorInfo &result) const override;
+    void cacheStats(EmulatorStats &result) const override;
+    
+
+    //
+    // Main API for configuring the emulator
+    //
+
+public:
+
+    // Queries an option
+    i64 get(Option opt, isize id = 0) const throws;
+
+    // Checks an option
+    void check(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
+
+    // Sets an option
+    void set(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
+
+    // Convenience wrappers
+    void set(Option opt, const string &value, const std::vector<isize> objids = { }) throws;
+    void set(const string &opt, const string &value, const std::vector<isize> objids = { }) throws;
+
+    // Configures the emulator to match a specific Amiga model
+    void set(ConfigScheme model);
+
+public: // private
+
+    // Returns the target component for an option
+    std::vector<Configurable *> routeOption(Option opt);
+    std::vector<const Configurable *> routeOption(Option opt) const;
+
+    // Overrides a config option if the corresponding debug option is enabled
+    i64 overrideOption(Option opt, i64 value) const;
+
 
     //
     // Methods from Thread
@@ -100,15 +150,15 @@ public:
     void stepOver();
 
 
-    /*
-
     //
     // Audio and Video
     //
 
+    /*
     u32 *getTexture() const;
     u32 *getDmaTexture() const;
-
+    */
+    
 
     //
     // Command queue
@@ -125,7 +175,16 @@ private:
     // Processes a command from the command queue
     void process(const Cmd &cmd);
 
-    */
+
+    //
+    // Debugging
+    //
+
+public:
+
+    // Gets or sets an internal debug variable (only available in debug builds)
+    static bool getDebugVariable(DebugFlag flag);
+    static void setDebugVariable(DebugFlag flag, bool val);
 };
 
 }

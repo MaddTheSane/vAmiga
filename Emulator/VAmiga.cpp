@@ -113,7 +113,7 @@ VAmiga::VAmiga() {
     hd3.drive = &emu->main.hd3;
 
     host.emu = emu;
-    host.host = &emu->main.host;
+    host.host = &emu->host;
 
     keyboard.emu = emu;
     keyboard.keyboard = &emu->main.keyboard;
@@ -306,6 +306,153 @@ VAmiga::launch(const void *listener, Callback *func)
 {
     assert(isUserThread());
     emu->launch(listener, func);
+}
+
+i64
+VAmiga::get(Option option) const
+{
+    assert(isUserThread());
+    return emu->get(option);
+}
+
+i64
+VAmiga::get(Option option, long id) const
+{
+    assert(isUserThread());
+    return emu->get(option, id);
+}
+
+void
+VAmiga::set(ConfigScheme model)
+{
+    assert(isUserThread());
+    emu->set(model);
+    // emu->main.markAsDirty();
+}
+
+void
+VAmiga::set(Option opt, i64 value) throws
+{
+    assert(isUserThread());
+
+    emu->check(opt, value);
+    put(CMD_CONFIG_ALL, ConfigCmd { .option = opt, .value = value });
+    // emu->main.markAsDirty();
+}
+
+void
+VAmiga::set(Option opt, i64 value, long id)
+{
+    assert(isUserThread());
+
+    emu->check(opt, value, { id });
+    put(CMD_CONFIG, ConfigCmd { .option = opt, .value = value, .id = id });
+    // emu->main.markAsDirty();
+}
+
+void
+VAmiga::exportConfig(const fs::path &path) const
+{
+    assert(isUserThread());
+    emu->main.exportConfig(path);
+}
+
+void
+VAmiga::exportConfig(std::ostream& stream) const
+{
+    assert(isUserThread());
+    emu->main.exportConfig(stream);
+}
+
+void
+VAmiga::put(const Cmd &cmd)
+{
+    assert(isUserThread());
+    emu->put(cmd);
+}
+
+
+//
+// AmigaAPI
+//
+
+Snapshot *
+AmigaAPI::takeSnapshot()
+{
+    return amiga->takeSnapshot();
+}
+
+void
+AmigaAPI::loadSnapshot(const Snapshot &snapshot)
+{
+    amiga->loadSnapshot(snapshot);
+}
+
+
+//
+// RetroShellAPI
+//
+
+const char *
+RetroShellAPI::text()
+{
+    return retroShell->text();
+}
+
+isize
+RetroShellAPI::cursorRel()
+{
+    return retroShell->cursorRel();
+}
+
+void
+RetroShellAPI::press(RetroShellKey key, bool shift)
+{
+    retroShell->press(key, shift);
+}
+
+void
+RetroShellAPI::press(char c)
+{
+    retroShell->press(c);
+}
+
+void
+RetroShellAPI::press(const string &s)
+{
+    retroShell->press(s);
+}
+
+void
+RetroShellAPI::execScript(std::stringstream &ss)
+{
+    retroShell->execScript(ss);
+}
+
+void
+RetroShellAPI::execScript(const std::ifstream &fs)
+{
+    retroShell->execScript(fs);
+}
+
+void
+RetroShellAPI::execScript(const string &contents)
+{
+    retroShell->execScript(contents);
+}
+
+/*
+void
+RetroShellAPI::execScript(const MediaFile &file)
+{
+    retroShell->execScript(file);
+}
+*/
+
+void
+RetroShellAPI::setStream(std::ostream &os)
+{
+    retroShell->setStream(os);
 }
 
 }

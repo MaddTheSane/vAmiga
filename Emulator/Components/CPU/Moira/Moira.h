@@ -43,7 +43,7 @@ protected:
 
 
     //
-    // Sub components
+    // Subcomponents
     //
 
 public:
@@ -327,8 +327,8 @@ protected:
     u16 readIrqUserVector(u8 level) const;
 
     // State delegates
-    void didReset();
-    void didHalt();
+    void cpuDidReset();
+    void cpuDidHalt();
 
     // Instruction delegates
     void willExecute(const char *func, Instr I, Mode M, Size S, u16 opcode);

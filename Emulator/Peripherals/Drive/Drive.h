@@ -17,12 +17,6 @@ namespace vamiga {
 
 class Drive : public SubComponent {
 
-protected:
-    
-    // Drive number (0 = df0 or hd0, 1 = df1 or hd1, etc.)
-    const isize nr;
-
-    
     //
     // Initializing
     //
@@ -31,7 +25,7 @@ public:
 
     Drive(Amiga& ref, isize nr);
 
-    isize getNr() { return nr; }
+    isize getNr() { return objid; }
 
     
     //

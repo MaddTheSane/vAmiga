@@ -12,9 +12,9 @@
 
 namespace vamiga {
 
-Drive::Drive(Amiga& ref, isize n) : SubComponent(ref), nr(n)
+Drive::Drive(Amiga& ref, isize nr) : SubComponent(ref, nr)
 {
-    assert(usize(nr) < 4);
+    assert(nr >= 0 && nr <= 3);
 }
 
 void

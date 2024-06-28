@@ -24,34 +24,39 @@ class FloppyDrive : public Drive, public Inspectable<FloppyDriveInfo> {
 
     Descriptions descriptions = {
         {
-            .name           = "df0",
-            .description    = "Floppy Drive 0"
+            .name           = "FloppyDrive0",
+            .description    = "Floppy Drive 0",
+            .shell          = "df0"
         },
         {
-            .name           = "df1",
-            .description    = "Floppy Drive 1"
+            .name           = "FloppyDrive1",
+            .description    = "Floppy Drive 1",
+            .shell          = "df1"
         },
         {
-            .name           = "df2",
-            .description    = "Floppy Drive 2"
+            .name           = "FloppyDrive2",
+            .description    = "Floppy Drive 2",
+            .shell          = "df2"
         },
         {
-            .name           = "df3",
-            .description    = "Floppy Drive 3"
+            .name           = "FloppyDrive3",
+            .description    = "Floppy Drive 3",
+            .shell          = "df3"
         }
     };
 
     ConfigOptions options = {
 
+        OPT_DRIVE_CONNECT,
         OPT_DRIVE_TYPE,
         OPT_DRIVE_MECHANICS,
         OPT_DRIVE_RPM,
-        OPT_DISK_SWAP_DELAY,
+        OPT_DRIVE_SWAP_DELAY,
         OPT_DRIVE_PAN,
-        OPT_STEP_VOLUME,
-        OPT_POLL_VOLUME,
-        OPT_INSERT_VOLUME,
-        OPT_EJECT_VOLUME
+        OPT_DRIVE_STEP_VOLUME,
+        OPT_DRIVE_POLL_VOLUME,
+        OPT_DRIVE_INSERT_VOLUME,
+        OPT_DRIVE_EJECT_VOLUME
     };
 
     friend class DiskController;
@@ -145,12 +150,11 @@ private:
 private:
     
     void _initialize() override;
-    void _reset(bool hard) override;
     
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
@@ -170,20 +174,24 @@ private:
         << prb
         << cylinderHistory;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
+        << config.connected
         << config.type
         << config.mechanics
         << config.rpm;
     }
 
-    isize _size() override;
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override;
-    isize _save(u8 *buffer) override;
+    void operator << (SerResetter &worker) override { serialize(worker); };
+    void operator << (SerChecker &worker) override;
+    void operator << (SerCounter &worker) override;
+    void operator << (SerReader &worker) override;
+    void operator << (SerWriter &worker) override;
 
+    void _didReset(bool hard) override;
+    
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
@@ -209,16 +217,15 @@ public:
 
     
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const FloppyDriveConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
     
     const string &getSearchPath() const { return searchPath; }
     void setSearchPath(const string &path) { searchPath = path; }
@@ -270,7 +277,7 @@ public:
     //
     
     // Returns true if the drive is currently selected
-    bool isSelected() const { return (prb & (0b1000 << nr)) == 0; }
+    bool isSelected() const { return (prb & (0b1000 << objid)) == 0; }
     
     u8 driveStatusFlags() const;
     

@@ -162,43 +162,36 @@ extension ConfigurationController {
     @IBAction func csCpuRevAction(_ sender: NSPopUpButton!) {
 
         config.cpuRev = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func csCpuSpeedAction(_ sender: NSPopUpButton!) {
 
         config.cpuSpeed = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func csAgnusRevAction(_ sender: NSPopUpButton!) {
 
         config.agnusRev = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func csMachineTypeAction(_ sender: NSPopUpButton!) {
 
         config.machineType = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func csDeniseRevAction(_ sender: NSPopUpButton!) {
 
         config.deniseRev = sender.selectedTag()
-        refresh()
     }
     
     @IBAction func csCiaRevAction(_ sender: NSPopUpButton!) {
 
         config.ciaRev = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func csRealTimeClockAction(_ sender: NSPopUpButton!) {
         
         config.rtClock = sender.selectedTag()
-        refresh()
     }
     
     @IBAction func csPresetAction(_ sender: NSPopUpButton!) {
@@ -245,8 +238,6 @@ extension ConfigurationController {
         
         // Update the configuration
         config.applyChipsetUserDefaults()
-
-        refresh()
     }
 
     @IBAction func csDefaultsAction(_ sender: NSButton!) {
@@ -297,37 +288,31 @@ extension ConfigurationController {
     @IBAction func memChipRamAction(_ sender: NSPopUpButton!) {
 
         config.chipRam = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func memSlowRamAction(_ sender: NSPopUpButton!) {
 
         config.slowRam = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func memFastRamAction(_ sender: NSPopUpButton!) {
 
         config.fastRam = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func memBankMapAction(_ sender: NSPopUpButton!) {
 
         config.bankMap = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func memUnmappingTypeAction(_ sender: NSPopUpButton!) {
 
         config.unmappingType = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func memRamInitPatternAction(_ sender: NSPopUpButton!) {
 
         config.ramInitPattern = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func memPresetAction(_ sender: NSPopUpButton!) {
@@ -345,30 +330,30 @@ extension ConfigurationController {
         case 0:
 
             // Amiga 500
-            defaults.set(.CHIP_RAM, 512)
-            defaults.set(.SLOW_RAM, 512)
-            defaults.set(.BANKMAP, BankMap.A500.rawValue)
+            defaults.set(.MEM_CHIP_RAM, 512)
+            defaults.set(.MEM_SLOW_RAM, 512)
+            defaults.set(.MEM_BANKMAP, BankMap.A500.rawValue)
 
         case 1:
 
             // Amiga 1000
-            defaults.set(.CHIP_RAM, 256)
-            defaults.set(.SLOW_RAM, 0)
-            defaults.set(.BANKMAP, BankMap.A1000.rawValue)
+            defaults.set(.MEM_CHIP_RAM, 256)
+            defaults.set(.MEM_SLOW_RAM, 0)
+            defaults.set(.MEM_BANKMAP, BankMap.A1000.rawValue)
 
         case 2:
 
             // Amiga 2000
-            defaults.set(.CHIP_RAM, 1024)
-            defaults.set(.SLOW_RAM, 0)
-            defaults.set(.BANKMAP, BankMap.A2000B.rawValue)
+            defaults.set(.MEM_CHIP_RAM, 1024)
+            defaults.set(.MEM_SLOW_RAM, 0)
+            defaults.set(.MEM_BANKMAP, BankMap.A2000B.rawValue)
 
         case 3:
 
             // Amiga 500+
-            defaults.set(.CHIP_RAM, 512)
-            defaults.set(.SLOW_RAM, 512)
-            defaults.set(.BANKMAP, BankMap.A500.rawValue)
+            defaults.set(.MEM_CHIP_RAM, 512)
+            defaults.set(.MEM_SLOW_RAM, 512)
+            defaults.set(.MEM_BANKMAP, BankMap.A500.rawValue)
 
         default:
             fatalError()
@@ -378,7 +363,6 @@ extension ConfigurationController {
         config.applyMemoryUserDefaults()
 
         amiga.resume()
-        refresh()
     }
 
     @IBAction func memDefaultsAction(_ sender: NSButton!) {

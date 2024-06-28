@@ -16,6 +16,13 @@ namespace vamiga {
 
 class SerServer : public RemoteServer {
 
+    Descriptions descriptions = {{
+
+        .name           = "SerServer",
+        .description    = "Serial Port Server",
+        .shell          = "server serial"
+    }};
+
     // A ringbuffer for buffering incoming bytes
     util::SortedRingBuffer <u8, 8096> buffer;
     
@@ -48,18 +55,15 @@ public:
     // Methods from CoreObject
     //
     
-protected:
-    
+private:
+
     void _dump(Category category, std::ostream& os) const override;
 
-    
-    //
-    // Methods from CoreComponent
-    //
+public:
 
-    void resetConfig() override;
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
-    
+
     //
     // Methods from RemoteServer
     //

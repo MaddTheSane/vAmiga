@@ -13,6 +13,9 @@
 #include "Error.h"
 #include <filesystem>
 
+// REMOVE:
+#include "Media.h"
+
 namespace vamiga {
 
 namespace moira { class Guards; }
@@ -50,6 +53,25 @@ struct DefaultsAPI : API {
 struct AmigaAPI : API {
 
     class Amiga *amiga = nullptr;
+
+    /// @}
+    /// @name Handling snapshots
+    /// @{
+
+    /** @brief  Takes a snapshot
+     *
+     *  @return A pointer to the created Snapshot object.
+     *
+     *  @note   The function transfers the ownership to the caller. It is
+     *          his responsibility of the caller to free the object.
+     */
+    Snapshot *takeSnapshot();
+
+    /** @brief  Loads a snapshot into the emulator.
+     *
+     *  @param  snapshot    Reference to a snapshot.
+     */
+    void loadSnapshot(const Snapshot &snapshot);
 };
 
 struct AgnusAPI : API {
@@ -142,9 +164,78 @@ struct PaulaAPI : API {
     class Paula *paula = nullptr;
 };
 
+/** RetroShell Public API
+ */
 struct RetroShellAPI : API {
 
     class RetroShell *retroShell = nullptr;
+    
+    /// @name Querying the console
+    /// @{
+    ///
+    /** @brief  Returns a pointer to the text buffer.
+     *  The text buffer contains the complete contents of the console. It
+     *  will be expanded when new output is generated. When the buffer
+     *  grows too large, old contents is cropped.
+     */
+    const char *text();
+
+    /** @brief  Returns the relative cursor position.
+     *  The returned value is relative to the end of the input line. A value
+     *  of 0 indicates that the cursor is at the rightmost position, that
+     *  is, one character after the last character of the input line. If the
+     *  cursor is at the front of the input line, the value matches the
+     *  length of the input line.
+     */
+    isize cursorRel();
+
+    /// @}
+    /// @name Typing characters and strings
+    /// @{
+
+    /** @brief  Informs RetroShell that a key has been typed.
+     *  @param  key     The pressed key
+     *  @param  shift   Status of the shift key
+     */
+    void press(RetroShellKey key, bool shift = false);
+
+    /** @brief  Informs RetroShell that a key has been typed.
+     *  @param  c       The pressed key
+     */
+    void press(char c);
+
+    /** @brief  Informs RetroShell that multiple keys have been typed.
+     *  @param  s       The typed text
+     */
+    void press(const string &s);
+
+    /// @}
+    /// @name Controlling the output stream
+    /// @{
+
+    /** @brief  Assign an additional output stream.
+     *  In addition to writing the RetroShell output into the text buffer,
+     *  RetroShell will write the output into the provides stream.
+     */
+    void setStream(std::ostream &os);
+
+    /// @}
+    /// @name Executing scripts
+    /// @{
+
+    /** @brief  Executes a script.
+     *  The script is executes asynchroneously. However, RetroShell will
+     *  send messages back to the GUI thread to inform about the execution
+     *  state. After the last script command has been executed,
+     *  MSG\_SCRIPT\_DONE is sent. If shell execution has been aborted due
+     *  to an error, MSG\_SCRIPT\_ABORT is sent.
+     */
+    void execScript(std::stringstream &ss);
+    void execScript(const std::ifstream &fs);
+    void execScript(const string &contents);
+    // void execScript(const MediaFile &file);
+
+    /// @}
 };
 
 struct RtcAPI : API {
@@ -428,6 +519,89 @@ public:
      *  @param  func        The callback function.
      */
     void launch(const void *listener, Callback *func);
+
+    /** @brief  Queries a configuration option.
+     *
+     *  This is the main function to query a configuration option.
+     *
+     *  @param option   The option to query
+     *
+     *  @note Some options require an additional parameter to uniquely
+     *  determine the configured component. For those options, this function
+     *  must not be called.
+     */
+    i64 get(Option option) const;
+
+    /** @brief  Queries a configuration option.
+     *
+     *  This is the main function to query a configuration option.
+     *
+     *  @param option   The option to query
+     *  @param id       The component to query
+     *
+     *  @note This function must only be called for those options that require
+     *  an additional parameter to uniquely determine the configured component.
+     */
+    i64 get(Option option, long id) const throws;
+
+    /** Configures the emulator to match a specific Amiga model
+     *
+     *  @param model    The Amiga model to emulate
+     */
+    void set(ConfigScheme model);
+
+    /** @brief  Configures a component.
+     *
+     *  This is the main function to set an configuration option.
+     *
+     *  @param opt      The option to set
+     *  @param value    The option's value
+     *
+     *  @note If this function is called for an options that applies to multiple
+     *  components, all components are configured with the specified value.
+     */
+    void set(Option opt, i64 value) throws;
+
+    /** @brief  Configures a component.
+     *
+     *  This is the main function to set an configuration option.
+     *
+     *  @param opt      The option to set
+     *  @param id       The component to configure
+     *  @param value    The option's value
+     *
+     *  @note This function must only be called for those options that require
+     *  an additional parameter to uniquely determine the configured component.
+     */
+    void set(Option opt, i64 value, long id) throws;
+
+
+    /** @brief  Exports the current configuration.
+     *
+     *  The current configuration is exported in form of a RetroShell script.
+     *  Reading in the script at a later point will restore the configuration.
+     */
+    void exportConfig(const std::filesystem::path &path) const;
+    void exportConfig(std::ostream& stream) const;
+
+
+    /// @}
+    /// @name Using the command queue
+    /// @{
+
+    /** @brief  Feeds a command into the command queue.
+     */
+    void put(const Cmd &cmd);
+    void put(CmdType type, i64 payload = 0, i64 payload2 = 0) { put(Cmd(type, payload, payload2)); }
+    void put(CmdType type, ConfigCmd payload)  { put(Cmd(type, payload)); }
+    /*
+    void put(CmdType type, KeyCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, CoordCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, GamePadCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, TapeCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, AlarmCmd payload)  { put(Cmd(type, payload)); }
+    */
+    /// @}
 };
 
 }

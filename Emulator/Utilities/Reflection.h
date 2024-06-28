@@ -12,6 +12,7 @@
 #ifdef __cplusplus
 
 #include "Types.h"
+#include <functional>
 #include <map>
 
 namespace util {
@@ -23,6 +24,13 @@ template <class T, typename E> struct Reflection {
     // Returns the shortened key as a C string
     static const char *key(long nr) { return T::key((E)nr); }
 
+    // Returns the key without the section prefix (if any)
+    static const char *plainkey(isize nr) {
+        auto *p = key(nr);
+        for (isize i = 0; p[i]; i++) if (p[i] == '.') return p + i + 1;
+        return p;
+    }
+    
     // Collects all key / value pairs
     static std::map <string, long> pairs() {
         
@@ -36,25 +44,26 @@ template <class T, typename E> struct Reflection {
     }
 
     // Returns a list in form of a colon seperated string
-    static string keyList(bool prefix = false, const string &delim = ", ") {
-        
+    static string keyList(std::function<bool(E)> filter = [](E){ return true; }, const string &delim = ", ") {
+
         string result;
-        
-        auto p = pairs();
-        for(auto it = std::begin(p); it != std::end(p); ++it) {
-            
-            if (it != std::begin(p)) result += delim;
-            if (prefix && T::prefix()) result += T::prefix();
-            result += it->first;
+
+        for (auto i = T::minVal; i <= T::maxVal; i++) {
+
+            if (T::isValid(i) && filter(E(i))) {
+
+                if (result != "") result += delim;
+                result += (key(i));
+            }
         }
-        
+
         return result;
     }
 
-    // Convinience wrapper
-    static string argList(bool prefix = false) {
+    // Convenience wrapper
+    static string argList(std::function<bool(E)> filter = [](E){ return true; }) {
 
-        return "{ " + keyList(prefix, " | ") + " }";
+        return "{ " + keyList(filter, " | ") + " }";
     }
 };
 

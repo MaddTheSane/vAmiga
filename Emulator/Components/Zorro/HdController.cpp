@@ -32,8 +32,7 @@ HdController::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Connected");
-        os << bol(config.connected) << std::endl;
+        dumpConfig(os);
     }
     
     if (category == Category::Stats) {
@@ -55,10 +54,8 @@ HdController::_initialize()
 }
 
 void
-HdController::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
+HdController::_didReset(bool hard)
+{    
     if (hard) {
         
         // Burn Expansion Rom
@@ -80,26 +77,8 @@ HdController::_reset(bool hard)
     }
 }
 
-void
-HdController::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    nr = drive.getNr();
-    
-    std::vector <Option> options = {
-        
-        OPT_HDC_CONNECT
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option, nr));
-    }
-}
-
 i64
-HdController::getConfigItem(Option option) const
+HdController::getOption(Option option) const
 {
     switch (option) {
             
@@ -111,7 +90,7 @@ HdController::getConfigItem(Option option) const
 }
 
 void
-HdController::setConfigItem(Option option, i64 value)
+HdController::setOption(Option option, i64 value)
 {
     switch (option) {
 

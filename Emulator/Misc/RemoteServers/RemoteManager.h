@@ -21,15 +21,13 @@ class RemoteManager : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "remote",
-        .description    = "Remote Manager"
+        .name           = "RemoteManager",
+        .description    = "Remote Manager",
+        .shell          = "server"
     }};
 
     ConfigOptions options = {
 
-        SERVER_SER,
-        SERVER_RSH,
-        SERVER_GDB
     };
 
 public:
@@ -70,27 +68,26 @@ protected:
     
 private:
     
-    void _reset(bool hard) override { }
-    isize _size() override { return 0; }
-    u64 _checksum() override { return 0; }
-    isize _load(const u8 *buffer) override {return 0; }
-    isize _save(u8 *buffer) override { return 0; }
-    
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
+        
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
-    
+
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
 
-    i64 getConfigItem(Option option, long id) const;
-    void setConfigItem(Option option, i64 value);
-    void setConfigItem(Option option, long id, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
 
+    /*
+    i64 getConfigItem(Option option, long id) const;
+    void setOption(Option option, i64 value) override;
+    void setConfigItem(Option option, long id, i64 value);
+    */
     
     //
     // Managing connections

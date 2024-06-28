@@ -12,7 +12,6 @@
 #import "Constants.h"
 #import "config.h"
 #import "AgnusTypes.h"
-#import "CoreComponentTypes.h"
 #import "AmigaTypes.h"
 #import "AmigaFileTypes.h"
 #import "BlitterTypes.h"
@@ -79,7 +78,6 @@
 @class GuardsProxy;
 @class HardDriveProxy;
 @class HDFFileProxy;
-@class HostProxy;
 @class IMGFileProxy;
 @class JoystickProxy;
 @class KeyboardProxy;
@@ -132,15 +130,30 @@
 
 
 //
-// Host
+// Constants
 //
 
-@interface HostProxy : CoreComponentProxy {
+@interface Constants : NSObject {
+
 }
 
-@property double sampleRate;
-@property NSInteger refreshRate;
-@property NSSize frameBufferSize;
+@property (class, readonly) NSInteger vpos_cnt_pal;
+@property (class, readonly) NSInteger vpos_max_pal;
+
+@property (class, readonly) NSInteger vpos_cnt_ntsc;
+@property (class, readonly) NSInteger vpos_max_ntsc;
+
+@property (class, readonly) NSInteger vpos_cnt;
+@property (class, readonly) NSInteger vpos_max;
+
+@property (class, readonly) NSInteger hpos_cnt_pal;
+@property (class, readonly) NSInteger hpos_max_pal;
+
+@property (class, readonly) NSInteger hpos_cnt_ntsc;
+@property (class, readonly) NSInteger hpos_max_ntsc;
+
+@property (class, readonly) NSInteger hpos_max;
+@property (class, readonly) NSInteger hpos_cnt;
 
 @end
 
@@ -173,7 +186,6 @@
     HardDriveProxy *hd1;
     HardDriveProxy *hd2;
     HardDriveProxy *hd3;
-    HostProxy *host;
     KeyboardProxy *keyboard;
     MemProxy *mem;
     PaulaProxy *paula;
@@ -209,7 +221,6 @@
 @property (readonly, strong) HardDriveProxy *hd1;
 @property (readonly, strong) HardDriveProxy *hd2;
 @property (readonly, strong) HardDriveProxy *hd3;
-@property (readonly, strong) HostProxy *host;
 @property (readonly, strong) KeyboardProxy *keyboard;
 @property (readonly, strong) MemProxy *mem;
 @property (readonly, strong) PaulaProxy *paula;
@@ -233,6 +244,16 @@
 
 - (void)launch:(const void *)listener function:(Callback *)func;
 
+- (NSInteger)get:(Option)opt;
+- (NSInteger)get:(Option)opt id:(NSInteger)id;
+- (NSInteger)get:(Option)opt drive:(NSInteger)id;
+- (BOOL)set:(Option)opt value:(NSInteger)val;
+- (BOOL)set:(Option)opt enable:(BOOL)val;
+- (BOOL)set:(Option)opt id:(NSInteger)id value:(NSInteger)val;
+- (BOOL)set:(Option)opt id:(NSInteger)id enable:(BOOL)val;
+- (BOOL)set:(Option)opt drive:(NSInteger)id value:(NSInteger)val;
+- (BOOL)set:(Option)opt drive:(NSInteger)id enable:(BOOL)val;
+
 - (void)hardReset;
 - (void)softReset;
 
@@ -252,13 +273,10 @@
 
 - (void)suspend;
 - (void)resume;
-- (void)continueScript;
 
-- (void)requestAutoSnapshot;
-- (void)requestUserSnapshot;
-@property (readonly) SnapshotProxy *latestAutoSnapshot;
-@property (readonly) SnapshotProxy *latestUserSnapshot;
-- (void) loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex;
+// - (void)continueScript;
+
+ - (void) loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex;
 
 - (NSInteger)getConfig:(Option)opt;
 - (NSInteger)getConfig:(Option)opt id:(NSInteger)id;
@@ -274,6 +292,8 @@
 
 - (void)setAlarmAbs:(NSInteger)cycle payload:(NSInteger)value;
 - (void)setAlarmRel:(NSInteger)cycle payload:(NSInteger)value;
+
+- (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
 @end
 
@@ -374,6 +394,8 @@
 
 @property (readonly) AmigaInfo info;
 // @property (readonly) AmigaInfo cachedInfo;
+
+- (SnapshotProxy *) takeSnapshot;
 
 @end
 
@@ -924,9 +946,10 @@
     NSImage *preview;
 }
 
++ (instancetype)make:(void *)file;
 + (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy;
++ (instancetype)makeWithAmiga:(AmigaProxy *)proxy;
 
 @property (readonly, strong) NSImage *previewImage;
 @property (readonly) time_t timeStamp;

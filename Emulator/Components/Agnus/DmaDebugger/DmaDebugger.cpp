@@ -18,59 +18,32 @@ DmaDebugger::DmaDebugger(Amiga &ref) : SubComponent(ref)
     
 }
 
-void
-DmaDebugger::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_DMA_DEBUG_ENABLE,
-        OPT_DMA_DEBUG_MODE,
-        OPT_DMA_DEBUG_OPACITY
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-    
-    std::vector <Option> moreOptions = {
-        
-        OPT_DMA_DEBUG_CHANNEL,
-        OPT_DMA_DEBUG_COLOR
-    };
-
-    for (auto &option : moreOptions) {
-        for (isize i = 0; DmaChannelEnum::isValid(i); i++) {
-            setConfigItem(option, i, defaults.get(option, i));
-        }
-    }
-}
-
 i64
-DmaDebugger::getConfigItem(Option option) const
+DmaDebugger::getOption(Option option) const
 {
     switch (option) {
             
-        case OPT_DMA_DEBUG_ENABLE:  return config.enabled;
-        case OPT_DMA_DEBUG_MODE:    return config.displayMode;
-        case OPT_DMA_DEBUG_OPACITY: return config.opacity;
+        case OPT_DMA_DEBUG_ENABLE:      return config.enabled;
+        case OPT_DMA_DEBUG_MODE:        return config.displayMode;
+        case OPT_DMA_DEBUG_OPACITY:     return config.opacity;
 
-        default:
-            fatalError;
-    }
-}
+        case OPT_DMA_DEBUG_CHANNEL0:    return config.visualize[0];
+        case OPT_DMA_DEBUG_CHANNEL1:    return config.visualize[1];
+        case OPT_DMA_DEBUG_CHANNEL2:    return config.visualize[2];
+        case OPT_DMA_DEBUG_CHANNEL3:    return config.visualize[3];
+        case OPT_DMA_DEBUG_CHANNEL4:    return config.visualize[4];
+        case OPT_DMA_DEBUG_CHANNEL5:    return config.visualize[5];
+        case OPT_DMA_DEBUG_CHANNEL6:    return config.visualize[6];
+        case OPT_DMA_DEBUG_CHANNEL7:    return config.visualize[7];
 
-i64
-DmaDebugger::getConfigItem(Option option, long id) const
-{
-    assert(id >= 0 && id < BUS_COUNT);
-    
-    switch (option) {
-            
-        case OPT_DMA_DEBUG_CHANNEL: return config.visualize[id];
-        case OPT_DMA_DEBUG_COLOR:   return config.debugColor[id];
+        case OPT_DMA_DEBUG_COLOR0:      return config.debugColor[0];
+        case OPT_DMA_DEBUG_COLOR1:      return config.debugColor[1];
+        case OPT_DMA_DEBUG_COLOR2:      return config.debugColor[2];
+        case OPT_DMA_DEBUG_COLOR3:      return config.debugColor[3];
+        case OPT_DMA_DEBUG_COLOR4:      return config.debugColor[4];
+        case OPT_DMA_DEBUG_COLOR5:      return config.debugColor[5];
+        case OPT_DMA_DEBUG_COLOR6:      return config.debugColor[6];
+        case OPT_DMA_DEBUG_COLOR7:      return config.debugColor[7];
 
         default:
             fatalError;
@@ -78,7 +51,7 @@ DmaDebugger::getConfigItem(Option option, long id) const
 }
 
 void
-DmaDebugger::setConfigItem(Option option, i64 value)
+DmaDebugger::setOption(Option option, i64 value)
 {
     switch (option) {
 
@@ -91,7 +64,7 @@ DmaDebugger::setConfigItem(Option option, i64 value)
         case OPT_DMA_DEBUG_MODE:
             
             if (!DmaDisplayModeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, DmaDisplayModeEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, DmaDisplayModeEnum::keyList());
             }
             
             config.displayMode = (DmaDisplayMode)value;
@@ -102,149 +75,132 @@ DmaDebugger::setConfigItem(Option option, i64 value)
             config.opacity = (isize)value;
             return;
 
-        default:
-            fatalError;
-    }
-}
+        case OPT_DMA_DEBUG_CHANNEL0:
 
-void
-DmaDebugger::setConfigItem(Option option, long id, i64 value)
-{
-    if (!DmaChannelEnum::isValid(id)) { return; }
-    
-    DmaChannel channel = (DmaChannel)id;
-    
-    switch (option) {
+            config.visualize[0] = bool(value);
+            visualize[BUS_COPPER] = value;
+            return;
 
-        case OPT_DMA_DEBUG_CHANNEL:
+        case OPT_DMA_DEBUG_CHANNEL1:
+
+            config.visualize[1] = bool(value);
+            visualize[BUS_BLITTER] = value;
+            return;
+
+        case OPT_DMA_DEBUG_CHANNEL2:
+
+            config.visualize[2] = bool(value);
+            visualize[BUS_DISK] = value;
+            return;
+
+        case OPT_DMA_DEBUG_CHANNEL3:
+
+            config.visualize[3] = bool(value);
+            visualize[BUS_AUD0] = value;
+            visualize[BUS_AUD1] = value;
+            visualize[BUS_AUD2] = value;
+            visualize[BUS_AUD3] = value;
+            return;
+
+        case OPT_DMA_DEBUG_CHANNEL4:
+
+            config.visualize[4] = bool(value);
+            visualize[BUS_SPRITE0] = value;
+            visualize[BUS_SPRITE1] = value;
+            visualize[BUS_SPRITE2] = value;
+            visualize[BUS_SPRITE3] = value;
+            visualize[BUS_SPRITE4] = value;
+            visualize[BUS_SPRITE5] = value;
+            visualize[BUS_SPRITE6] = value;
+            visualize[BUS_SPRITE7] = value;
+            return;
+
+        case OPT_DMA_DEBUG_CHANNEL5:
+
+            config.visualize[5] = bool(value);
+            visualize[BUS_BPL1] = value;
+            visualize[BUS_BPL2] = value;
+            visualize[BUS_BPL3] = value;
+            visualize[BUS_BPL4] = value;
+            visualize[BUS_BPL5] = value;
+            visualize[BUS_BPL6] = value;
+            return;
+
+        case OPT_DMA_DEBUG_CHANNEL6:
+
+            config.visualize[6] = bool(value);
+            visualize[BUS_CPU] = value;
+            return;
+
+        case OPT_DMA_DEBUG_CHANNEL7:
+
+            config.visualize[7] = bool(value);
+            visualize[BUS_REFRESH] = value;
+            return;
+
+        case OPT_DMA_DEBUG_COLOR0:
+
+            config.debugColor[0] = u32(value);
+            setColor(BUS_COPPER, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR1:
+
+            config.debugColor[1] = u32(value);
+            setColor(BUS_BLITTER, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR2:
+
+            config.debugColor[2] = u32(value);
+            setColor(BUS_DISK, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR3:
+
+            config.debugColor[3] = u32(value);
+            setColor(BUS_AUD0, (u32)value);
+            setColor(BUS_AUD1, (u32)value);
+            setColor(BUS_AUD2, (u32)value);
+            setColor(BUS_AUD3, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR4:
+
+            config.debugColor[4] = u32(value);
+            setColor(BUS_SPRITE0, (u32)value);
+            setColor(BUS_SPRITE1, (u32)value);
+            setColor(BUS_SPRITE2, (u32)value);
+            setColor(BUS_SPRITE3, (u32)value);
+            setColor(BUS_SPRITE4, (u32)value);
+            setColor(BUS_SPRITE5, (u32)value);
+            setColor(BUS_SPRITE6, (u32)value);
+            setColor(BUS_SPRITE7, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR5:
+
+            config.debugColor[5] = u32(value);
+            setColor(BUS_BPL1, (u32)value);
+            setColor(BUS_BPL2, (u32)value);
+            setColor(BUS_BPL3, (u32)value);
+            setColor(BUS_BPL4, (u32)value);
+            setColor(BUS_BPL5, (u32)value);
+            setColor(BUS_BPL6, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR6:
+
+            config.debugColor[6] = u32(value);
+            setColor(BUS_CPU, (u32)value);
+            return;
+
+        case OPT_DMA_DEBUG_COLOR7:
+
+            config.debugColor[7] = u32(value);
+            setColor(BUS_REFRESH, (u32)value);
+            return;
             
-            config.visualize[channel] = value;
-
-            switch(channel) {
-
-                case DMA_CHANNEL_CPU:
-                    
-                    visualize[BUS_CPU] = value;
-                    return;
-                    
-                case DMA_CHANNEL_REFRESH:
-                    
-                    visualize[BUS_REFRESH] = value;
-                    return;
-
-                case DMA_CHANNEL_DISK:
-                    
-                    visualize[BUS_DISK] = value;
-                    return;
-
-                case DMA_CHANNEL_AUDIO:
-
-                    visualize[BUS_AUD0] = value;
-                    visualize[BUS_AUD1] = value;
-                    visualize[BUS_AUD2] = value;
-                    visualize[BUS_AUD3] = value;
-                    return;
-
-                case DMA_CHANNEL_COPPER:
-
-                    visualize[BUS_COPPER] = value;
-                    return;
-
-                case DMA_CHANNEL_BLITTER:
-
-                    visualize[BUS_BLITTER] = value;
-                    return;
-
-                case DMA_CHANNEL_BITPLANE:
-
-                    visualize[BUS_BPL1] = value;
-                    visualize[BUS_BPL2] = value;
-                    visualize[BUS_BPL3] = value;
-                    visualize[BUS_BPL4] = value;
-                    visualize[BUS_BPL5] = value;
-                    visualize[BUS_BPL6] = value;
-                    return;
-
-                case DMA_CHANNEL_SPRITE:
-
-                    visualize[BUS_SPRITE0] = value;
-                    visualize[BUS_SPRITE1] = value;
-                    visualize[BUS_SPRITE2] = value;
-                    visualize[BUS_SPRITE3] = value;
-                    visualize[BUS_SPRITE4] = value;
-                    visualize[BUS_SPRITE5] = value;
-                    visualize[BUS_SPRITE6] = value;
-                    visualize[BUS_SPRITE7] = value;
-                    return;
-
-                default:
-                    return;
-            }
-
-        case OPT_DMA_DEBUG_COLOR:
-            
-            config.debugColor[channel] = (u32)value;
-
-            switch(channel) {
-
-                case DMA_CHANNEL_CPU:
-                    
-                    setColor(BUS_CPU, (u32)value);
-                    return;
-                    
-                case DMA_CHANNEL_REFRESH:
-
-                    setColor(BUS_REFRESH, (u32)value);
-                    return;
-
-                case DMA_CHANNEL_DISK:
-                    
-                    setColor(BUS_DISK, (u32)value);
-                    return;
-
-                case DMA_CHANNEL_AUDIO:
-
-                    setColor(BUS_AUD0, (u32)value);
-                    setColor(BUS_AUD1, (u32)value);
-                    setColor(BUS_AUD2, (u32)value);
-                    setColor(BUS_AUD3, (u32)value);
-                    return;
-
-                case DMA_CHANNEL_COPPER:
-
-                    setColor(BUS_COPPER, (u32)value);
-                    return;
-
-                case DMA_CHANNEL_BLITTER:
-
-                    setColor(BUS_BLITTER, (u32)value);
-                    return;
-
-                case DMA_CHANNEL_BITPLANE:
-
-                    setColor(BUS_BPL1, (u32)value);
-                    setColor(BUS_BPL2, (u32)value);
-                    setColor(BUS_BPL3, (u32)value);
-                    setColor(BUS_BPL4, (u32)value);
-                    setColor(BUS_BPL5, (u32)value);
-                    setColor(BUS_BPL6, (u32)value);
-                    return;
-
-                case DMA_CHANNEL_SPRITE:
-
-                    setColor(BUS_SPRITE0, (u32)value);
-                    setColor(BUS_SPRITE1, (u32)value);
-                    setColor(BUS_SPRITE2, (u32)value);
-                    setColor(BUS_SPRITE3, (u32)value);
-                    setColor(BUS_SPRITE4, (u32)value);
-                    setColor(BUS_SPRITE5, (u32)value);
-                    setColor(BUS_SPRITE6, (u32)value);
-                    setColor(BUS_SPRITE7, (u32)value);
-                    return;
-
-                default:
-                    return;
-            }
         default:
             fatalError;
     }

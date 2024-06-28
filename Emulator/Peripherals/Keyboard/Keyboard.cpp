@@ -15,37 +15,19 @@
 namespace vamiga {
 
 void
-Keyboard::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
+Keyboard::_didReset(bool hard)
+{    
     std::memset(keyDown, 0, sizeof(keyDown));
     state = KB_SELFTEST;
     execute();
 }
 
-void
-Keyboard::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_ACCURATE_KEYBOARD
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-Keyboard::getConfigItem(Option option) const
+Keyboard::getOption(Option option) const
 {
     switch (option) {
             
-        case OPT_ACCURATE_KEYBOARD:  return config.accurate;
+        case OPT_KBD_ACCURACY:  return config.accurate;
 
         default:
             fatalError;
@@ -53,11 +35,11 @@ Keyboard::getConfigItem(Option option) const
 }
 
 void
-Keyboard::setConfigItem(Option option, i64 value)
+Keyboard::setOption(Option option, i64 value)
 {
     switch (option) {
             
-        case OPT_ACCURATE_KEYBOARD:
+        case OPT_KBD_ACCURACY:
             
             config.accurate = value;
             return;
@@ -74,8 +56,7 @@ Keyboard::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Accurate emulation");
-        os << bol(config.accurate) << std::endl;
+        dumpConfig(os);
     }
     
     if (category == Category::State) {

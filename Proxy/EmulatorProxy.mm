@@ -70,6 +70,34 @@ using namespace vamiga::moira;
 
 @end
 
+
+//
+// Constants
+//
+
+@implementation Constants
+
++ (NSInteger)vpos_cnt_pal { return VPOS_CNT_PAL; }
++ (NSInteger)vpos_max_pal { return VPOS_MAX_PAL; }
+
++ (NSInteger)vpos_cnt_ntsc { return VPOS_CNT_NTSC; }
++ (NSInteger)vpos_max_ntsc { return VPOS_MAX_NTSC; }
+
++ (NSInteger)vpos_cnt { return VPOS_CNT; }
++ (NSInteger)vpos_max { return VPOS_MAX; }
+
++ (NSInteger)hpos_cnt_pal { return HPOS_CNT_PAL; }
++ (NSInteger)hpos_max_pal { return HPOS_MAX_PAL; }
+
++ (NSInteger)hpos_cnt_ntsc { return HPOS_CNT_NTSC; }
++ (NSInteger)hpos_max_ntsc { return HPOS_MAX_NTSC; }
+
++ (NSInteger)hpos_max { return HPOS_MAX; }
++ (NSInteger)hpos_cnt { return HPOS_CNT; }
+
+@end
+
+
 //
 // CoreComponent proxy
 //
@@ -113,13 +141,13 @@ using namespace vamiga::moira;
 
 - (NSString *)getString:(NSString *)key
 {
-    auto result = [self props]->getString([key UTF8String]);
+    auto result = [self props]->getRaw([key UTF8String]);
     return @(result.c_str());
 }
 
 - (NSInteger)getInt:(NSString *)key
 {
-    return [self props]->getInt([key UTF8String]);
+    return [self props]->get([key UTF8String]);
 }
 
 - (NSInteger)getOpt:(Option)option
@@ -134,7 +162,7 @@ using namespace vamiga::moira;
 
 - (void)setKey:(NSString *)key value:(NSString *)value
 {
-    [self props]->setString(string([key UTF8String]), string([value UTF8String]));
+    [self props]->set(string([key UTF8String]), string([value UTF8String]));
 }
 
 - (void)setOpt:(Option)option value:(NSInteger)value
@@ -144,7 +172,7 @@ using namespace vamiga::moira;
 
 - (void)setOpt:(Option)option nr:(NSInteger)nr value:(NSInteger)value
 {
-    [self props]->set(option, nr, value);
+    [self props]->set(option, value, { nr });
 }
 
 - (void)removeAll
@@ -164,7 +192,7 @@ using namespace vamiga::moira;
 
 - (void)remove:(Option) option nr:(NSInteger)nr
 {
-    [self props]->remove(option, nr);
+    [self props]->remove(option, { nr });
 }
 
 @end
@@ -191,6 +219,12 @@ using namespace vamiga::moira;
     return [self cia]->amiga->getCachedInfo();
 }
 */
+
+- (SnapshotProxy *)takeSnapshot
+{
+    Snapshot *snapshot = [self amiga]->takeSnapshot();
+    return [SnapshotProxy make:snapshot];
+}
 
 @end
 
@@ -636,7 +670,7 @@ using namespace vamiga::moira;
 
 - (NSInteger)extStart
 {
-    return [self mem]->mem->getConfigItem(OPT_EXT_START);
+    return [self mem]->mem->getOption(OPT_MEM_EXT_START);
 }
 
 - (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)ex
@@ -2012,78 +2046,78 @@ using namespace vamiga::moira;
 
 -(NSInteger)cursorRel
 {
-    return [self shell]->retroShell->cursorRel();
+    return [self shell]->cursorRel();
 }
 
 -(NSString *)getText
 {
-    const char *str = [self shell]->retroShell->text();
+    const char *str = [self shell]->text();
     return str ? @(str) : nullptr;
 }
 
 - (void)pressUp
 {
-    [self shell]->retroShell->press(RSKEY_UP);
+    [self shell]->press(RSKEY_UP);
 }
 
 - (void)pressDown
 {
-    [self shell]->retroShell->press(RSKEY_DOWN);
+    [self shell]->press(RSKEY_DOWN);
 }
 
 - (void)pressLeft
 {
-    [self shell]->retroShell->press(RSKEY_LEFT);
+    [self shell]->press(RSKEY_LEFT);
 }
 
 - (void)pressRight
 {
-    [self shell]->retroShell->press(RSKEY_RIGHT);
+    [self shell]->press(RSKEY_RIGHT);
 }
 
 - (void)pressHome
 {
-    [self shell]->retroShell->press(RSKEY_HOME);
+    [self shell]->press(RSKEY_HOME);
 }
 
 - (void)pressEnd
 {
-    [self shell]->retroShell->press(RSKEY_END);
+    [self shell]->press(RSKEY_END);
 }
 
 - (void)pressBackspace
 {
-    [self shell]->retroShell->press(RSKEY_BACKSPACE);
+    [self shell]->press(RSKEY_BACKSPACE);
 }
 
 - (void)pressDelete
 {
-    [self shell]->retroShell->press(RSKEY_DEL);
+    [self shell]->press(RSKEY_DEL);
 }
 
 - (void)pressCut
 {
-    [self shell]->retroShell->press(RSKEY_CUT);
+    [self shell]->press(RSKEY_CUT);
 }
 
 - (void)pressReturn
 {
-    [self shell]->retroShell->press(RSKEY_RETURN);
+    [self shell]->press(RSKEY_RETURN);
 }
 
 - (void)pressShiftReturn
 {
-    [self shell]->retroShell->press(RSKEY_RETURN, true);
+    [self shell]->press(RSKEY_RETURN, true);
 }
 
 - (void)pressTab
 {
-    [self shell]->retroShell->press(RSKEY_TAB);
+    [self shell]->press(RSKEY_TAB);
 }
 
 - (void)pressKey:(char)c
 {
-    [self shell]->retroShell->press(c);
+    [self shell]->press(c);
 }
 
 @end
@@ -2201,7 +2235,7 @@ using namespace vamiga::moira;
     return (Snapshot *)obj;
 }
 
-+ (instancetype)make:(Snapshot *)snapshot
++ (instancetype)make:(void *)snapshot
 {
     SnapshotProxy *proxy = [[self alloc] initWith:snapshot];
     if (proxy) { proxy->preview = nullptr; }
@@ -2220,7 +2254,7 @@ using namespace vamiga::moira;
     catch (Error &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy
++ (instancetype)makeWithAmiga:(AmigaProxy *)proxy
 {
     Amiga *amiga = (Amiga *)proxy->obj;
     
@@ -2298,9 +2332,10 @@ using namespace vamiga::moira;
 
 - (void)execute:(EmulatorProxy *)proxy
 {
-    Amiga *amiga = (Amiga *)proxy->obj;
-    
-    [self script]->execute(*amiga);
+    auto *am = [proxy amiga];
+    auto *amiga = (AmigaAPI *)am->obj;
+
+    [self script]->execute(*(amiga->amiga));
 }
 
 @end
@@ -2813,56 +2848,6 @@ using namespace vamiga::moira;
 
 
 //
-// HostProxy
-//
-
-@implementation HostProxy
-
-- (HostAPI *)host
-{
-    return (HostAPI *)obj;
-}
-
-+ (instancetype)make:(Host *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-- (double)sampleRate
-{
-    return [self host]->host->getSampleRate();
-}
-
-- (void)setSampleRate:(double)hz
-{
-    [self host]->host->setSampleRate(hz);
-}
-
-- (NSInteger)refreshRate
-{
-    return (NSInteger)[self host]->host->getHostRefreshRate();
-}
-
-- (void)setRefreshRate:(NSInteger)value
-{
-    [self host]->host->setHostRefreshRate((double)value);
-}
-
-- (NSSize)frameBufferSize
-{
-    auto size = [self host]->host->getFrameBufferSize();
-    return NSMakeSize((CGFloat)size.first, (CGFloat)size.second);
-}
-
-- (void)setFrameBufferSize:(NSSize)size
-{
-    [self host]->host->setFrameBufferSize(std::pair<isize, isize>(size.width, size.height));
-}
-
-@end
-
-
-//
 // Emulator
 //
 
@@ -2891,7 +2876,6 @@ using namespace vamiga::moira;
 @synthesize hd1;
 @synthesize hd2;
 @synthesize hd3;
-@synthesize host;
 @synthesize keyboard;
 @synthesize mem;
 @synthesize paula;
@@ -2935,7 +2919,6 @@ using namespace vamiga::moira;
     hd1 = [[HardDriveProxy alloc] initWith:&vamiga->hd1];
     hd2 = [[HardDriveProxy alloc] initWith:&vamiga->hd2];
     hd3 = [[HardDriveProxy alloc] initWith:&vamiga->hd3];
-    host = [[HostProxy alloc] initWith:&vamiga->host];
     keyboard = [[KeyboardProxy alloc] initWith:&vamiga->keyboard];
     mem = [[MemProxy alloc] initWith:&vamiga->mem];
     paula = [[PaulaProxy alloc] initWith:&vamiga->paula];
@@ -2956,7 +2939,7 @@ using namespace vamiga::moira;
 
 + (DefaultsProxy *) defaults
 {
-    return [[DefaultsProxy alloc] initWith:&Amiga::defaults];
+    return [[DefaultsProxy alloc] initWith:&Emulator::defaults];
 }
 
 - (void)dealloc
@@ -2999,12 +2982,8 @@ using namespace vamiga::moira;
 
 - (NSInteger)cpuLoad
 {
-    // TODO: FIXME
-    return 0;
-    /*
-    double load = [self emu]->emu->main.getCpuLoad();
+    double load = [self emu]->emu->getStats().cpuLoad;
     return (NSInteger)(100 * load);
-    */
 }
 
 - (InspectionTarget)inspectionTarget
@@ -3022,9 +3001,91 @@ using namespace vamiga::moira;
     [self emu]->emu->main.removeInspectionTarget();
 }
 
+- (SnapshotProxy *)takeSnapshot
+{
+    Amiga *amiga = (Amiga *)[self amiga]->obj;
+    auto *snapshot = amiga->takeSnapshot();
+    return [SnapshotProxy make:snapshot];
+}
+
 - (void)launch:(const void *)listener function:(Callback *)func
 {
     [self emu]->launch(listener, func);
+}
+
+- (NSInteger)get:(Option)opt
+{
+    return [self emu]->get(opt);
+}
+
+- (NSInteger)get:(Option)opt id:(NSInteger)id
+{
+    return [self emu]->get(opt, id);
+}
+
+- (NSInteger)get:(Option)opt drive:(NSInteger)id
+{
+    return [self emu]->get(opt, (long)id);
+}
+
+- (BOOL)set:(Option)opt value:(NSInteger)val
+{
+    try {
+        [self emu]->set(opt, val);
+        return true;
+    } catch (Error &exception) {
+        return false;
+    }
+}
+
+- (BOOL)set:(Option)opt enable:(BOOL)val
+{
+    try {
+        [self emu]->set(opt, val ? 1 : 0);
+        return true;
+    } catch (Error &exception) {
+        return false;
+    }
+}
+
+- (BOOL)set:(Option)opt id:(NSInteger)id value:(NSInteger)val
+{
+    try {
+        [self emu]->set(opt, val, id);
+        return true;
+    } catch (Error &exception) {
+        return false;
+    }
+}
+
+- (BOOL)set:(Option)opt id:(NSInteger)id enable:(BOOL)val
+{
+    try {
+        [self emu]->set(opt, val ? 1 : 0, id);
+        return true;
+    } catch (Error &exception) {
+        return false;
+    }
+}
+
+- (BOOL)set:(Option)opt drive:(NSInteger)id value:(NSInteger)val
+{
+    try {
+        [self emu]->set(opt, val, (long)id);
+        return true;
+    } catch (Error &exception) {
+        return false;
+    }
+}
+
+- (BOOL)set:(Option)opt drive:(NSInteger)id enable:(BOOL)val
+{
+    try {
+        [self emu]->set(opt, val ? 1 : 0, (long)id);
+        return true;
+    } catch (Error &exception) {
+        return false;
+    }
 }
 
 - (void)hardReset
@@ -3104,33 +3165,6 @@ using namespace vamiga::moira;
     return [self emu]->resume();
 }
 
-- (void)continueScript
-{
-    [self emu]->emu->main.retroShell.continueScript();
-}
-
-- (void)requestAutoSnapshot
-{
-    [self emu]->emu->main.requestAutoSnapshot();
-}
-
-- (void)requestUserSnapshot
-{
-    [self emu]->emu->main.requestUserSnapshot();
-}
-
-- (SnapshotProxy *)latestAutoSnapshot
-{
-    Snapshot *snapshot = [self emu]->emu->main.latestAutoSnapshot();
-    return [SnapshotProxy make:snapshot];
-}
-
-- (SnapshotProxy *)latestUserSnapshot
-{
-    Snapshot *snapshot = [self emu]->emu->main.latestUserSnapshot();
-    return [SnapshotProxy make:snapshot];
-}
-
 - (void)loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex
 {
     try { [self emu]->emu->main.loadSnapshot(*[proxy snapshot]); }
@@ -3139,23 +3173,23 @@ using namespace vamiga::moira;
 
 - (NSInteger)getConfig:(Option)opt
 {
-    return [self emu]->emu->main.getConfigItem(opt);
+    return [self emu]->emu->get(opt);
 }
 
 - (NSInteger)getConfig:(Option)opt id:(NSInteger)id
 {
-    return [self emu]->emu->main.getConfigItem(opt, id);
+    return [self emu]->emu->get(opt, id);
 }
 
 - (NSInteger)getConfig:(Option)opt drive:(NSInteger)id
 {
-    return [self emu]->emu->main.getConfigItem(opt, (long)id);
+    return [self emu]->emu->get(opt, (long)id);
 }
 
 - (BOOL)configure:(Option)opt value:(NSInteger)val
 {
     try {
-        [self emu]->emu->main.configure(opt, val);
+        [self emu]->set(opt, val);
         return true;
     } catch (Error &exception) {
         return false;
@@ -3165,7 +3199,7 @@ using namespace vamiga::moira;
 - (BOOL)configure:(Option)opt enable:(BOOL)val
 {
     try {
-        [self emu]->emu->main.configure(opt, val ? 1 : 0);
+        [self emu]->set(opt, val ? 1 : 0);
         return true;
     } catch (Error &exception) {
         return false;
@@ -3175,7 +3209,7 @@ using namespace vamiga::moira;
 - (BOOL)configure:(Option)opt id:(NSInteger)id value:(NSInteger)val
 {
     try {
-        [self emu]->emu->main.configure(opt, id, val);
+        [self emu]->set(opt, val, id);
         return true;
     } catch (Error &exception) {
         return false;
@@ -3185,7 +3219,7 @@ using namespace vamiga::moira;
 - (BOOL)configure:(Option)opt id:(NSInteger)id enable:(BOOL)val
 {
     try {
-        [self emu]->emu->main.configure(opt, id, val ? 1 : 0);
+        [self emu]->set(opt, val ? 1 : 0, id);
         return true;
     } catch (Error &exception) {
         return false;
@@ -3195,7 +3229,7 @@ using namespace vamiga::moira;
 - (BOOL)configure:(Option)opt drive:(NSInteger)id value:(NSInteger)val
 {
     try {
-        [self emu]->emu->main.configure(opt, (long)id, val);
+        [self emu]->set(opt, val, (long)id);
         return true;
     } catch (Error &exception) {
         return false;
@@ -3205,7 +3239,7 @@ using namespace vamiga::moira;
 - (BOOL)configure:(Option)opt drive:(NSInteger)id enable:(BOOL)val
 {
     try {
-        [self emu]->emu->main.configure(opt, (long)id, val ? 1 : 0);
+        [self emu]->set(opt, val ? 1 : 0, (long)id);
         return true;
     } catch (Error &exception) {
         return false;
@@ -3225,6 +3259,12 @@ using namespace vamiga::moira;
 - (void)setAlarmRel:(NSInteger)cycle payload:(NSInteger)value
 {
     [self emu]->emu->main.setAlarmRel(cycle, value);
+}
+
+- (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try { [self emu]->exportConfig([url fileSystemRepresentation]); }
+    catch (Error &error) { [ex save:error]; }
 }
 
 @end

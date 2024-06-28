@@ -22,20 +22,24 @@ class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
     
     Descriptions descriptions = {
         {
-            .name           = "hd0",
-            .description    = "Hard Drive 0"
+            .name           = "HardDrive0",
+            .description    = "Hard Drive 0",
+            .shell          = "hd0"
         },
         {
-            .name           = "hd1",
-            .description    = "Hard Drive 1"
+            .name           = "HardDrive1",
+            .description    = "Hard Drive 1",
+            .shell          = "hd1"
         },
         {
-            .name           = "hd2",
-            .description    = "Hard Drive 2"
+            .name           = "HardDrive2",
+            .description    = "Hard Drive 2",
+            .shell          = "hd2"
         },
         {
-            .name           = "hd3",
-            .description    = "Hard Drive 3"
+            .name           = "HardDrive3",
+            .description    = "Hard Drive 3",
+            .shell          = "hd3"
         }
     };
 
@@ -139,12 +143,11 @@ private:
 private:
     
     void _initialize() override;
-    void _reset(bool hard) override;
     
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
@@ -153,7 +156,7 @@ private:
         << head.offset
         << state;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
@@ -173,14 +176,12 @@ private:
         << modified
         << writeProtected
         << bootable;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    
+    } SERIALIZERS(serialize);
+
+    void _didReset(bool hard) override;
+    void _didLoad() override;
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
@@ -213,16 +214,15 @@ public:
 
     
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const HardDriveConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
     
 private:
     

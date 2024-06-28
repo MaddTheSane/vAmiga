@@ -31,17 +31,18 @@ class TOD : public SubComponent, public Inspectable<TODInfo> {
     Descriptions descriptions = {{
 
         .name           = "TOD",
-        .description    = "Time-of-day Clock"
+        .description    = "Time-of-day Clock",
+        .shell          = "tod"
     }};
 
     ConfigOptions options = {
 
     };
 
-    friend CIA;
-    
+    friend class CIA;
+
     // Reference to the connected CIA
-    CIA &cia;
+    class CIA &cia;
 
     // Result of the latest inspection
     mutable TODInfo info = {};
@@ -104,8 +105,6 @@ private:
     
 private:
     
-    void _reset(bool hard) override;
-
     template <class T>
     void serialize(T& worker)
     {
@@ -119,18 +118,29 @@ private:
         << frozen
         << stopped
         << matching;
+
     }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    void operator << (SerResetter &worker) override;
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override { serialize(worker); }
+    void operator << (SerReader &worker) override { serialize(worker); }
+    void operator << (SerWriter &worker) override { serialize(worker); }
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
-    
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
+
+
     //
     // Analyzing
     //

@@ -106,6 +106,7 @@ enum_long(SLOT)
     SLOT_HD3,                       // Hard drive Hd3
     SLOT_MSE1,                      // Port 1 mouse
     SLOT_MSE2,                      // Port 2 mouse
+    SLOT_SNP,                       // Snapshots
     SLOT_RSH,                       // Retro Shell
     SLOT_KEY,                       // Auto-typing
     SLOT_SRV,                       // Remote server manager
@@ -162,6 +163,7 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
             case SLOT_HD3:   return "HD3";
             case SLOT_MSE1:  return "MSE1";
             case SLOT_MSE2:  return "MSE2";
+            case SLOT_SNP:   return "SNP";
             case SLOT_RSH:   return "RSH";
             case SLOT_KEY:   return "KEY";
             case SLOT_SRV:   return "SRV";
@@ -362,6 +364,10 @@ enum_i8(EventID)
     MSE_RELEASE_RIGHT,
     MSE_EVENT_COUNT,
 
+    // Snapshots
+    SNP_TAKE            = 1,
+    SNP_EVENT_COUNT,
+
     // Retro shell
     RSH_WAKEUP          = 1,
     RSH_EVENT_COUNT,
@@ -449,7 +455,6 @@ struct SprDmaStateEnum : util::Reflection<SprDmaStateEnum, SprDMAState>
 typedef struct
 {
     AgnusRevision revision;
-    bool slowRamMirror;
     bool ptrDrops;
 }
 AgnusConfig;

@@ -21,7 +21,8 @@ class UART : public SubComponent, public Inspectable<UARTInfo> {
     Descriptions descriptions = {{
 
         .name           = "UART",
-        .description    = "Universal Asynchronous Receiver Transmitter"
+        .description    = "Universal Asynchronous Receiver Transmitter",
+        .shell          = "uart"
     }};
 
     ConfigOptions options = {
@@ -80,9 +81,7 @@ private:
     //
     
 private:
-    
-    void _reset(bool hard) override;
-    
+        
     template <class T>
     void serialize(T& worker)
     {
@@ -96,16 +95,23 @@ private:
         << outBit
         << ovrun
         << recCnt;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    } SERIALIZERS(serialize);
     
 public:
 
+    void _didReset(bool hard) override;
+
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
 
 
     //

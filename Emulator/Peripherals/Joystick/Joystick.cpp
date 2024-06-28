@@ -14,48 +14,19 @@
 
 namespace vamiga {
 
-Joystick::Joystick(Amiga& ref, ControlPort& pref) : SubComponent(ref), port(pref)
+Joystick::Joystick(Amiga& ref, ControlPort& pref) : SubComponent(ref, pref.objid), port(pref)
 {
 
 };
 
-void
-Joystick::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
-    // Discard any active joystick movements
-    button = false;
-    axisX = 0;
-    axisY = 0;
-}
-
-void
-Joystick::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_AUTOFIRE,
-        OPT_AUTOFIRE_BULLETS,
-        OPT_AUTOFIRE_DELAY
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-Joystick::getConfigItem(Option option) const
+Joystick::getOption(Option option) const
 {
     switch (option) {
             
-        case OPT_AUTOFIRE:            return (i64)config.autofire;
-        case OPT_AUTOFIRE_BULLETS:    return (i64)config.autofireBullets;
-        case OPT_AUTOFIRE_DELAY:      return (i64)config.autofireDelay;
+        case OPT_JOY_AUTOFIRE:            return (i64)config.autofire;
+        case OPT_JOY_AUTOFIRE_BULLETS:    return (i64)config.autofireBullets;
+        case OPT_JOY_AUTOFIRE_DELAY:      return (i64)config.autofireDelay;
 
         default:
             fatalError;
@@ -63,11 +34,11 @@ Joystick::getConfigItem(Option option) const
 }
 
 void
-Joystick::setConfigItem(Option option, i64 value)
+Joystick::setOption(Option option, i64 value)
 {
     switch (option) {
             
-        case OPT_AUTOFIRE:
+        case OPT_JOY_AUTOFIRE:
             
             config.autofire = bool(value);
 
@@ -76,7 +47,7 @@ Joystick::setConfigItem(Option option, i64 value)
 
             return;
 
-        case OPT_AUTOFIRE_BULLETS:
+        case OPT_JOY_AUTOFIRE_BULLETS:
             
             config.autofireBullets = isize(value);
             
@@ -85,7 +56,7 @@ Joystick::setConfigItem(Option option, i64 value)
 
             return;
 
-        case OPT_AUTOFIRE_DELAY:
+        case OPT_JOY_AUTOFIRE_DELAY:
             
             config.autofireDelay = isize(value);
             return;
@@ -100,6 +71,11 @@ Joystick::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
     
+    if (category == Category::Config) {
+
+        dumpConfig(os);
+    }
+
     if (category == Category::State) {
         
         os << tab("Button 1 pressed") << bol(button) << std::endl;
@@ -110,15 +86,13 @@ Joystick::_dump(Category category, std::ostream& os) const
     }
 }
 
-isize
-Joystick::didLoadFromBuffer(const u8 *buffer)
+void
+Joystick::_didLoad()
 {
     // Discard any active joystick movements
     button = false;
     axisX = 0;
     axisY = 0;
-
-    return 0;
 }
 
 void

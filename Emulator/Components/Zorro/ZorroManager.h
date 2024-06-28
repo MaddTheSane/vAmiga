@@ -20,8 +20,9 @@ class ZorroManager : public SubComponent {
     
     Descriptions descriptions = {{
 
-        .name           = "zorro",
-        .description    = "Zorro Manager"
+        .name           = "ZorroManager",
+        .description    = "Zorro Manager",
+        .shell          = "zorro"
     }};
 
     ConfigOptions options = {
@@ -71,20 +72,13 @@ private:
     
 private:
     
-    void _reset(bool hard) override { RESET_SNAPSHOT_ITEMS(hard) }
-
     template <class T>
-    void serialize(T& worker) { }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    void serialize(T& worker) { } SERIALIZERS(serialize);
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
-
+    const ConfigOptions &getOptions() const override { return options; }
 
     //
     // Accessing

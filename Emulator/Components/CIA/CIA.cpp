@@ -21,8 +21,8 @@
 
 namespace vamiga {
 
-CIA::CIA(int n, Amiga& ref) : SubComponent(ref), nr(n)
-{    
+CIA::CIA(Amiga& ref, isize objid) : SubComponent(ref, objid)
+{
     subComponents = std::vector<CoreComponent *> {
 
         &tod
@@ -38,58 +38,48 @@ CIA::_initialize()
     pb = 0xFF;
 }
 
-void
-CIA::_reset(bool hard)
+void 
+CIA::_willReset(bool hard)
 {
     if (!hard) wakeUp();
+}
 
-    RESET_SNAPSHOT_ITEMS(hard)
-    
+void
+CIA::_didReset(bool hard)
+{
+    // Update the memory layout because the OVL bit may have changed
+    // TODO: Do this in Memory class only
+    mem.updateMemSrcTables();
+}
+
+void
+CIA::operator << (SerResetter &worker)
+{
+    serialize(worker);
+
     cnt = true;
     irq = 1;
-    
+
     counterA = 0xFFFF;
     counterB = 0xFFFF;
     latchA = 0xFFFF;
     latchB = 0xFFFF;
-    
+
     // UAE initializes CRB with 4 (which I think is wrong)
     if (MIMIC_UAE) crb = 0x4;
 
     updatePA();
     updatePB();
-    
-    // Update the memory layout because the OVL bit may have changed
-    mem.updateMemSrcTables();
-}
-
-void
-CIA::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_CIA_REVISION,
-        OPT_TODBUG,
-        OPT_ECLOCK_SYNCING,
-        OPT_CIA_IDLE_SLEEP
-    };
-    
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
 }
 
 i64
-CIA::getConfigItem(Option option) const
+CIA::getOption(Option option) const
 {
     switch (option) {
             
         case OPT_CIA_REVISION:   return config.revision;
-        case OPT_TODBUG:         return config.todBug;
-        case OPT_ECLOCK_SYNCING: return config.eClockSyncing;
+        case OPT_CIA_TODBUG:         return config.todBug;
+        case OPT_CIA_ECLOCK_SYNCING: return config.eClockSyncing;
         case OPT_CIA_IDLE_SLEEP: return config.idleSleep;
 
         default:
@@ -98,25 +88,25 @@ CIA::getConfigItem(Option option) const
 }
 
 void
-CIA::setConfigItem(Option option, i64 value)
+CIA::setOption(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_CIA_REVISION:
             
             if (!CIARevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, CIARevisionEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
             }
             
             config.revision = (CIARevision)value;
             return;
 
-        case OPT_TODBUG:
+        case OPT_CIA_TODBUG:
 
             config.todBug = value;
             return;
             
-        case OPT_ECLOCK_SYNCING:
+        case OPT_CIA_ECLOCK_SYNCING:
             
             config.eClockSyncing = value;
             return;
@@ -180,14 +170,7 @@ CIA::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Revision");
-        os << CIARevisionEnum::key(config.revision) << std::endl;
-        os << tab("Emulate TOD bug");
-        os << bol(config.todBug) << std::endl;
-        os << tab("Sync with E-clock");
-        os << bol(config.eClockSyncing) << std::endl;
-        os << tab("Sleep when idle");
-        os << bol(config.idleSleep) << std::endl;
+        dumpConfig(os);
     }
 
     if (category == Category::Registers) {

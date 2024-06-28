@@ -19,10 +19,13 @@ namespace vamiga {
 
 class RemoteServer : public SubComponent {
 
+    friend class RemoteManager;
+
     Descriptions descriptions = {{
 
-        .name           = "server",
-        .description    = "Remote Server"
+        .name           = "RemoteServer",
+        .description    = "Remote Server",
+        .shell          = ""
     }};
 
     ConfigOptions options = {
@@ -32,8 +35,6 @@ class RemoteServer : public SubComponent {
         OPT_SRV_AUTORUN,
         OPT_SRV_VERBOSE
     };
-
-    friend class RemoteManager;
 
 protected:
     
@@ -70,52 +71,49 @@ public:
     // Methods from CoreObject
     //
     
-public:
-    
+protected:
+
     void _dump(Category category, std::ostream& os) const override;
     
-    
-    //
-    // Methods from CoreComponent
-    //
-    
-private:
-    
-    void _reset(bool hard) override { }
-    void _powerOff() override;
-
-    template <class T>
-    void serialize(T& worker)
-    {
-        if (util::isResetter(worker)) return;
-
-        worker
-
-        << config.port
-        << config.protocol
-        << config.verbose;
-    }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    void _didLoad() override;
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //
-    // Configuring
+    // Methods from CoreComponent
     //
     
+private:
+    
+    void _powerOff() override;
+
+    template <class T>
+    void serialize(T& worker)
+    {
+        if (isResetter(worker)) return;
+
+        worker
+
+        << config.port
+        << config.protocol
+        << config.verbose;
+
+    } SERIALIZERS(serialize);
+
+    void _didLoad() override;
+
+
+    //
+    // Methods from Configurable
+    //
+
 public:
 
     const ServerConfig &getConfig() const { return config; }
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
 
     //
@@ -159,12 +157,9 @@ protected:
     
 private:
     
-    // Used by the launch manager to determine if actions should be taken
+    // Used by the launch daemon to determine if actions should be taken
     virtual bool shouldRun() { return true; }
-    
-    // Indicates if the server is able to run
-    // virtual bool canRun() { return true; }
-    
+        
     
     //
     // Running the server

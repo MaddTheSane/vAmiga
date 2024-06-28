@@ -198,13 +198,13 @@ Moira::didExecute(ExceptionType exc, u16 vector)
 }
 
 void
-Moira::didReset()
+Moira::cpuDidReset()
 {
 
 }
 
 void
-Moira::didHalt()
+Moira::cpuDidHalt()
 {
     msgQueue.put(MSG_CPU_HALT);
 }
@@ -282,7 +282,7 @@ CPU::CPU(Amiga& ref) : moira::Moira(ref)
 }
 
 i64
-CPU::getConfigItem(Option option) const
+CPU::getOption(Option option) const
 {
     switch (option) {
 
@@ -298,7 +298,7 @@ CPU::getConfigItem(Option option) const
 }
 
 void
-CPU::setConfigItem(Option option, i64 value)
+CPU::setOption(Option option, i64 value)
 {
     auto cpuModel = [&](CPURevision rev) { return moira::Model(rev); };
     auto dasmModel = [&](DasmRevision rev) { return moira::Model(rev); };
@@ -309,7 +309,7 @@ CPU::setConfigItem(Option option, i64 value)
         case OPT_CPU_REVISION:
 
             if (!CPURevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, CPURevisionEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, CPURevisionEnum::keyList());
             }
 
             suspend();
@@ -321,7 +321,7 @@ CPU::setConfigItem(Option option, i64 value)
         case OPT_CPU_DASM_REVISION:
 
             if (!DasmRevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, DasmRevisionEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, DasmRevisionEnum::keyList());
             }
 
             suspend();
@@ -333,7 +333,7 @@ CPU::setConfigItem(Option option, i64 value)
         case OPT_CPU_DASM_SYNTAX:
 
             if (!DasmSyntaxEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, DasmSyntaxEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, DasmSyntaxEnum::keyList());
             }
 
             suspend();
@@ -361,38 +361,8 @@ CPU::setConfigItem(Option option, i64 value)
 }
 
 void
-CPU::resetConfig()
+CPU::_didReset(bool hard)
 {
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-
-        OPT_CPU_REVISION,
-        OPT_CPU_DASM_REVISION,
-        OPT_CPU_DASM_SYNTAX,
-        OPT_CPU_OVERCLOCKING,
-        OPT_CPU_RESET_VAL
-    };
-
-    for (auto &option : options) {
-
-        try {
-
-            setConfigItem(option, defaults.get(option));
-
-        } catch (Error &e) {
-
-            std::cout << "Config error: " << e.what() << std::endl;
-        }
-    }
-}
-
-void
-CPU::_reset(bool hard)
-{    
-    RESET_SNAPSHOT_ITEMS(hard)
-
     if (hard) {
 
         // Reset the Moira core
@@ -465,16 +435,7 @@ CPU::_dump(Category category, std::ostream& os) const
 
     if (category == Category::Config) {
 
-        os << util::tab("CPU revision");
-        os << CPURevisionEnum::key(config.revision) << std::endl;
-        os << util::tab("DASM revision");
-        os << DasmRevisionEnum::key(config.dasmRevision) << std::endl;
-        os << util::tab("DASM syntax");
-        os << DasmSyntaxEnum::key(config.dasmSyntax) << std::endl;
-        os << util::tab("Overclocking");
-        os << util::dec(config.overclocking) << std::endl;
-        os << util::tab("Register reset value");
-        os << util::hex(config.regResetVal) << std::endl;
+        dumpConfig(os);
     }
 
     if (category == Category::Registers) {
@@ -624,8 +585,8 @@ CPU::_trackOff()
     debugger.disableLogging();
 }
 
-isize
-CPU::didLoadFromBuffer(const u8 *buffer)
+void
+CPU::_didLoad()
 {
     auto cpuModel = (moira::Model)config.revision;
     auto dasmModel = (moira::Model)config.dasmRevision;
@@ -640,7 +601,6 @@ CPU::didLoadFromBuffer(const u8 *buffer)
      */
     debugger.breakpoints.setNeedsCheck(debugger.breakpoints.elements() != 0);
     debugger.watchpoints.setNeedsCheck(debugger.watchpoints.elements() != 0);
-    return 0;
 }
 
 void

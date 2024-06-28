@@ -26,7 +26,8 @@ class Paula : public SubComponent, public Inspectable<PaulaInfo> {
     Descriptions descriptions = {{
 
         .name           = "Paula",
-        .description    = "Audio, Interrupts, Disk Control"
+        .description    = "Audio, Interrupts, Disk Control",
+        .shell          = "paula"
     }};
 
     ConfigOptions options = {
@@ -40,7 +41,7 @@ private:
 
     
     //
-    // Sub components
+    // Subcomponents
     //
     
 public:
@@ -133,7 +134,6 @@ private:
 
 private:
     
-    void _reset(bool hard) override;
     void _run() override;
     void _pause() override;
     void _warpOn() override;
@@ -143,7 +143,7 @@ private:
     void serialize(T& worker)
     {
         worker
-        
+
         << intreq
         << intena
         << setIntreq
@@ -159,24 +159,31 @@ private:
         << chargeY1
         << adkcon;
 
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
         << audioClock;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    
+    } SERIALIZERS(serialize);
+
+    void _didLoad() override;
+
 public:
 
+    void _didReset(bool hard) override;
     const Descriptions &getDescriptions() const override { return descriptions; }
 
-    
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
+
+
     //
     // Analyzing
     //

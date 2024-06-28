@@ -27,13 +27,31 @@ class Preferences {
     //
     // General
     //
-       
+      
+    // Snapshots
+    var autoSnapshots = false {
+        didSet {
+            for emu in myAppDelegate.proxies {
+                emu.set(.AMIGA_SNAPSHOTS, enable: autoSnapshots)
+            }
+        }
+    }
+    var snapshotInterval = 0 {
+        didSet {
+            for emu in myAppDelegate.proxies {
+                emu.set(.AMIGA_SNAPSHOT_DELAY, value: snapshotInterval)
+            }
+        }
+    }
+
+
     // Snapshots
     var snapshotStorage = 0 {
         didSet { for c in myAppDelegate.controllers {
             c.mydocument.snapshots.maxSize = snapshotStorage * 1024 * 1024 }
         }
     }
+    /*
     var autoSnapshots = false {
         didSet { for c in myAppDelegate.controllers {
             c.validateSnapshotTimer() }
@@ -44,6 +62,7 @@ class Preferences {
             c.validateSnapshotTimer() }
         }
     }
+    */
 
     // Screenshots
     var screenshotSource = 0
@@ -108,14 +127,14 @@ class Preferences {
     var autofire: Bool! {
         didSet {
             for amiga in myAppDelegate.proxies {
-                amiga.configure(.AUTOFIRE, enable: autofire)
+                amiga.configure(.JOY_AUTOFIRE, enable: autofire)
             }
         }
     }
     var autofireBullets: Int! {
         didSet {
             for amiga in myAppDelegate.proxies {
-                amiga.configure(.AUTOFIRE_BULLETS, value: autofireBullets)
+                amiga.configure(.JOY_AUTOFIRE_BULLETS, value: autofireBullets)
             }
         }
     }
@@ -124,7 +143,7 @@ class Preferences {
             autofireFrequency = clamp(autofireFrequency, minimum: 1, maximum: 4)
             let autofireDelay = Int(50.0 / autofireFrequency)
             for amiga in myAppDelegate.proxies {
-                amiga.configure(.AUTOFIRE_DELAY, value: autofireDelay)
+                amiga.configure(.JOY_AUTOFIRE_DELAY, value: autofireDelay)
             }
         }
     }

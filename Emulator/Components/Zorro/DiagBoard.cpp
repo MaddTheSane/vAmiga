@@ -25,10 +25,8 @@ DiagBoard::_dump(Category category, std::ostream& os) const
 }
 
 void
-DiagBoard::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
+DiagBoard::_didReset(bool hard)
+{    
     if (hard) {
         
         // Burn Expansion Rom
@@ -42,24 +40,8 @@ DiagBoard::_reset(bool hard)
     }
 }
 
-void
-DiagBoard::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_DIAG_BOARD
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-DiagBoard::getConfigItem(Option option) const
+DiagBoard::getOption(Option option) const
 {
     switch (option) {
             
@@ -71,7 +53,7 @@ DiagBoard::getConfigItem(Option option) const
 }
 
 void
-DiagBoard::setConfigItem(Option option, i64 value)
+DiagBoard::setOption(Option option, i64 value)
 {
     switch (option) {
             

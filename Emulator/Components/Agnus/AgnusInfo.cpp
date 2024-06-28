@@ -389,6 +389,16 @@ Agnus::eventName(EventSlot slot, EventID id)
             }
             break;
 
+        case SLOT_SNP:
+
+            switch (id) {
+
+                case EVENT_NONE:        return "none";
+                case SNP_TAKE:          return "SNP_TAKE";
+                default:                return "*** INVALID ***";
+            }
+            break;
+
         case SLOT_RSH:
 
             switch (id) {
@@ -472,12 +482,7 @@ Agnus::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
 
-        os << tab("Chip Revison");
-        os << AgnusRevisionEnum::key(config.revision) << std::endl;
-        os << tab("Slow Ram mirror");
-        os << bol(config.slowRamMirror) << std::endl;
-        os << tab("Pointer drops");
-        os << bol(config.ptrDrops) << std::endl;
+        dumpConfig(os);
     }
     
     if (category == Category::State) {

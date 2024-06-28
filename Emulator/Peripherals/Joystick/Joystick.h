@@ -19,19 +19,21 @@ class Joystick : public SubComponent {
     Descriptions descriptions = {
         {
             .name           = "Joystick1",
-            .description    = "Joystick in Port 1"
+            .description    = "Joystick in Port 1",
+            .shell          = "joystick 1"
         },
         {
             .name           = "Joystick2",
-            .description    = "Joystick in Port 2"
+            .description    = "Joystick in Port 2",
+            .shell          = "joystick 2"
         }
     };
 
     ConfigOptions options = {
 
-        OPT_AUTOFIRE,
-        OPT_AUTOFIRE_BULLETS,
-        OPT_AUTOFIRE_DELAY
+        OPT_JOY_AUTOFIRE,
+        OPT_JOY_AUTOFIRE_BULLETS,
+        OPT_JOY_AUTOFIRE_DELAY
     };
 
     // Reference to control port this device belongs to
@@ -82,36 +84,39 @@ private:
 
 private:
     
-    void _reset(bool hard) override;
-
     template <class T>
     void serialize(T& worker)
     {
-        
-    }
+        if (isResetter(worker)) {
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    
+            worker
+
+            << button
+            << button2
+            << button3
+            << axisX
+            << axisY;
+        }
+
+    } SERIALIZERS(serialize);
+
+    void _didLoad() override;
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
 
     const JoystickConfig &getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
 
     //

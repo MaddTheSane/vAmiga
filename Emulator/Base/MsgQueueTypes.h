@@ -38,13 +38,11 @@ enum_long(MSG_TYPE)
     MSG_POWER_LED_OFF,
 
     // Retro shell
-    MSG_CONSOLE_CLOSE,
-    MSG_CONSOLE_UPDATE,
-    MSG_CONSOLE_DEBUGGER,
-    MSG_SCRIPT_DONE,
-    MSG_SCRIPT_PAUSE,
-    MSG_SCRIPT_ABORT,
-    MSG_SCRIPT_WAKEUP,
+    MSG_CONSOLE_CLOSE,      ///< RetroShell has been closed
+    MSG_CONSOLE_UPDATE,     ///< RetroShell has generated new output
+    MSG_CONSOLE_DEBUGGER,   ///< The RetroShell debugger has been opend or closed
+    MSG_SCRIPT_DONE,        ///< A RetroShell script has been successfully executed
+    MSG_SCRIPT_ABORT,       ///< The execution of a RetroShell ccript has been aborted
 
     // Amiga
     MSG_VIDEO_FORMAT,
@@ -106,8 +104,7 @@ enum_long(MSG_TYPE)
     MSG_SER_OUT,
 
     // Snapshots
-    MSG_AUTO_SNAPSHOT_TAKEN,
-    MSG_USER_SNAPSHOT_TAKEN,
+    MSG_SNAPSHOT_TAKEN,
     MSG_SNAPSHOT_RESTORED,
 
     // Screen recording
@@ -161,9 +158,7 @@ struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType>
             case MSG_CONSOLE_UPDATE:        return "CONSOLE_UPDATE";
             case MSG_CONSOLE_DEBUGGER:      return "CONSOLE_DEBUGGER";
             case MSG_SCRIPT_DONE:           return "SCRIPT_DONE";
-            case MSG_SCRIPT_PAUSE:          return "SCRIPT_PAUSE";
             case MSG_SCRIPT_ABORT:          return "SCRIPT_ABORT";
-            case MSG_SCRIPT_WAKEUP:         return "MSG_SCRIPT_WAKEUP";
 
             case MSG_VIDEO_FORMAT:          return "VIDEO_FORMAT";
                 
@@ -213,8 +208,7 @@ struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType>
             case MSG_SER_IN:                return "SER_IN";
             case MSG_SER_OUT:               return "SER_OUT";
 
-            case MSG_AUTO_SNAPSHOT_TAKEN:   return "AUTO_SNAPSHOT_TAKEN";
-            case MSG_USER_SNAPSHOT_TAKEN:   return "USER_SNAPSHOT_TAKEN";
+            case MSG_SNAPSHOT_TAKEN:        return "SNAPSHOT_TAKEN";
             case MSG_SNAPSHOT_RESTORED:     return "SNAPSHOT_RESTORED";
                 
             case MSG_RECORDING_STARTED:     return "RECORDING_STARTED";
@@ -244,6 +238,7 @@ typedef struct { i16 nr; i16 value; i16 volume; i16 pan; } DriveMsg;
 typedef struct { i16 nr; HdcState state; } HdcMsg;
 typedef struct { i16 hstrt; i16 vstrt; i16 hstop; i16 vstop; } ViewportMsg;
 typedef struct { isize line; i16 delay; } ScriptMsg;
+typedef struct { void *snapshot; } SnapshotMsg;
 
 typedef struct
 {
@@ -258,6 +253,7 @@ typedef struct
         HdcMsg hdc;
         ScriptMsg script;
         ViewportMsg viewport;
+        SnapshotMsg snapshot;
     };
 }
 Message;

@@ -9,11 +9,12 @@
 
 #include "config.h"
 #include "SubComponent.h"
-#include "Amiga.h"  
+#include "Emulator.h"
 
 namespace vamiga {
 
-SubComponent::SubComponent(Amiga& ref) : CoreComponent(ref.emulator),
+References::References(Amiga& ref) :
+
 agnus(ref.agnus),
 amiga(ref),
 blitter(ref.agnus.blitter),
@@ -40,7 +41,7 @@ hd0con(ref.hd0con),
 hd1con(ref.hd1con),
 hd2con(ref.hd2con),
 hd3con(ref.hd3con),
-host(ref.host),
+host(ref.emulator.host),
 keyboard(ref.keyboard),
 mem(ref.mem),
 msgQueue(ref.msgQueue),
@@ -57,53 +58,7 @@ zorro(ref.zorro)
 {
 };
 
-bool
-SubComponent::isPoweredOff() const
-{
-    return amiga.isPoweredOff();
-}
-
-bool
-SubComponent::isPoweredOn() const
-{
-    return amiga.isPoweredOn();
-}
-
-bool
-SubComponent::isPaused() const
-{
-    return amiga.isPaused();
-}
-
-bool
-SubComponent::isRunning() const
-{
-    return amiga.isRunning();
-}
-
-bool
-SubComponent::isSuspended() const
-{
-    return amiga.isSuspended();
-}
-
-bool
-SubComponent::isHalted() const
-{
-    return amiga.isHalted();
-}
-
-void
-SubComponent::suspend()
-{
-    amiga.suspend();
-}
-
-void
-SubComponent::resume()
-{
-    amiga.resume();
-}
+SubComponent::SubComponent(Amiga& ref, isize id) : CoreComponent(ref.emulator, id), References(ref) { };
 
 void
 SubComponent::prefix() const

@@ -21,7 +21,8 @@ class CPU : public moira::Moira, public Inspectable<CPUInfo>
     Descriptions descriptions = {{
 
         .name           = "CPU",
-        .description    = "Central Processing Unit"
+        .description    = "Central Processing Unit",
+        .shell          = "cpu"
     }};
 
     ConfigOptions options = {
@@ -79,14 +80,13 @@ private:
     
 private:
     
-    void _reset(bool hard) override;
     void _trackOn() override;
     void _trackOff() override;
     
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
@@ -132,7 +132,7 @@ private:
         << writeBuffer
         << flags;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
@@ -141,15 +141,16 @@ private:
         << config.dasmRevision
         << config.overclocking
         << config.regResetVal;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
+    } SERIALIZERS(serialize);
+
+    void _didLoad() override;
+
+public:
+
+    void _didReset(bool hard) override;
+
     
-
     //
     // Methods from CoreComponent
     //
@@ -160,16 +161,15 @@ public:
     
 
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const CPUConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option opt) const override;
+    void setOption(Option opt, i64 value) override;
 
     
     //

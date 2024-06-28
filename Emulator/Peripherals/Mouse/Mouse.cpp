@@ -15,52 +15,19 @@
 
 namespace vamiga {
 
-Mouse::Mouse(Amiga& ref, ControlPort& pref) : SubComponent(ref), port(pref)
+Mouse::Mouse(Amiga& ref, ControlPort& pref) : SubComponent(ref, pref.objid), port(pref)
 {
 
-}
-
-void Mouse::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
-    leftButton = false;
-    middleButton = false;
-    rightButton = false;
-    mouseX = 0;
-    mouseY = 0;
-    oldMouseX = 0;
-    oldMouseY = 0;
-    targetX = 0;
-    targetY = 0;
-}
-
-void
-Mouse::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_PULLUP_RESISTORS,
-        OPT_SHAKE_DETECTION,
-        OPT_MOUSE_VELOCITY
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
 }
 
 i64
-Mouse::getConfigItem(Option option) const
+Mouse::getOption(Option option) const
 {
     switch (option) {
 
-        case OPT_PULLUP_RESISTORS:  return config.pullUpResistors;
-        case OPT_SHAKE_DETECTION:   return config.shakeDetection;
-        case OPT_MOUSE_VELOCITY:    return config.velocity;
+        case OPT_MOUSE_PULLUP_RESISTORS:    return config.pullUpResistors;
+        case OPT_MOUSE_SHAKE_DETECTION:     return config.shakeDetection;
+        case OPT_MOUSE_VELOCITY:            return config.velocity;
 
         default:
             fatalError;
@@ -68,16 +35,16 @@ Mouse::getConfigItem(Option option) const
 }
 
 void
-Mouse::setConfigItem(Option option, i64 value)
+Mouse::setOption(Option option, i64 value)
 {
     switch (option) {
             
-        case OPT_PULLUP_RESISTORS:
+        case OPT_MOUSE_PULLUP_RESISTORS:
             
             config.pullUpResistors = value;
             return;
 
-        case OPT_SHAKE_DETECTION:
+        case OPT_MOUSE_SHAKE_DETECTION:
             
             config.shakeDetection = value;
             return;
@@ -85,7 +52,7 @@ Mouse::setConfigItem(Option option, i64 value)
         case OPT_MOUSE_VELOCITY:
             
             if (value < 0 || value > 255) {
-                throw Error(ERROR_OPT_INVARG, "0...255");
+                throw Error(ERROR_OPT_INV_ARG, "0...255");
             }
             config.velocity = (isize)value;
             updateScalingFactors();
@@ -110,12 +77,7 @@ Mouse::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Pull-up resistors");
-        os << bol(config.pullUpResistors) << std::endl;
-        os << tab("Shake detection");
-        os << bol(config.shakeDetection) << std::endl;
-        os << tab("Velocity");
-        os << dec(config.velocity) << std::endl;
+        dumpConfig(os);
     }
 
     if (category == Category::State) {

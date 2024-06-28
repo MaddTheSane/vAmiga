@@ -12,11 +12,11 @@
 #include "BeamTypes.h"
 #include "AmigaTypes.h"
 #include "Constants.h"
-#include "Serialization.h"
+#include "Serializable.h"
 
 namespace vamiga {
 
-struct Beam : util::Serializable
+struct Beam : Serializable
 {
     // The vertical and horizontal beam position
     isize v = 0;
@@ -40,6 +40,7 @@ struct Beam : util::Serializable
     // The type of the current line
     VideoFormat type;
 
+    /*
     template <class W>
     void operator<<(W& worker)
     {
@@ -54,6 +55,29 @@ struct Beam : util::Serializable
         << lolToggle
         << type;
     }
+    */
+
+    //
+    // Methods from Serializable
+    //
+
+public:
+
+    template <class T>
+    void serialize(T& worker)
+    {
+        worker
+
+        << v
+        << h
+        << frame
+        << lof
+        << lofToggle
+        << lol
+        << lolToggle
+        << type;
+
+    } SERIALIZERS(serialize);
 
 
     //

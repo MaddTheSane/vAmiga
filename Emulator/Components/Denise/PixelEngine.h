@@ -21,16 +21,17 @@ class PixelEngine : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "pixelengine",
-        .description    = "Pixel Engine"
+        .name           = "PixelEngine",
+        .description    = "Pixel Engine",
+        .shell          = "monitor"
     }};
 
     ConfigOptions options = {
 
-        OPT_PALETTE,
-        OPT_BRIGHTNESS,
-        OPT_CONTRAST,
-        OPT_SATURATION
+        OPT_MON_PALETTE,
+        OPT_MON_BRIGHTNESS,
+        OPT_MON_CONTRAST,
+        OPT_MON_SATURATION
     };
 
     friend class Denise;
@@ -127,20 +128,18 @@ private:
 private:
     
     void _initialize() override;
-    void _reset(bool hard) override;
 
     
     //
-    // Configuring
+    // Methods from Configurable
     //
 
 public:
     
     const PixelEngineConfig &getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
     
     //
@@ -158,18 +157,16 @@ private:
         << color
         << hamMode
         << shresMode;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
+    } SERIALIZERS(serialize);
+
+    void _didLoad() override;
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
-
+    void _didReset(bool hard) override;
+    
 
     //
     // Controlling

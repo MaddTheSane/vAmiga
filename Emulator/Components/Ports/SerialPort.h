@@ -27,8 +27,9 @@ class SerialPort : public SubComponent, public Inspectable<SerialPortInfo> {
 
     Descriptions descriptions = {{
 
-        .name           = "Serial",
-        .description    = "Serial Port"
+        .name           = "SerialPort",
+        .description    = "Serial Port",
+        .shell          = "serial"
     }};
 
     ConfigOptions options = {
@@ -76,9 +77,7 @@ private:
     //
     
 private:
-    
-    void _reset(bool hard) override;
-    
+        
     template <class T>
     void serialize(T& worker)
     {
@@ -86,34 +85,31 @@ private:
 
         << port;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
         << config.device;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    } SERIALIZERS(serialize);
 
+    void _didReset(bool hard) override;
+    
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
     
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
 
     const SerialPortConfig &getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
     
 
     //

@@ -11,13 +11,27 @@
 
 #include "Macros.h"
 #include "MemUtils.h"
+#include "Buffer.h"
+#include "RingBuffer.h"
 #include <cassert>
 #include <concepts>
 #include <vector>
 
-namespace util {
+namespace vamiga {
 
-class Serializable { };
+class Serializable {
+
+public:
+    
+    virtual ~Serializable() = default;
+
+    // Serializers (to be implemented by the subclass)
+    virtual void operator << (class SerCounter &worker) = 0;
+    virtual void operator << (class SerChecker &worker) = 0;
+    virtual void operator << (class SerResetter &worker) = 0;
+    virtual void operator << (class SerReader &worker) = 0;
+    virtual void operator << (class SerWriter &worker) = 0;
+};
 
 //
 // Basic memory buffer I/O
@@ -143,6 +157,47 @@ public:
     COUNTD(const float)
     COUNTD(const double)
 
+    template <class T>
+    auto& operator<<(util::Allocator<T> &a)
+    {
+        count += 8 + a.size;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::Array<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.elements << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedArray<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::RingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedRingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
     auto& operator<<(string &v)
     {
         auto len = v.length();
@@ -177,6 +232,13 @@ public:
         return *this;
     }
 
+    template <class E, class = std::enable_if_t<std::is_enum<E>{}>>
+    SerCounter& operator<<(E &v)
+    {
+        count += sizeof(u64);
+        return *this;
+    }
+
     template <std::derived_from<Serializable> T>
     SerCounter& operator<<(T &v)
     {
@@ -203,7 +265,7 @@ public:
 
     u64 hash;
 
-    SerChecker() { hash = fnvInit64(); }
+    SerChecker() { hash = util::fnvInit64(); }
 
     CHECK(const bool)
     CHECK(const char)
@@ -219,6 +281,47 @@ public:
     CHECK(const unsigned long long)
     CHECK(const float)
     CHECK(const double)
+
+    template <class T>
+    auto& operator<<(util::Allocator<T> &a)
+    {
+        hash = util::fnvIt64(hash, a.fnv64());
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::Array<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.elements << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedArray<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::RingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedRingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.r << a.w;
+        return *this;
+    }
 
     auto& operator<<(string &v)
     {
@@ -252,6 +355,13 @@ public:
         for(isize i = 0; i < N; ++i) {
             *this << v[i];
         }
+        return *this;
+    }
+
+    template <class E, class = std::enable_if_t<std::is_enum<E>{}>>
+    SerChecker& operator<<(E &v)
+    {
+        hash = util::fnvIt64(hash, v);
         return *this;
     }
 
@@ -303,6 +413,50 @@ public:
     DESERIALIZED(float)
     DESERIALIZED(double)
 
+    template <class T>
+    auto& operator<<(util::Allocator<T> &a)
+    {
+        i64 len;
+        *this << len;
+        a.init(ptr, isize(len));
+        ptr += len;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::Array<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.elements << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedArray<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::RingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedRingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
     auto& operator<<(string &v)
     {
         v = readString(ptr);
@@ -349,6 +503,13 @@ public:
     {
         std::memcpy(dst, (void *)ptr, n);
         ptr += n;
+    }
+
+    template <class E, class = std::enable_if_t<std::is_enum<E>{}>>
+    SerReader& operator<<(E &v)
+    {
+        v = (E)read64(ptr);
+        return *this;
     }
 
     template <std::derived_from<Serializable> T>
@@ -399,6 +560,49 @@ public:
     SERIALIZED(const float)
     SERIALIZED(const double)
 
+    template <class T>
+    auto& operator<<(util::Allocator<T> &a)
+    {
+        *this << i64(a.size);
+        a.copy(ptr);
+        ptr += a.size;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::Array<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.elements << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedArray<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::RingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedRingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
     auto& operator<<(const string &v)
     {
         writeString(ptr, v);
@@ -440,6 +644,13 @@ public:
         ptr += n;
     }
 
+    template <class E, class = std::enable_if_t<std::is_enum<E>{}>>
+    SerWriter& operator<<(E &v)
+    {
+        write64(ptr, (long)v);
+        return *this;
+    }
+
     template <std::derived_from<Serializable> T>
     SerWriter& operator<<(T &v)
     {
@@ -462,11 +673,14 @@ return *this; \
 
 class SerResetter
 {
-protected:
-
-    SerResetter() { };
+    bool hard;
 
 public:
+
+    SerResetter(bool hard) : hard(hard) { };
+
+    bool isHard() { return hard; }
+    bool isSoft() { return !isHard(); }
 
     RESET(bool)
     RESET(char)
@@ -482,6 +696,47 @@ public:
     RESET(unsigned long long)
     RESET(float)
     RESET(double)
+
+    template <class T>
+    auto& operator<<(util::Allocator<T> &a)
+    {
+        a.clear();
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::Array<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.elements << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedArray<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::RingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        *this << a.r << a.w;
+        return *this;
+    }
+
+    template <class T, isize N>
+    auto& operator<<(util::SortedRingBuffer<T, N> &a)
+    {
+        for(isize i = 0; i < N; ++i) *this << a.elements[i];
+        for(isize i = 0; i < N; ++i) *this << a.keys[i];
+        *this << a.r << a.w;
+        return *this;
+    }
 
     auto& operator<<(string &v)
     {
@@ -512,6 +767,13 @@ public:
         return *this;
     }
 
+    template <class E, class = std::enable_if_t<std::is_enum<E>{}>>
+    SerResetter& operator<<(E &v)
+    {
+        v = (E)0;
+        return *this;
+    }
+    
     template <std::derived_from<Serializable> T>
     SerResetter& operator<<(T &v)
     {
@@ -520,31 +782,21 @@ public:
     }
 };
 
-class SerSoftResetter : public SerResetter
-{
-public:
-    SerSoftResetter() { }
-};
-
-class SerHardResetter : public SerResetter
-{
-public:
-    SerHardResetter() { }
-};
-
-template <class T>
-static constexpr bool isSoftResetter(T &worker) {
-    return std::is_same_v<T, SerSoftResetter>;
-}
-
-template <class T>
-static constexpr bool isHardResetter(T &worker) {
-    return std::is_same_v<T, SerHardResetter>;
-}
-
-template <class T>
-static constexpr bool isResetter(T &worker) {
-    return isSoftResetter(worker) || isHardResetter(worker);
-}
+template <class T> inline bool isResetter(T &worker) { return false; }
+template <> inline bool isResetter(SerResetter &worker) { return true; }
+template <class T> inline bool isSoftResetter(T &worker) { return false; }
+template <> inline bool isSoftResetter(SerResetter &worker) { return worker.isSoft(); }
+template <class T> inline bool isHardResetter(T &worker) { return false; }
+template <> inline bool isHardResetter(SerResetter &worker) { return worker.isHard(); }
 
 }
+
+#define SERIALIZERS(fn) \
+void operator << (SerChecker &worker) override { fn(worker); } \
+void operator << (SerCounter &worker) override { fn(worker); } \
+void operator << (SerResetter &worker) override { fn(worker); } \
+void operator << (SerReader &worker) override { fn(worker); } \
+void operator << (SerWriter &worker) override { fn(worker); }
+
+#define CLONE(x) x = other.x;
+#define CLONE_ARRAY(x) std::copy(std::begin(other.x), std::end(other.x), std::begin(x));

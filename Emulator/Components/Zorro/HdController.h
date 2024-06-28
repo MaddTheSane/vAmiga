@@ -20,20 +20,24 @@ class HdController : public ZorroBoard {
     
     Descriptions descriptions = {
         {
-            .name           = "hdc0",
-            .description    = "Hard Drive Controller 0"
+            .name           = "HdController0",
+            .description    = "Hard Drive Controller 0",
+            .shell          = ""
         },
         {
-            .name           = "hdc1",
-            .description    = "Hard Drive Controller 1"
+            .name           = "HdController1",
+            .description    = "Hard Drive Controller 1",
+            .shell          = ""
         },
         {
-            .name           = "hdc2",
-            .description    = "Hard Drive Controller 2"
+            .name           = "HdController2",
+            .description    = "Hard Drive Controller 2",
+            .shell          = ""
         },
         {
-            .name           = "hcd3",
-            .description    = "Hard Drive Controller 3"
+            .name           = "HdController3",
+            .description    = "Hard Drive Controller 3",
+            .shell          = ""
         }
     };
 
@@ -84,7 +88,11 @@ private:
     
     void _dump(Category category, std::ostream& os) const override;
 
-    
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Methods from CoreComponent
     //
@@ -92,12 +100,11 @@ private:
 private:
     
     void _initialize() override;
-    void _reset(bool hard) override;
     
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
@@ -107,19 +114,17 @@ private:
         << numPartitions
         << pointer;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
         << config.connected;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    } SERIALIZERS(serialize);
 
+    void _didReset(bool hard) override;
     
+
     //
     // Methods from ZorroBoard
     //
@@ -144,16 +149,15 @@ private:
     
     
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
 
     const HdcConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
     
     //

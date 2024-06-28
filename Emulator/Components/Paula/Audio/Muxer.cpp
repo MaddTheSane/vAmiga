@@ -9,7 +9,7 @@
 
 #include "config.h"
 #include "Muxer.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include "CIA.h"
 #include "IOUtils.h"
 #include "MsgQueue.h"
@@ -18,7 +18,7 @@
 
 namespace vamiga {
 
-Muxer::Muxer(Amiga& ref) : SubComponent(ref)
+Muxer::Muxer(Amiga& ref, isize id) : SubComponent(ref, id)
 {
     subComponents = std::vector<CoreComponent *> {
 
@@ -33,30 +33,7 @@ Muxer::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Sampling method");
-        os << SamplingMethodEnum::key(config.samplingMethod) << std::endl;
-        os << tab("Channel 1 pan");
-        os << dec(config.pan[0]) << std::endl;
-        os << tab("Channel 2 pan");
-        os << dec(config.pan[1]) << std::endl;
-        os << tab("Channel 3 pan");
-        os << dec(config.pan[2]) << std::endl;
-        os << tab("Channel 4 pan");
-        os << dec(config.pan[3]) << std::endl;
-        os << tab("Channel 1 volume");
-        os << dec(config.vol[0]) << std::endl;
-        os << tab("Channel 2 volume");
-        os << dec(config.vol[1]) << std::endl;
-        os << tab("Channel 3 volume");
-        os << dec(config.vol[2]) << std::endl;
-        os << tab("Channel 4 volume");
-        os << dec(config.vol[3]) << std::endl;
-        os << tab("Left master volume");
-        os << dec(config.volL) << std::endl;
-        os << tab("Right master volume");
-        os << dec(config.volR) << std::endl;
-        os << tab("Idle fast path");
-        os << bol(config.idleFastPath) << std::endl;
+        dumpConfig(os);
     }
 
     if (category == Category::State) {
@@ -83,12 +60,9 @@ Muxer::_initialize()
 }
 
 void
-Muxer::_reset(bool hard)
+Muxer::_didReset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS(hard)
-    
     stats = { };
-    
     for (isize i = 0; i < 4; i++) sampler[i].reset();
     clear();
 }
@@ -108,72 +82,24 @@ Muxer::clear()
     filter.clear();
 }
 
-void
-Muxer::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_SAMPLING_METHOD,
-        OPT_AUDVOLL,
-        OPT_AUDVOLR,
-        OPT_AUD_FASTPATH
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-    
-    std::vector <Option> moreOptions = {
-        
-        OPT_AUDVOL,
-        OPT_AUDPAN,
-    };
-
-    for (auto &option : moreOptions) {
-        for (isize i = 0; i < 4; i++) {
-            setConfigItem(option, i, defaults.get(option, i));
-        }
-    }
-}
-
 i64
-Muxer::getConfigItem(Option option) const
+Muxer::getOption(Option option) const
 {
     switch (option) {
             
-        case OPT_SAMPLING_METHOD:
-            return config.samplingMethod;
-            
-        case OPT_AUDVOLL:
-            return config.volL;
-
-        case OPT_AUDVOLR:
-            return config.volR;
-
-        case OPT_AUD_FASTPATH:
-            return config.idleFastPath;
-
-        case OPT_FILTER_TYPE:
-            return filter.getConfigItem(option);
-
-        default:
-            fatalError;
-    }
-}
-
-i64
-Muxer::getConfigItem(Option option, long id) const
-{
-    switch (option) {
-            
-        case OPT_AUDVOL:
-            return config.vol[id];
-
-        case OPT_AUDPAN:
-            return config.pan[id];
+        case OPT_AUD_SAMPLING_METHOD:   return config.samplingMethod;
+        case OPT_AUD_PAN0:           return config.pan[0];
+        case OPT_AUD_PAN1:           return config.pan[1];
+        case OPT_AUD_PAN2:           return config.pan[2];
+        case OPT_AUD_PAN3:           return config.pan[3];
+        case OPT_AUD_VOL0:           return config.vol[0];
+        case OPT_AUD_VOL1:           return config.vol[1];
+        case OPT_AUD_VOL2:           return config.vol[2];
+        case OPT_AUD_VOL3:           return config.vol[3];
+        case OPT_AUD_VOLL:           return config.volL;
+        case OPT_AUD_VOLR:           return config.volR;
+        case OPT_AUD_FASTPATH:      return config.idleFastPath;
+        case OPT_AUD_FILTER_TYPE:       return filter.getOption(option);
 
         default:
             fatalError;
@@ -181,22 +107,32 @@ Muxer::getConfigItem(Option option, long id) const
 }
 
 void
-Muxer::setConfigItem(Option option, i64 value)
+Muxer::setOption(Option option, i64 value)
 {
     bool wasMuted = isMuted();
-    
+    isize id = 0;
+
     switch (option) {
             
-        case OPT_SAMPLING_METHOD:
+        case OPT_AUD_SAMPLING_METHOD:
             
             if (!SamplingMethodEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, SamplingMethodEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, SamplingMethodEnum::keyList());
             }
             
             config.samplingMethod = (SamplingMethod)value;
             return;
             
-        case OPT_AUDVOLL:
+        case OPT_AUD_VOL3: id++;
+        case OPT_AUD_VOL2: id++;
+        case OPT_AUD_VOL1: id++;
+        case OPT_AUD_VOL0:
+
+            config.vol[id] = std::clamp(value, 0LL, 100LL);
+            vol[id] = powf((float)value / 100, 1.4f);
+            return;
+
+        case OPT_AUD_VOLL:
             
             config.volL = std::clamp(value, 0LL, 100LL);
             volL = powf((float)value / 50, 1.4f);
@@ -205,7 +141,16 @@ Muxer::setConfigItem(Option option, i64 value)
                 msgQueue.put(MSG_MUTE, isMuted());
             return;
             
-        case OPT_AUDVOLR:
+        case OPT_AUD_PAN3: id++;
+        case OPT_AUD_PAN2: id++;
+        case OPT_AUD_PAN1: id++;
+        case OPT_AUD_PAN0:
+
+            config.pan[id] = value;
+            pan[id] = float(0.5 * (sin(config.pan[id] * M_PI / 200.0) + 1));
+            return;
+
+        case OPT_AUD_VOLR:
 
             config.volR = std::clamp(value, 0LL, 100LL);
             volR = powf((float)value / 50, 1.4f);
@@ -219,35 +164,9 @@ Muxer::setConfigItem(Option option, i64 value)
             config.idleFastPath = (bool)value;
             return;
 
-        case OPT_FILTER_TYPE:
+        case OPT_AUD_FILTER_TYPE:
 
-            filter.setConfigItem(option, value);
-            return;
-
-        default:
-            fatalError;
-    }
-}
-
-void
-Muxer::setConfigItem(Option option, long id, i64 value)
-{
-    switch (option) {
-
-        case OPT_AUDVOL:
-
-            assert(id >= 0 && id <= 3);
-
-            config.vol[id] = std::clamp(value, 0LL, 100LL);
-            vol[id] = powf((float)value / 100, 1.4f);
-            return;
-            
-        case OPT_AUDPAN:
-
-            assert(id >= 0 && id <= 3);
-
-            config.pan[id] = value;
-            pan[id] = float(0.5 * (sin(config.pan[id] * M_PI / 200.0) + 1));
+            filter.setOption(option, value);
             return;
 
         default:
@@ -263,11 +182,10 @@ Muxer::setSampleRate(double hz)
     filter.setup(hz);
 }
 
-isize
-Muxer::didLoadFromBuffer(const u8 *buffer)
+void
+Muxer::_didLoad()
 {
     for (isize i = 0; i < 4; i++) sampler[i].reset();
-    return 0;
 }
 
 void
@@ -322,7 +240,7 @@ Muxer::synthesize(Cycle clock, Cycle target)
     assert(target > clock);
 
     // Determine the number of elapsed cycles per audio sample
-    double cps = double(amiga.masterClockFrequency()) / host.getSampleRate();
+    double cps = double(amiga.masterClockFrequency()) / double(emulator.host.getOption(OPT_HOST_SAMPLE_RATE));
 
     // Determine how many samples we need to produce
     double exact = (double)(target - clock) / cps + fraction;

@@ -9,7 +9,7 @@
 
 #include "config.h"
 #include "Agnus.h"
-#include "Amiga.h"
+#include "Emulator.h"
 
 namespace vamiga {
 
@@ -25,12 +25,13 @@ Agnus::Agnus(Amiga& ref) : SubComponent(ref)
 }
 
 void
-Agnus::_reset(bool hard)
+Agnus::operator << (SerResetter &worker)
 {
+    // Remember some events
     auto insEvent = id[SLOT_INS];
 
-    RESET_SNAPSHOT_ITEMS(hard)
-    
+    serialize(worker);
+
     // Start with a long frame
     pos.lof = true;
 
@@ -47,10 +48,9 @@ Agnus::_reset(bool hard)
         id[i] = (EventID)0;
         data[i] = 0;
     }
-    
-    if (hard) assert(clock == 0);
 
     // Schedule initial events
+    if (isHardResetter(worker)) assert(clock == 0);
     scheduleAbs<SLOT_SEC>(NEVER, SEC_TRIGGER);
     scheduleAbs<SLOT_TER>(NEVER, TER_TRIGGER);
     scheduleAbs<SLOT_CIAA>(CIA_CYCLES(AS_CIA_CYCLES(clock)), CIA_EXECUTE);
@@ -63,32 +63,13 @@ Agnus::_reset(bool hard)
     if (insEvent) scheduleRel <SLOT_INS> (0, insEvent);
 }
 
-void
-Agnus::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-
-        OPT_AGNUS_REVISION,
-        OPT_SLOW_RAM_MIRROR,
-        OPT_PTR_DROPS
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-Agnus::getConfigItem(Option option) const
+Agnus::getOption(Option option) const
 {
     switch (option) {
 
-        case OPT_AGNUS_REVISION:    return config.revision;
-        case OPT_SLOW_RAM_MIRROR:   return config.slowRamMirror;
-        case OPT_PTR_DROPS:         return config.ptrDrops;
+        case OPT_AGNUS_REVISION:        return config.revision;
+        case OPT_AGNUS_PTR_DROPS:       return config.ptrDrops;
             
         default:
             fatalError;
@@ -96,7 +77,7 @@ Agnus::getConfigItem(Option option) const
 }
 
 void
-Agnus::setConfigItem(Option option, i64 value)
+Agnus::setOption(Option option, i64 value)
 {
     switch (option) {
 
@@ -106,7 +87,7 @@ Agnus::setConfigItem(Option option, i64 value)
                 throw Error(ERROR_OPT_LOCKED);
             }
             if (!AgnusRevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, AgnusRevisionEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, AgnusRevisionEnum::keyList());
             }
 
             switch (config.revision = (AgnusRevision)value) {
@@ -122,12 +103,7 @@ Agnus::setConfigItem(Option option, i64 value)
             mem.updateMemSrcTables();
             return;
             
-        case OPT_SLOW_RAM_MIRROR:
-            
-            config.slowRamMirror = value;
-            return;
-
-        case OPT_PTR_DROPS:
+        case OPT_AGNUS_PTR_DROPS:
 
             config.ptrDrops = value;
             return;
@@ -186,23 +162,6 @@ Agnus::chipRamLimit() const
         case AGNUS_ECS_2MB: return 2048;
         case AGNUS_ECS_1MB: return 1024;
         default:            return 512;
-    }
-}
-
-bool
-Agnus::slowRamIsMirroredIn() const
-{
-
-    /* The ECS revision of Agnus has a special feature that makes Slow Ram
-     * accessible for DMA. In the 512 MB Chip Ram + 512 Slow Ram configuration,
-     * Slow Ram is mapped into the second Chip Ram segment. OCS Agnus does not
-     * have this feature. It is able to access Chip Ram, only.
-     */
-    
-    if (config.slowRamMirror && isECS()) {
-        return mem.chipRamSize() == KB(512) && mem.slowRamSize() == KB(512);
-    } else {
-        return false;
     }
 }
 
@@ -442,6 +401,9 @@ Agnus::executeUntil(Cycle cycle) {
             }
             if (isDue<SLOT_MSE2>(cycle)) {
                 controlPort2.mouse.serviceMouseEvent <SLOT_MSE2> ();
+            }
+            if (isDue<SLOT_SNP>(cycle)) {
+                amiga.serviceSnpEvent(id[SLOT_KEY]);
             }
             if (isDue<SLOT_RSH>(cycle)) {
                 retroShell.serviceEvent();

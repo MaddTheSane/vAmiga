@@ -46,7 +46,8 @@ class CopperDebugger: public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "cdebugger",
-        .description    = "Copper Debugger"
+        .description    = "Copper Debugger",
+        .shell          = ""
     }};
 
     ConfigOptions options = {
@@ -95,17 +96,22 @@ private:
     //
 
 private:
-    
-    void _reset(bool hard) override;
-    
-    isize _size() override { return 0; }
-    u64 _checksum() override { return 0; }
-    isize _load(const u8 *buffer) override { return 0; }
-    isize _save(u8 *buffer) override { return 0; }
-    
+        
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
+    void _didReset(bool hard) override;
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
 
 
     //

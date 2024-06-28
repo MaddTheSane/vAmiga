@@ -8,7 +8,7 @@
 // -----------------------------------------------------------------------------
 
 #include "config.h"
-#include "Amiga.h"
+#include "Emulator.h"
 #include "CIA.h"
 #include <cmath>
 
@@ -187,8 +187,7 @@ AudioFilter::_dump(Category category, std::ostream& os) const
 
     if (category == Category::Config) {
 
-        os << tab("Filter type");
-        os << FilterTypeEnum::key(config.filterType) << std::endl;
+        dumpConfig(os);
     }
 
     if (category == Category::State) {
@@ -234,28 +233,12 @@ AudioFilter::_dump(Category category, std::ostream& os) const
     }
 }
 
-void
-AudioFilter::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-
-        OPT_FILTER_TYPE
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-AudioFilter::getConfigItem(Option option) const
+AudioFilter::getOption(Option option) const
 {
     switch (option) {
 
-        case OPT_FILTER_TYPE:       return config.filterType;
+        case OPT_AUD_FILTER_TYPE:       return config.filterType;
 
         default:
             fatalError;
@@ -263,18 +246,18 @@ AudioFilter::getConfigItem(Option option) const
 }
 
 void
-AudioFilter::setConfigItem(Option option, i64 value)
+AudioFilter::setOption(Option option, i64 value)
 {
     switch (option) {
 
-        case OPT_FILTER_TYPE:
+        case OPT_AUD_FILTER_TYPE:
 
             if (!FilterTypeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, FilterTypeEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, FilterTypeEnum::keyList());
             }
 
             config.filterType = (FilterType)value;
-            setup(host.getSampleRate());
+            setup(double(emulator.get(OPT_HOST_SAMPLE_RATE)));
             return;
 
         default:

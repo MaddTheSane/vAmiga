@@ -16,7 +16,7 @@
 namespace vamiga {
 
 i64
-RTC::getConfigItem(Option option) const
+RTC::getOption(Option option) const
 {
     switch (option) {
             
@@ -28,7 +28,7 @@ RTC::getConfigItem(Option option) const
 }
 
 void
-RTC::setConfigItem(Option option, i64 value)
+RTC::setOption(Option option, i64 value)
 {
     switch (option) {
             
@@ -38,7 +38,7 @@ RTC::setConfigItem(Option option, i64 value)
                 throw Error(ERROR_OPT_LOCKED);
             }
             if (!RTCRevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, RTCRevisionEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, RTCRevisionEnum::keyList());
             }
             
             config.model = (RTCRevision)value;
@@ -51,40 +51,31 @@ RTC::setConfigItem(Option option, i64 value)
 }
 
 void
-RTC::_reset(bool hard)
+RTC::operator << (SerResetter &worker)
 {
-    RESET_SNAPSHOT_ITEMS(hard)
+    serialize(worker);
 
-    if (hard) {
-        
-        if (config.model == RTC_RICOH) {
-            
-            reg[0][0xD] = 0b1000;
-            reg[0][0xE] = 0b0000;
-            reg[0][0xF] = 0b0000;
+    if (isHardResetter(worker)) {
+
+        switch (config.model) {
+
+            case RTC_RICOH:
+
+                reg[0][0xD] = 0b1000;
+                reg[0][0xE] = 0b0000;
+                reg[0][0xF] = 0b0000;
+                break;
+
+            case RTC_OKI:
+
+                reg[0][0xD] = 0b0001;
+                reg[0][0xE] = 0b0000;
+                reg[0][0xF] = 0b0100;
+                break;
+
+            default:
+                break;
         }
-        if (config.model == RTC_OKI) {
-            
-            reg[0][0xD] = 0b0001;
-            reg[0][0xE] = 0b0000;
-            reg[0][0xF] = 0b0100;
-        }
-    }
-}
-
-void
-RTC::resetConfig()
-{
-    assert(isPoweredOff());
-    auto &defaults = amiga.defaults;
-
-    std::vector <Option> options = {
-        
-        OPT_RTC_MODEL
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
     }
 }
 
@@ -95,8 +86,7 @@ RTC::_dump(Category category, std::ostream& os) const
     
     if (category == Category::Config) {
         
-        os << tab("Chip Model");
-        os << RTCRevisionEnum::key(config.model) << std::endl;
+        dumpConfig(os);
     }
     
     if (category == Category::State) {

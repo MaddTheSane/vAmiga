@@ -75,19 +75,21 @@ class CIA : public SubComponent, public Inspectable<CIAInfo> {
     Descriptions descriptions = {
         {
             .name           = "CIAA",
-            .description    = "Complex Interface Adapter A"
+            .description    = "Complex Interface Adapter A",
+            .shell          = "ciaa"
         },
         {
             .name           = "CIAB",
-            .description    = "Complex Interface Adapter B"
+            .description    = "Complex Interface Adapter B",
+            .shell          = "ciab"
         }
     };
 
     ConfigOptions options = {
 
         OPT_CIA_REVISION,
-        OPT_TODBUG,
-        OPT_ECLOCK_SYNCING,
+        OPT_CIA_TODBUG,
+        OPT_CIA_ECLOCK_SYNCING,
         OPT_CIA_IDLE_SLEEP
     };
 
@@ -96,7 +98,7 @@ class CIA : public SubComponent, public Inspectable<CIAInfo> {
 protected:
 
     // Identification number (0 = CIA A, 1 = CIA B)
-    const int nr;
+    // const int nr;
 
     // Current configuration
     CIAConfig config = {};
@@ -106,7 +108,7 @@ protected:
 
 
     //
-    // Sub components
+    // Subcomponents
     //
 
 public:
@@ -282,10 +284,10 @@ protected:
 
 public:
     
-    CIA(int n, Amiga& ref);
+    CIA(Amiga& ref, isize objid);
 
-    bool isCIAA() const { return nr == 0; }
-    bool isCIAB() const { return nr == 1; }
+    bool isCIAA() const { return objid == 0; }
+    bool isCIAB() const { return objid == 1; }
 
     
     //
@@ -302,13 +304,12 @@ private:
     //
 
     void _initialize() override;
-    void _reset(bool hard) override;
-
+    
     template <class T>
     void serialize(T& worker)
     {
         worker
-        
+
         << delay
         << feed
         << counterA
@@ -336,7 +337,10 @@ private:
         << ssr
         << serCounter;
 
-        if (util::isSoftResetter(worker)) return;
+        if (isResetter(worker)) {
+            updatePA();updatePB();
+        }
+        if (isSoftResetter(worker)) return;
 
         worker
 
@@ -347,36 +351,41 @@ private:
         << sleepCycle
         << wakeUpCycle;
 
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
         << config.revision
         << config.todBug
         << config.eClockSyncing;
+
     }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    void operator << (SerResetter &worker) override;
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override { serialize(worker); }
+    void operator << (SerReader &worker) override { serialize(worker); }
+    void operator << (SerWriter &worker) override { serialize(worker); }
 
 public:
+
+    void _willReset(bool hard) override;
+    void _didReset(bool hard) override;
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
 
-    void resetConfig() override;
     const CIAConfig &getConfig() const { return config; }
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
-    
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
+
     
     //
     // Analyzing
@@ -562,8 +571,8 @@ class CIAA : public CIA {
     
 public:
     
-    CIAA(Amiga& ref) : CIA(0, ref) { };
-    
+    CIAA(Amiga& ref) : CIA(ref, 0) { };
+
 private:
     
     void _powerOn() override;
@@ -600,8 +609,8 @@ class CIAB : public CIA {
     
 public:
     
-    CIAB(Amiga& ref) : CIA(1, ref) { };
-    
+    CIAB(Amiga& ref) : CIA(ref, 1) { };
+
 private:
 
     void pullDownInterruptLine() override;

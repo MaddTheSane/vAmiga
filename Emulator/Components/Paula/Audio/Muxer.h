@@ -43,19 +43,34 @@ namespace vamiga {
 
 class Muxer : public SubComponent {
 
-    Descriptions descriptions = {{
-
-        .name           = "Muxer",
-        .description    = "Audio Muxer"
-    }};
+    Descriptions descriptions = {
+        {
+            .name           = "Muxer",
+            .description    = "Audio Muxer",
+            .shell          = "paula audio"
+        },
+        {
+            .name           = "Muxer",
+            .description    = "Audio Muxer (Recorder)",
+            .shell          = ""
+        },
+    };
 
     ConfigOptions options = {
 
-        OPT_SAMPLING_METHOD,
-        OPT_AUDVOLL,
-        OPT_AUDVOLR,
+        OPT_AUD_SAMPLING_METHOD,
+        OPT_AUD_PAN0,
+        OPT_AUD_PAN1,
+        OPT_AUD_PAN2,
+        OPT_AUD_PAN3,
+        OPT_AUD_VOL0,
+        OPT_AUD_VOL1,
+        OPT_AUD_VOL2,
+        OPT_AUD_VOL3,
+        OPT_AUD_VOLL,
+        OPT_AUD_VOLR,
         OPT_AUD_FASTPATH,
-        OPT_FILTER_TYPE
+        OPT_AUD_FILTER_TYPE
     };
 
     friend class Paula;
@@ -88,7 +103,7 @@ class Muxer : public SubComponent {
     
     
     //
-    // Sub components
+    // Subcomponents
     //
     
 public:
@@ -115,7 +130,7 @@ public:
     
 public:
     
-    Muxer(Amiga& ref);
+    Muxer(Amiga& ref, isize id = 0);
 
     // Resets the output buffer and the two audio filters
     void clear();
@@ -137,13 +152,12 @@ private:
 private:
     
     void _initialize() override;
-    void _reset(bool hard) override;
     
     template <class T>
     void serialize(T& worker)
     {
-     
-        if (util::isResetter(worker)) return;
+
+        if (isResetter(worker)) return;
 
         worker
 
@@ -156,34 +170,28 @@ private:
         << vol
         << volL
         << volR;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    
+    } SERIALIZERS(serialize);
+
+    void _didLoad() override;
+
 public:
 
+    void _didReset(bool hard) override;
     const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
-    
+
 public:
     
     const MuxerConfig &getConfig() const { return config; }
-    void resetConfig() override;
-    
-    i64 getConfigItem(Option option) const;
-    i64 getConfigItem(Option option, long id) const;
-    void setConfigItem(Option option, i64 value);
-    void setConfigItem(Option option, long id, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
-    // double getSampleRate() const { return sampleRate; }
     void setSampleRate(double hz);
 
 

@@ -54,16 +54,19 @@ class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
     Descriptions descriptions = {{
 
         .name           = "Amiga",
-        .description    = "Commodore Amiga"
+        .description    = "Commodore Amiga",
+        .shell          = "amiga"
     }};
 
     ConfigOptions options = {
 
-        OPT_VIDEO_FORMAT,
-        OPT_WARP_BOOT,
-        OPT_WARP_MODE,
-        OPT_VSYNC,
-        OPT_TIME_LAPSE
+        OPT_AMIGA_VIDEO_FORMAT,
+        OPT_AMIGA_WARP_BOOT,
+        OPT_AMIGA_WARP_MODE,
+        OPT_AMIGA_VSYNC,
+        OPT_AMIGA_SPEED_BOOST,
+        OPT_AMIGA_SNAPSHOTS,
+        OPT_AMIGA_SNAPSHOT_DELAY
     };
     
     // The current configuration
@@ -79,16 +82,10 @@ class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
 
 
     //
-    // Sub components
+    // Subcomponents
     //
 
 public:
-
-    // User settings
-    static Defaults defaults;
-
-    // Information about the host system
-    Host host = Host(*this);
 
     // Core components
     CPU cpu = CPU(*this);
@@ -102,8 +99,8 @@ public:
     // Logic board
     RTC rtc = RTC(*this);
     ZorroManager zorro = ZorroManager(*this);
-    ControlPort controlPort1 = ControlPort(*this, ControlPort::PORT1);
-    ControlPort controlPort2 = ControlPort(*this, ControlPort::PORT2);
+    ControlPort controlPort1 = ControlPort(*this, 0);
+    ControlPort controlPort2 = ControlPort(*this, 1);
     SerialPort serialPort = SerialPort(*this);
 
     // Floppy drives
@@ -135,7 +132,7 @@ public:
     HdController *hdcon[4] = { &hd0con, &hd1con, &hd2con, &hd3con };
 
     // Gateway to the GUI
-    MsgQueue msgQueue = MsgQueue(*this);
+    MsgQueue msgQueue = MsgQueue();
 
     // Misc
     RetroShell retroShell = RetroShell(*this);
@@ -167,7 +164,7 @@ private:
 private:
 
     Snapshot *autoSnapshot = nullptr;
-    Snapshot *userSnapshot = nullptr;
+    // Snapshot *userSnapshot = nullptr;
 
     typedef struct { Cycle trigger; i64 payload; } Alarm;
     std::vector<Alarm> alarms;
@@ -223,7 +220,6 @@ public:
 
 private:
 
-    void _reset(bool hard) override;
     void _powerOn() override;
     void _powerOff() override;
     void _run() override;
@@ -237,7 +233,7 @@ private:
     template <class T>
     void serialize(T& worker)
     {
-        if (util::isResetter(worker)) return;
+        if (isResetter(worker)) return;
 
         worker
 
@@ -246,19 +242,15 @@ private:
         << config.warpBoot
         << config.vsync
         << config.timeLapse;
-    }
+
+    } SERIALIZERS(serialize);
 
 public:
 
+    void _willReset(bool hard) override;
+    void _didReset(bool hard) override;
     isize load(const u8 *buffer) override;
     isize save(u8 *buffer) override;
-
-private:
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM; }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
 
     //
@@ -271,25 +263,21 @@ public:
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
 
 public:
 
     const AmigaConfig &getConfig() const { return config; }
-    void resetConfig() override;
+    const ConfigOptions &getOptions() const override { return options; }
 
-    // Gets a single configuration item
-    i64 getConfigItem(Option option) const;
-    i64 getConfigItem(Option option, long id) const;
+    i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option option, i64 value) override;
 
-    // Sets a single configuration item
-    void setConfigItem(Option option, i64 value);
-    void configure(Option option, i64 value) throws;
-    void configure(Option option, long id, i64 value) throws;
-
-    // Configures the Amiga with a predefined set of options
-    void configure(ConfigScheme scheme);
+    // Exports the current configuration to a script file
+    void exportConfig(const fs::path &path) const;
+    void exportConfig(std::ostream& stream) const;
 
     // Reverts to factory settings
     void revertToFactorySettings();
@@ -326,9 +314,31 @@ public:
     // Returns the master clock frequency based on the emulated refresh rate
     i64 masterClockFrequency() const;
 
-    
+
     //
-    // Running the emulator
+    // Controlling the state
+    //
+
+    void initialize();
+    void powerOn();
+    void powerOff();
+    void run();
+    void pause();
+    void halt();
+    void warpOn();
+    void warpOff();
+    void trackOn();
+    void trackOff();
+    void focus();
+    void unfocus();
+
+    void powerOnOff(bool value) { value ? powerOn() : powerOff(); }
+    void warpOnOff(bool value) { value ? warpOn() : warpOff(); }
+    void trackOnOff(bool value) { value ? trackOn() : trackOff(); }
+
+
+    //
+    // Interacting with the run loop
     //
 
 public:
@@ -369,29 +379,19 @@ public:
 
 public:
 
-    /* Requests a snapshot to be taken. Once the snapshot is ready, a message
-     * is written into the message queue. The snapshot can then be picked up by
-     * calling latestAutoSnapshot() or latestUserSnapshot(), depending on the
-     * requested snapshot type.
-     */
-    void requestAutoSnapshot();
-    void requestUserSnapshot();
-
-    /* Returns the most recent snapshot or nullptr if none was taken. If a
-     * snapshot was taken, the function hands over the ownership to the caller
-     * and deletes the internal pointer.
-     */
-    Snapshot *latestAutoSnapshot();
-    Snapshot *latestUserSnapshot();
+    // Takes a snapshot
+    Snapshot *takeSnapshot();
 
     // Loads the current state from a snapshot file
     void loadSnapshot(const Snapshot &snapshot) throws;
 
+    // Services a snapshot event
+    void serviceSnpEvent(EventID id);
+
 private:
 
-    // Takes a snapshot of a certain kind
-    void takeAutoSnapshot();
-    void takeUserSnapshot();
+    // Schedules the next snapshot event
+    void scheduleNextSnpEvent();
 
 
     //

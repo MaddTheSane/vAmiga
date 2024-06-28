@@ -10,9 +10,17 @@
 #include "config.h"
 #include "CoreComponent.h"
 #include "Emulator.h"
+#include "Defaults.h"
 #include "Checksum.h"
+#include "Option.h"
 
 namespace vamiga {
+
+bool
+CoreComponent::operator== (CoreComponent &other)
+{
+    return checksum() == other.checksum();
+}
 
 const char *
 CoreComponent::objectName() const
@@ -28,142 +36,31 @@ CoreComponent::description() const
     return getDescriptions().at(objid).description;
 }
 
-bool
-CoreComponent::operator== (CoreComponent &other)
+const char *
+CoreComponent::shellName() const
 {
-    return checksum() == other.checksum();
-}
-
-void
-CoreComponent::initialize()
-{
-    try {
-        
-        for (CoreComponent *c : subComponents) { c->initialize(); }
-        _initialize();
-        
-    } catch (std::exception &e) {
-
-        warn("Failed to initialize: %s\n", e.what());
-        fatalError;
-    }
-}
-
-void
-CoreComponent::reset(bool hard)
-{
-    for (CoreComponent *c : subComponents) { c->reset(hard); }
-    _reset(hard);
-}
-
-isize
-CoreComponent::size()
-{
-    isize result = _size();
-    
-    // Add 8 bytes for the checksum
-    result += 8;
-    
-    for (CoreComponent *c : subComponents) { result += c->size(); }
-    return result;
+    assert(isize(getDescriptions().size()) > objid);
+    return getDescriptions().at(objid).shell;
 }
 
 u64
-CoreComponent::checksum()
+CoreComponent::checksum(bool recursive)
 {
-    u64 result = _checksum();
-    
-    // Compute checksums for all subcomponents
-    for (CoreComponent *c : subComponents) {
-        result = util::fnvIt64(result, c->checksum());
-    }
-    
-    return result;
+    SerChecker checker;
+
+    // Compute a checksum for the members of this component
+    *this << checker;
+
+    // Incoorporate subcomponents if requested
+    if (recursive) for (auto &c : subComponents) checker << c->checksum(recursive);
+
+    return checker.hash;
 }
 
-isize
-CoreComponent::load(const u8 *buffer)
+bool
+CoreComponent::isInitialized() const
 {
-    assert(!isRunning());
-    
-    const u8 *ptr = buffer;
-    
-    // Call the delegate
-    ptr += willLoadFromBuffer(ptr);
-
-    // Load internal state of all subcomponents
-    for (CoreComponent *c : subComponents) {
-        ptr += c->load(ptr);
-    }
-
-    // Load the checksum for this component
-    auto hash = util::read64(ptr);
-
-    // Load internal state of this component
-    ptr += _load(ptr);
-
-    // Call the delegate
-    ptr += didLoadFromBuffer(ptr);
-    isize result = (isize)(ptr - buffer);
-
-    // Check integrity
-    if (hash != _checksum() || FORCE_SNAP_CORRUPTED) {
-        throw Error(ERROR_SNAP_CORRUPTED);
-    }
-    
-    debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", result, size());
-    return result;
-}
-
-void
-CoreComponent::didLoad()
-{
-    assert(!isRunning());
-
-    for (CoreComponent *c : subComponents) {
-        c->didLoad();
-    }
-
-    _didLoad();
-}
-
-isize
-CoreComponent::save(u8 *buffer)
-{
-    u8 *ptr = buffer;
-    
-    // Call the delegate
-    ptr += willSaveToBuffer(ptr);
-    
-    // Save internal state of all subcomponents
-    for (CoreComponent *c : subComponents) {
-        ptr += c->save(ptr);
-    }
-
-    // Save the checksum for this component
-    util::write64(ptr, _checksum());
-    
-    // Save the internal state of this component
-    ptr += _save(ptr);
-
-    // Call the delegate
-    ptr += didSaveToBuffer(ptr);
-    isize result = (isize)(ptr - buffer);
-    
-    debug(SNP_DEBUG, "Saved %ld bytes (expected %ld)\n", result, size());
-    assert(result == size());
-
-    return result;
-}
-
-void
-CoreComponent::didSave()
-{        
-    for (CoreComponent *c : subComponents) {
-        c->didSave();
-    }
-
-    _didSave();
+    return emulator.isInitialized();
 }
 
 bool
@@ -222,66 +119,156 @@ CoreComponent::isReady() const
 }
 
 void
-CoreComponent::powerOn()
+CoreComponent::resetConfig()
 {
-    for (auto c : subComponents) { c->powerOn(); }
-    _powerOn();
+    postorderWalk([this](CoreComponent *c) {
+        c->Configurable::resetConfig(emulator.defaults, c->objid);
+    });
 }
 
 void
-CoreComponent::powerOff()
+CoreComponent::routeOption(Option opt, std::vector<Configurable *> &result)
 {
-    for (auto c : subComponents) { c->powerOff(); }
-    _powerOff();
+    for (auto &o : getOptions()) {
+        if (o == opt) result.push_back(this);
+    }
+    for (auto &c : subComponents) {
+        c->routeOption(opt, result);
+    }
+}
+
+isize
+CoreComponent::size()
+{
+    SerCounter counter;
+    *this << counter;
+    isize result = counter.count;
+
+    // Add 8 bytes for the checksum
+    result += 8;
+    
+    for (CoreComponent *c : subComponents) { result += c->size(); }
+    return result;
+}
+
+isize
+CoreComponent::load(const u8 *buffer)
+{
+    assert(!isRunning());
+    
+    const u8 *ptr = buffer;
+
+    // Load internal state of all subcomponents
+    for (CoreComponent *c : subComponents) {
+        ptr += c->load(ptr);
+    }
+
+    // Load the checksum for this component
+    auto hash = read64(ptr);
+
+    // Load internal state of this component
+    SerReader reader(ptr);
+    *this << reader;
+    ptr = reader.ptr;
+
+    // Check integrity
+    if (hash != checksum() || FORCE_SNAP_CORRUPTED) {
+        throw Error(ERROR_SNAP_CORRUPTED);
+    }
+
+    isize result = (isize)(ptr - buffer);
+    debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", result, size());
+    return result;
+}
+
+isize
+CoreComponent::save(u8 *buffer)
+{
+    u8 *ptr = buffer;
+
+    // Save internal state of all subcomponents
+    for (CoreComponent *c : subComponents) {
+        ptr += c->save(ptr);
+    }
+
+    // Save the checksum for this component
+    write64(ptr, checksum());
+    
+    // Save the internal state of this component
+    SerWriter writer(ptr);
+    *this << writer;
+    ptr = writer.ptr;
+
+    isize result = (isize)(ptr - buffer);
+    debug(SNP_DEBUG, "Saved %ld bytes (expected %ld)\n", result, size());
+    assert(result == size());
+    return result;
+}
+
+std::vector<CoreComponent *> 
+CoreComponent::collectComponents()
+{
+    std::vector<CoreComponent *> result;
+    collectComponents(result);
+    return result;
 }
 
 void
-CoreComponent::run()
+CoreComponent::collectComponents(std::vector<CoreComponent *> &result)
 {
-    for (auto c : subComponents) { c->run(); }
-    _run();
+    result.push_back(this);
+    for (auto &c : subComponents) c->collectComponents(result);
 }
 
 void
-CoreComponent::pause()
+CoreComponent::preoderWalk(std::function<void(CoreComponent *)> func)
 {
-    for (auto c : subComponents) { c->pause(); }
-    _pause();
+    func(this);
+    for (auto &c : subComponents) c->preoderWalk(func);
 }
 
 void
-CoreComponent::halt()
+CoreComponent::postorderWalk(std::function<void(CoreComponent *)> func)
 {
-    for (auto c : subComponents) { c->halt(); }
-    _halt();
+    for (auto &c : subComponents) c->postorderWalk(func);
+    func(this);
 }
 
 void
-CoreComponent::warpOn()
+CoreComponent::exportConfig(std::ostream& ss, bool diff) const
 {
-    for (auto c : subComponents) { c->warpOn(); }
-    _warpOn();
-}
+    bool first = true;
 
-void
-CoreComponent::warpOff()
-{
-    for (auto c : subComponents) { c->warpOff(); }
-    _warpOff();
-}
+    for (auto &opt: getOptions()) {
 
-void
-CoreComponent::trackOn()
-{    
-    for (auto c : subComponents) { c->trackOn(); }
-    _trackOn();
-}
+        auto current = getOption(opt);
+        auto fallback = getFallback(opt);
 
-void
-CoreComponent::trackOff()
-{
-    for (auto c : subComponents) { c->trackOff(); }
-    _trackOff();
+        if (!diff || current != fallback) {
+
+            if (first) {
+
+                ss << "# " << description() << std::endl << std::endl;
+                first = false;
+            }
+
+            auto cmd = "try " + string(shellName());
+            auto currentStr = OptionParser::asPlainString(opt, current);
+            auto fallbackStr = OptionParser::asPlainString(opt, fallback);
+
+            string line = cmd + " set " + OptionEnum::plainkey(opt) + " " + currentStr;
+            string comment = diff ? fallbackStr : OptionEnum::help(opt);
+
+            ss << std::setw(40) << std::left << line << " # " << comment << std::endl;
+        }
+    }
+
+    if (!first) ss << std::endl;
+
+    for (auto &sub: subComponents) {
+
+        sub->exportConfig(ss, diff);
+    }
 }
 
 }

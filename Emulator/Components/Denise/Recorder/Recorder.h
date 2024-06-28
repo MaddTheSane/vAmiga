@@ -24,8 +24,10 @@ class Recorder : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "recorder",
-        .description    = "Video Recorder"
+        .name           = "Recorder",
+        .description    = "Video Recorder",
+        .shell          = ""
+
     }};
 
     ConfigOptions options = {
@@ -33,12 +35,12 @@ class Recorder : public SubComponent {
     };
 
     //
-    // Sub components
+    // Subcomponents
     //
     
     // Audio muxer for synthesizing the audio track
-    Muxer muxer = Muxer(amiga);
-    
+    Muxer muxer = Muxer(amiga, 1);
+
 
     //
     // Handles
@@ -107,28 +109,45 @@ public:
 private:
     
     void _dump(Category category, std::ostream& os) const override;
+
+
+    //
+    // Methods from Serializable
+    //
+
+public:
     
-    
+    template <class T>
+    void serialize(T& worker)
+    {
+        if (isHardResetter(worker)) {
+
+            worker << audioClock;
+        }
+
+    } SERIALIZERS(serialize);
+
+
     //
     // Methods from CoreComponent
     //
-    
-private:
-
-    void _initialize() override;
-    void _reset(bool hard) override;
-
-    template <class T>
-    void serialize(T& worker) { }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _initialize() override;
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
 
 
     //

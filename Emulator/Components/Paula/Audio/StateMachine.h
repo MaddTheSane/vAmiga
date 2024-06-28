@@ -22,19 +22,23 @@ class StateMachine : public SubComponent, public Inspectable<StateMachineInfo> {
     Descriptions descriptions = {
         {
             .name           = "StateMachine1",
-            .description    = "Audio State Machine 1"
+            .description    = "Audio State Machine 1",
+            .shell          = ""
         },
         {
             .name           = "StateMachine2",
-            .description    = "Audio State Machine 2"
+            .description    = "Audio State Machine 2",
+            .shell          = ""
         },
         {
             .name           = "StateMachine3",
-            .description    = "Audio State Machine 3"
+            .description    = "Audio State Machine 3",
+            .shell          = ""
         },
         {
             .name           = "StateMachine4",
-            .description    = "Audio State Machine 4"
+            .description    = "Audio State Machine 4",
+            .shell          = ""
         }
     };
 
@@ -121,14 +125,12 @@ private:
     //
     
 private:
-    
-    void _reset(bool hard) override;
-    
+        
     template <class T>
     void serialize(T& worker)
     {
         worker
-        
+
         << state
         << buffer
         << audlenLatch
@@ -144,21 +146,26 @@ private:
         << enablePenlo
         << enablePenhi;
 
-        if (util::isSoftResetter(worker)) return;
+        if (isSoftResetter(worker)) return;
 
         worker
 
         << clock;
-    }
 
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    } SERIALIZERS(serialize);
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
 
 
     //

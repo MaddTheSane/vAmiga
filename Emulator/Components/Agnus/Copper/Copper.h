@@ -24,7 +24,8 @@ class Copper : public SubComponent, public Inspectable<CopperInfo>
     Descriptions descriptions = {{
 
         .name           = "Copper",
-        .description    = "Copper"
+        .description    = "Copper",
+        .shell          = "copper"
     }};
 
     ConfigOptions options = {
@@ -119,9 +120,7 @@ private:
     //
     
 private:
-    
-    void _reset(bool hard) override;
-    
+        
     template <class T>
     void serialize(T& worker)
     {
@@ -137,18 +136,23 @@ private:
         << coppc
         << coppc0
         << activeInThisFrame;
-    }
-
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    u64 _checksum() override { COMPUTE_SNAPSHOT_CHECKSUM }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+   
+    } SERIALIZERS(serialize);
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
-    
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ConfigOptions &getOptions() const override { return options; }
+
+
     //
     // Analyzing
     //

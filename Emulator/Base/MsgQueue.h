@@ -10,22 +10,13 @@
 #pragma once
 
 #include "MsgQueueTypes.h"
-#include "SubComponent.h"
+#include "CoreObject.h"
+#include "Synchronizable.h"
 #include "RingBuffer.h"
 
 namespace vamiga {
 
-class MsgQueue : public SubComponent {
-
-    Descriptions descriptions = {{
-
-        .name           = "MsgQueue",
-        .description    = "Message Queue"
-    }};
-
-    ConfigOptions options = {
-
-    };
+class MsgQueue final : CoreObject, Synchronizable {
 
     // Ring buffer storing all pending messages
     util::RingBuffer <Message, 512> queue;
@@ -41,33 +32,24 @@ class MsgQueue : public SubComponent {
     // Constructing
     //
 
-    using SubComponent::SubComponent;
-    
+    // using SubComponent::SubComponent;
+
     
     //
     // Methods from CoreObject
     //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override { }
-    
-    
-    //
-    // Methods from CoreComponent
-    //
-    
-private:
-    
-    void _reset(bool hard) override { };
-    isize _size() override { return 0; }
-    u64 _checksum() override { return 0; }
-    isize _load(const u8 *buffer) override { return 0; }
-    isize _save(u8 *buffer) override { return 0; }
-    
+
 public:
 
-    const Descriptions &getDescriptions() const override { return descriptions; }
+    const char *objectName() const override { return "MsgQueue"; }
+
+    // const Descriptions &getDescriptions() const override { return descriptions; }
+
+    //
+    // Methods from Configurable
+    //
+    
+    // const ConfigOptions &getOptions() const override { return options; }
 
 
     //
@@ -87,6 +69,7 @@ public:
     void put(MsgType type, HdcMsg payload);
     void put(MsgType type, ScriptMsg payload);
     void put(MsgType type, ViewportMsg payload);
+    void put(MsgType type, SnapshotMsg payload);
 
     // Reads a message
     bool get(Message &msg);

@@ -21,15 +21,32 @@ class DmaDebugger : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "dmadebugger",
-        .description    = "DMA Debugger"
+        .name           = "DmaDebugger",
+        .description    = "DMA Debugger",
+        .shell          = "dmadebugger"
     }};
 
     ConfigOptions options = {
 
         OPT_DMA_DEBUG_ENABLE,
         OPT_DMA_DEBUG_MODE,
-        OPT_DMA_DEBUG_OPACITY
+        OPT_DMA_DEBUG_OPACITY,
+        OPT_DMA_DEBUG_CHANNEL0,
+        OPT_DMA_DEBUG_CHANNEL1,
+        OPT_DMA_DEBUG_CHANNEL2,
+        OPT_DMA_DEBUG_CHANNEL3,
+        OPT_DMA_DEBUG_CHANNEL4,
+        OPT_DMA_DEBUG_CHANNEL5,
+        OPT_DMA_DEBUG_CHANNEL6,
+        OPT_DMA_DEBUG_CHANNEL7,
+        OPT_DMA_DEBUG_COLOR0,
+        OPT_DMA_DEBUG_COLOR1,
+        OPT_DMA_DEBUG_COLOR2,
+        OPT_DMA_DEBUG_COLOR3,
+        OPT_DMA_DEBUG_COLOR4,
+        OPT_DMA_DEBUG_COLOR5,
+        OPT_DMA_DEBUG_COLOR6,
+        OPT_DMA_DEBUG_COLOR7
     };
 
     // Current configuration
@@ -73,28 +90,21 @@ private:
     // Methods from CoreComponent
     //
     
-private:
-    
-    void _reset(bool hard) override { }
-
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
 
 public:
     
     const DmaDebuggerConfig &getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    i64 getConfigItem(Option option, long id) const;
-    void setConfigItem(Option option, i64 value);
-    void setConfigItem(Option option, long id, i64 value);
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void setOption(Option option, i64 value) override;
 
 private:
 
@@ -118,11 +128,8 @@ public:
 
 private:
 
-    isize _size() override { return 0; }
-    u64 _checksum() override { return 0; }
-    isize _load(const u8 *buffer) override {return 0; }
-    isize _save(u8 *buffer) override { return 0; }
-    
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
+        
 
     //
     // Running the debugger

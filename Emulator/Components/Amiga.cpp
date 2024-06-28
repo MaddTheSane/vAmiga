@@ -16,18 +16,6 @@
 
 namespace vamiga {
 
-// Perform some consistency checks
-static_assert(sizeof(i8)  == 1, "i8  size mismatch");
-static_assert(sizeof(i16) == 2, "i16 size mismatch");
-static_assert(sizeof(i32) == 4, "i32 size mismatch");
-static_assert(sizeof(i64) == 8, "i64 size mismatch");
-static_assert(sizeof(u8)  == 1, "u8  size mismatch");
-static_assert(sizeof(u16) == 2, "u16 size mismatch");
-static_assert(sizeof(u32) == 4, "u32 size mismatch");
-static_assert(sizeof(u64) == 8, "u64 size mismatch");
-
-Defaults Amiga::defaults;
-
 string
 Amiga::version()
 {
@@ -96,8 +84,7 @@ Amiga::Amiga(class Emulator& ref, isize id) : CoreComponent(ref, id)
         &retroShell,
         &debugger,
         &osDebugger,
-        &regressionTester,
-        &msgQueue
+        &regressionTester
     };
 }
 
@@ -135,237 +122,56 @@ Amiga::prefix() const
 void
 Amiga::reset(bool hard)
 {
-    suspend();
+    SerResetter resetter(hard);
 
-    // If a disk change is in progress, finish it
-    df0.serviceDiskChangeEvent <SLOT_DC0> ();
-    df1.serviceDiskChangeEvent <SLOT_DC1> ();
-    df2.serviceDiskChangeEvent <SLOT_DC2> ();
-    df3.serviceDiskChangeEvent <SLOT_DC3> ();
+    {   SUSPENDED
 
-    // Execute the standard reset routine
-    CoreComponent::reset(hard);
+        // Call the pre-reset delegate
+        postorderWalk([hard](CoreComponent *c) { c->_willReset(hard); });
 
-    resume();
+        // Revert to a clean state
+        postorderWalk([&resetter](CoreComponent *c) { *c << resetter; });
+
+        // Call the post-reset delegate
+        postorderWalk([hard](CoreComponent *c) { c->_didReset(hard); });
+    }
 
     // Inform the GUI
     if (hard) msgQueue.put(MSG_RESET);
 }
 
 void
-Amiga::_reset(bool hard)
+Amiga::_willReset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS(hard)
+    // If a disk change is in progress, finish it
+    df0.serviceDiskChangeEvent <SLOT_DC0> ();
+    df1.serviceDiskChangeEvent <SLOT_DC1> ();
+    df2.serviceDiskChangeEvent <SLOT_DC2> ();
+    df3.serviceDiskChangeEvent <SLOT_DC3> ();
+}
+
+void
+Amiga::_didReset(bool hard)
+{
+    // Schedule initial events
+    scheduleNextSnpEvent();
 
     // Clear all runloop flags
     flags = 0;
 }
 
-void
-Amiga::resetConfig()
-{
-    assert(isPoweredOff());
-
-    std::vector <Option> options = {
-
-        OPT_VIDEO_FORMAT,
-        OPT_WARP_BOOT,
-        OPT_WARP_MODE,
-        OPT_VSYNC,
-        OPT_TIME_LAPSE
-    };
-
-    for (auto &option : options) {
-        setConfigItem(option, defaults.get(option));
-    }
-}
-
 i64
-Amiga::getConfigItem(Option option) const
+Amiga::getOption(Option option) const
 {
     switch (option) {
 
-        case OPT_VIDEO_FORMAT:
-
-            return config.type;
-
-        case OPT_WARP_BOOT:
-
-            return config.warpBoot;
-
-        case OPT_WARP_MODE:
-
-            return config.warpMode;
-
-        case OPT_VSYNC:
-
-            return config.vsync;
-
-        case OPT_TIME_LAPSE:
-
-            return config.timeLapse;
-
-        case OPT_AGNUS_REVISION:
-        case OPT_SLOW_RAM_MIRROR:
-        case OPT_PTR_DROPS:
-
-            return agnus.getConfigItem(option);
-
-        case OPT_DENISE_REVISION:
-        case OPT_VIEWPORT_TRACKING:
-        case OPT_FRAME_SKIPPING:
-        case OPT_HIDDEN_BITPLANES:
-        case OPT_HIDDEN_SPRITES:
-        case OPT_HIDDEN_LAYERS:
-        case OPT_HIDDEN_LAYER_ALPHA:
-        case OPT_CLX_SPR_SPR:
-        case OPT_CLX_SPR_PLF:
-        case OPT_CLX_PLF_PLF:
-
-            return denise.getConfigItem(option);
-
-        case OPT_PALETTE:
-        case OPT_BRIGHTNESS:
-        case OPT_CONTRAST:
-        case OPT_SATURATION:
-
-            return denise.pixelEngine.getConfigItem(option);
-
-        case OPT_DMA_DEBUG_ENABLE:
-        case OPT_DMA_DEBUG_MODE:
-        case OPT_DMA_DEBUG_OPACITY:
-
-            return agnus.dmaDebugger.getConfigItem(option);
-
-        case OPT_CPU_REVISION:
-        case OPT_CPU_DASM_REVISION:
-        case OPT_CPU_DASM_SYNTAX:
-        case OPT_CPU_OVERCLOCKING:
-        case OPT_CPU_RESET_VAL:
-
-            return cpu.getConfigItem(option);
-
-        case OPT_RTC_MODEL:
-
-            return rtc.getConfigItem(option);
-
-        case OPT_CHIP_RAM:
-        case OPT_SLOW_RAM:
-        case OPT_FAST_RAM:
-        case OPT_EXT_START:
-        case OPT_SAVE_ROMS:
-        case OPT_SLOW_RAM_DELAY:
-        case OPT_BANKMAP:
-        case OPT_UNMAPPING_TYPE:
-        case OPT_RAM_INIT_PATTERN:
-
-            return mem.getConfigItem(option);
-
-        case OPT_SAMPLING_METHOD:
-        case OPT_AUDVOLL:
-        case OPT_AUDVOLR:
-        case OPT_AUD_FASTPATH:
-        case OPT_FILTER_TYPE:
-
-            return paula.muxer.getConfigItem(option);
-
-        case OPT_BLITTER_ACCURACY:
-
-            return agnus.blitter.getConfigItem(option);
-
-        case OPT_DRIVE_SPEED:
-        case OPT_LOCK_DSKSYNC:
-        case OPT_AUTO_DSKSYNC:
-
-            return paula.diskController.getConfigItem(option);
-
-        case OPT_SER_DEVICE:
-        case OPT_SER_VERBOSE:
-
-            return serialPort.getConfigItem(option);
-
-        case OPT_CIA_REVISION:
-        case OPT_TODBUG:
-        case OPT_ECLOCK_SYNCING:
-        case OPT_CIA_IDLE_SLEEP:
-
-            return ciaA.getConfigItem(option);
-
-        case OPT_ACCURATE_KEYBOARD:
-
-            return keyboard.getConfigItem(option);
-
-        case OPT_DIAG_BOARD:
-
-            return diagBoard.getConfigItem(option);
-
-        default:
-            fatalError;
-    }
-}
-
-i64
-Amiga::getConfigItem(Option option, long id) const
-{
-    switch (option) {
-
-        case OPT_DMA_DEBUG_CHANNEL:
-        case OPT_DMA_DEBUG_COLOR:
-
-            return agnus.dmaDebugger.getConfigItem(option, id);
-
-        case OPT_AUDPAN:
-        case OPT_AUDVOL:
-
-            return paula.muxer.getConfigItem(option, id);
-
-        case OPT_DRIVE_CONNECT:
-
-            return paula.diskController.getConfigItem(option, id);
-
-        case OPT_DRIVE_TYPE:
-        case OPT_DRIVE_MECHANICS:
-        case OPT_DRIVE_RPM:
-        case OPT_DISK_SWAP_DELAY:
-        case OPT_DRIVE_PAN:
-        case OPT_STEP_VOLUME:
-        case OPT_POLL_VOLUME:
-        case OPT_INSERT_VOLUME:
-        case OPT_EJECT_VOLUME:
-
-            return df[id]->getConfigItem(option);
-
-        case OPT_HDC_CONNECT:
-
-            return hdcon[id]->getConfigItem(option);
-
-        case OPT_HDR_TYPE:
-        case OPT_HDR_PAN:
-        case OPT_HDR_STEP_VOLUME:
-
-            return hd[id]->getConfigItem(option);
-
-        case OPT_PULLUP_RESISTORS:
-        case OPT_MOUSE_VELOCITY:
-
-            if (id == ControlPort::PORT1) return controlPort1.mouse.getConfigItem(option);
-            if (id == ControlPort::PORT2) return controlPort2.mouse.getConfigItem(option);
-            fatalError;
-
-        case OPT_AUTOFIRE:
-        case OPT_AUTOFIRE_BULLETS:
-        case OPT_AUTOFIRE_DELAY:
-
-            if (id == ControlPort::PORT1) return controlPort1.joystick.getConfigItem(option);
-            if (id == ControlPort::PORT2) return controlPort2.joystick.getConfigItem(option);
-            fatalError;
-
-        case OPT_SRV_PORT:
-        case OPT_SRV_PROTOCOL:
-        case OPT_SRV_AUTORUN:
-        case OPT_SRV_VERBOSE:
-
-            return remoteManager.getConfigItem(option, id);
+        case OPT_AMIGA_VIDEO_FORMAT:    return config.type;
+        case OPT_AMIGA_WARP_BOOT:       return config.warpBoot;
+        case OPT_AMIGA_WARP_MODE:       return config.warpMode;
+        case OPT_AMIGA_VSYNC:           return config.vsync;
+        case OPT_AMIGA_SPEED_BOOST:     return config.timeLapse;
+        case OPT_AMIGA_SNAPSHOTS:       return config.snapshots;
+        case OPT_AMIGA_SNAPSHOT_DELAY:  return config.snapshotDelay;
 
         default:
             fatalError;
@@ -373,14 +179,49 @@ Amiga::getConfigItem(Option option, long id) const
 }
 
 void
-Amiga::setConfigItem(Option option, i64 value)
+Amiga::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_AMIGA_VIDEO_FORMAT:
+        case OPT_AMIGA_WARP_BOOT:
+
+            return;
+
+        case OPT_AMIGA_WARP_MODE:
+
+            if (!WarpModeEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, WarpModeEnum::keyList());
+            }
+            return;
+
+        case OPT_AMIGA_VSYNC:
+        case OPT_AMIGA_SPEED_BOOST:
+        case OPT_AMIGA_SNAPSHOTS:
+
+            return;
+
+        case OPT_AMIGA_SNAPSHOT_DELAY:
+
+            if (value < 10 || value > 3600) {
+                throw Error(ERROR_OPT_INV_ARG, "10...3600");
+            }
+            return;
+
+        default:
+            throw Error(ERROR_OPT_UNSUPPORTED);
+    }
+}
+
+void
+Amiga::setOption(Option option, i64 value)
 {
     switch (option) {
 
-        case OPT_VIDEO_FORMAT:
+        case OPT_AMIGA_VIDEO_FORMAT:
 
             if (!VideoFormatEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, VideoFormatEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, VideoFormatEnum::keyList());
             }
 
             if (value != config.type) {
@@ -392,432 +233,72 @@ Amiga::setConfigItem(Option option, i64 value)
             }
             return;
 
-        case OPT_WARP_BOOT:
+        case OPT_AMIGA_WARP_BOOT:
 
             config.warpBoot = isize(value);
             return;
 
-        case OPT_WARP_MODE:
+        case OPT_AMIGA_WARP_MODE:
 
             if (!WarpModeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INVARG, WarpModeEnum::keyList());
+                throw Error(ERROR_OPT_INV_ARG, WarpModeEnum::keyList());
             }
 
             config.warpMode = WarpMode(value);
             return;
 
-        case OPT_VSYNC:
+        case OPT_AMIGA_VSYNC:
 
             config.vsync = bool(value);
             return;
 
-        case OPT_TIME_LAPSE:
+        case OPT_AMIGA_SPEED_BOOST:
 
             if (value < 50 || value > 200) {
-                throw Error(ERROR_OPT_INVARG, "50...200");
+                throw Error(ERROR_OPT_INV_ARG, "50...200");
             }
 
             config.timeLapse = isize(value);
             return;
 
+        case OPT_AMIGA_SNAPSHOTS:
+
+            config.snapshots = bool(value);
+            scheduleNextSnpEvent();
+            return;
+
+        case OPT_AMIGA_SNAPSHOT_DELAY:
+
+            config.snapshotDelay = isize(value);
+            scheduleNextSnpEvent();
+            return;
+
         default:
             fatalError;
     }
 }
 
 void
-Amiga::configure(Option option, i64 value)
+Amiga::exportConfig(const fs::path &path) const
 {
-    debug(CNF_DEBUG, "configure(%s, %lld)\n", OptionEnum::key(option), value);
+    auto fs = std::ofstream(path, std::ofstream::binary);
 
-    // The following options do not send a message to the GUI
-    static std::vector<Option> quiet = {
-
-        OPT_HIDDEN_LAYER_ALPHA,
-        OPT_BRIGHTNESS,
-        OPT_CONTRAST,
-        OPT_SATURATION,
-        OPT_DRIVE_PAN,
-        OPT_STEP_VOLUME,
-        OPT_POLL_VOLUME,
-        OPT_INSERT_VOLUME,
-        OPT_EJECT_VOLUME,
-        OPT_HDR_PAN,
-        OPT_HDR_STEP_VOLUME,
-        OPT_AUDVOLL,
-        OPT_AUDVOLR,
-        OPT_AUD_FASTPATH,
-        OPT_AUDPAN,
-        OPT_AUDVOL
-    };
-
-    // Check if this option has been locked for debugging
-    value = overrideOption(option, value);
-
-    switch (option) {
-
-        case OPT_VIDEO_FORMAT:
-        case OPT_WARP_BOOT:
-        case OPT_WARP_MODE:
-        case OPT_VSYNC:
-        case OPT_TIME_LAPSE:
-
-            setConfigItem(option, value);
-            break;
-
-        case OPT_AGNUS_REVISION:
-        case OPT_SLOW_RAM_MIRROR:
-        case OPT_PTR_DROPS:
-
-            agnus.setConfigItem(option, value);
-            break;
-
-        case OPT_DENISE_REVISION:
-        case OPT_VIEWPORT_TRACKING:
-        case OPT_FRAME_SKIPPING:
-        case OPT_HIDDEN_BITPLANES:
-        case OPT_HIDDEN_SPRITES:
-        case OPT_HIDDEN_LAYERS:
-        case OPT_HIDDEN_LAYER_ALPHA:
-        case OPT_CLX_SPR_SPR:
-        case OPT_CLX_SPR_PLF:
-        case OPT_CLX_PLF_PLF:
-
-            denise.setConfigItem(option, value);
-            break;
-
-        case OPT_PALETTE:
-        case OPT_BRIGHTNESS:
-        case OPT_CONTRAST:
-        case OPT_SATURATION:
-
-            denise.pixelEngine.setConfigItem(option, value);
-            break;
-
-        case OPT_DMA_DEBUG_ENABLE:
-        case OPT_DMA_DEBUG_MODE:
-        case OPT_DMA_DEBUG_OPACITY:
-
-            agnus.dmaDebugger.setConfigItem(option, value);
-            break;
-
-        case OPT_CPU_REVISION:
-        case OPT_CPU_DASM_REVISION:
-        case OPT_CPU_OVERCLOCKING:
-        case OPT_CPU_RESET_VAL:
-        case OPT_CPU_DASM_SYNTAX:
-
-            cpu.setConfigItem(option, value);
-            break;
-
-        case OPT_RTC_MODEL:
-
-            rtc.setConfigItem(option, value);
-            break;
-
-        case OPT_CHIP_RAM:
-        case OPT_SLOW_RAM:
-        case OPT_FAST_RAM:
-        case OPT_EXT_START:
-        case OPT_SAVE_ROMS:
-        case OPT_SLOW_RAM_DELAY:
-        case OPT_BANKMAP:
-        case OPT_UNMAPPING_TYPE:
-        case OPT_RAM_INIT_PATTERN:
-
-            mem.setConfigItem(option, value);
-            break;
-
-        case OPT_DRIVE_TYPE:
-        case OPT_DRIVE_MECHANICS:
-        case OPT_DRIVE_RPM:
-        case OPT_DISK_SWAP_DELAY:
-        case OPT_DRIVE_PAN:
-        case OPT_STEP_VOLUME:
-        case OPT_POLL_VOLUME:
-        case OPT_INSERT_VOLUME:
-        case OPT_EJECT_VOLUME:
-
-            df[0]->setConfigItem(option, value);
-            df[1]->setConfigItem(option, value);
-            df[2]->setConfigItem(option, value);
-            df[3]->setConfigItem(option, value);
-            break;
-
-        case OPT_HDC_CONNECT:
-
-            hdcon[0]->setConfigItem(option, value);
-            hdcon[1]->setConfigItem(option, value);
-            hdcon[2]->setConfigItem(option, value);
-            hdcon[3]->setConfigItem(option, value);
-            break;
-
-        case OPT_HDR_TYPE:
-        case OPT_HDR_PAN:
-        case OPT_HDR_STEP_VOLUME:
-
-            hd[0]->setConfigItem(option, value);
-            hd[1]->setConfigItem(option, value);
-            hd[2]->setConfigItem(option, value);
-            hd[3]->setConfigItem(option, value);
-            break;
-
-        case OPT_SAMPLING_METHOD:
-        case OPT_FILTER_TYPE:
-        case OPT_AUDVOLL:
-        case OPT_AUDVOLR:
-        case OPT_AUD_FASTPATH:
-
-            paula.muxer.setConfigItem(option, value);
-            break;
-
-        case OPT_AUDPAN:
-        case OPT_AUDVOL:
-
-            paula.muxer.setConfigItem(option, 0, value);
-            paula.muxer.setConfigItem(option, 1, value);
-            paula.muxer.setConfigItem(option, 2, value);
-            paula.muxer.setConfigItem(option, 3, value);
-            break;
-
-        case OPT_BLITTER_ACCURACY:
-
-            agnus.blitter.setConfigItem(option, value);
-            break;
-
-        case OPT_DRIVE_SPEED:
-        case OPT_LOCK_DSKSYNC:
-        case OPT_AUTO_DSKSYNC:
-
-            paula.diskController.setConfigItem(option, value);
-            break;
-
-        case OPT_SER_DEVICE:
-        case OPT_SER_VERBOSE:
-
-            serialPort.setConfigItem(option, value);
-            break;
-
-        case OPT_CIA_REVISION:
-        case OPT_TODBUG:
-        case OPT_ECLOCK_SYNCING:
-        case OPT_CIA_IDLE_SLEEP:
-
-            ciaA.setConfigItem(option, value);
-            ciaB.setConfigItem(option, value);
-            break;
-
-        case OPT_ACCURATE_KEYBOARD:
-
-            keyboard.setConfigItem(option, value);
-            break;
-
-        case OPT_PULLUP_RESISTORS:
-        case OPT_MOUSE_VELOCITY:
-
-            controlPort1.mouse.setConfigItem(option, value);
-            controlPort2.mouse.setConfigItem(option, value);
-            break;
-
-        case OPT_AUTOFIRE:
-        case OPT_AUTOFIRE_BULLETS:
-        case OPT_AUTOFIRE_DELAY:
-
-            controlPort1.joystick.setConfigItem(option, value);
-            controlPort2.joystick.setConfigItem(option, value);
-            break;
-
-        case OPT_DIAG_BOARD:
-
-            diagBoard.setConfigItem(OPT_DIAG_BOARD, value);
-            break;
-
-        case OPT_SRV_PORT:
-        case OPT_SRV_PROTOCOL:
-        case OPT_SRV_AUTORUN:
-        case OPT_SRV_VERBOSE:
-
-            remoteManager.setConfigItem(option, value);
-            break;
-
-        default:
-            fatalError;
+    if (!fs.is_open()) {
+        throw Error(ERROR_FILE_CANT_WRITE);
     }
 
-    if (std::find(quiet.begin(), quiet.end(), option) == quiet.end()) {
-        msgQueue.put(MSG_CONFIG, option);
-    }
+    exportConfig(fs);
 }
 
 void
-Amiga::configure(Option option, long id, i64 value)
+Amiga::exportConfig(std::ostream &stream) const
 {
-    debug(CNF_DEBUG, "configure(%s, %ld, %lld)\n", OptionEnum::key(option), id, value);
-
-    // Check if this option has been locked for debugging
-    value = overrideOption(option, value);
-
-    // The following options do not send a message to the GUI
-    static std::vector<Option> quiet = {
-
-        OPT_DRIVE_PAN,
-        OPT_STEP_VOLUME,
-        OPT_POLL_VOLUME,
-        OPT_INSERT_VOLUME,
-        OPT_EJECT_VOLUME,
-        OPT_HDR_PAN,
-        OPT_HDR_STEP_VOLUME,
-        OPT_AUDVOLL,
-        OPT_AUDVOLR,
-        OPT_AUDPAN,
-        OPT_AUDVOL,
-        OPT_MOUSE_VELOCITY
-    };
-
-    switch (option) {
-
-        case OPT_DMA_DEBUG_CHANNEL:
-        case OPT_DMA_DEBUG_COLOR:
-
-            agnus.dmaDebugger.setConfigItem(option, id, value);
-            break;
-
-        case OPT_AUDPAN:
-        case OPT_AUDVOL:
-
-            paula.muxer.setConfigItem(option, id, value);
-            break;
-
-        case OPT_DRIVE_CONNECT:
-
-            paula.diskController.setConfigItem(option, id, value);
-            break;
-
-        case OPT_DRIVE_TYPE:
-        case OPT_DRIVE_MECHANICS:
-        case OPT_DRIVE_RPM:
-        case OPT_DISK_SWAP_DELAY:
-        case OPT_DRIVE_PAN:
-        case OPT_STEP_VOLUME:
-        case OPT_POLL_VOLUME:
-        case OPT_INSERT_VOLUME:
-        case OPT_EJECT_VOLUME:
-
-            assert(id >= 0 || id <= 4);
-            df[id]->setConfigItem(option, value);
-            break;
-
-        case OPT_HDC_CONNECT:
-
-            assert(id >= 0 || id <= 4);
-            hdcon[id]->setConfigItem(option, value);
-            break;
-
-        case OPT_HDR_TYPE:
-        case OPT_HDR_PAN:
-        case OPT_HDR_STEP_VOLUME:
-
-            assert(id >= 0 || id <= 4);
-            hd[id]->setConfigItem(option, value);
-            break;
-
-        case OPT_CIA_REVISION:
-        case OPT_TODBUG:
-        case OPT_ECLOCK_SYNCING:
-        case OPT_CIA_IDLE_SLEEP:
-            
-            assert(id == 0 || id == 1);
-            if (id == 0) ciaA.setConfigItem(option, value);
-            if (id == 1) ciaB.setConfigItem(option, value);
-            break;
-
-        case OPT_PULLUP_RESISTORS:
-        case OPT_SHAKE_DETECTION:
-        case OPT_MOUSE_VELOCITY:
-
-            assert(id == ControlPort::PORT1 || id == ControlPort::PORT2);
-            if (id == ControlPort::PORT1) controlPort1.mouse.setConfigItem(option, value);
-            if (id == ControlPort::PORT2) controlPort2.mouse.setConfigItem(option, value);
-            break;
-
-        case OPT_AUTOFIRE:
-        case OPT_AUTOFIRE_BULLETS:
-        case OPT_AUTOFIRE_DELAY:
-
-            if (id == ControlPort::PORT1) controlPort1.joystick.setConfigItem(option, value);
-            if (id == ControlPort::PORT2) controlPort2.joystick.setConfigItem(option, value);
-            break;
-
-        case OPT_SRV_PORT:
-        case OPT_SRV_PROTOCOL:
-        case OPT_SRV_AUTORUN:
-        case OPT_SRV_VERBOSE:
-
-            remoteManager.setConfigItem(option, id, value);
-            break;
-
-        default:
-            fatalError;
-    }
-
-    if (std::find(quiet.begin(), quiet.end(), option) == quiet.end()) {
-        msgQueue.put(MSG_CONFIG, option);
-    }
-}
-
-void
-Amiga::configure(ConfigScheme scheme)
-{
-    assert_enum(ConfigScheme, scheme);
-
-    {   SUSPENDED
-
-        switch(scheme) {
-
-            case CONFIG_A1000_OCS_1MB:
-
-                configure(OPT_CPU_REVISION, CPU_68000);
-                configure(OPT_AGNUS_REVISION, AGNUS_OCS_OLD);
-                configure(OPT_DENISE_REVISION, DENISE_OCS);
-                configure(OPT_VIDEO_FORMAT, PAL);
-                configure(OPT_CHIP_RAM, 512);
-                configure(OPT_SLOW_RAM, 512);
-                break;
-
-            case CONFIG_A500_OCS_1MB:
-
-                configure(OPT_CPU_REVISION, CPU_68000);
-                configure(OPT_AGNUS_REVISION, AGNUS_OCS);
-                configure(OPT_DENISE_REVISION, DENISE_OCS);
-                configure(OPT_VIDEO_FORMAT, PAL);
-                configure(OPT_CHIP_RAM, 512);
-                configure(OPT_SLOW_RAM, 512);
-                break;
-
-            case CONFIG_A500_ECS_1MB:
-
-                configure(OPT_CPU_REVISION, CPU_68000);
-                configure(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
-                configure(OPT_DENISE_REVISION, DENISE_OCS);
-                configure(OPT_VIDEO_FORMAT, PAL);
-                configure(OPT_CHIP_RAM, 512);
-                configure(OPT_SLOW_RAM, 512);
-                break;
-
-            case CONFIG_A500_PLUS_1MB:
-
-                configure(OPT_CPU_REVISION, CPU_68000);
-                configure(OPT_AGNUS_REVISION, AGNUS_ECS_2MB);
-                configure(OPT_DENISE_REVISION, DENISE_ECS);
-                configure(OPT_VIDEO_FORMAT, PAL);
-                configure(OPT_CHIP_RAM, 512);
-                configure(OPT_SLOW_RAM, 512);
-                break;
-
-            default:
-                fatalError;
-        }
-    }
+    stream << "# vAmiga " << Amiga::build() << "\n";
+    stream << "\n";
+    stream << "amiga power off\n";
+    stream << "\n";
+    CoreComponent::exportConfig(stream);
+    stream << "amiga power on\n";
 }
 
 void
@@ -930,7 +411,7 @@ Amiga::refreshRate() const
 {
     if (config.vsync) {
 
-        return host.getHostRefreshRate();
+        return double(emulator.host.getOption(OPT_HOST_REFRESH_RATE));
 
     } else {
 
@@ -950,17 +431,8 @@ Amiga::_dump(Category category, std::ostream& os) const
     using namespace util;
 
     if (category == Category::Config) {
-
-        os << tab("Machine type");
-        os << VideoFormatEnum::key(config.type) << std::endl;
-        os << tab("Warp mode");
-        os << WarpModeEnum::key(config.warpMode) << std::endl;
-        os << tab("Warp boot");
-        os << dec(config.warpBoot) << " seconds" << std::endl;
-        os << tab("VSYNC");
-        os << bol(config.vsync) << std::endl;
-        os << tab("Time lapse");
-        os << dec(config.timeLapse) << "%" << std::endl;
+        
+        dumpConfig(os);
     }
 
     if (category == Category::State) {
@@ -1000,11 +472,6 @@ Amiga::_dump(Category category, std::ostream& os) const
         os << dec(ciaB.getClock()) << " Master cycles (";
         os << dec(AS_CIA_CYCLES(ciaA.getClock())) << " CIA cycles)" << std::endl;
         os << std::endl;
-    }
-
-    if (category == Category::Defaults) {
-
-        defaults.dump(category, os);
     }
 
     if (category == Category::Current) {
@@ -1162,7 +629,7 @@ isize
 Amiga::load(const u8 *buffer)
 {
     auto result = CoreComponent::load(buffer);
-    CoreComponent::didLoad();
+    postorderWalk([](CoreComponent *c) { c->_didLoad(); });
 
     return result;
 }
@@ -1171,7 +638,7 @@ isize
 Amiga::save(u8 *buffer)
 {
     auto result = CoreComponent::save(buffer);
-    CoreComponent::didSave();
+    postorderWalk([](CoreComponent *c) { c->_didSave(); });
 
     return result;
 }
@@ -1189,6 +656,7 @@ Amiga::computeFrame()
         if (flags) {
 
             // Are we requested to take a snapshot?
+            /*
             if (flags & RL::AUTO_SNAPSHOT) {
                 clearFlag(RL::AUTO_SNAPSHOT);
                 takeAutoSnapshot();
@@ -1198,12 +666,12 @@ Amiga::computeFrame()
                 clearFlag(RL::USER_SNAPSHOT);
                 takeUserSnapshot();
             }
+            */
 
             // Did we reach a soft breakpoint?
             if (flags & RL::SOFTSTOP_REACHED) {
                 clearFlag(RL::SOFTSTOP_REACHED);
                 throw StateChangeException(STATE_PAUSED);
-                // emulator.switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1213,7 +681,6 @@ Amiga::computeFrame()
                 auto addr = cpu.debugger.breakpoints.hit->addr;
                 msgQueue.put(MSG_BREAKPOINT_REACHED, CpuMsg { addr, 0});
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1223,7 +690,6 @@ Amiga::computeFrame()
                 auto addr = cpu.debugger.watchpoints.hit->addr;
                 msgQueue.put(MSG_WATCHPOINT_REACHED, CpuMsg {addr, 0});
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1233,7 +699,6 @@ Amiga::computeFrame()
                 auto vector = u8(cpu.debugger.catchpoints.hit->addr);
                 msgQueue.put(MSG_CATCHPOINT_REACHED, CpuMsg {cpu.getPC0(), vector});
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1242,7 +707,6 @@ Amiga::computeFrame()
                 clearFlag(RL::SWTRAP_REACHED);
                 msgQueue.put(MSG_SWTRAP_REACHED, CpuMsg {cpu.getPC0(), 0});
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1252,7 +716,6 @@ Amiga::computeFrame()
                 auto addr = u8(agnus.copper.debugger.breakpoints.hit->addr);
                 msgQueue.put(MSG_COPPERBP_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1262,7 +725,6 @@ Amiga::computeFrame()
                 auto addr = u8(agnus.copper.debugger.watchpoints.hit->addr);
                 msgQueue.put(MSG_COPPERWP_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1270,7 +732,6 @@ Amiga::computeFrame()
             if (flags & RL::STOP) {
                 clearFlag(RL::STOP);
                 throw StateChangeException(STATE_PAUSED);
-                // switchState(STATE_PAUSED);
                 break;
             }
 
@@ -1299,6 +760,78 @@ Amiga::cacheInfo(AmigaInfo &result) const
 }
 
 void
+Amiga::initialize()
+{
+    postorderWalk([](CoreComponent *c) { c->_initialize(); });
+}
+
+void
+Amiga::powerOn()
+{
+    postorderWalk([](CoreComponent *c) { c->_powerOn(); });
+}
+
+void
+Amiga::powerOff()
+{
+    postorderWalk([](CoreComponent *c) { c->_powerOff(); });
+}
+
+void
+Amiga::run()
+{
+    postorderWalk([](CoreComponent *c) { c->_run(); });
+}
+
+void
+Amiga::pause()
+{
+    postorderWalk([](CoreComponent *c) { c->_pause(); });
+}
+
+void
+Amiga::halt()
+{
+    postorderWalk([](CoreComponent *c) { c->_halt(); });
+}
+
+void
+Amiga::warpOn()
+{
+    postorderWalk([](CoreComponent *c) { c->_warpOn(); });
+}
+
+void
+Amiga::warpOff()
+{
+    postorderWalk([](CoreComponent *c) { c->_warpOff(); });
+}
+
+void
+Amiga::trackOn()
+{
+    postorderWalk([](CoreComponent *c) { c->_trackOn(); });
+}
+
+void
+Amiga::trackOff()
+{
+    postorderWalk([](CoreComponent *c) { c->_trackOff(); });
+}
+
+void
+Amiga::focus()
+{
+    postorderWalk([](CoreComponent *c) { c->_focus(); });
+}
+
+void
+Amiga::unfocus()
+{
+    postorderWalk([](CoreComponent *c) { c->_unfocus(); });
+}
+
+void
 Amiga::setFlag(u32 flag)
 {
     SYNCHRONIZED
@@ -1314,6 +847,44 @@ Amiga::clearFlag(u32 flag)
     flags &= ~flag;
 }
 
+Snapshot *
+Amiga::takeSnapshot()
+{
+    {   SUSPENDED
+
+        return new Snapshot(*this);
+    }
+}
+
+void
+Amiga::serviceSnpEvent(EventID eventId)
+{
+    // Check for the main instance (ignore the run-ahead instance)
+    if (objid == 0) {
+
+        // Take snapshot and hand it over to GUI
+        autoSnapshot = new Snapshot(*this);
+        msgQueue.put(MSG_SNAPSHOT_TAKEN, SnapshotMsg { .snapshot = autoSnapshot } );
+    }
+
+    // Schedule the next event
+    scheduleNextSnpEvent();
+}
+
+void
+Amiga::scheduleNextSnpEvent()
+{
+    auto snapshots = emulator.get(OPT_AMIGA_SNAPSHOTS);
+    auto delay = emulator.get(OPT_AMIGA_SNAPSHOT_DELAY);
+
+    if (snapshots) {
+        agnus.scheduleRel<SLOT_SNP>(SEC(double(delay)), SNP_TAKE);
+    } else {
+        agnus.cancel<SLOT_SNP>();
+    }
+}
+
+/*
 void
 Amiga::requestAutoSnapshot()
 {
@@ -1359,6 +930,7 @@ Amiga::latestUserSnapshot()
     userSnapshot = nullptr;
     return result;
 }
+*/
 
 void
 Amiga::loadSnapshot(const Snapshot &snapshot)
@@ -1394,6 +966,7 @@ Amiga::loadSnapshot(const Snapshot &snapshot)
     msgQueue.put(MSG_VIDEO_FORMAT, agnus.isPAL() ? PAL : NTSC);
 }
 
+/*
 void
 Amiga::takeAutoSnapshot()
 {
@@ -1419,8 +992,9 @@ Amiga::takeUserSnapshot()
     userSnapshot = new Snapshot(*this);
     msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
 }
+*/
 
-void 
+void
 Amiga::eolHandler()
 {
     // Get the maximum number of rasterlines
