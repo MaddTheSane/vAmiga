@@ -358,7 +358,7 @@ extension MyController {
         var acceleration: Double { return Double(msg.value == 0 ? 1 : msg.value) }
 
         // Only proceed if the proxy object is still alive
-        guard let amiga = amiga else { return }
+        guard let amiga else { return }
         
         switch msg.type {
                         

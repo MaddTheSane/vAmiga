@@ -140,7 +140,7 @@ CoreComponent::routeOption(Option opt, std::vector<Configurable *> &result)
 isize
 CoreComponent::size()
 {
-    SerCounter counter;
+    SerCounter counter = SerCounter();
     *this << counter;
     isize result = counter.count;
 

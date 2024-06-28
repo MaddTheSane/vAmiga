@@ -88,12 +88,12 @@ class DiskExporter: DialogController {
 
         partition = nr
         
-        if let hdf = hdf, let nr = nr {
+        if let hdf, let nr {
 
             // Try to decode the file system from the HDF
             vol = try? FileSystemProxy.make(withHDF: hdf, partition: nr)
         
-        } else if let adf = adf {
+        } else if let adf {
 
             // Try to decode the file system from the ADF
             vol = try? FileSystemProxy.make(withADF: adf)
@@ -185,7 +185,7 @@ class DiskExporter: DialogController {
 
         case Format.vol:
             
-            icon.image = NSImage(named: "NSFolder")
+            icon.image = NSImage(named: NSImage.folderName)
                         
         default:
             
@@ -220,7 +220,16 @@ class DiskExporter: DialogController {
         let num = hdf!.numPartitions
         let s = num == 1 ? "" : "s"
         
-        if partition == nil {
+        if let partition {
+            
+            info1.stringValue = "Partition \(partition + 1) out of \(num)"
+            if let vol = vol {
+                info2.stringValue = vol.dos.description
+            } else {
+                info2.stringValue = "No compatible file system"
+            }
+
+        } else {
             
             if hdf!.hasRDB {
                 info1.stringValue = "RDB hard drive with \(num) partition\(s)"
@@ -229,25 +238,17 @@ class DiskExporter: DialogController {
             }
             info2.stringValue = ""
 
-        } else {
-                
-            info1.stringValue = "Partition \(partition! + 1) out of \(num)"
-            if let vol = vol {
-                info2.stringValue = vol.dos.description
-            } else {
-                info2.stringValue = "No compatible file system"
-            }
         }
     }
         
     func updateFloppyDiskInfo() {
             
-        if let adf = adf {
+        if let adf {
             info1.stringValue = adf.typeInfo + ", " + adf.layoutInfo
         } else {
             info1.stringValue = ""
         }
-        if let vol = vol {
+        if let vol {
             info2.stringValue = vol.dos.description
         } else {
             info2.stringValue = "No compatible file system"

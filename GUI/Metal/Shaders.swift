@@ -99,10 +99,10 @@ class ComputeKernel: NSObject {
         
         // Create kernel
         do {
-            try kernel = device.makeComputePipelineState(function: function)
+            kernel = try device.makeComputePipelineState(function: function)
         } catch {
             warn("Cannot create compute kernel '\(name)'.")
-            let alert = NSAlert()
+            let alert = NSAlert(error: error)
             alert.alertStyle = .informational
             alert.icon = NSImage(named: "metal")
             alert.messageText = "Failed to create compute kernel."

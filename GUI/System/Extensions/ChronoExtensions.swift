@@ -27,9 +27,5 @@ extension Date {
     func diff(_ date: Date) -> TimeInterval {
         
         return self.timeIntervalSince(date)
-        let interval1 = self.timeIntervalSinceReferenceDate
-        let interval2 = date.timeIntervalSinceReferenceDate
-
-        return interval2 - interval1
     }
 }
