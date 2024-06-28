@@ -118,8 +118,8 @@
 
 @interface Proxy : NSObject {
     
-    // Reference to the wrapped C++ object
-    @public void *obj;    
+    /// Reference to the wrapped C++ object
+    @public void *obj;
 }
 
 @end
