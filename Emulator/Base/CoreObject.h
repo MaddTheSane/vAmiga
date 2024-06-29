@@ -65,6 +65,8 @@ public:
  * be performed when variadic functions are used.
  */
 
+#ifndef WE_NEED_TO_WORK_ON_THIS
+
 #define msg(format, ...) \
 fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__);
 
@@ -92,4 +94,5 @@ if (XFILES) { if (verbose) { \
 prefix(); \
 fprintf(stderr, "XFILES: " format __VA_OPT__(,) __VA_ARGS__); }}
 
+#endif
 }

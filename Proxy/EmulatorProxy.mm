@@ -7,6 +7,13 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#import <Cocoa/Cocoa.h>
+
+// Evil, evil hacks!
+typedef NSWindowStyleMask StyleMask;
+typedef NSApplicationPresentationOptions PresentationOptions;
+
+#define WE_NEED_TO_WORK_ON_THIS 1
 #import "config.h"
 #import "EmulatorProxy.h"
 #import "Amiga.h"

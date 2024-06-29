@@ -46,6 +46,9 @@
 #import "StateMachineTypes.h"
 #import "UARTTypes.h"
 #import "ZorroBoardTypes.h"
+#ifdef __cplusplus
+#import "Error.h"
+#endif
 
 #import <Cocoa/Cocoa.h>
 #import <MetalKit/MetalKit.h>
@@ -109,8 +112,18 @@
 @property ErrorCode errorCode;
 @property NSString *what;
 
+#ifdef __cplusplus
+- (void)save:(const vamiga::Error &)exception;
+#endif
+
 @end
 
+#ifdef __cplusplus
+static inline void wrapException(NS_NOESCAPE dispatch_block_t block, ExceptionWrapper *ex) {
+    try { block(); }
+    catch (vamiga::Error &error) { [ex save:error]; }
+}
+#endif
 
 //
 // Base proxies
