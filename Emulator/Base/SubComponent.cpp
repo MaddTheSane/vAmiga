@@ -17,6 +17,7 @@ References::References(Amiga& ref) :
 
 agnus(ref.agnus),
 amiga(ref),
+audioPort(ref.audioPort),
 blitter(ref.agnus.blitter),
 ciaa(ref.ciaA),
 ciab(ref.ciaB),
@@ -54,6 +55,7 @@ retroShell(ref.retroShell),
 rtc(ref.rtc),
 serialPort(ref.serialPort),
 uart(ref.paula.uart),
+videoPort(ref.videoPort),
 zorro(ref.zorro)
 {
 };

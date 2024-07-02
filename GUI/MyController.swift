@@ -65,7 +65,7 @@ class MyController: NSWindowController, MessageReceiver {
     // Speedometer to measure clock frequence and frames per second
     var speedometer: Speedometer!
 
-    // Remembers if audio is muted (master volume of both channels is 0)
+    // Remembers if audio is muted
     var muted = false
     
     // Indicates if a status bar is shown
@@ -186,10 +186,6 @@ extension MyController {
         renderer = Renderer(view: metal,
                             device: MTLCreateSystemDefaultDevice()!,
                             controller: self)
-        
-        // Apply all GUI related user defaults
-        pref.applyUserDefaults()
-        config.applyUserDefaults()
 
         // Setup window
         configureWindow()
@@ -197,8 +193,9 @@ extension MyController {
         // Launch the emulator
         launch()
 
-        // Add media file (if provided on startup)
-        mydocument.addMedia()
+        // Apply all GUI related user defaults
+        pref.applyUserDefaults()
+        config.applyUserDefaults()
 
         do {
             // Switch the Amiga on
@@ -219,6 +216,9 @@ extension MyController {
                 self.configurator!.installAros()
             }
         }
+
+        // Add media file (if provided on startup)
+        if let url = mydocument.launchUrl { try? mydocument.addMedia(url: url) }
 
         // Create speed monitor
         speedometer = Speedometer()

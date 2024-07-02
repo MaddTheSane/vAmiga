@@ -905,21 +905,6 @@ using namespace vamiga::moira;
     return [self denise]->denise->debugger.getSpriteColor(nr, reg);
 }
 
-- (u32 *)noise
-{
-    return (u32 *)([self denise]->denise->pixelEngine.getNoise());
-}
-
-- (void)getStableBuffer:(u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof
-{
-    auto &frameBuffer = [self denise]->denise->pixelEngine.getStableBuffer();
-    *ptr = frameBuffer.pixels.ptr;
-    *nr = NSInteger(frameBuffer.nr);
-    *lof = frameBuffer.lof;
-    *prevlof = frameBuffer.prevlof;
-}
-
-
 @end
 
 
@@ -1067,39 +1052,24 @@ using namespace vamiga::moira;
     return [self paula]->paula->uart.getCachedInfo();
 }
 
-- (MuxerStats)muxerStats
+- (AudioPortStats)audioPortStats
 {
-    return [self paula]->paula->muxer.getStats();
+    return [self paula]->paula->emulator.main.audioPort.getStats();
 }
 
-- (void)readMonoSamples:(float *)target size:(NSInteger)n
+- (NSInteger)copyMono:(float *)target size:(NSInteger)n
 {
-    [self paula]->paula->muxer.copy(target, n);
+    return [self paula]->paula->emulator.main.audioPort.copyMono(target, n);
 }
 
-- (void)readStereoSamples:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n
+- (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n
 {
-    [self paula]->paula->muxer.copy(target1, target2, n);
-}
-
-- (void)rampUp
-{
-    [self paula]->paula->muxer.rampUp();
-}
-
-- (void)rampUpFromZero
-{
-    [self paula]->paula->muxer.rampUpFromZero();
-}
-
-- (void)rampDown
-{
-    [self paula]->paula->muxer.rampDown();
+    return [self paula]->paula->emulator.main.audioPort.copyStereo(target1, target2, n);
 }
 
 - (float)drawWaveformL:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c
 {
-    return [self paula]->paula->muxer.stream.draw(buffer, w, h, true, s, c);
+    return [self paula]->paula->emulator.main.audioPort.stream.draw(buffer, w, h, true, s, c);
 }
 
 - (float)drawWaveformL:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c
@@ -1113,7 +1083,7 @@ using namespace vamiga::moira;
 
 - (float)drawWaveformR:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c
 {
-    return [self paula]->paula->muxer.stream.draw(buffer, w, h, false, s, c);
+    return [self paula]->paula->emulator.main.audioPort.stream.draw(buffer, w, h, false, s, c);
 }
 
 - (float)drawWaveformR:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c
@@ -1239,6 +1209,29 @@ using namespace vamiga::moira;
 - (ControlPortInfo)cachedInfo
 {
     return [self cp]->controlPort->getCachedInfo();
+}
+
+@end
+
+
+//
+// VideoPort proxy
+//
+
+@implementation VideoPortProxy
+
+- (VideoPortAPI *)port
+{
+    return (VideoPortAPI *)obj;
+}
+
+- (void)texture:(u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof
+{
+    auto &frameBuffer = [self port]->getTexture();
+    *ptr = frameBuffer.pixels.ptr;
+    *nr = NSInteger(frameBuffer.nr);
+    *lof = frameBuffer.lof;
+    *prevlof = frameBuffer.prevlof;
 }
 
 @end
@@ -2256,10 +2249,10 @@ using namespace vamiga::moira;
 
 + (instancetype)makeWithAmiga:(AmigaProxy *)proxy
 {
-    Amiga *amiga = (Amiga *)proxy->obj;
-    
+    AmigaAPI *amiga = (AmigaAPI *)proxy->obj;
+
     amiga->suspend();
-    Snapshot *snapshot = new Snapshot(*amiga);
+    Snapshot *snapshot = new Snapshot(*(amiga->amiga));
     amiga->resume();
     
     return [self make:snapshot];
@@ -2884,6 +2877,7 @@ using namespace vamiga::moira;
 @synthesize rtc;
 @synthesize serialPort;
 @synthesize recorder;
+@synthesize videoPort;
 @synthesize watchpoints;
 
 - (instancetype) init
@@ -2927,6 +2921,7 @@ using namespace vamiga::moira;
     recorder = [[RecorderProxy alloc] initWith:&vamiga->recorder];
     remoteManager = [[RemoteManagerProxy alloc] initWith:&vamiga->remoteManager];
     serialPort = [[SerialPortProxy alloc] initWith:&vamiga->serialPort];
+    videoPort = [[VideoPortProxy alloc] initWith:&vamiga->videoPort];
     watchpoints = [[GuardsProxy alloc] initWith:&vamiga->watchpoints];
 
     return self;
@@ -3266,5 +3261,37 @@ using namespace vamiga::moira;
     try { [self emu]->exportConfig([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
 }
+
+- (void)put:(CmdType)type
+{
+    [self emu]->put(type, 0);
+}
+
+- (void)put:(CmdType)type value:(NSInteger)value
+{
+    [self emu]->put(type, value);
+}
+
+- (void)put:(CmdType)type value:(NSInteger)value value2:(NSInteger)value2
+{
+    [self emu]->put(type, value, value2);
+}
+
+/*
+- (void)put:(CmdType)type key:(KeyCmd)cmd
+{
+    [self emu]->put(type, cmd);
+}
+
+- (void)put:(CmdType)type coord:(CoordCmd)cmd
+{
+    [self emu]->put(type, cmd);
+}
+
+- (void)put:(CmdType)type action:(GamePadCmd)cmd
+{
+    [self emu]->put(type, cmd);
+}
+*/
 
 @end

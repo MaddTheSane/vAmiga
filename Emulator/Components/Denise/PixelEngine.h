@@ -61,9 +61,6 @@ private:
     // Mutex for synchronizing access to the stable buffer
     util::Mutex bufferMutex;
 
-    // Buffer with background noise (random black and white pixels)
-    Buffer <Texel> noise;
-
     
     //
     // Color management
@@ -218,7 +215,7 @@ public:
 
     // Returns the working buffer or the stable buffer
     FrameBuffer &getWorkingBuffer();
-    const FrameBuffer &getStableBuffer();
+    const FrameBuffer &getStableBuffer() const;
 
     // Return a pointer into the pixel storage
     Texel *workingPtr(isize row = 0, isize col = 0);
@@ -227,9 +224,6 @@ public:
     // Swaps the working buffer and the stable buffer
     void swapBuffers();
     
-    // Returns a pointer to randon noise
-    Texel *getNoise() const;
-
     // Called after each frame to switch the frame buffers
     void vsyncHandler();
 

@@ -110,7 +110,8 @@ public:
     virtual void resetConfig();
 
     // Returns the target components for a given configuration option
-    void routeOption(Option opt, std::vector<Configurable *> &result);
+    Configurable *routeOption(Option opt, isize objid);
+    // [[deprecated]] void routeOption(Option opt, std::vector<Configurable *> &result);
 
 
     //

@@ -14,6 +14,7 @@
 #import "AgnusTypes.h"
 #import "AmigaTypes.h"
 #import "AmigaFileTypes.h"
+#import "AudioPortTypes.h"
 #import "BlitterTypes.h"
 #import "BootBlockImageTypes.h"
 #import "CmdQueueTypes.h"
@@ -34,7 +35,6 @@
 #import "KeyboardTypes.h"
 #import "MemoryTypes.h"
 #import "MsgQueueTypes.h"
-#import "MuxerTypes.h"
 #import "MouseTypes.h"
 #import "PaulaTypes.h"
 #import "PixelEngineTypes.h"
@@ -94,6 +94,7 @@
 @class SerialPortProxy;
 @class SnapshotProxy;
 @class STFileProxy;
+@class VideoPortProxy;
 
 
 //
@@ -195,6 +196,7 @@
     RtcProxy *rtc;
     RecorderProxy *recorder;
     SerialPortProxy *serialPort;
+    VideoPortProxy *videoPort;
 }
 
 @property (readonly, strong) AgnusProxy *agnus;
@@ -229,6 +231,7 @@
 @property (readonly, strong) RtcProxy *rtc;
 @property (readonly, strong) RecorderProxy *recorder;
 @property (readonly, strong) SerialPortProxy *serialPort;
+@property (readonly, strong) VideoPortProxy *videoPort;
 
 @property (class, readonly, strong) DefaultsProxy *defaults;
 
@@ -294,6 +297,15 @@
 - (void)setAlarmRel:(NSInteger)cycle payload:(NSInteger)value;
 
 - (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex;
+
+- (void)put:(CmdType)cmd;
+- (void)put:(CmdType)type value:(NSInteger)value;
+- (void)put:(CmdType)type value:(NSInteger)value value2:(NSInteger)value2;
+/*
+- (void)put:(CmdType)type key:(KeyCmd)cmd;
+- (void)put:(CmdType)type coord:(CoordCmd)cmd;
+- (void)put:(CmdType)type action:(GamePadCmd)cmd;
+*/
 
 @end
 
@@ -542,9 +554,6 @@
 - (u64)sprData:(NSInteger)nr line:(NSInteger)line;
 - (u16)sprColor:(NSInteger)nr reg:(NSInteger)reg;
 
-@property (readonly) u32 *noise;
-- (void)getStableBuffer:(u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof;
-
 @end
 
 
@@ -588,14 +597,10 @@
 @property (readonly) StateMachineInfo audioInfo3;
 @property (readonly) UARTInfo uartInfo;
 @property (readonly) UARTInfo cachedUartInfo;
-@property (readonly) MuxerStats muxerStats;
+@property (readonly) AudioPortStats audioPortStats;
 
-- (void)readMonoSamples:(float *)target size:(NSInteger)n;
-- (void)readStereoSamples:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n;
-
-- (void)rampUp;
-- (void)rampUpFromZero;
-- (void)rampDown;
+- (NSInteger)copyMono:(float *)target size:(NSInteger)n;
+- (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n;
 
 - (float)drawWaveformL:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c;
 - (float)drawWaveformL:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c;
@@ -631,6 +636,17 @@
 
 @property (readonly) ControlPortInfo info;
 @property (readonly) ControlPortInfo cachedInfo;
+
+@end
+
+
+//
+// Video port
+//
+
+@interface VideoPortProxy : CoreComponentProxy { }
+
+- (void)texture:(u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof;
 
 @end
 

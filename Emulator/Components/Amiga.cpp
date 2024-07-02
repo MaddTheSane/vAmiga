@@ -38,7 +38,9 @@ Amiga::build()
 
 Amiga::Amiga(class Emulator& ref, isize id) : CoreComponent(ref, id)
 {
-    /* The order of subcomponents is important here, because some components
+    /* UPDATE: THE ORDER SHOULD NO LONGER BE IMPORTANT. TODO: CHECK THIS!
+     *
+     * The order of subcomponents is important here, because some components
      * are dependend on others during initialization. I.e.,
      *
      * - The control ports, the serial Controller, the disk controller, and the
@@ -54,6 +56,8 @@ Amiga::Amiga(class Emulator& ref, isize id) : CoreComponent(ref, id)
     subComponents = std::vector<CoreComponent *> {
 
         &agnus,
+        &audioPort,
+        &videoPort,
         &rtc,
         &denise,
         &paula,
@@ -935,11 +939,7 @@ Amiga::latestUserSnapshot()
 void
 Amiga::loadSnapshot(const Snapshot &snapshot)
 {
-    // bool wasPAL, isPAL;
-
     {   SUSPENDED
-
-        // wasPAL = agnus.isPAL();
 
         try {
 
@@ -957,8 +957,6 @@ Amiga::loadSnapshot(const Snapshot &snapshot)
             hardReset();
             throw error;
         }
-
-        // isPAL = agnus.isPAL();
     }
 
     // Inform the GUI
@@ -1139,6 +1137,7 @@ Amiga::setDebugVariable(const string &name, int val)
     else if (name == "AUDREG_DEBUG")     AUDREG_DEBUG    = val;
     else if (name == "AUD_DEBUG")        AUD_DEBUG       = val;
     else if (name == "AUDBUF_DEBUG")     AUDBUF_DEBUG    = val;
+    else if (name == "AUDVOL_DEBUG")     AUDVOL_DEBUG    = val;
     else if (name == "DISABLE_AUDIRQ")   DISABLE_AUDIRQ  = val;
 
     else if (name == "POSREG_DEBUG")     POSREG_DEBUG    = val;

@@ -16,7 +16,7 @@
 // Version number
 #define VER_MAJOR 2
 #define VER_MINOR 6
-#define VER_SUBMINOR 0
+#define VER_SUBMINOR 2
 #define VER_BETA 0
 
 // Snapshot version number
@@ -26,7 +26,7 @@
 #define SNP_BETA 0
 
 // Uncomment this setting in a release build
-#define RELEASEBUILD
+// #define RELEASEBUILD
 
 
 //
@@ -107,17 +107,6 @@
 
 
 //
-// Audio settings
-//
-
-// Type alias for the datatype used by the host machine's audio backend
-#define SAMPLE_T FloatStereo
-
-// Scaling factor used by the FloatStereo SampleType
-#define AUD_SCALE 0.00001f
-
-
-//
 // Execution settings
 //
 
@@ -149,6 +138,11 @@ static const bool betaRelease = 0;
 static const bool betaRelease = 1;
 #endif
 
+#ifdef __EMSCRIPTEN__
+static const bool emscripten = 1;
+#else
+static const bool emscripten = 0;
+#endif
 
 // General
 extern debugflag XFILES;
@@ -235,6 +229,7 @@ extern debugflag WT_DEBUG;
 extern debugflag AUDREG_DEBUG;
 extern debugflag AUD_DEBUG;
 extern debugflag AUDBUF_DEBUG;
+extern debugflag AUDVOL_DEBUG;
 extern debugflag DISABLE_AUDIRQ;
 
 // Ports

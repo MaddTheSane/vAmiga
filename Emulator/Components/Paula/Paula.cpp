@@ -23,7 +23,6 @@ Paula::Paula(Amiga& ref) : SubComponent(ref)
         &channel1,
         &channel2,
         &channel3,
-        &muxer,
         &diskController,
         &uart
     };
@@ -56,13 +55,13 @@ Paula::_didReset(bool hard)
 void
 Paula::_run()
 {
-    muxer.clear();
+
 }
 
 void
 Paula::_pause()
 {
-    muxer.clear();
+
 }
 
 void
@@ -72,14 +71,14 @@ Paula::_warpOn()
      * sync. To cope with it, we ramp down the volume when warping is switched
      * on and fade in smoothly when it is switched off.
      */
-    muxer.rampDown();
+    // audioPort.rampDown();
 }
 
 void
 Paula::_warpOff()
 {
-    muxer.rampUp();
-    muxer.clear();
+    // audioPort.rampUp();
+    audioPort.clear();
 }
 
 void 
@@ -96,13 +95,13 @@ Paula::cacheInfo(PaulaInfo &info) const
 void
 Paula::_didLoad()
 {
-    muxer.clear();
+    audioPort.clear();
 }
 
 void
 Paula::executeUntil(Cycle target)
 {
-    muxer.synthesize(audioClock, target);
+    audioPort.synthesize(audioClock, target);
     audioClock = target;
 }
 
@@ -166,7 +165,7 @@ Paula::interruptLevel()
 void
 Paula::eofHandler() {
 
-    muxer.stats.fillLevel = muxer.stream.fillLevel();
+    audioPort.stats.fillLevel = audioPort.stream.fillLevel();
 }
 
 }

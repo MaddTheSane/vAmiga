@@ -242,7 +242,7 @@ CommandConsole::initCommands(Command &root)
         }
     }
 
-    {   VAMIGA_GROUP("Controlling components")
+    {   VAMIGA_GROUP("Components")
 
         //
         // Amiga
@@ -265,7 +265,7 @@ CommandConsole::initCommands(Command &root)
                      "Displays the user defaults storage",
                      [this](Arguments& argv, long value) {
 
-                dump(amiga, Category::Defaults);
+                dump(emulator, Category::Defaults);
             });
 
             initSetters(root, amiga);
@@ -454,27 +454,6 @@ CommandConsole::initCommands(Command &root)
 
         {   VAMIGA_GROUP("")
 
-            root.add({cmd, "audio"},
-                     "Audio unit");
-
-            root.add({cmd, "audio", ""},
-                     "Displays the current configuration",
-                     [this](Arguments& argv, long value) {
-
-                dump(paula.muxer, Category::Config);
-            });
-
-            initSetters(root, paula.muxer);
-
-            root.add({cmd, "audio", "filter"},
-                     "Displays the current configuration",
-                     [this](Arguments& argv, long value) {
-
-                dump(paula.muxer.filter, Category::Config);
-            });
-
-            initSetters(root, paula.muxer.filter);
-
             root.add({cmd, "dc"},
                      "Disk controller");
 
@@ -557,13 +536,69 @@ CommandConsole::initCommands(Command &root)
         }
     }
 
-    {   VAMIGA_GROUP("Controlling peripherals")
+    {   VAMIGA_GROUP("Ports")
+
+        //
+        // Audio port
+        //
+
+        auto cmd = audioPort.shellName();
+        auto description = audioPort.description();
+        root.add({cmd}, description);
+
+        {   VAMIGA_GROUP("")
+
+            root.add({cmd, ""},
+                     "Displays the current configuration",
+                     [this](Arguments& argv, long value) {
+
+                dump(audioPort, Category::Config);
+            });
+
+            initSetters(root, audioPort);
+
+            auto cmd2 = audioPort.filter.shellName();
+            auto description2 = audioPort.filter.description();
+            root.add({cmd, cmd2}, description2);
+
+            root.add({cmd, cmd2, ""},
+                     "Displays the current configuration",
+                     [this](Arguments& argv, long value) {
+
+                dump(audioPort.filter, Category::Config);
+            });
+
+            initSetters(*root.seek("audio"), paula.audioPort.filter);
+        }
+
+        //
+        // Video port
+        //
+
+        cmd = videoPort.shellName();
+        description = videoPort.description();
+        root.add({cmd}, description);
+
+        {   VAMIGA_GROUP("")
+
+            root.add({cmd, ""},
+                     "Displays the current configuration",
+                     [this](Arguments& argv, long value) {
+
+                dump(videoPort, Category::Config);
+            });
+
+            initSetters(root, videoPort);
+        }
+    }
+
+    {   VAMIGA_GROUP("Peripherals")
 
         //
         // Monitor
         //
 
-        root.add({"monitor"},       "Amiga monitor");
+        root.add({"monitor"}, "Amiga monitor");
 
         {   VAMIGA_GROUP("")
 

@@ -15,10 +15,11 @@ namespace vamiga {
 
 class References {
 
-protected:
+public:
 
     class Agnus &agnus;
     class Amiga &amiga;
+    class AudioPort &audioPort;
     class Blitter &blitter;
     class CIAA &ciaa;
     class CIAB &ciab;
@@ -56,6 +57,7 @@ protected:
     class RTC &rtc;
     class SerialPort &serialPort;
     class UART &uart;
+    class VideoPort &videoPort;
     class ZorroManager &zorro;
 
     class FloppyDrive *df[4] = { &df0, &df1, &df2, &df3 };

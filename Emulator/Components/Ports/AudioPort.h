@@ -9,13 +9,13 @@
 
 #pragma once
 
-#include "MuxerTypes.h"
-
+#include "AudioPortTypes.h"
 #include "SubComponent.h"
 #include "AudioStream.h"
 #include "AudioFilter.h"
 #include "Chrono.h"
 #include "Sampler.h"
+#include "Animated.h"
 
 namespace vamiga {
 
@@ -41,17 +41,17 @@ namespace vamiga {
  *           -----------------------------------------------------
  */
 
-class Muxer : public SubComponent {
+class AudioPort : public SubComponent {
 
     Descriptions descriptions = {
         {
-            .name           = "Muxer",
-            .description    = "Audio Muxer",
-            .shell          = "paula audio"
+            .name           = "AudioPort",
+            .description    = "Audio Port",
+            .shell          = "audio"
         },
         {
-            .name           = "Muxer",
-            .description    = "Audio Muxer (Recorder)",
+            .name           = "AudioPort",
+            .description    = "Audio Port (Recorder)",
             .shell          = ""
         },
     };
@@ -74,15 +74,12 @@ class Muxer : public SubComponent {
     };
 
     friend class Paula;
-    
+
     // Current configuration
-    MuxerConfig config = {};
+    AudioPortConfig config = {};
     
     // Underflow and overflow counters
-    MuxerStats stats = {};
-    
-    // Master clock cycles per audio sample
-    // double cyclesPerSample = 0.0;
+    AudioPortStats stats = {};
 
     // Fraction of a sample that hadn't been generated in synthesize
     double fraction = 0.0;
@@ -90,18 +87,23 @@ class Muxer : public SubComponent {
     // Time stamp of the last write pointer alignment
     util::Time lastAlignment;
 
-    // Volume control
-    Volume volume;
-
-    // Volume scaling factors
-    float vol[4];
-    float volL;
-    float volR;
+    // Sample rate adjustment
+    double sampleRateCorrection = 0.0;
+    
+    // Channel volumes
+    float vol[4] = { };
 
     // Panning factors
-    float pan[4];
-    
-    
+    float pan[4] ={ };
+
+    // Master volumes (fadable)
+    util::Animated<float> volL;
+    util::Animated<float> volR;
+
+    // Used to determine if a MSG_MUTE should be send
+    bool wasMuted = false;
+
+
     //
     // Subcomponents
     //
@@ -118,41 +120,30 @@ public:
     };
 
     // Output
-    AudioStream<SAMPLE_T> stream;
-    
+    AudioStream stream;
+
     // The audio filter pipeline
     AudioFilter filter = AudioFilter(amiga);
 
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
-    Muxer(Amiga& ref, isize id = 0);
+    AudioPort(Amiga& ref, isize objid = 0);
 
     // Resets the output buffer and the two audio filters
     void clear();
 
+    
+    //
+    // Methods from Serializable
+    //
+    
+private:
 
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Methods from CoreComponent
-    //
-    
-private:
-    
-    void _initialize() override;
-    
     template <class T>
     void serialize(T& worker)
     {
@@ -168,17 +159,33 @@ private:
         << config.volR
         << pan
         << vol
-        << volL
-        << volR;
+        << volL.maximum
+        << volR.maximum;
 
     } SERIALIZERS(serialize);
 
-    void _didLoad() override;
+
+    //
+    // Methods from CoreComponent
+    //
 
 public:
 
-    void _didReset(bool hard) override;
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+    void _didLoad() override;
+    void _didReset(bool hard) override;
+    void _initialize() override;
+    void _powerOn() override;
+    void _run() override;
+    void _pause() override;
+    void _warpOn() override;
+    void _warpOff() override;
+    void _focus() override;
+    void _unfocus() override;
 
 
     //
@@ -187,7 +194,7 @@ public:
 
 public:
     
-    const MuxerConfig &getConfig() const { return config; }
+    const AudioPortConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
     void setOption(Option option, i64 value) override;
@@ -202,30 +209,12 @@ public:
 public:
     
     // Returns information about the gathered statistical information
-    const MuxerStats &getStats() const { return stats; }
+    const AudioPortStats &getStats() const { return stats; }
 
     // Returns true if the output volume is zero
-    bool isMuted() const { return config.volL == 0 && config.volR == 0; }
+    bool isMuted() const;
 
 
-    //
-    // Controlling volume
-    //
-    
-public:
-
-    /* Starts to ramp up the volume. This function configures variables volume
-     * and targetVolume to simulate a smooth audio fade in.
-     */
-    void rampUp();
-    void rampUpFromZero();
-    
-    /* Starts to ramp down the volume. This function configures variables
-     * volume and targetVolume to simulate a quick audio fade out.
-     */
-    void rampDown();
-    
-    
     //
     // Generating audio streams
     //
@@ -238,11 +227,15 @@ public:
     // Entry point for the core emulator
     void synthesize(Cycle clock, Cycle target);
 
+    // Returns the sample rate adjustment
+    double getSampleRateCorrection() { return sampleRateCorrection; }
+
 private:
 
+    void synthesize(Cycle clock, long count, double cyclesPerSample);
     template <SamplingMethod method>
     void synthesize(Cycle clock, long count, double cyclesPerSample);
-    
+
     // Handles a buffer underflow or overflow condition
     void handleBufferUnderflow();
     void handleBufferOverflow();
@@ -254,23 +247,35 @@ public:
 
 
     //
+    // Controlling volume
+    //
+
+public:
+
+    // Rescale the existing samples to gradually fade out (to avoid cracks)
+    void eliminateCracks();
+
+    // Gradually decrease the master volume to zero
+    void mute(isize steps = 0) { volL.fadeOut(steps); volR.fadeOut(steps); }
+
+    // Gradually inrease the master volume to max
+    void unmute(isize steps = 0) { volL.fadeIn(steps); volR.fadeIn(steps); }
+
+
+    //
     // Reading audio samples
     //
     
 public:
     
-    // Copies a certain amout of audio samples into a buffer
-    void copy(void *buffer, isize n);
-    void copy(void *buffer1, void *buffer2, isize n);
-    
-    /* Returns a pointer to a buffer holding a certain amount of audio samples
-     * without copying data. This function has been implemented for speedup.
-     * Instead of copying ring buffer data into the target buffer, it returns
-     * a pointer into the ringbuffer itself. The caller has to make sure that
-     * the ring buffer's read pointer is not closer than n elements to the
-     * buffer end.
+    /* Copies n audio samples into a memory buffer. These functions mark the
+     * final step in the audio pipeline. They are used to copy the generated
+     * sound samples into the buffers of the native sound device. The function
+     * returns the number of copied samples.
      */
-    SAMPLE_T *nocopy(isize n);
+    isize copyMono(float *buffer, isize n);
+    isize copyStereo(float *left, float *right, isize n);
+    isize copyInterleaved(float *buffer, isize n);
 };
 
 }

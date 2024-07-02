@@ -35,6 +35,7 @@
 #include "SerialPort.h"
 #include "Snapshot.h"
 #include "Thread.h"
+#include "VideoPort.h"
 #include "ZorroManager.h"
 
 namespace vamiga {
@@ -97,11 +98,13 @@ public:
     Paula paula = Paula(*this);
 
     // Logic board
-    RTC rtc = RTC(*this);
-    ZorroManager zorro = ZorroManager(*this);
+    AudioPort audioPort = AudioPort(*this);
+    VideoPort videoPort = VideoPort(*this);
     ControlPort controlPort1 = ControlPort(*this, 0);
     ControlPort controlPort2 = ControlPort(*this, 1);
     SerialPort serialPort = SerialPort(*this);
+    RTC rtc = RTC(*this);
+    ZorroManager zorro = ZorroManager(*this);
 
     // Floppy drives
     FloppyDrive df0 = FloppyDrive(*this, 0);
