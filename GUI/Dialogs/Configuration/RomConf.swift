@@ -11,25 +11,29 @@ extension ConfigurationController {
     
     func refreshRomTab() {
 
-        let poweredOff      = amiga.poweredOff
+        let config = emu.mem.config
+        let romTraits = emu.mem.romTraits
+        let extTraits = emu.mem.extTraits
 
-        let romCrc          = amiga.mem.romFingerprint
-        let hasRom          = romCrc != CRC32_MISSING
-        let hasArosRom      = amiga.mem.isArosRom(romCrc)
-        let hasDiagRom      = amiga.mem.isDiagRom(romCrc)
-        let hasCommodoreRom = amiga.mem.isCommodoreRom(romCrc)
-        let hasHyperionRom  = amiga.mem.isHyperionRom(romCrc)
-        let hasEmutosRom    = amiga.mem.isEmutosRom(romCrc)
-        let hasPatchedRom   = amiga.mem.isPatchedRom(romCrc)
-        let isRelocatedRom  = amiga.mem.isRelocated
+        let poweredOff      = emu.poweredOff
 
-        let extCrc          = amiga.mem.extFingerprint
-        let hasExt          = extCrc != CRC32_MISSING
-        let hasArosExt      = amiga.mem.isArosRom(extCrc)
-        let hasDiagExt      = amiga.mem.isDiagRom(extCrc)
-        let hasCommodoreExt = amiga.mem.isCommodoreRom(extCrc)
-        let hasHyperionExt  = amiga.mem.isHyperionRom(extCrc)
-        let hasPatchedExt   = amiga.mem.isPatchedRom(extCrc)
+        // let romCrc          = amiga.mem.romFingerprint
+        let hasRom          = romTraits.crc != 0
+        let hasArosRom      = romTraits.vendor == .AROS
+        let hasDiagRom      = romTraits.vendor == .DIAG
+        let hasCommodoreRom = romTraits.vendor == .COMMODORE
+        let hasHyperionRom  = romTraits.vendor == .HYPERION
+        let hasEmutosRom    = romTraits.vendor == .EMUTOS
+        let hasPatchedRom   = romTraits.patched
+        let isRelocatedRom  = romTraits.relocated
+
+        // let extCrc          = amiga.mem.extFingerprint
+        let hasExt          = extTraits.crc != 0
+        let hasArosExt      = extTraits.vendor == .AROS
+        let hasDiagExt      = extTraits.vendor == .DIAG
+        let hasCommodoreExt = extTraits.vendor == .COMMODORE
+        let hasHyperionExt  = extTraits.vendor == .HYPERION
+        let hasPatchedExt   = extTraits.patched
 
         let romMissing      = NSImage(named: "rom_missing")
         let romOrig         = NSImage(named: "rom_original")
@@ -68,16 +72,16 @@ extension ConfigurationController {
         hasExt          ? romUnknown : romMissing
 
         // Titles and subtitles
-        romTitle.stringValue = amiga.mem.romTitle
-        romSubtitle.stringValue = amiga.mem.romVersion
-        romSubsubtitle.stringValue = amiga.mem.romReleased
-        romModel.stringValue = amiga.mem.romModel
-        
-        extTitle.stringValue = amiga.mem.extTitle
-        extSubtitle.stringValue = amiga.mem.extVersion
-        extSubsubtitle.stringValue = amiga.mem.extReleased
-        extMapAddr.selectItem(withTag: amiga.mem.extStart)
-        extModel.stringValue = amiga.mem.extModel
+        romTitle.stringValue = String(cString: romTraits.title)
+        romSubtitle.stringValue = String(cString: romTraits.revision)
+        romSubsubtitle.stringValue = String(cString: romTraits.released)
+        romModel.stringValue = String(cString: romTraits.model)
+
+        extTitle.stringValue = String(cString: extTraits.title)
+        extSubtitle.stringValue = String(cString: extTraits.revision)
+        extSubsubtitle.stringValue = String(cString: extTraits.released)
+        extModel.stringValue = String(cString: extTraits.model)
+        extMapAddr.selectItem(withTag: Int(config.extStart))
 
         // Hide some controls
         romDeleteButton.isHidden = !hasRom
@@ -97,11 +101,8 @@ extension ConfigurationController {
         if isRelocatedRom {
             romExpImage.image = NSImage(named: "NSCaution")
             romExpImage.isHidden = false
-            // romExpInfo1.stringValue = "The selected Kickstart Rom is a relocation image."
-            // romExpInfo1.stringValue = "The selected Kickstart Rom won't work in the Rom slot."
             romExpInfo1.stringValue = "The selected Kickstart Rom is a relocation image."
             romExpInfo1.isHidden = false
-            // romExpInfo2.stringValue = "It won't work in the Rom slot and needs to be loaded from disk."
             romExpInfo2.stringValue = "It won't work in the Rom slot."
             romExpInfo2.isHidden = false
         } else {
@@ -149,13 +150,13 @@ extension ConfigurationController {
 
     @IBAction func romDeleteAction(_ sender: NSButton!) {
 
-        amiga.mem.deleteRom()
+        emu.mem.deleteRom()
         refresh()
     }
 
     @IBAction func extDeleteAction(_ sender: NSButton!) {
 
-        amiga.mem.deleteExt()
+        emu.mem.deleteExt()
         refresh()
     }
 
@@ -187,7 +188,7 @@ extension ConfigurationController {
 
         default:
             if let url = UserDefaults.romUrl(fingerprint: crc32) {
-                try? amiga.mem.loadRom(url)
+                try? emu.mem.loadRom(url)
             }
         }
 
@@ -236,21 +237,21 @@ extension ConfigurationController {
         config.extStart = 0xE0
 
         // Make sure the machine has enough Ram to run Aros
-        let chip = amiga.getConfig(.MEM_CHIP_RAM)
-        let slow = amiga.getConfig(.MEM_SLOW_RAM)
-        let fast = amiga.getConfig(.MEM_FAST_RAM)
+        let chip = emu.getConfig(.MEM_CHIP_RAM)
+        let slow = emu.getConfig(.MEM_SLOW_RAM)
+        let fast = emu.getConfig(.MEM_FAST_RAM)
         if chip + slow + fast < 1024*1024 { config.slowRam = 512 }
     }
 
     func install(rom: String) {
 
         let data = NSDataAsset(name: rom)!.data
-        try? amiga.mem.loadRom(buffer: data)
+        try? emu.mem.loadRom(buffer: data)
     }
 
     func install(ext: String) {
 
         let data = NSDataAsset(name: ext)!.data
-        try? amiga.mem.loadExt(buffer: data)
+        try? emu.mem.loadExt(buffer: data)
     }
 }

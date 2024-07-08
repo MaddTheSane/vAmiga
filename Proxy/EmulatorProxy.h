@@ -11,42 +11,7 @@
 
 #import "Constants.h"
 #import "config.h"
-#import "AgnusTypes.h"
-#import "AmigaTypes.h"
-#import "AmigaFileTypes.h"
-#import "AudioPortTypes.h"
-#import "BlitterTypes.h"
-#import "BootBlockImageTypes.h"
-#import "CmdQueueTypes.h"
-#import "ControlPortTypes.h"
-#import "CopperTypes.h"
-#import "CPUTypes.h"
-#import "CIATypes.h"
-#import "DeniseTypes.h"
-#import "DiskControllerTypes.h"
-#import "DmaDebuggerTypes.h"
-#import "ErrorTypes.h"
-#import "FloppyDiskTypes.h"
-#import "FloppyDriveTypes.h"
-#import "FSTypes.h"
-#import "HardDriveTypes.h"
-#import "HdControllerTypes.h"
-#import "JoystickTypes.h"
-#import "KeyboardTypes.h"
-#import "MemoryTypes.h"
-#import "MsgQueueTypes.h"
-#import "MouseTypes.h"
-#import "PaulaTypes.h"
-#import "PixelEngineTypes.h"
-#import "RemoteManagerTypes.h"
-#import "RetroShellTypes.h"
-#import "RomFileTypes.h"
-#import "RTCTypes.h"
-#import "SerialPortTypes.h"
-#import "StateMachineTypes.h"
-#import "UARTTypes.h"
-#import "ZorroBoardTypes.h"
-
+#import "VAmigaTypes.h"
 #import <Cocoa/Cocoa.h>
 #import <MetalKit/MetalKit.h>
 
@@ -126,6 +91,8 @@
 @end
 
 @interface CoreComponentProxy : Proxy { }
+
+@property (readonly) NSInteger objid;
 
 @end
 
@@ -237,15 +204,46 @@
 
 - (void)kill;
 
-@property (readonly) AmigaInfo info;
-@property (readonly) BOOL isWarping;
-@property BOOL trackMode;
-@property (readonly) NSInteger cpuLoad;
-@property (readonly) BOOL fpuSupport;
-@property InspectionTarget inspectionTarget;
-- (void) removeInspectionTarget;
+@property (class, readonly) NSString *build;
+@property (class, readonly) NSString *version;
+
+@property (readonly) EmulatorInfo info;
+@property (readonly) EmulatorInfo cachedInfo;
+@property (readonly) EmulatorStats stats;
+
+@property NSInteger autoInspectionMask;
+
+@property (readonly) BOOL poweredOn;
+@property (readonly) BOOL poweredOff;
+@property (readonly) BOOL paused;
+@property (readonly) BOOL running;
+@property (readonly) BOOL suspended;
+@property (readonly) BOOL halted;
+@property (readonly) BOOL warping;
+@property (readonly) BOOL tracking;
+
+- (void)isReady:(ExceptionWrapper *)ex;
+- (void)powerOn;
+- (void)powerOff;
+- (void)run:(ExceptionWrapper *)ex;
+- (void)pause;
+- (void)halt;
+- (void)suspend;
+- (void)resume;
+- (void)warpOn;
+- (void)warpOn:(NSInteger)source;
+- (void)warpOff;
+- (void)warpOff:(NSInteger)source;
+- (void)trackOn;
+- (void)trackOn:(NSInteger)source;
+- (void)trackOff;
+- (void)trackOff:(NSInteger)source;
+
+- (void)hardReset;
+- (void)softReset;
 
 - (void)launch:(const void *)listener function:(Callback *)func;
+- (void)wakeUp;
 
 - (NSInteger)get:(Option)opt;
 - (NSInteger)get:(Option)opt id:(NSInteger)id;
@@ -257,25 +255,12 @@
 - (BOOL)set:(Option)opt drive:(NSInteger)id value:(NSInteger)val;
 - (BOOL)set:(Option)opt drive:(NSInteger)id enable:(BOOL)val;
 
-- (void)hardReset;
-- (void)softReset;
 
-@property (readonly) BOOL poweredOn;
-@property (readonly) BOOL poweredOff;
-@property (readonly) BOOL running;
-@property (readonly) BOOL paused;
 
-- (void)isReady:(ExceptionWrapper *)ex;
-- (void)powerOn;
-- (void)powerOff;
-- (void)run:(ExceptionWrapper *)ex;
-- (void)pause;
-- (void)halt;
 
-- (void)wakeUp;
 
-- (void)suspend;
-- (void)resume;
+
+
 
 // - (void)continueScript;
 
@@ -301,11 +286,9 @@
 - (void)put:(CmdType)cmd;
 - (void)put:(CmdType)type value:(NSInteger)value;
 - (void)put:(CmdType)type value:(NSInteger)value value2:(NSInteger)value2;
-/*
 - (void)put:(CmdType)type key:(KeyCmd)cmd;
-- (void)put:(CmdType)type coord:(CoordCmd)cmd;
 - (void)put:(CmdType)type action:(GamePadCmd)cmd;
-*/
+- (void)put:(CmdType)type coord:(CoordCmd)cmd;
 
 @end
 
@@ -405,7 +388,7 @@
 @interface AmigaProxy : CoreComponentProxy { }
 
 @property (readonly) AmigaInfo info;
-// @property (readonly) AmigaInfo cachedInfo;
+@property (readonly) AmigaInfo cachedInfo;
 
 - (SnapshotProxy *) takeSnapshot;
 
@@ -430,46 +413,26 @@
 
 @interface MemProxy : CoreComponentProxy { }
 
-@property (readonly) MemoryConfig config;
+@property (readonly) MemConfig config;
+@property (readonly) MemInfo info;
+@property (readonly) MemInfo cachedInfo;
+@property (readonly) MemStats stats;
 
-- (MemoryStats) getStats;
+@property (readonly) RomTraits romTraits;
+@property (readonly) RomTraits womTraits;
+@property (readonly) RomTraits extTraits;
 
-- (BOOL) isBootRom:(u32)crc32;
-- (BOOL) isArosRom:(u32)crc32;
-- (BOOL) isDiagRom:(u32)crc32;
-- (BOOL) isCommodoreRom:(u32)crc32;
-- (BOOL) isHyperionRom:(u32)crc32;
-- (BOOL) isEmutosRom:(u32)crc32;
-- (BOOL) isPatchedRom:(u32)crc32;
-- (NSString *) romTitleOf:(u32)crc32;
-
-@property (readonly) BOOL hasRom;
-@property (readonly) BOOL hasBootRom;
-@property (readonly) BOOL hasKickRom;
 - (void)deleteRom;
 - (BOOL)isRom:(NSURL *)url;
 - (void)loadRom:(RomFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadRomFromBuffer:(NSData *)buffer exception:(ExceptionWrapper *)ex;
 - (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
-@property (readonly) BOOL isRelocated;
-@property (readonly) u32 romFingerprint;
-@property (readonly, copy) NSString *romTitle;
-@property (readonly, copy) NSString *romVersion;
-@property (readonly, copy) NSString *romReleased;
-@property (readonly, copy) NSString *romModel;
 
-- (BOOL)hasExt;
 - (void)deleteExt;
 - (BOOL)isExt:(NSURL *)url;
 - (void)loadExt:(ExtendedRomFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadExtFromBuffer:(NSData *)buffer exception:(ExceptionWrapper *)ex;
 - (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
-@property (readonly) u32 extFingerprint;
-@property (readonly, copy) NSString *extTitle;
-@property (readonly, copy) NSString *extVersion;
-@property (readonly, copy) NSString *extReleased;
-@property (readonly, copy) NSString *extModel;
-@property (readonly) NSInteger extStart;
 
 - (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (void)saveWom:(NSURL *)url exception:(ExceptionWrapper *)ex;
@@ -487,16 +450,13 @@
 
 @interface AgnusProxy : CoreComponentProxy { }
 
-@property (readonly) NSInteger chipRamLimit;
 @property (readonly) AgnusInfo info;
 @property (readonly) AgnusInfo cachedInfo;
+@property (readonly) AgnusStats stats;
+@property (readonly) AgnusTraits traits;
+
 - (EventSlotInfo)cachedSlotInfo:(NSInteger)slot;
-@property (readonly) BOOL isOCS;
-@property (readonly) BOOL isECS;
-@property (readonly) BOOL isPAL;
-@property (readonly) BOOL isNTSC;
 @property (readonly) NSInteger frameCount;
-- (AgnusStats)getStats;
 
 @end
 
@@ -698,11 +658,11 @@
 
 @interface KeyboardProxy : CoreComponentProxy { }
 
-- (BOOL)keyIsPressed:(NSInteger)keycode;
-- (void)pressKey:(NSInteger)keycode;
-- (void)releaseKey:(NSInteger)keycode;
-- (void)toggleKey:(NSInteger)keycode;
-- (void)releaseAllKeys;
+- (BOOL)isPressed:(NSInteger)keycode;
+- (void)press:(NSInteger)keycode;
+- (void)release:(NSInteger)keycode;
+- (void)toggle:(NSInteger)keycode;
+- (void)releaseAll;
 
 @end
 
@@ -713,11 +673,9 @@
 
 @interface DiskControllerProxy : CoreComponentProxy { }
 
-- (DiskControllerConfig)getConfig;
+@property (readonly) DiskControllerConfig config;
 @property (readonly) DiskControllerInfo info;
-@property (readonly) NSInteger selectedDrive;
-@property (readonly) DriveState state;
-@property (readonly, getter=isSpinning) BOOL spinning;
+@property (readonly) DiskControllerInfo cachedInfo;
 
 @end
 
@@ -728,33 +686,17 @@
 
 @interface FloppyDriveProxy : CoreComponentProxy { }
 
-@property (readonly) NSInteger nr;
-@property (readonly) BOOL isConnected;
-@property (readonly) NSInteger currentCyl;
-@property (readonly) NSInteger currentHead;
-@property (readonly) NSInteger currentOffset;
-
-@property (readonly) BOOL hasDisk;
-@property (readonly) BOOL hasModifiedDisk;
-@property (readonly) BOOL hasProtectedDisk;
-@property (readonly) BOOL hasUnmodifiedDisk;
-@property (readonly) BOOL hasUnprotectedDisk;
-
-- (void)setModificationFlag:(BOOL)value;
-- (void)setProtectionFlag:(BOOL)value;
-- (void)markDiskAsModified;
-- (void)markDiskAsUnmodified;
-- (void)toggleWriteProtection;
-
+@property (readonly) FloppyDriveConfig config;
 @property (readonly) FloppyDriveInfo info;
+@property (readonly) FloppyDriveInfo cachedInfo;
+
+- (BOOL)getFlag:(DiskFlags)mask;
+- (void)setFlag:(DiskFlags)mask value:(BOOL)value;
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density;
 - (void)eject;
 - (void)swap:(FloppyFileProxy *)fileProxy exception:(ExceptionWrapper *)ex;
 - (void)insertNew:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex;
-@property (readonly) BOOL motor;
-@property (readonly) BOOL selected;
-@property (readonly) BOOL writing;
 
 - (NSString *)readTrackBits:(NSInteger)track;
 
@@ -779,19 +721,11 @@
 @property (readonly) BOOL hasUnmodifiedDisk;
 @property (readonly) BOOL hasUnprotectedDisk;
 
-- (void)setModificationFlag:(BOOL)value;
-- (void)setProtectionFlag:(BOOL)value;
-- (void)markDiskAsModified;
-- (void)markDiskAsUnmodified;
-- (void)toggleWriteProtection;
+- (BOOL)getFlag:(DiskFlags)mask;
+- (void)setFlag:(DiskFlags)mask value:(BOOL)value;
 
 @property (readonly) HardDriveInfo info;
-@property (readonly) NSInteger capacity;
-@property (readonly) NSInteger partitions;
-@property (readonly) NSInteger cylinders;
-@property (readonly) NSInteger heads;
-@property (readonly) NSInteger sectors;
-@property (readonly) NSInteger bsize;
+
 @property (readonly) HdcState hdcState;
 @property (readonly) BOOL isCompatible;
 @property (readonly) BOOL writeThroughEnabled;
@@ -863,7 +797,6 @@
 
 @interface DebuggerProxy : CoreComponentProxy { }
 
-- (void)stopAndGo;
 - (void)stepInto;
 - (void)stepOver;
 
@@ -882,21 +815,12 @@
 @property (readonly) NSInteger cursorRel;
 
 - (NSString *)getText;
-- (void)pressUp;
-- (void)pressDown;
-- (void)pressLeft;
-- (void)pressRight;
-- (void)pressHome;
-- (void)pressEnd;
-- (void)pressBackspace;
-- (void)pressDelete;
-- (void)pressCut;
-- (void)pressReturn;
-- (void)pressShiftReturn;
-- (void)pressTab;
 - (void)pressKey:(char)c;
+- (void)pressSpecialKey:(RetroShellKey)key;
+- (void)pressSpecialKey:(RetroShellKey)key shift:(BOOL)shift;
 
 @end
+
 
 //
 // RemoteManager
@@ -904,12 +828,10 @@
 
 @interface RemoteManagerProxy : Proxy
 
-@property (readonly) NSInteger numLaunching;
-@property (readonly) NSInteger numListening;
-@property (readonly) NSInteger numConnected;
-@property (readonly) NSInteger numErroneous;
+@property (readonly) RemoteManagerInfo info;
 
 @end
+
 
 //
 // F I L E   T Y P E   P R O X I E S

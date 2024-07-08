@@ -10,6 +10,9 @@
 #pragma once
 
 #include "Aliases.h"
+#include "DiskControllerTypes.h"
+#include "StateMachineTypes.h"
+#include "UARTTypes.h"
 #include "Reflection.h"
 
 //
@@ -43,7 +46,7 @@ struct IrqSourceEnum : util::Reflection<IrqSourceEnum, IrqSource>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "INT"; }
-    static const char *key(IrqSource value)
+    static const char *_key(long value)
     {
         switch (value) {
                 

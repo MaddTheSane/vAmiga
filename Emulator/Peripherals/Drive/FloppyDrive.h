@@ -17,6 +17,7 @@
 #include "FloppyDisk.h"
 #include "DiskController.h"
 #include "Thread.h"
+#include "CmdQueueTypes.h"
 
 namespace vamiga {
 
@@ -212,6 +213,10 @@ public:
     bool hasDisk() const override;
     bool hasModifiedDisk() const override;
     bool hasProtectedDisk() const override;
+
+    bool getFlag(DiskFlags mask) const override;
+    void setFlag(DiskFlags mask, bool value) override;
+
     void setModificationFlag(bool value) override;
     void setProtectionFlag(bool value) override;
 
@@ -238,7 +243,6 @@ public:
 public:
     
     // Returns the result of the latest inspection
-    // FloppyDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
     void cacheInfo(FloppyDriveInfo &info) const override;
 
     // Return the identification pattern of this drive
@@ -389,7 +393,7 @@ public:
     
     
     //
-    // Serving events
+    // Processing events and commands
     //
     
 public:
@@ -397,7 +401,10 @@ public:
     // Services an event in the disk change slot
     template <EventSlot s> void serviceDiskChangeEvent();
     
-    
+    // Processes a command from the command queue
+    void processCommand(const Cmd &cmd);
+
+
     //
     // Delegation methods
     //

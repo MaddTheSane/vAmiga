@@ -131,6 +131,22 @@ Agnus::setVideoFormat(VideoFormat newFormat)
     msgQueue.put(MSG_VIDEO_FORMAT, newFormat);
 }
 
+AgnusTraits 
+Agnus::getTraits() const
+{
+    return AgnusTraits {
+
+        .isOCS = isOCS(),
+        .isECS = isECS(),
+        .isPAL = isPAL(),
+        .isNTSC = isNTSC(),
+        .idBits = idBits(),
+        .chipRamLimit = chipRamLimit(),
+        .vStrobeLine = vStrobeLine(),
+        .ddfMask = ddfMask()
+    };
+}
+
 bool
 Agnus::isOCS() const
 {
@@ -421,7 +437,7 @@ Agnus::executeUntil(Cycle cycle) {
                 amiga.serviceAlarmEvent();
             }
             if (isDue<SLOT_INS>(cycle)) {
-                agnus.serviceINSEvent(id[SLOT_INS]);
+                agnus.serviceINSEvent();
             }
 
             // Determine the next trigger cycle for all tertiary slots
@@ -637,13 +653,10 @@ Agnus::eofHandler()
     copper.eofHandler();
     controlPort1.joystick.eofHandler();
     controlPort2.joystick.eofHandler();
+    mem.eofHandler();
 
     // Update statistics
     updateStats();
-    mem.updateStats();
-
-    // Let the thread synchronize
-    // amiga.setFlag(RL::SYNC_THREAD);
 }
 
 void

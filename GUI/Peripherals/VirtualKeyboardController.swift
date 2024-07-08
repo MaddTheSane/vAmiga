@@ -68,7 +68,7 @@ class VirtualKeyboardController: DialogController {
 
         let keyboard = VirtualKeyboardController(windowNibName: xibName)
         keyboard.parent = parent
-        keyboard.amiga = parent.amiga
+        keyboard.emu = parent.emu
 
         return keyboard
     }
@@ -117,11 +117,11 @@ class VirtualKeyboardController: DialogController {
     
     fileprivate func refresh() {
                        
-        guard let keyboard = amiga.keyboard else { return }
+        guard let keyboard = emu.keyboard else { return }
         
         for keycode in 0 ... 127 {
             
-            if keyboard.keyIsPressed(keycode) {
+            if keyboard.isPressed(keycode) {
                 keyView[keycode]?.image = pressedKeyImage[keycode]
             } else {
                 keyView[keycode]?.image = keyImage[keycode]
@@ -146,13 +146,13 @@ class VirtualKeyboardController: DialogController {
     
     func pressKey(keyCode: Int) {
 
-        amiga.keyboard.pressKey(keyCode)
+        emu.keyboard.press(keyCode)
         refresh()
         
         DispatchQueue.main.async {
             
             usleep(useconds_t(100000))
-            self.amiga.keyboard.releaseAllKeys()
+            self.emu.keyboard.releaseAll()
             self.refresh()
         }
         
@@ -163,9 +163,9 @@ class VirtualKeyboardController: DialogController {
     
     func holdKey(keyCode: Int) {
         
-        guard let keyboard = amiga.keyboard else { return }
+        guard let keyboard = emu.keyboard else { return }
         
-        keyboard.toggleKey(keyCode)
+        keyboard.toggle(keyCode)
         refresh()
     }
         
@@ -205,10 +205,10 @@ class Keycap: NSButton {
 extension VirtualKeyboardController {
 
     static func kbStyle(_ parent: MyController) -> KBStyle {
-
-        // Determine if an A1000 is emulated
-        let a1000 = parent.amiga.mem.hasBootRom
         
+        // Determine if an A1000 is emulated
+        let a1000 = parent.emu.mem.info.hasBootRom
+
         // Use a narrow keyboard for the A1000 and a wide keyboard otherwise
         return a1000 ? .narrow : .wide
     }

@@ -32,7 +32,7 @@ struct DiameterEnum : util::Reflection<DiameterEnum, Diameter>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return ""; }
-    static const char *key(Diameter value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -60,7 +60,7 @@ struct DensityEnum : util::Reflection<DensityEnum, Density>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "DENSITY"; }
-    static const char *key(Density value)
+    static const char *_key(long value)
     {
         switch (value) {
                 

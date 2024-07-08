@@ -15,29 +15,67 @@
 #include <functional>
 #include <map>
 
+/* The purpose of the Reflection interface is to make the internal names of
+ * an enumeration type available inside the application. I.e., it provides
+ * several functions for converting enum numbers to strings and vice versa.
+ *
+ * Two general types on enumerations are distinguished:
+ *
+ * - Standard enumerations
+ *
+ *   The enumeration members are numbered 0, 1, 2, etc. Each member of the
+ *   enumeration is treated as a stand-alone option.
+ *
+ * - Bit field enumerations
+ *
+ *   The enumeration members are numbered 1, 2, 4, etc. Each member of the
+ *   enumeration is treated as flag of a combined bit field.
+ */
 namespace util {
 
 #define assert_enum(e,v) assert(e##Enum::isValid(v))
 
 template <class T, typename E> struct Reflection {
 
-    // Returns the shortened key as a C string
-    static const char *key(long nr) { return T::key((E)nr); }
+    // Determines if this enum represents a bit field
+    static constexpr bool bitField = T::minVal == 1;
+
+    // Returns the key as a C string
+    static const char *key(long value) {
+
+        static string result;
+
+        result = "";
+        if constexpr (bitField) {
+
+            for (isize i = T::minVal; i <= T::maxVal; i *= 2) {
+                if (value & i) result += (result.empty() ? "" : " | ") + string(T::_key((E)i));
+            }
+
+        } else {
+            
+            result = string(T::_key((E)value));
+        }
+
+        return result.c_str();
+    }
 
     // Returns the key without the section prefix (if any)
+    // TODO: Integrate into key()
     static const char *plainkey(isize nr) {
-        auto *p = key(nr);
+
+        auto *p = T::key((E)nr);
         for (isize i = 0; p[i]; i++) if (p[i] == '.') return p + i + 1;
         return p;
     }
     
     // Collects all key / value pairs
-    static std::map <string, long> pairs() {
-        
+    static std::map <string,long> pairs(std::function<bool(E)> filter = [](E){ return true; }) {
+
         std::map <string,long> result;
-                
+
         for (isize i = T::minVal; i <= T::maxVal; i++) {
-            if (T::isValid(i)) result.insert(std::make_pair(key(i), i));
+            if (T::isValid(i) && filter(E(i))) result.insert(std::make_pair(key(i), i));
         }
 
         return result;
@@ -48,13 +86,8 @@ template <class T, typename E> struct Reflection {
 
         string result;
 
-        for (auto i = T::minVal; i <= T::maxVal; i++) {
-
-            if (T::isValid(i) && filter(E(i))) {
-
-                if (result != "") result += delim;
-                result += (key(i));
-            }
+        for (const auto &pair : pairs(filter)) {
+            result += (result.empty() ? "" : delim) + pair.first;
         }
 
         return result;

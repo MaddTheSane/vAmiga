@@ -10,6 +10,7 @@
 #pragma once
 
 #include "FloppyDiskTypes.h"
+#include "DriveTypes.h"
 #include "CoreComponent.h"
 
 namespace vamiga {
@@ -81,14 +82,16 @@ private:
         i32 cylinder[84][2];
         i32 track[168];
     } length;
-    
-    
+
+    // Disk state
+    DiskFlags flags = 0;
+
     // Indicates if this disk is write protected
-    bool writeProtected = false;
-    
+    [[deprecated]] bool writeProtected = false;
+
     // Indicates if the disk has been written to
-    bool modified = false;
-    
+    [[deprecated]] bool modified = false;
+
     // Checksum of this disk if it was created from an ADF file, 0 otherwise
     u64 fnv = 0;
     
@@ -139,10 +142,10 @@ private:
         << diameter
         << density
         << data.raw
-        << writeProtected
-        << modified;
-
-    }; //  SERIALIZERS(serialize);
+        << flags;
+        // << writeProtected
+        // << modified;
+    };
 
     //
     // Performing sanity checks
@@ -173,12 +176,17 @@ public:
     isize numHeads() const { return 2; }
     isize numTracks() const { return diameter == INCH_525 ? 84 : 168; }
     
-    bool isWriteProtected() const { return writeProtected; }
-    void setWriteProtection(bool value) { writeProtected = value; }
-    
-    bool isModified() const { return modified; }
-    void setModified(bool value) { modified = value; }
-        
+    bool isWriteProtected() const { return flags & FLAG_PROTECTED; }
+    void setWriteProtection(bool value) { value ? flags |= FLAG_PROTECTED : flags &= ~FLAG_PROTECTED; }
+
+    bool isModified() const { return flags & FLAG_MODIFIED; }
+    void setModified(bool value) { value ? flags |= FLAG_MODIFIED : flags &= ~FLAG_MODIFIED; }
+
+    bool getFlag(DiskFlags mask) { return (flags & mask) == mask; }
+    void setFlag(DiskFlags mask, bool value) { value ? flags |= mask : flags &= ~mask; }
+    void setFlag(DiskFlags flag) { setFlag(flag, true); }
+    void clearFlag(DiskFlags flag) { setFlag(flag, false); }
+
     
     //
     // Reading and writing

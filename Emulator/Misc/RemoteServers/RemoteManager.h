@@ -17,10 +17,11 @@
 
 namespace vamiga {
 
-class RemoteManager : public SubComponent {
+class RemoteManager : public SubComponent, public Inspectable<RemoteManagerInfo> {
 
     Descriptions descriptions = {{
 
+        .type           = COMP_REMOTE_MANAGER,
         .name           = "RemoteManager",
         .description    = "Remote Manager",
         .shell          = "server"
@@ -50,7 +51,6 @@ public:
 public:
     
     RemoteManager(Amiga& ref);
-    // ~RemoteManager();
     
     
     //
@@ -83,12 +83,16 @@ public:
 
     const ConfigOptions &getOptions() const override { return options; }
 
-    /*
-    i64 getConfigItem(Option option, long id) const;
-    void setOption(Option option, i64 value) override;
-    void setConfigItem(Option option, long id, i64 value);
-    */
-    
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(RemoteManagerInfo &result) const override;
+
+
     //
     // Managing connections
     //

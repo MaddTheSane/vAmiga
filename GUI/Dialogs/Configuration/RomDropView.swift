@@ -22,7 +22,7 @@ extension NSDraggingInfo {
 class DropView: NSImageView {
     
     @IBOutlet var parent: ConfigurationController!
-    var amiga: EmulatorProxy { return parent.amiga }
+    var amiga: EmulatorProxy { return parent.emu }
 
     var oldImage: NSImage?
     
@@ -86,7 +86,7 @@ class RomDropView: DropView {
             try amiga.mem.loadRom(rom)
 
             // Check if we should keep this Rom
-            let hash = Int(amiga.mem.romFingerprint)
+            let hash = Int(amiga.mem.romTraits.crc)
 
             for item in parent.romArosPopup.itemArray {
 

@@ -576,7 +576,7 @@ class Inspector: DialogController {
 
     @IBOutlet weak var evTableView: EventTableView!
 
-    // Cached state of all Amiga components
+    // Cached states of all Amiga components
     var cpuInfo: CPUInfo!
     var ciaInfo: CIAInfo!
     var agnusInfo: AgnusInfo!
@@ -585,16 +585,16 @@ class Inspector: DialogController {
     var deniseInfo: DeniseInfo!
     var spriteInfo: SpriteInfo!
     var paulaInfo: PaulaInfo!
+    var memInfo: MemInfo!
     var audioInfo0: StateMachineInfo!
     var audioInfo1: StateMachineInfo!
     var audioInfo2: StateMachineInfo!
     var audioInfo3: StateMachineInfo!
-    var diskInfo: DiskControllerInfo!
+    var dcInfo: DiskControllerInfo!
     var port1Info: ControlPortInfo!
     var port2Info: ControlPortInfo!
     var serInfo: SerialPortInfo!
     var uartInfo: UARTInfo!
-    // var eventInfo: EventInfo!
     var isRunning = true
 
     // Returns the number of the currently inspected sprite
@@ -606,7 +606,7 @@ class Inspector: DialogController {
     override func showWindow(_ sender: Any?) {
 
         super.showWindow(self)
-        amiga.trackMode = true
+        emu.trackOn()
         updateInspectionTarget()
     }
 
@@ -636,7 +636,7 @@ class Inspector: DialogController {
     func continuousRefresh() {
         
         if isRunning { refresh(count: refreshCnt) }
-        isRunning = amiga.running
+        isRunning = emu.running
         refreshCnt += 1
     }
     
@@ -646,7 +646,7 @@ class Inspector: DialogController {
 
         if full {
         
-            if parent!.amiga.running {
+            if parent!.emu.running {
                 stopAndGoButton.image = NSImage(named: "pauseTemplate")
                 stepIntoButton.isEnabled = false
                 stepOverButton.isEnabled = false
@@ -743,7 +743,7 @@ class Inspector: DialogController {
 
     func signalCatchPoint(pc: Int, vector: Int) {
     
-        let name = amiga.cpu.vectorName(vector)!
+        let name = emu.cpu.vectorName(vector)!
         message.stringValue = "Catched exception vector \(vector) (\(name))"
         cpuInstrView.alertAddr = pc
         scrollToPC(pc: pc)
@@ -773,17 +773,19 @@ class Inspector: DialogController {
     
     @IBAction func stopAndGoAction(_ sender: NSButton!) {
 
-        amiga.debugger.stopAndGo()
+        if let emu = emu {
+            if emu.running { emu.pause() } else { try? emu.run() }
+        }
     }
-    
+
     @IBAction func stepIntoAction(_ sender: NSButton!) {
 
-        amiga.debugger.stepInto()
+        emu.debugger.stepInto()
     }
     
     @IBAction func stepOverAction(_ sender: NSButton!) {
 
-        amiga.debugger.stepOver()
+        emu.debugger.stepOver()
     }
 }
 
@@ -794,8 +796,8 @@ extension Inspector {
         super.windowWillClose(notification)
 
         // Leave debug mode
-        amiga?.trackMode = false
-        amiga?.removeInspectionTarget()
+        emu?.trackOff()
+        emu?.autoInspectionMask = 0
     }
 }
 
@@ -803,20 +805,29 @@ extension Inspector: NSTabViewDelegate {
 
     func updateInspectionTarget() {
 
+        func mask(_ types: [CType]) -> Int {
+
+            var result = 0
+            for type in types { result = result | 1 << type.rawValue }
+            return result
+        }
+        func mask(_ type: CType) -> Int { return mask([type]) }
+
+
         if let id = panel.selectedTabViewItem?.label {
 
             switch id {
 
-            case "CPU":     amiga.inspectionTarget = .CPU
-            case "CIA":     amiga.inspectionTarget = .CIA
-            case "Memory":  amiga.inspectionTarget = .MEM
-            case "Agnus":   amiga.inspectionTarget = .AGNUS
-            case "Copper":  amiga.inspectionTarget = .COPPER
-            case "Blitter": amiga.inspectionTarget = .BLITTER
-            case "Denise":  amiga.inspectionTarget = .DENISE
-            case "Paula":   amiga.inspectionTarget = .PAULA
-            case "Ports":   amiga.inspectionTarget = .PORTS
-            case "Events":  amiga.inspectionTarget = .EVENTS
+            case "CPU":     emu.autoInspectionMask = mask([.CPU])
+            case "CIA":     emu.autoInspectionMask = mask([.CIA])
+            case "Memory":  emu.autoInspectionMask = mask([.MEM])
+            case "Agnus":   emu.autoInspectionMask = mask([.AGNUS])
+            case "Copper":  emu.autoInspectionMask = mask([.COPPER])
+            case "Blitter": emu.autoInspectionMask = mask([.BLITTER])
+            case "Denise":  emu.autoInspectionMask = mask([.DENISE])
+            case "Paula":   emu.autoInspectionMask = mask([.PAULA])
+            case "Ports":   emu.autoInspectionMask = mask([.PAULA, .CONTROL_PORT, .SERIAL_PORT])
+            case "Events":  emu.autoInspectionMask =  mask([.AGNUS])
             default:        break
             }
             

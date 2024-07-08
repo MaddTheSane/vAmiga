@@ -15,9 +15,9 @@ extension ConfigurationController {
         refreshMemoryTab()
 
         // Lock
-        hwLockImage.isHidden = amiga.poweredOff
-        hwLockInfo1.isHidden = amiga.poweredOff
-        hwLockInfo2.isHidden = amiga.poweredOff
+        hwLockImage.isHidden = emu.poweredOff
+        hwLockInfo1.isHidden = emu.poweredOff
+        hwLockInfo2.isHidden = emu.poweredOff
 
         // Buttons
         hwPowerButton.isHidden = !bootable
@@ -41,7 +41,7 @@ extension ConfigurationController {
 
     func refreshChipsetTab() {
 
-        let poweredOff = amiga.poweredOff
+        let poweredOff = emu.poweredOff
         let pal = config.machineType == VideoFormat.PAL.rawValue
 
         // CPU
@@ -251,7 +251,8 @@ extension ConfigurationController {
 
     func refreshMemoryTab() {
 
-        let poweredOff = amiga.poweredOff
+        let poweredOff = emu.poweredOff
+        let traits = emu.agnus.traits
 
         // Memory
         memChipRamPopup.selectItem(withTag: config.chipRam)
@@ -272,13 +273,13 @@ extension ConfigurationController {
         // Chipset features
         compSlowRamDelay.state = config.slowRamDelay ? .on : .off
         compSlowRamMirror.state = config.slowRamMirror ? .on : .off
-        compSlowRamMirror.isEnabled = amiga.agnus.isECS
+        compSlowRamMirror.isEnabled = traits.isECS
 
         // Warning
-        let badAgnus = amiga.agnus.chipRamLimit < config.chipRam
+        let badAgnus = traits.chipRamLimit < config.chipRam
         if badAgnus {
             memWarnInfo1.stringValue = "Chip Ram is not fully usable."
-            memWarnInfo2.stringValue = "The selected Agnus revision is limited to address \(amiga.agnus.chipRamLimit) KB."
+            memWarnInfo2.stringValue = "The selected Agnus revision is limited to address \(traits.chipRamLimit) KB."
         }
         memWarnImage.isHidden = !badAgnus
         memWarnInfo1.isHidden = !badAgnus
@@ -319,7 +320,7 @@ extension ConfigurationController {
 
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         // Revert to standard settings
         EmulatorProxy.defaults.removeMemoryUserDefaults()
@@ -362,7 +363,7 @@ extension ConfigurationController {
         // Update the configutation
         config.applyMemoryUserDefaults()
 
-        amiga.resume()
+        emu.resume()
     }
 
     @IBAction func memDefaultsAction(_ sender: NSButton!) {

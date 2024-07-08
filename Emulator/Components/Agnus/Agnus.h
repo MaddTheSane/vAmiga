@@ -36,6 +36,7 @@ class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
 
     Descriptions descriptions = {{
 
+        .type           = COMP_AGNUS,
         .name           = "Agnus",
         .description    = "DMA Controller",
         .shell          = "agnus"
@@ -52,8 +53,6 @@ class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
 
     // Result of the latest inspection
     mutable AgnusInfo info = {};
-    // mutable EventInfo eventInfo = {};
-    // mutable EventSlotInfo slotInfo[SLOT_COUNT];
 
     // Current workload
     AgnusStats stats = {};
@@ -322,10 +321,13 @@ public:
 
 
     //
-    // Querying chip properties
+    // Deriving chip properties
     //
 
 public:
+
+    // Returns properties about the currently selected VICII revision
+    AgnusTraits getTraits() const;
 
     bool isOCS() const;
     bool isECS() const;
@@ -784,7 +786,7 @@ public:
     void serviceDASEvent(EventID id);
     
     // Services an inspection event
-    void serviceINSEvent(EventID id);
+    void serviceINSEvent();
 };
 
 }

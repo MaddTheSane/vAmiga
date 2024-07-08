@@ -311,13 +311,13 @@ extension MyDocument {
     
     func proceedWithUnsavedFloppyDisks(drives: [FloppyDriveProxy]) -> Bool {
         
-        let modified = drives.filter { $0.hasModifiedDisk }
-        
+        let modified = drives.filter { $0.info.hasModifiedDisk }
+
         if modified.isEmpty || parent.pref.ejectWithoutAsking {
             return true
         }
         
-        let names = modified.map({ "df" + String($0.nr) }).joined(separator: ", ")
+        let names = modified.map({ "df" + String($0.info.nr) }).joined(separator: ", ")
         let text = modified.count == 1 ?
         "Drive \(names) contains an unsaved disk." :
         "Drives \(names) contain unsaved disks."
@@ -401,7 +401,7 @@ extension MyController {
     }
 
     func proceedWithUnsavedHardDisk(drive: Int) -> Bool {
-        return mydocument.proceedWithUnsavedHardDisk(drive: amiga.hd(drive)!)
+        return mydocument.proceedWithUnsavedHardDisk(drive: emu.hd(drive)!)
     }
 
     func proceedWithUnsavedHardDisks() -> Bool {

@@ -15,6 +15,7 @@
 #include "FloppyFile.h"
 #include "MutableFileSystem.h"
 #include "MsgQueue.h"
+#include "CmdQueue.h"
 #include "OSDescriptors.h"
 
 namespace vamiga {
@@ -160,9 +161,16 @@ FloppyDrive::cacheInfo(FloppyDriveInfo &info) const
 {
     {   SYNCHRONIZED
         
+        info.nr = objid;
         info.head = head;
+        info.isConnected = isConnected();
         info.hasDisk = hasDisk();
+        info.hasModifiedDisk = hasModifiedDisk();
+        info.hasUnmodifiedDisk = hasUnmodifiedDisk();
+        info.hasProtectedDisk = hasProtectedDisk();
+        info.hasUnprotectedDisk = hasUnprotectedDisk();
         info.motor = getMotor();
+        info.writing = isWriting();
     }
 }
 
@@ -347,6 +355,18 @@ bool
 FloppyDrive::hasProtectedDisk() const
 {
     return hasDisk() ? disk->isWriteProtected() : false;
+}
+
+bool 
+FloppyDrive::getFlag(DiskFlags mask) const
+{
+    return disk ? disk->getFlag(mask) : false;
+}
+
+void 
+FloppyDrive::setFlag(DiskFlags mask, bool value)
+{
+    if (disk) disk->setFlag(mask, value);
 }
 
 void
@@ -1078,6 +1098,21 @@ FloppyDrive::serviceDiskChangeEvent()
 
     // Remove the event
     agnus.cancel <s> ();
+}
+
+void
+FloppyDrive::processCommand(const Cmd &cmd)
+{
+
+    switch (cmd.type) {
+
+        case CMD_DSK_TOGGLE_WP:     toggleWriteProtection(); break;
+        case CMD_DSK_MODIFIED:      markDiskAsModified(); break;
+        case CMD_DSK_UNMODIFIED:    markDiskAsUnmodified(); break;
+
+        default:
+            fatalError;
+    }
 }
 
 void

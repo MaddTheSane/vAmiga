@@ -400,14 +400,15 @@ extension FloppyDriveProxy {
     
     var templateIcon: NSImage? {
 
+        let info = info
         var name: String
-        
-        if !hasDisk { return nil }
-        
-        if hasProtectedDisk {
-            name = hasModifiedDisk ? "diskUPTemplate" : "diskPTemplate"
+
+        if !info.hasDisk { return nil }
+
+        if info.hasProtectedDisk {
+            name = info.hasModifiedDisk ? "diskUPTemplate" : "diskPTemplate"
         } else {
-            name = hasModifiedDisk ? "diskUTemplate" : "diskTemplate"
+            name = info.hasModifiedDisk ? "diskUTemplate" : "diskTemplate"
         }
         
         return NSImage(named: name)!
@@ -420,10 +421,12 @@ extension FloppyDriveProxy {
     
     var ledIcon: NSImage? {
         
-        if !isConnected { return nil }
+        let info = info
 
-        if motor {
-            if writing {
+        if !info.isConnected { return nil }
+
+        if info.motor {
+            if info.writing {
                 return NSImage(named: "ledRed")
             } else {
                 return NSImage(named: "ledGreen")
@@ -569,16 +572,18 @@ public extension RemoteManagerProxy {
     
     var icon: NSImage? {
 
-        if numConnected > 0 {
+        let info = info
+
+        if info.numConnected > 0 {
             return NSImage(named: "srvConnectTemplate")!
         }
-        if numListening > 0 {
+        if info.numListening > 0 {
             return NSImage(named: "srvListenTemplate")!
         }
-        if numLaunching > 0 {
+        if info.numLaunching > 0 {
             return NSImage(named: "srvLaunchTemplate")!
         }
-        if numErroneous > 0 {
+        if info.numErroneous > 0 {
             return NSImage(named: "srvErrorTemplate")!
         }
 

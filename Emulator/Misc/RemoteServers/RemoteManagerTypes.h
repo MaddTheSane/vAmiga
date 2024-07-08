@@ -32,7 +32,7 @@ struct ServerTypeEnum : util::Reflection<ServerTypeEnum, ServerType>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "SERVER"; }
-    static const char *key(ServerType value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -44,3 +44,17 @@ struct ServerTypeEnum : util::Reflection<ServerTypeEnum, ServerType>
     }
 };
 #endif
+
+
+//
+// Structures
+//
+
+typedef struct
+{
+    isize numLaunching;
+    isize numListening;
+    isize numConnected;
+    isize numErroneous;
+}
+RemoteManagerInfo;

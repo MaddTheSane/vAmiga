@@ -11,8 +11,11 @@
 
 #include "Aliases.h"
 #include "BeamTypes.h"
+#include "BlitterTypes.h"
 #include "BusTypes.h"
+#include "CopperTypes.h"
 #include "DeniseTypes.h"
+#include "DmaDebuggerTypes.h"
 #include "SequencerTypes.h"
 #include "Reflection.h"
 
@@ -54,7 +57,7 @@ struct AgnusRevisionEnum : util::Reflection<AgnusRevisionEnum, AgnusRevision>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "AGNUS"; }
-    static const char *key(AgnusRevision value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -126,7 +129,7 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "SLOT"; }
-    static const char *key(EventSlot value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -325,7 +328,7 @@ enum_i8(EventID)
     TXD_BIT             = 1,
     TXD_EVENT_COUNT,
 
-    // Serial data out (UART)
+    // Serial data in (UART)
     RXD_BIT             = 1,
     RXD_EVENT_COUT,
 
@@ -390,17 +393,7 @@ enum_i8(EventID)
     ALA_EVENT_COUNT,
 
     // Inspector slot
-    INS_AMIGA           = 1,
-    INS_CPU,
-    INS_MEM,
-    INS_CIA,
-    INS_AGNUS,
-    INS_BLITTER,
-    INS_COPPER,
-    INS_PAULA,
-    INS_DENISE,
-    INS_PORTS,
-    INS_EVENTS,
+    INS_RECORD          = 1,
     INS_EVENT_COUNT
 };
 
@@ -435,7 +428,7 @@ struct SprDmaStateEnum : util::Reflection<SprDmaStateEnum, SprDMAState>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "SPR_DMA"; }
-    static const char *key(SprDMAState value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -451,6 +444,20 @@ struct SprDmaStateEnum : util::Reflection<SprDmaStateEnum, SprDMAState>
 //
 // Structures
 //
+
+typedef struct
+{
+    bool isOCS;
+    bool isECS;
+    bool isPAL;
+    bool isNTSC;
+
+    u16 idBits;
+    isize chipRamLimit;
+    isize vStrobeLine;
+    u16 ddfMask;
+}
+AgnusTraits;
 
 typedef struct
 {

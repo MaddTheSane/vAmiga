@@ -27,12 +27,18 @@ extension Inspector {
         static let auto = NSColor(r: 0xFF, g: 0x66, b: 0xB2, a: 0xFF)
     }
 
+    private func cacheMem() {
+
+        memInfo = emu.paused ? emu.mem.info : emu.mem.cachedInfo
+    }
+
     var accessor: Accessor {
         return memBankMap.selectedTag() == 0 ? .CPU : .AGNUS
     }
     
-    func memSrc(bank: Int) -> MemorySource {        
-        return parent.amiga.mem.memSrc(accessor, addr: bank << 16)
+    func memSrc(bank: Int) -> MemorySource {  
+
+        return parent.emu.mem.memSrc(accessor, addr: bank << 16)
     }
     
     var memLayoutImage: NSImage? {
@@ -107,7 +113,7 @@ extension Inspector {
 
     private func refreshMemoryLayout() {
 
-        let config = amiga.mem.config
+        let config = emu.mem.config
         let size = NSSize(width: 16, height: 16)
 
         memLayoutButton.image   = memLayoutImage
@@ -138,6 +144,8 @@ extension Inspector {
 
     func refreshMemory(count: Int = 0, full: Bool = false) {
 
+        cacheMem()
+        
         if full { refreshMemoryLayout() }
 
         memTableView.refresh(count: count, full: full)

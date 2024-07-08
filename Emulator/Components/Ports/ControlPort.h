@@ -10,6 +10,7 @@
 #pragma once
 
 #include "ControlPortTypes.h"
+#include "CmdQueueTypes.h"
 #include "SubComponent.h"
 #include "Joystick.h"
 #include "Mouse.h"
@@ -20,11 +21,13 @@ class ControlPort : public SubComponent, public Inspectable<ControlPortInfo> {
 
     Descriptions descriptions = {
         {
+            .type           = COMP_CONTROL_PORT,
             .name           = "ControlPort1",
             .description    = "Control Port 1",
             .shell          = "port1"
         },
         {
+            .type           = COMP_CONTROL_PORT,
             .name           = "ControlPort2",
             .description    = "Control Port 2",
             .shell          = "port2"
@@ -42,10 +45,10 @@ public:
     // [[deprecated]] static constexpr isize PORT2 = 1;
 
 private:
-    
+
     // The connected device
     ControlPortDevice device = CPD_NONE;
-    
+
     // The two mouse position counters
     i64 mouseCounterX = 0;
     i64 mouseCounterY = 0;
@@ -53,18 +56,18 @@ private:
     // The position of the connected mouse
     i64 mouseX = 0;
     i64 mouseY = 0;
-    
+
     // Resistances on the potentiometer lines (specified as a delta charge)
     double chargeDX;
     double chargeDY;
-    
-    
+
+
     //
     // Subcomponents
     //
 
 public:
-    
+
     Mouse mouse = Mouse(amiga, *this);
     Joystick joystick = Joystick(amiga, *this);
 
@@ -72,27 +75,27 @@ public:
     //
     // Initializing
     //
-    
+
 public:
-    
+
     ControlPort(Amiga& ref, isize nr);
 
-    
+
     //
     // Methods from CoreObject
     //
-    
+
 private:
-    
+
     void _dump(Category category, std::ostream& os) const override;
-    
-    
+
+
     //
     // Methods from CoreComponent
     //
-    
+
 private:
-    
+
     template <class T>
     void serialize(T& worker)
     {
@@ -109,7 +112,7 @@ public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
-    
+
     //
     // Methods from Configurable
     //
@@ -130,7 +133,7 @@ public:
     bool isPort1() const { return objid == 0; }
     bool isPort2() const { return objid == 1; }
 
-    
+
     //
     // Accessing
     //
@@ -139,14 +142,14 @@ public:
 
     // Changes the connected device type
     void setDevice(ControlPortDevice value) { device = value; }
-    
+
     // Getter for the delta charges
     i16 getChargeDX() const { return (i16)chargeDX; }
     i16 getChargeDY() const { return (i16)chargeDY; }
 
     // Called by the mouse when it's position has changed
     void updateMouseXY(i64 x, i64 y);
-    
+
     // Returns the control port bits showing up in the JOYxDAT register
     u16 joydat() const;
 
@@ -158,6 +161,16 @@ public:
 
     // Modifies the PRA bits of CIA A according to the connected device
     void changePra(u8 &pra) const;
+
+
+    //
+    // Processing commands and events
+    //
+
+public:
+
+    // Processes a datasette command
+    void processCommand(const struct Cmd &cmd);
 };
 
 }

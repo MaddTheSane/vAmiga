@@ -13,7 +13,7 @@
 #include "Error.h"
 #include <filesystem>
 
-// REMOVE:
+// REMOVE EVENTUALLY:
 #include "Media.h"
 
 namespace vamiga {
@@ -40,12 +40,41 @@ public:
 };
 
 //
-// Public APIs
+// Components
 //
 
 struct AmigaAPI : API {
 
     class Amiga *amiga = nullptr;
+
+    /// @name Analyzing the emulator
+    /// @{
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const AmigaConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const AmigaInfo &getInfo() const;
+    const AmigaInfo &getCachedInfo() const;
+
+    /// @}
+    /// @name Resetting the Amiga
+    /// @{
+
+    /** @brief  Performs a hard reset
+     *
+     *  A hard reset affects all components. The effect is similar to
+     *  switching power off and on.
+     */
+    void hardReset();
+
+    /** @brief  Performs a hard reset
+     *
+     *  A soft reset emulates the execution of the CPU's reset instruction.
+     */
+    void softReset();
 
     /// @}
     /// @name Handling snapshots
@@ -65,32 +94,394 @@ struct AmigaAPI : API {
      *  @param  snapshot    Reference to a snapshot.
      */
     void loadSnapshot(const Snapshot &snapshot);
+
+    /// @}
+    /// @name Auto-inspecting components
+    /// @{
+
+    /** @brief  Gets the current auto-inspection mask
+     *  The GUI utilizes Auto-Inspection to display life updates of the internal
+     *  emulator state in the Inspector panel. As soon as an auto-inspection
+     *  mask is set, the emulator caches the internal states of the inspected
+     *  components at periodic intervals. The inspected components are
+     *  specified as a bit mask.
+     *
+     *  @return A bit mask indicating the components under inspection
+     */
+    u64 getAutoInspectionMask();
+
+    /** @brief  Sets the current auto-inspection mask
+     *
+     *  @example The following call enables auto-inspections for the CIA chips
+     *  and Paula: setAutoInspectionMask(1 << COMP_CIA | 1 << COMP_PAULA);
+     *
+     *  @param  mask A bit mask indicating the components under inspection
+     */
+    void setAutoInspectionMask(u64 mask);
+
+    /// @}
 };
 
 struct AgnusAPI : API {
 
     class Agnus *agnus = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const AgnusConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const AgnusInfo &getInfo() const;
+    const AgnusInfo &getCachedInfo() const;
+
+    /** @brief  Provides details about the currently selected chip revision.
+     */
+    AgnusTraits getTraits() const;
 };
 
 struct BlitterAPI : API {
 
     class Blitter *blitter = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const BlitterConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const BlitterInfo &getInfo() const;
+    const BlitterInfo &getCachedInfo() const;
 };
 
 struct CIAAPI : API {
 
     class CIA *cia = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const CIAConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const CIAInfo &getInfo() const;
+    const CIAInfo &getCachedInfo() const;
 };
 
 struct CopperAPI : API {
 
     class Copper *copper = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    // const BlitterConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const CopperInfo &getInfo() const;
+    const CopperInfo &getCachedInfo() const;
 };
 
 struct CPUAPI : API {
 
     class CPU *cpu = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const CPUConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const CPUInfo &getInfo() const;
+    const CPUInfo &getCachedInfo() const;
 };
+
+struct GuardsAPI : API {
+
+    class moira::Guards *guards = nullptr;
+};
+
+struct DeniseAPI : API {
+
+    class Denise *denise = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const DeniseConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const DeniseInfo &getInfo() const;
+    const DeniseInfo &getCachedInfo() const;
+};
+
+struct DiskControllerAPI : API {
+
+    class DiskController *diskController = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const DiskControllerConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const DiskControllerInfo &getInfo() const;
+    const DiskControllerInfo &getCachedInfo() const;
+};
+
+struct DmaDebuggerAPI : API {
+
+    class DmaDebugger *dmaDebugger = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const DmaDebuggerConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const DmaDebuggerInfo &getInfo() const;
+    const DmaDebuggerInfo &getCachedInfo() const;
+};
+
+struct MemoryAPI : API {
+
+    class Memory *mem = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const MemConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+     const MemInfo &getInfo() const;
+     const MemInfo &getCachedInfo() const;
+};
+
+struct PaulaAPI : API {
+
+    class Paula *paula = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    // const PaulaConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const PaulaInfo &getInfo() const;
+    const PaulaInfo &getCachedInfo() const;
+};
+
+struct RtcAPI : API {
+
+    class RTC *rtc = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const RTCConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    // const RTCInfo &getInfo() const;
+    // const RTCInfo &getCachedInfo() const;
+};
+
+
+//
+// Peripherals
+//
+
+struct FloppyDriveAPI : API {
+
+    class FloppyDrive *drive = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const FloppyDriveConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const FloppyDriveInfo &getInfo() const;
+    const FloppyDriveInfo &getCachedInfo() const;
+
+    /** @brief Queries a disk flag
+     */
+    bool getFlag(DiskFlags mask);
+
+    /** @brief Sets or clears one or more disk flags
+     */
+    void setFlag(DiskFlags mask, bool value);
+};
+
+struct HardDriveAPI : API {
+
+    class HardDrive *drive = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const HardDriveConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const HardDriveInfo &getInfo() const;
+    const HardDriveInfo &getCachedInfo() const;
+
+    /** @brief Queries a disk flag
+     */
+    bool getFlag(DiskFlags mask);
+
+    /** @brief Sets or clears one or more disk flags
+     */
+    void setFlag(DiskFlags mask, bool value);
+};
+
+struct JoystickAPI : API {
+
+    class Joystick *joystick = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const JoystickConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    // const JoystickInfo &getInfo() const;
+    // const JoystickInfo &getCachedInfo() const;
+};
+
+struct KeyboardAPI : API {
+
+    class Keyboard *keyboard = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const KeyboardConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    // const KeyboardInfo &getInfo() const;
+    // const KeyboardInfo &getCachedInfo() const;
+
+    /** @brief  Checks if a key is currently pressed.
+     *  @param  key     The key to check.
+     */
+    bool isPressed(KeyCode key) const;
+
+    /** @brief  Presses a key
+     *  @param  key     The key to press.
+     *  @param  delay   An optional delay in seconds.
+     *
+     *  If no delay is specified, the function will immediately modify the
+     *  C64's keyboard matrix. Otherwise, it will ask the event scheduler
+     *  to modify the matrix with the specified delay.
+     *
+     *  @note If you wish to press multiple keys, make sure to let some time
+     *  pass between two key presses. You need to give the C64 time to scan the
+     *  keyboard matrix before another key can be pressed.
+     */
+    void press(KeyCode key, double delay = 0.0);
+
+    /** @brief  Releases a key
+     *  @param  key     The key to release.
+     *  @param  delay   An optional delay in seconds.
+     *
+     *  If no delay is specified, the function will immediately modify the
+     *  C64's keyboard matrix. Otherwise, it will ask the event scheduler
+     *  to modify the matrix with the specified delay.
+     */
+    void release(KeyCode key, double delay = 0.0);
+
+    /** @brief  Releases all currently pressed keys
+     */
+    void releaseAll();
+
+    /** @brief  Uses the auto-typing daemon to type a string.
+     *  @param  text    The text to type.
+     */
+    void autoType(const string &text);
+
+    /** @brief  Aborts any active auto-typing activity.
+     */
+    void abortAutoTyping();
+};
+
+struct MouseAPI : API {
+
+    class Mouse *mouse = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const MouseConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    // const MouseInfo &getInfo() const;
+    // const MouseInfo &getCachedInfo() const;
+};
+
+
+//
+// Ports
+//
+
+struct SerialPortAPI : API {
+
+    class SerialPort *serialPort = nullptr;
+};
+
+struct ControlPortAPI : API {
+
+    class ControlPort *controlPort = nullptr;
+
+    JoystickAPI joystick;
+    MouseAPI mouse;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    // const ControlPortConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const ControlPortInfo &getInfo() const;
+    const ControlPortInfo &getCachedInfo() const;
+};
+
+struct VideoPortAPI : API {
+
+    class VideoPort *videoPort = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const VideoPortConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const VideoPortInfo &getInfo() const;
+    const VideoPortInfo &getCachedInfo() const;
+
+    /// @}
+    /// @name Retrieving video data
+    /// @{
+
+    /** @brief  Returns a pointer to the most recent stable texture
+     *
+     * The texture dimensions are given by constants vc64::Texture::width
+     * and vc64::Texture::height texels. Each texel is represented by a
+     * 32 bit color value.
+     */
+    const class FrameBuffer &getTexture() const;
+
+};
+
+
+
+//
+// Media
+//
+
+
+//
+// Misc (Debugger)
+//
 
 struct DebuggerAPI : API {
 
@@ -102,6 +493,10 @@ struct DebuggerAPI : API {
     string hexDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
     string memDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
 };
+
+//
+// Misc (Defaults)
+//
 
 /** The user's defaults storage
  *
@@ -327,76 +722,15 @@ public:
     /// @}
 };
 
-struct DeniseAPI : API {
-
-    class Denise *denise = nullptr;
-};
-
-struct DiskControllerAPI : API {
-
-    class DiskController *diskController = nullptr;
-};
-
-struct DmaDebuggerAPI : API {
-
-    class DmaDebugger *dmaDebugger = nullptr;
-};
-
-struct FloppyDriveAPI : API {
-
-    class FloppyDrive *drive = nullptr;
-};
-
-struct GuardsAPI : API {
-
-    class moira::Guards *guards = nullptr;
-};
-
-struct HardDriveAPI : API {
-
-    class HardDrive *drive = nullptr;
-};
-
 struct HostAPI : API {
 
     class Host *host = nullptr;
 };
 
-struct JoystickAPI : API {
 
-    class Joystick *joystick = nullptr;
-};
-
-struct KeyboardAPI : API {
-
-    class Keyboard *keyboard = nullptr;
-};
-
-struct MemoryAPI : API {
-
-    class Memory *mem = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    const MemoryConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    /*
-    const MemoryInfo &getInfo() const;
-    const MemoryInfo &getCachedInfo() const;
-    */
-};
-
-struct MouseAPI : API {
-
-    class Mouse *mouse = nullptr;
-};
-
-struct PaulaAPI : API {
-
-    class Paula *paula = nullptr;
-};
+//
+// Misc (RetroShell)
+//
 
 /** RetroShell Public API
  */
@@ -472,51 +806,40 @@ struct RetroShellAPI : API {
     /// @}
 };
 
-struct RtcAPI : API {
 
-    class RTC *rtc = nullptr;
-};
+//
+// Misc (Recorder)
+//
 
 struct RecorderAPI : API {
 
     class Recorder *recorder = nullptr;
 };
 
+
+//
+// Misc (Debugger)
+//
+
 struct RemoteManagerAPI : API {
 
     class RemoteManager *remoteManager = nullptr;
-};
 
-struct SerialPortAPI : API {
-
-    class SerialPort *serialPort = nullptr;
-};
-
-struct ControlPortAPI : API {
-
-    class ControlPort *controlPort = nullptr;
-
-    JoystickAPI joystick;
-    MouseAPI mouse;
-};
-
-struct VideoPortAPI : API {
-
-    class VideoPort *videoPort = nullptr;
-
-    /// @}
-    /// @name Retrieving video data
+    /// @name Analyzing the emulator
     /// @{
 
-    /** @brief  Returns a pointer to the most recent stable texture
-     *
-     * The texture dimensions are given by constants vc64::Texture::width
-     * and vc64::Texture::height texels. Each texel is represented by a
-     * 32 bit color value.
+    /** @brief  Returns the component's current state.
      */
-    const class FrameBuffer &getTexture() const;
+    const RemoteManagerInfo &getInfo() const;
+    const RemoteManagerInfo &getCachedInfo() const;
 
+    /// @}
 };
+
+
+//
+// Top-level API
+//
 
 class VAmiga : public API {
 
@@ -575,6 +898,9 @@ public:
     
     VAmiga();
     ~VAmiga();
+
+    /// @name Analyzing the emulator
+    /// @{
 
     /** @brief  Returns the component's current state.
      */
@@ -665,6 +991,19 @@ public:
      * enteres a frozes state where no more frames are computed.
      */
     void pause();
+
+    /** @brief   Performs a hard reset
+     *
+     *  A hard reset affects all components. The effect is similar to
+     *  switching power off and on.
+     */
+    void hardReset();
+
+    /** @brief   Performs a soft reset
+     *
+     *  A soft reset is similar to executing the CPU's reset instruction.
+     */
+    void softReset();
 
     /** @brief   Terminates the emulator thread
      *
@@ -853,11 +1192,10 @@ public:
     void put(const Cmd &cmd);
     void put(CmdType type, i64 payload = 0, i64 payload2 = 0) { put(Cmd(type, payload, payload2)); }
     void put(CmdType type, ConfigCmd payload)  { put(Cmd(type, payload)); }
-    /*
     void put(CmdType type, KeyCmd payload)  { put(Cmd(type, payload)); }
-    void put(CmdType type, CoordCmd payload)  { put(Cmd(type, payload)); }
     void put(CmdType type, GamePadCmd payload)  { put(Cmd(type, payload)); }
-    void put(CmdType type, TapeCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, CoordCmd payload)  { put(Cmd(type, payload)); }
+    /*
     void put(CmdType type, AlarmCmd payload)  { put(Cmd(type, payload)); }
     */
     /// @}

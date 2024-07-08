@@ -34,7 +34,7 @@ struct HardDriveTypeEnum : util::Reflection<HardDriveTypeEnum, HardDriveType>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "HDR"; }
-    static const char *key(HardDriveType value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -61,7 +61,7 @@ struct HardDriveStateEnum : util::Reflection<HardDriveStateEnum, HardDriveState>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "HDR_STATE"; }
-    static const char *key(HardDriveType value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -89,7 +89,28 @@ HardDriveConfig;
 
 typedef struct
 {
-    DriveHead head;
+    // Physical layout (geometry)
+    isize cylinders;
+    isize heads;
+    isize sectors;
+    isize bsize;
+
+    // Computed values
+    isize tracks;
+    isize blocks;
+    isize bytes;
+    isize upperCyl;
+    isize upperHead;
+    isize upperTrack;
+
+    // Logical layout (partitions)
+    isize partitions;
+
+    // Flags
+    bool writeProtected;
     bool modified;
+
+    // Head
+    DriveHead head;
 }
 HardDriveInfo;

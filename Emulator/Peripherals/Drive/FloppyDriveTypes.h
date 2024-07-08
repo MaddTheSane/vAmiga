@@ -10,6 +10,8 @@
 #pragma once
 
 #include "DriveTypes.h"
+#include "FloppyDiskTypes.h"
+#include "BootBlockImageTypes.h"
 
 //
 // Enumerations
@@ -31,7 +33,7 @@ struct FloppyDriveTypeEnum : util::Reflection<FloppyDriveTypeEnum, FloppyDriveTy
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "DRIVE"; }
-    static const char *key(FloppyDriveType value)
+    static const char *_key(long value)
     {
         switch (value) {
                 
@@ -59,7 +61,7 @@ struct DriveMechanicsEnum : util::Reflection<DriveMechanicsEnum, DriveMechanics>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "DMECHANICS"; }
-    static const char *key(DriveMechanics value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -108,9 +110,16 @@ FloppyDriveConfig;
 
 typedef struct
 {
+    isize nr;
     DriveHead head;
+    bool isConnected;
     bool hasDisk;
+    bool hasModifiedDisk;
+    bool hasUnmodifiedDisk;
+    bool hasProtectedDisk;
+    bool hasUnprotectedDisk;
     bool motor;
+    bool writing;
 }
 FloppyDriveInfo;
 

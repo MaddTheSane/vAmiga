@@ -9,21 +9,9 @@
 
 #import "config.h"
 #import "EmulatorProxy.h"
-#import "Amiga.h"
-#import "vAmiga-Swift.h"
-#import "DMSFile.h"
-#import "EXEFile.h"
-#import "ExtendedRomFile.h"
-#import "EADFFile.h"
-#import "Folder.h"
-#import "MutableFileSystem.h"
-#import "IMGFile.h"
-#import "RomFile.h"
-#import "Script.h"
-#import "Snapshot.h"
-#import "STFile.h"
 #import "VAmiga.h"
 #import "Emulator.h"
+#import "vAmiga-Swift.h"
 
 using namespace vamiga;
 using namespace vamiga::moira;
@@ -107,6 +95,11 @@ using namespace vamiga::moira;
 -(CoreComponent *)component
 {
     return (CoreComponent *)obj;
+}
+
+-(NSInteger)objid
+{
+    return [self component]->objid;
 }
 
 @end
@@ -211,14 +204,13 @@ using namespace vamiga::moira;
 
 - (AmigaInfo)info
 {
-    return [self amiga]->amiga->getInfo();
+    return [self amiga]->getInfo();
 }
-/*
+
 - (AmigaInfo)cachedInfo
 {
-    return [self cia]->amiga->getCachedInfo();
+    return [self amiga]->getCachedInfo();
 }
-*/
 
 - (SnapshotProxy *)takeSnapshot
 {
@@ -467,70 +459,39 @@ using namespace vamiga::moira;
     return (MemoryAPI *)obj;
 }
 
-- (MemoryConfig)config
+- (MemConfig)config
 {
     return [self mem]->mem->getConfig();
 }
 
-- (MemoryStats)getStats
+- (MemInfo)info
+{
+    return [self mem]->mem->getInfo();
+}
+
+- (MemInfo)cachedInfo
+{
+    return [self mem]->mem->getCachedInfo();
+}
+
+- (MemStats)stats
 {
     return [self mem]->mem->getStats();
 }
 
-- (BOOL)isBootRom:(u32)crc32
+- (RomTraits)romTraits
 {
-    return RomFile::isBootRom(crc32);
+    return [self mem]->mem->getRomTraits();
 }
 
-- (BOOL)isArosRom:(u32)crc32
+- (RomTraits)womTraits
 {
-    return RomFile::isArosRom(crc32);
+    return [self mem]->mem->getWomTraits();
 }
 
-- (BOOL)isDiagRom:(u32)crc32
+- (RomTraits)extTraits
 {
-    return RomFile::isDiagRom(crc32);
-}
-
-- (BOOL)isCommodoreRom:(u32)crc32
-{
-    return RomFile::isCommodoreRom(crc32);
-}
-
-- (BOOL)isHyperionRom:(u32)crc32
-{
-    return RomFile::isHyperionRom(crc32);
-}
-
-- (BOOL) isEmutosRom:(u32)crc32
-{
-    return RomFile::isEmutosRom(crc32);
-}
-
-- (BOOL)isPatchedRom:(u32)crc32
-{
-    return RomFile::isPatchedRom(crc32);
-}
-
-- (NSString *) romTitleOf:(u32)crc32
-{
-    const char *str = RomFile::title(crc32);
-    return str ? @(str) : nullptr;
-}
-
-- (BOOL)hasRom
-{
-    return [self mem]->mem->hasKickRom();
-}
-
-- (BOOL)hasBootRom
-{
-    return [self mem]->mem->hasBootRom();
-}
-
-- (BOOL)hasKickRom
-{
-    return [self mem]->mem->hasKickRom();
+    return [self mem]->mem->getExtTraits();
 }
 
 - (void)deleteRom
@@ -562,45 +523,6 @@ using namespace vamiga::moira;
 {
     try { return [self mem]->mem->loadRom([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
-}
-
-- (BOOL)isRelocated
-{
-    return [self mem]->mem->isRelocated();
-}
-
-- (u32)romFingerprint
-{
-    return [self mem]->mem->romFingerprint();
-}
-
-- (NSString *)romTitle
-{
-    const char *str = [self mem]->mem->romTitle();
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)romVersion
-{
-    const char *str = [self mem]->mem->romVersion();
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)romReleased
-{
-    const char *str = [self mem]->mem->romReleased();
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)romModel
-{
-    const char *str = [self mem]->mem->romModel();
-    return str ? @(str) : nullptr;
-}
-
-- (BOOL)hasExt
-{
-    return [self mem]->mem->hasExt();
 }
 
 - (void)deleteExt
@@ -637,40 +559,6 @@ using namespace vamiga::moira;
 {
     try { return [self mem]->mem->loadExt([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
-}
-
-- (u32)extFingerprint
-{
-    return [self mem]->mem->extFingerprint();
-}
-
-- (NSString *)extTitle
-{
-    const char *str = [self mem]->mem->extTitle();
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)extVersion
-{
-    const char *str = [self mem]->mem->extVersion();
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)extReleased
-{
-    const char *str = [self mem]->mem->extReleased();
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)extModel
-{
-    const char *str = [self mem]->mem->extModel();
-    return str ? @(str) : nullptr;
-}
-
-- (NSInteger)extStart
-{
-    return [self mem]->mem->getOption(OPT_MEM_EXT_START);
 }
 
 - (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)ex
@@ -727,11 +615,6 @@ using namespace vamiga::moira;
     return (AgnusAPI *)obj;
 }
 
-- (NSInteger)chipRamLimit
-{
-    return [self agnus]->agnus->chipRamLimit();
-}
-
 - (AgnusInfo)info
 {
     return [self agnus]->agnus->getInfo();
@@ -742,39 +625,24 @@ using namespace vamiga::moira;
     return [self agnus]->agnus->getCachedInfo();
 }
 
+- (AgnusStats)stats
+{
+    return [self agnus]->agnus->getStats();
+}
+
+- (AgnusTraits)traits
+{
+    return [self agnus]->agnus->getTraits();
+}
+
 - (EventSlotInfo)cachedSlotInfo:(NSInteger)slot
 {
     return [self agnus]->agnus->getCachedInfo().slotInfo[slot];
 }
 
-- (BOOL)isOCS
-{
-    return [self agnus]->agnus->isOCS();
-}
-
-- (BOOL)isECS
-{
-    return [self agnus]->agnus->isECS();
-}
-
-- (BOOL)isPAL
-{
-    return [self agnus]->agnus->isPAL();
-}
-
-- (BOOL)isNTSC
-{
-    return [self agnus]->agnus->isNTSC();
-}
-
 - (NSInteger)frameCount
 {
     return [self agnus]->agnus->pos.frame;
-}
-
-- (AgnusStats)getStats
-{
-    return [self agnus]->agnus->getStats();
 }
 
 @end
@@ -1282,29 +1150,29 @@ using namespace vamiga::moira;
     return (KeyboardAPI *)obj;
 }
 
-- (BOOL)keyIsPressed:(NSInteger)keycode
+- (BOOL)isPressed:(NSInteger)keycode
 {
-    return [self kb]->keyboard->keyIsPressed((KeyCode)keycode);
+    return [self kb]->isPressed((KeyCode)keycode);
 }
 
-- (void)pressKey:(NSInteger)keycode
+- (void)press:(NSInteger)keycode
 {
-    [self kb]->keyboard->pressKey((KeyCode)keycode);
+    [self kb]->press((KeyCode)keycode);
 }
 
-- (void)releaseKey:(NSInteger)keycode
+- (void)release:(NSInteger)keycode
 {
-    [self kb]->keyboard->releaseKey((KeyCode)keycode);
+    [self kb]->release((KeyCode)keycode);
 }
 
-- (void)toggleKey:(NSInteger)keycode
+- (void)toggle:(NSInteger)keycode
 {
-    [self kb]->keyboard->toggleKey((KeyCode)keycode);
+    [self isPressed: keycode] ? [self release: keycode] : [self press: keycode];
 }
 
-- (void)releaseAllKeys
+- (void)releaseAll
 {
-    [self kb]->keyboard->releaseAllKeys();
+    [self kb]->releaseAll();
 }
 
 @end
@@ -1321,7 +1189,7 @@ using namespace vamiga::moira;
     return (DiskControllerAPI *)obj;
 }
 
-- (DiskControllerConfig)getConfig
+- (DiskControllerConfig)config
 {
     return [self dc]->diskController->getConfig();
 }
@@ -1331,19 +1199,9 @@ using namespace vamiga::moira;
     return [self dc]->diskController->getInfo();
 }
 
-- (NSInteger)selectedDrive
+- (DiskControllerInfo)cachedInfo
 {
-    return [self dc]->diskController->getSelected();
-}
-
-- (DriveState)state
-{
-    return [self dc]->diskController->getState();
-}
-
-- (BOOL)isSpinning
-{
-    return [self dc]->diskController->spinning();
+    return [self dc]->diskController->getCachedInfo();
 }
 
 @end
@@ -1360,84 +1218,29 @@ using namespace vamiga::moira;
     return (FloppyDriveAPI *)obj;
 }
 
-- (NSInteger)nr
+- (FloppyDriveConfig)config
 {
-    return [self drive]->drive->getNr();
+    return [self drive]->getConfig();
 }
 
-- (BOOL)isConnected
+- (BOOL)getFlag:(DiskFlags)mask
 {
-    return [self drive]->drive->isConnected();
+    return [self drive]->getFlag(mask);
 }
 
-- (NSInteger)currentCyl
+- (void)setFlag:(DiskFlags)mask value:(BOOL)value
 {
-    return [self drive]->drive->currentCyl();
-}
-
-- (NSInteger)currentHead
-{
-    return [self drive]->drive->currentHead();
-}
-
-- (NSInteger)currentOffset
-{
-    return [self drive]->drive->currentOffset();
-}
-
-- (BOOL)hasDisk
-{
-    return [self drive]->drive->hasDisk();
-}
-
-- (BOOL)hasModifiedDisk
-{
-    return [self drive]->drive->hasModifiedDisk();
-}
-
-- (BOOL)hasProtectedDisk
-{
-    return [self drive]->drive->hasProtectedDisk();
-}
-
-- (BOOL)hasUnmodifiedDisk
-{
-    return [self drive]->drive->hasUnmodifiedDisk();
-}
-
-- (BOOL)hasUnprotectedDisk
-{
-    return [self drive]->drive->hasUnprotectedDisk();
-}
-
-- (void)setModificationFlag:(BOOL)value
-{
-    [self drive]->drive->setModificationFlag(value);
-}
-
-- (void)setProtectionFlag:(BOOL)value
-{
-    [self drive]->drive->setProtectionFlag(value);
-}
-
-- (void)markDiskAsModified
-{
-    [self drive]->drive->markDiskAsModified();
-}
-
-- (void)markDiskAsUnmodified
-{
-    [self drive]->drive->markDiskAsUnmodified();
-}
-
-- (void)toggleWriteProtection
-{
-    [self drive]->drive->toggleWriteProtection();
+    [self drive]->setFlag(mask, value);
 }
 
 - (FloppyDriveInfo)info
 {
     return [self drive]->drive->getInfo();
+}
+
+- (FloppyDriveInfo)cachedInfo
+{
+    return [self drive]->drive->getCachedInfo();
 }
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density
@@ -1462,21 +1265,6 @@ using namespace vamiga::moira;
     catch (Error &error) { [ex save:error]; }
 }
 
-- (BOOL)motor
-{
-    return [self drive]->drive->getMotor();
-}
-
-- (BOOL)selected
-{
-    return [self drive]->drive->isSelected();
-}
-
-- (BOOL)writing
-{
-    return [self drive]->drive->isWriting();
-}
-
 - (NSString *)readTrackBits:(NSInteger)track
 {
     if (![self drive]->drive->hasDisk()) return @("");
@@ -1498,7 +1286,7 @@ using namespace vamiga::moira;
 
 - (NSInteger)nr
 {
-    return [self drive]->drive->getNr();
+    return [self drive]->drive->objid;
 }
 
 - (BOOL)isConnected
@@ -1546,29 +1334,14 @@ using namespace vamiga::moira;
     return [self drive]->drive->hasUnprotectedDisk();
 }
 
-- (void)setModificationFlag:(BOOL)value
+- (BOOL)getFlag:(DiskFlags)mask
 {
-    [self drive]->drive->setModificationFlag(value);
+    return [self drive]->getFlag(mask);
 }
 
-- (void)setProtectionFlag:(BOOL)value
+- (void)setFlag:(DiskFlags)mask value:(BOOL)value
 {
-    [self drive]->drive->setProtectionFlag(value);
-}
-
-- (void)markDiskAsModified
-{
-    [self drive]->drive->markDiskAsModified();
-}
-
-- (void)markDiskAsUnmodified
-{
-    [self drive]->drive->markDiskAsUnmodified();
-}
-
-- (void)toggleWriteProtection
-{
-    [self drive]->drive->toggleWriteProtection();
+    [self drive]->setFlag(mask, value);
 }
 
 - (HardDriveInfo)info
@@ -1973,19 +1746,14 @@ using namespace vamiga::moira;
     return proxy;
 }
 
-- (void)stopAndGo
-{
-    [self debugger]->debugger->stopAndGo();
-}
-
 - (void)stepInto
 {
-    [self debugger]->debugger->stepInto();
+    [self debugger]->emu->stepInto();
 }
 
 - (void)stepOver
 {
-    [self debugger]->debugger->stepOver();
+    [self debugger]->emu->stepOver();
 }
 
 - (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes
@@ -2048,70 +1816,27 @@ using namespace vamiga::moira;
     return str ? @(str) : nullptr;
 }
 
-- (void)pressUp
-{
-    [self shell]->press(RSKEY_UP);
-}
-
-- (void)pressDown
-{
-    [self shell]->press(RSKEY_DOWN);
-}
-
-- (void)pressLeft
-{
-    [self shell]->press(RSKEY_LEFT);
-}
-
-- (void)pressRight
-{
-    [self shell]->press(RSKEY_RIGHT);
-}
-
-- (void)pressHome
-{
-    [self shell]->press(RSKEY_HOME);
-}
-
-- (void)pressEnd
-{
-    [self shell]->press(RSKEY_END);
-}
-
-- (void)pressBackspace
-{
-    [self shell]->press(RSKEY_BACKSPACE);
-}
-
-- (void)pressDelete
-{
-    [self shell]->press(RSKEY_DEL);
-}
-
-- (void)pressCut
-{
-    [self shell]->press(RSKEY_CUT);
-}
-
-- (void)pressReturn
-{
-    [self shell]->press(RSKEY_RETURN);
-}
-
-- (void)pressShiftReturn
-{
-    [self shell]->press(RSKEY_RETURN, true);
-}
-
-- (void)pressTab
-{
-    [self shell]->press(RSKEY_TAB);
-}
-
 - (void)pressKey:(char)c
 {
     [self shell]->press(c);
 }
+
+- (void)pressSpecialKey:(RetroShellKey)key
+{
+    [self shell]->press(key);
+}
+
+- (void)pressSpecialKey:(RetroShellKey)key shift:(BOOL)shift
+{
+    [self shell]->press(key, shift);
+}
+
+/*
+- (void)executeScript:(MediaFileProxy *)file
+{
+    [self shell]->execScript(*(MediaFile *)file->obj);
+}
+*/
 
 @end
 
@@ -2134,24 +1859,9 @@ using namespace vamiga::moira;
     return proxy;
 }
 
--(NSInteger)numLaunching
+- (RemoteManagerInfo)info
 {
-    return [self manager]->remoteManager->numLaunching();
-}
-
--(NSInteger)numListening
-{
-    return [self manager]->remoteManager->numListening();
-}
-
--(NSInteger)numConnected
-{
-    return [self manager]->remoteManager->numConnected();
-}
-
--(NSInteger)numErroneous
-{
-    return [self manager]->remoteManager->numErroneous();
+    return [self manager]->getInfo();
 }
 
 @end
@@ -2937,6 +2647,16 @@ using namespace vamiga::moira;
     return [[DefaultsProxy alloc] initWith:&Emulator::defaults];
 }
 
++ (NSString *)build
+{
+    return @(VAmiga::build().c_str());
+}
+
++ (NSString *)version
+{
+    return @(VAmiga::version().c_str());
+}
+
 - (void)dealloc
 {
     NSLog(@"dealloc");
@@ -2951,17 +2671,67 @@ using namespace vamiga::moira;
     obj = NULL;
 }
 
-- (AmigaInfo)info
+- (EmulatorInfo)info
 {
-    return [self emu]->emu->main.getInfo();
+    return [self emu]->getInfo();
 }
 
-- (BOOL)isWarping
+- (EmulatorInfo)cachedInfo
+{
+    return [self emu]->getCachedInfo();
+}
+
+- (EmulatorStats)stats
+{
+    return [self emu]->getStats();
+}
+
+- (NSInteger)autoInspectionMask
+{
+    return [self emu]->emu->main.getAutoInspectionMask();
+}
+
+- (void)setAutoInspectionMask:(NSInteger)mask
+{
+    [self emu]->emu->main.setAutoInspectionMask(mask);
+}
+
+- (BOOL)poweredOn
+{
+    return [self emu]->isPoweredOn();
+}
+
+- (BOOL)poweredOff
+{
+    return [self emu]->isPoweredOff();
+}
+
+- (BOOL)paused
+{
+    return [self emu]->isPaused();
+}
+
+- (BOOL)running
+{
+    return [self emu]->isRunning();
+}
+
+- (BOOL)suspended
+{
+    return [self emu]->isSuspended();
+}
+
+- (BOOL)halted
+{
+    return [self emu]->isHalted();
+}
+
+- (BOOL)warping
 {
     return [self emu]->isWarping();
 }
 
-- (BOOL)trackMode
+- (BOOL)tracking
 {
     return [self emu]->isTracking();
 }
@@ -2973,27 +2743,6 @@ using namespace vamiga::moira;
     } else {
         [self emu]->emu->trackOff();
     }
-}
-
-- (NSInteger)cpuLoad
-{
-    double load = [self emu]->emu->getStats().cpuLoad;
-    return (NSInteger)(100 * load);
-}
-
-- (InspectionTarget)inspectionTarget
-{
-    return [self emu]->emu->main.getInspectionTarget();
-}
-
-- (void)setInspectionTarget:(InspectionTarget)target
-{
-    [self emu]->emu->main.setInspectionTarget(target);
-}
-
-- (void) removeInspectionTarget
-{
-    [self emu]->emu->main.removeInspectionTarget();
 }
 
 - (SnapshotProxy *)takeSnapshot
@@ -3085,32 +2834,12 @@ using namespace vamiga::moira;
 
 - (void)hardReset
 {
-    [self emu]->emu->main.reset(true);
+    [self emu]->hardReset();
 }
 
 - (void)softReset
 {
-    [self emu]->emu->main.reset(false);
-}
-
-- (BOOL)poweredOn
-{
-    return [self emu]->isPoweredOn();
-}
-
-- (BOOL)poweredOff
-{
-    return [self emu]->isPoweredOff();
-}
-
-- (BOOL)running
-{
-    return [self emu]->isRunning();
-}
-
-- (BOOL)paused
-{
-    return [self emu]->isPaused();
+    [self emu]->softReset();
 }
 
 - (void)isReady:(ExceptionWrapper *)ex
@@ -3145,19 +2874,59 @@ using namespace vamiga::moira;
     [self emu]->halt();
 }
 
-- (void)wakeUp
-{
-    [self emu]->wakeUp();
-}
-
 - (void)suspend
 {
-    return [self emu]->suspend();
+    [self emu]->suspend();
 }
 
 - (void)resume
 {
-    return [self emu]->resume();
+    [self emu]->resume();
+}
+
+- (void)warpOn
+{
+    [self emu]->warpOn();
+}
+
+- (void)warpOn:(NSInteger)source
+{
+    [self emu]->warpOn(source);
+}
+
+- (void)warpOff
+{
+    [self emu]->warpOff();
+}
+
+- (void)warpOff:(NSInteger)source
+{
+    [self emu]->warpOff(source);
+}
+
+- (void)trackOn
+{
+    [self emu]->trackOn();
+}
+
+- (void)trackOn:(NSInteger)source
+{
+    [self emu]->trackOn(source);
+}
+
+- (void)trackOff
+{
+    [self emu]->trackOff();
+}
+
+- (void)trackOff:(NSInteger)source
+{
+    [self emu]->trackOff(source);
+}
+
+- (void)wakeUp
+{
+    [self emu]->wakeUp();
 }
 
 - (void)loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex
@@ -3277,7 +3046,6 @@ using namespace vamiga::moira;
     [self emu]->put(type, value, value2);
 }
 
-/*
 - (void)put:(CmdType)type key:(KeyCmd)cmd
 {
     [self emu]->put(type, cmd);
@@ -3292,6 +3060,5 @@ using namespace vamiga::moira;
 {
     [self emu]->put(type, cmd);
 }
-*/
 
 @end

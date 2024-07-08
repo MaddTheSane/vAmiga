@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Drive.h"
+#include "DriveTypes.h"
 #include "SubComponent.h"
 #include "IOUtils.h"
 
@@ -23,9 +23,7 @@ class Drive : public SubComponent {
 
 public:
 
-    Drive(Amiga& ref, isize nr);
-
-    isize getNr() { return objid; }
+    using SubComponent::SubComponent;
 
     
     //
@@ -61,6 +59,13 @@ public:
     virtual bool hasDisk() const = 0;
     virtual bool hasModifiedDisk() const = 0;
     virtual bool hasProtectedDisk() const = 0;
+
+    // Gets or sets a disk flag
+    virtual bool getFlag(DiskFlags mask) const = 0;
+    virtual void setFlag(DiskFlags mask, bool value) = 0;
+    void setFlag(DiskFlags mask) { setFlag(mask, true); }
+    void clearFlag(DiskFlags mask) { setFlag(mask, false); }
+
     bool hasUnmodifiedDisk() const { return hasDisk() && !hasModifiedDisk(); }
     bool hasUnprotectedDisk() const { return hasDisk() && !hasProtectedDisk(); }
     void toggleWriteProtection();

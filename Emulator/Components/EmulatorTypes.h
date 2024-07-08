@@ -12,7 +12,7 @@
 #include "Reflection.h"
 #include "AmigaTypes.h"
 
-namespace vamiga {
+// namespace vamiga {
 
 //
 // Enumerations
@@ -143,6 +143,7 @@ enum_long(DEBUG_FLAG)
 };
 typedef DEBUG_FLAG DebugFlag;
 
+#ifdef __cplusplus
 struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
 {
     static constexpr long minVal = 0;
@@ -150,7 +151,7 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
     static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "FLAG"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -406,6 +407,7 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
         return "???";
     }
 };
+#endif
 
 //
 // Structures
@@ -434,4 +436,4 @@ typedef struct
 }
 EmulatorStats;
 
-}
+// }

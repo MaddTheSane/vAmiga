@@ -329,62 +329,28 @@ Amiga::overrideOption(Option option, i64 value)
     return value;
 }
 
-InspectionTarget
-Amiga::getInspectionTarget() const
+u64 
+Amiga::getAutoInspectionMask() const
 {
-    switch(agnus.id[SLOT_INS]) {
+    return agnus.data[SLOT_INS];
+}
 
-        case EVENT_NONE:  return INSPECTION_NONE;
-        case INS_AMIGA:   return INSPECTION_AMIGA;
-        case INS_CPU:     return INSPECTION_CPU;
-        case INS_MEM:     return INSPECTION_MEM;
-        case INS_CIA:     return INSPECTION_CIA;
-        case INS_AGNUS:   return INSPECTION_AGNUS;
-        case INS_BLITTER: return INSPECTION_BLITTER;
-        case INS_COPPER:  return INSPECTION_COPPER;
-        case INS_PAULA:   return INSPECTION_PAULA;
-        case INS_DENISE:  return INSPECTION_DENISE;
-        case INS_PORTS:   return INSPECTION_PORTS;
-        case INS_EVENTS:  return INSPECTION_EVENTS;
+void 
+Amiga::setAutoInspectionMask(u64 mask)
+{
+    if (mask) {
 
-        default:
-            fatalError;
+        agnus.data[SLOT_INS] = mask;
+        agnus.serviceINSEvent();
+
+    } else {
+
+        agnus.data[SLOT_INS] = 0;
+        agnus.cancel<SLOT_INS>();
     }
 }
 
-void
-Amiga::setInspectionTarget(InspectionTarget target, Cycle trigger)
-{
-    EventID id;
-
-    {   SUSPENDED
-
-        switch(target) {
-
-            case INSPECTION_NONE:    agnus.cancel<SLOT_INS>(); return;
-
-            case INSPECTION_AMIGA:   id = INS_AMIGA; break;
-            case INSPECTION_CPU:     id = INS_CPU; break;
-            case INSPECTION_MEM:     id = INS_MEM; break;
-            case INSPECTION_CIA:     id = INS_CIA; break;
-            case INSPECTION_AGNUS:   id = INS_AGNUS; break;
-            case INSPECTION_BLITTER: id = INS_BLITTER; break;
-            case INSPECTION_COPPER:  id = INS_COPPER; break;
-            case INSPECTION_PAULA:   id = INS_PAULA; break;
-            case INSPECTION_DENISE:  id = INS_DENISE; break;
-            case INSPECTION_PORTS:   id = INS_PORTS; break;
-            case INSPECTION_EVENTS:  id = INS_EVENTS; break;
-
-            default:
-                fatalError;
-        }
-
-        agnus.scheduleRel<SLOT_INS>(trigger, id);
-        if (trigger == 0) agnus.serviceINSEvent(id);
-    }
-}
-
-double 
+double
 Amiga::nativeRefreshRate() const
 {
     switch (config.type) {

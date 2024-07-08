@@ -54,7 +54,7 @@ class DiskExporter: DialogController {
     
     func showSheet(diskDrive nr: Int) {
                 
-        dfn = amiga.df(nr)
+        dfn = emu.df(nr)
 
         // Run the ADF decoder
         adf = try? ADFFileProxy.make(with: dfn!)
@@ -73,7 +73,7 @@ class DiskExporter: DialogController {
 
     func showSheet(hardDrive nr: Int) {
                 
-        hdn = amiga.hd(nr)
+        hdn = emu.hd(nr)
 
         // Run the HDF decoder
         hdf = try? HDFFileProxy.make(with: hdn!)
@@ -176,8 +176,8 @@ class DiskExporter: DialogController {
             
         case Format.adf, Format.ext, Format.img, Format.ima:
             
-            let wp = dfn!.hasProtectedDisk
-            
+            let wp = dfn!.info.hasProtectedDisk
+
             icon.image =
             adf?.icon(protected: wp) ??
             img?.icon(protected: wp) ??
@@ -372,8 +372,8 @@ class DiskExporter: DialogController {
                 fatalError()
             }
             
-            dfn!.markDiskAsUnmodified()
-            myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: dfn!.nr)
+            dfn!.setFlag(.MODIFIED, value: false)
+            myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: dfn!.info.nr)
             
             hide()
 
@@ -410,7 +410,7 @@ class DiskExporter: DialogController {
                 fatalError()
             }
 
-            hdn!.markDiskAsUnmodified()
+            hdn!.setFlag(.MODIFIED, value: false)
             myAppDelegate.noteNewRecentlyExportedHdrURL(url, hd: hdn!.nr)
             
             hide()
