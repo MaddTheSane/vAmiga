@@ -104,22 +104,22 @@ extension MyController: NSMenuItemValidation {
             return validateURLlist(myAppDelegate.attachedHardDrives, image: smallHdr)
 
         case #selector(MyController.exportRecentHdDummyAction(_:)):
-            return emu.hd(item)!.hasDisk
+            return hdn.info.hasDisk
 
         case #selector(MyController.exportRecentHdrAction(_:)):
             return validateURLlist(myAppDelegate.exportedHardDrives[driveNr],
                                    image: smallHdr)
 
         case #selector(MyController.writeProtectHdrAction(_:)):
-            item.state = hdn.hasProtectedDisk ? .on : .off
-            return hdn.hasDisk
+            item.state = hdn.info.hasProtectedDisk ? .on : .off
+            return hdn.info.hasDisk
 
         case #selector(MyController.writeThroughHdrAction(_:)):
-            item.state = hdn.writeThroughEnabled ? .on : .off
+            item.state = hdn.info.writeThrough ? .on : .off
             return true
 
         case #selector(MyController.writeThroughFinderAction(_:)):
-            item.isHidden = !hdn.writeThroughEnabled
+            item.isHidden = !hdn.info.writeThrough
             return true
 
         default:
@@ -387,7 +387,7 @@ extension MyController: NSMenuItemValidation {
         
         needsSaving = true
         if let emu = emu {
-            emu.debugger.stepInto()
+            emu.stepInto()
         }
     }
     
@@ -395,7 +395,7 @@ extension MyController: NSMenuItemValidation {
         
         needsSaving = true
         if let emu = emu {
-            emu.debugger.stepOver()
+            emu.stepOver()
         }
     }
     
@@ -671,7 +671,7 @@ extension MyController: NSMenuItemValidation {
         if !askToPowerOff() { return }
         
         let panel = HardDiskCreator(with: self, nibName: "HardDiskCreator")
-        panel?.show(forDrive: drive.nr)
+        panel?.show(forDrive: drive.traits.nr)
     }
     
     @IBAction func attachHdrAction(_ sender: NSMenuItem!) {

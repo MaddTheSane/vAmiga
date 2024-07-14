@@ -63,6 +63,24 @@ AmigaAPI::getCachedInfo() const
 // Components (Agnus)
 //
 
+const DmaDebuggerConfig &
+DmaDebuggerAPI::getConfig() const
+{
+    return dmaDebugger->getConfig();
+}
+
+const DmaDebuggerInfo &
+DmaDebuggerAPI::getInfo() const
+{
+    return dmaDebugger->getInfo();
+}
+
+const DmaDebuggerInfo &
+DmaDebuggerAPI::getCachedInfo() const
+{
+    return dmaDebugger->getCachedInfo();
+}
+
 const AgnusConfig &
 AgnusAPI::getConfig() const
 {
@@ -81,10 +99,33 @@ AgnusAPI::getCachedInfo() const
     return agnus->getCachedInfo();
 }
 
-AgnusTraits
+const AgnusStats &
+AgnusAPI::getStats() const
+{
+    return agnus->getStats();
+}
+
+const AgnusTraits
 AgnusAPI::getTraits() const
 {
     return agnus->getTraits();
+}
+
+
+//
+// Components (Blitter)
+//
+
+const BlitterInfo &
+BlitterAPI::getInfo() const
+{
+    return blitter->getInfo();
+}
+
+const BlitterInfo &
+BlitterAPI::getCachedInfo() const
+{
+    return blitter->getCachedInfo();
 }
 
 
@@ -127,10 +168,118 @@ CopperAPI::getCachedInfo() const
     return copper->getCachedInfo();
 }
 
+string 
+CopperAPI::disassemble(isize list, isize offset, bool symbolic) const
+{
+    return copper->debugger.disassemble(list, offset, symbolic);
+}
+
+string
+CopperAPI::disassemble(u32 addr, bool symbolic) const
+{
+    return copper->debugger.disassemble(addr, symbolic);
+}
+
+bool 
+CopperAPI::isIllegalInstr(u32 addr) const
+{
+    return copper->isIllegalInstr(addr);
+}
+
 
 //
 // Components (CPU)
 //
+
+isize 
+GuardsAPI::elements() const
+{
+    return guards->elements();
+}
+
+std::optional<GuardInfo>
+GuardsAPI::guardNr(long nr) const
+{
+    return guards->guardNr(nr);
+}
+
+std::optional<GuardInfo>
+GuardsAPI::guardAt(u32 target) const
+{
+    return guards->guardAt(target);
+}
+
+void
+GuardsAPI::setAt(u32 target, isize ignores)
+{
+    emu->put(Cmd(CMD_GUARD_SET_AT, (void *)guards, target, ignores));
+}
+
+void 
+GuardsAPI::moveTo(isize nr, u32 newTarget)
+{
+    emu->put(Cmd(CMD_GUARD_MOVE_NR, (void *)guards, nr, newTarget));
+}
+
+void 
+GuardsAPI::remove(isize nr)
+{
+    emu->put(Cmd(CMD_GUARD_REMOVE_NR, (void *)guards, nr));
+}
+
+void 
+GuardsAPI::removeAt(u32 target)
+{
+    emu->put(Cmd(CMD_GUARD_REMOVE_AT, (void *)guards, target));
+}
+
+void 
+GuardsAPI::removeAll()
+{
+    emu->put(Cmd(CMD_GUARD_REMOVE_ALL, (void *)guards));
+}
+
+void 
+GuardsAPI::enable(isize nr)
+{
+    emu->put(Cmd(CMD_GUARD_ENABLE_NR, (void *)guards, nr));
+}
+
+void 
+GuardsAPI::enableAt(u32 target)
+{
+    emu->put(Cmd(CMD_GUARD_ENABLE_AT, (void *)guards, target));
+}
+
+void 
+GuardsAPI::enableAll()
+{
+    emu->put(Cmd(CMD_GUARD_ENABLE_ALL, (void *)guards));
+}
+
+void 
+GuardsAPI::disable(isize nr)
+{
+    emu->put(Cmd(CMD_GUARD_DISABLE_NR, (void *)guards, nr));
+}
+
+void 
+GuardsAPI::disableAt(u32 target)
+{
+    guards->disableAt(target);
+}
+
+void 
+GuardsAPI::disableAll()
+{
+    guards->disableAll();
+}
+
+void 
+GuardsAPI::toggle(isize nr)
+{
+    guards->toggle(nr);
+}
 
 const CPUConfig &
 CPUAPI::getConfig() const
@@ -175,31 +324,53 @@ DeniseAPI::getCachedInfo() const
 
 
 //
-// Components (DiskController)
-//
-
-const DiskControllerConfig &
-DiskControllerAPI::getConfig() const
-{
-    return diskController->getConfig();
-}
-
-const DiskControllerInfo &
-DiskControllerAPI::getInfo() const
-{
-    return diskController->getInfo();
-}
-
-const DiskControllerInfo &
-DiskControllerAPI::getCachedInfo() const
-{
-    return diskController->getCachedInfo();
-}
-
-
-//
 // Components (Memory)
 //
+
+string
+MemoryDebuggerAPI::ascDump(Accessor acc, u32 addr, isize bytes) const
+{
+    assert(isUserThread());
+
+    switch (acc) {
+
+        case ACCESSOR_CPU:      return debugger->ascDump<ACCESSOR_CPU>(addr, bytes);
+        case ACCESSOR_AGNUS:    return debugger->ascDump<ACCESSOR_AGNUS>(addr, bytes);
+
+        default:
+            fatalError;
+    }
+}
+
+string
+MemoryDebuggerAPI::hexDump(Accessor acc, u32 addr, isize bytes, isize sz) const
+{
+    assert(isUserThread());
+
+    switch (acc) {
+
+        case ACCESSOR_CPU:      return debugger->hexDump<ACCESSOR_CPU>(addr, bytes, sz);
+        case ACCESSOR_AGNUS:    return debugger->hexDump<ACCESSOR_AGNUS>(addr, bytes, sz);
+
+        default:
+            fatalError;
+    }
+}
+
+string
+MemoryDebuggerAPI::memDump(Accessor acc, u32 addr, isize bytes, isize sz) const
+{
+    assert(isUserThread());
+
+    switch (acc) {
+
+        case ACCESSOR_CPU:      return debugger->memDump<ACCESSOR_CPU>(addr, bytes, sz);
+        case ACCESSOR_AGNUS:    return debugger->memDump<ACCESSOR_AGNUS>(addr, bytes, sz);
+
+        default:
+            fatalError;
+    }
+}
 
 const MemConfig &
 MemoryAPI::getConfig() const
@@ -222,10 +393,106 @@ MemoryAPI::getCachedInfo() const
     return mem->getCachedInfo();
 }
 
+const MemStats &
+MemoryAPI::getStats() const
+{
+    assert(isUserThread());
+    return mem->getStats();
+}
+
+const RomTraits &
+MemoryAPI::getRomTraits() const
+{
+    return mem->getRomTraits();
+}
+
+const RomTraits &
+MemoryAPI::getWomTraits() const
+{
+    return mem->getWomTraits();
+}
+
+const RomTraits &
+MemoryAPI::getExtTraits() const
+{
+    return mem->getExtTraits();
+}
+
+void 
+MemoryAPI::deleteRom()
+{
+    mem->deleteRom();
+}
+
+void 
+MemoryAPI::deleteWom()
+{
+    mem->deleteWom();
+}
+
+void 
+MemoryAPI::deleteExt()
+{
+    mem->deleteExt();
+}
 
 //
 // Components (Paula)
 //
+
+const StateMachineInfo &
+AudioChannelAPI::getInfo() const
+{
+    switch (channel) {
+
+        case 0:     return paula->channel0.getInfo();
+        case 1:     return paula->channel1.getInfo();
+        case 2:     return paula->channel2.getInfo();
+        default:    return paula->channel3.getInfo();
+    }
+}
+
+const StateMachineInfo &
+AudioChannelAPI::getCachedInfo() const
+{
+    switch (channel) {
+
+        case 0:     return paula->channel0.getCachedInfo();
+        case 1:     return paula->channel1.getCachedInfo();
+        case 2:     return paula->channel2.getCachedInfo();
+        default:    return paula->channel3.getCachedInfo();
+    }
+}
+
+const DiskControllerConfig &
+DiskControllerAPI::getConfig() const
+{
+    return diskController->getConfig();
+}
+
+const DiskControllerInfo &
+DiskControllerAPI::getInfo() const
+{
+    return diskController->getInfo();
+}
+
+const DiskControllerInfo &
+DiskControllerAPI::getCachedInfo() const
+{
+    return diskController->getCachedInfo();
+}
+
+const UARTInfo &
+UARTAPI::getInfo() const
+{
+    return uart->getInfo();
+}
+
+const UARTInfo &
+UARTAPI::getCachedInfo() const
+{
+    return uart->getCachedInfo();
+}
 
 const PaulaInfo &
 PaulaAPI::getInfo() const
@@ -239,6 +506,107 @@ PaulaAPI::getCachedInfo() const
     return paula->getCachedInfo();
 }
 
+
+//
+// Components (RTC)
+//
+
+const RTCConfig &
+RTCAPI::getConfig() const
+{
+    return rtc->getConfig();
+}
+
+void
+RTCAPI::update()
+{
+    rtc->update();
+}
+
+
+//
+// Ports
+//
+
+
+//
+// Ports (AudioPort)
+//
+
+const AudioPortConfig &
+AudioPortAPI::getConfig() const
+{
+    return port->getConfig();
+}
+
+const AudioPortStats &
+AudioPortAPI::getStats() const
+{
+    return port->getStats();
+}
+
+isize
+AudioPortAPI::copyMono(float *buffer, isize n)
+{
+    return port->copyMono(buffer, n);
+}
+
+isize
+AudioPortAPI::copyStereo(float *left, float *right, isize n)
+{
+    return port->copyStereo(left, right, n);
+}
+
+isize
+AudioPortAPI::copyInterleaved(float *buffer, isize n)
+{
+    return port->copyInterleaved(buffer, n);
+}
+
+void 
+AudioPortAPI::drawL(u32 *buffer, isize width, isize height, u32 color) const
+{
+    port->stream.drawL(buffer, width, height, color);
+}
+
+void
+AudioPortAPI::drawR(u32 *buffer, isize width, isize height, u32 color) const
+{
+    port->stream.drawR(buffer, width, height, color);
+}
+
+
+//
+// Ports (ControlPort)
+//
+
+const ControlPortInfo &
+ControlPortAPI::getInfo() const
+{
+    return controlPort->getInfo();
+}
+
+const ControlPortInfo &
+ControlPortAPI::getCachedInfo() const
+{
+    return controlPort->getCachedInfo();
+}
+
+
+//
+// Ports (VideoPort)
+//
+
+const class FrameBuffer &
+VideoPortAPI::getTexture() const
+{
+    return videoPort->getTexture();
+}
+
+
+//
+// Peripherals
+//
 
 //
 // Peripherals (Keyboard)
@@ -315,6 +683,35 @@ FloppyDriveAPI::setFlag(DiskFlags mask, bool value)
     drive->setFlag(mask, value);
 }
 
+void
+FloppyDriveAPI::insertBlankDisk(FSVolumeType fstype, BootBlockId bb, string name)
+{
+    drive->insertNew(fstype, bb, name);
+}
+
+void
+FloppyDriveAPI::insertMedia(MediaFile &file, bool wp)
+{
+    drive->insertMediaFile(file, wp);
+}
+
+/*
+void
+FloppyDriveAPI::insertFileSystem(const class MutableFileSystem &fs, bool wp);
+{
+
+    // NOT IMPLEMENTED YET
+    assert(false);
+    // drive->insertFileSystem(device, wp);
+}
+*/
+
+void
+FloppyDriveAPI::ejectDisk()
+{
+    drive->ejectDisk();
+}
+
 
 //
 // Peripherals (HardDrive)
@@ -338,7 +735,19 @@ HardDriveAPI::getCachedInfo() const
     return drive->getCachedInfo();
 }
 
-bool 
+const HardDriveTraits &
+HardDriveAPI::getTraits() const
+{
+    return drive->getTraits();
+}
+
+const PartitionTraits &
+HardDriveAPI::getPartitionTraits(isize nr) const
+{
+    return drive->getPartitionTraits(nr);
+}
+
+bool
 HardDriveAPI::getFlag(DiskFlags mask)
 {
     return drive->getFlag(mask);
@@ -350,54 +759,91 @@ HardDriveAPI::setFlag(DiskFlags mask, bool value)
     drive->setFlag(mask, value);
 }
 
-
-//
-// Miscellaneous (Debugger)
-//
-
-string
-DebuggerAPI::ascDump(Accessor acc, u32 addr, isize bytes) const
+std::vector<std::tuple<isize,isize,isize>>
+HardDriveAPI::geometries(isize numBlocks)
 {
-    assert(isUserThread());
-
-    switch (acc) {
-
-        case ACCESSOR_CPU:      return debugger->ascDump<ACCESSOR_CPU>(addr, bytes);
-        case ACCESSOR_AGNUS:    return debugger->ascDump<ACCESSOR_AGNUS>(addr, bytes);
-
-        default:
-            fatalError;
-    }
+    return GeometryDescriptor::driveGeometries(numBlocks);
 }
 
-string
-DebuggerAPI::hexDump(Accessor acc, u32 addr, isize bytes, isize sz) const
+void 
+HardDriveAPI::changeGeometry(isize c, isize h, isize s, isize b)
 {
-    assert(isUserThread());
-
-    switch (acc) {
-
-        case ACCESSOR_CPU:      return debugger->hexDump<ACCESSOR_CPU>(addr, bytes, sz);
-        case ACCESSOR_AGNUS:    return debugger->hexDump<ACCESSOR_AGNUS>(addr, bytes, sz);
-
-        default:
-            fatalError;
-    }
+    return drive->changeGeometry(c, h, s, b);
 }
 
-string
-DebuggerAPI::memDump(Accessor acc, u32 addr, isize bytes, isize sz) const
+
+//
+// Peripherals (HdController)
+//
+
+const HdcInfo &
+HdControllerAPI::getInfo() const
 {
-    assert(isUserThread());
+    return controller->getInfo();
+}
 
-    switch (acc) {
+const HdcInfo &
+HdControllerAPI::getCachedInfo() const
+{
+    return controller->getCachedInfo();
+}
 
-        case ACCESSOR_CPU:      return debugger->memDump<ACCESSOR_CPU>(addr, bytes, sz);
-        case ACCESSOR_AGNUS:    return debugger->memDump<ACCESSOR_AGNUS>(addr, bytes, sz);
+const HdcStats &
+HdControllerAPI::getStats() const
+{
+    return controller->getStats();
+}
 
-        default:
-            fatalError;
-    }
+
+//
+// Peripherals (Joystick)
+//
+
+const JoystickInfo &
+JoystickAPI::getInfo() const
+{
+    return joystick->getInfo();
+}
+
+const JoystickInfo &
+JoystickAPI::getCachedInfo() const
+{
+    return joystick->getCachedInfo();
+}
+
+
+//
+// Mouse
+//
+
+bool 
+MouseAPI::detectShakeXY(double x, double y)
+{
+    return mouse->detectShakeXY(x, y);
+}
+
+bool 
+MouseAPI::detectShakeDxDy(double dx, double dy)
+{
+    return mouse->detectShakeDxDy(dx, dy);
+}
+
+void 
+MouseAPI::setXY(double x, double y)
+{
+    emu->put(Cmd(CMD_MOUSE_MOVE_ABS, CoordCmd { .port = mouse->objid, .x = x, .y = y }));
+}
+
+void 
+MouseAPI::setDxDy(double dx, double dy)
+{
+    emu->put(Cmd(CMD_MOUSE_MOVE_REL, CoordCmd { .port = mouse->objid, .x = dx, .y = dy }));
+}
+
+void 
+MouseAPI::trigger(GamePadAction action)
+{
+    emu->put(Cmd(CMD_MOUSE_EVENT, GamePadCmd { .port = mouse->objid, .action = action }));
 }
 
 
@@ -645,17 +1091,6 @@ RetroShellAPI::setStream(std::ostream &os)
 
 
 //
-// VideoPortAPI
-//
-
-const class FrameBuffer &
-VideoPortAPI::getTexture() const
-{
-    return videoPort->getTexture();
-}
-
-
-//
 // VAmiga API
 //
 
@@ -663,23 +1098,31 @@ VAmiga::VAmiga() {
 
     emu = new Emulator();
 
+    // Wire all APIs...
+
+    // Components
     amiga.emu = emu;
     amiga.amiga = &emu->main;
 
     agnus.emu = emu;
     agnus.agnus = &emu->main.agnus;
-
-    blitter.emu = emu;
-    blitter.blitter = &emu->main.agnus.blitter;
-
-    breakpoints.emu = emu;
-    breakpoints.guards = &emu->main.cpu.debugger.breakpoints;
+    agnus.dma.emu = emu;
+    agnus.dma.debugger.emu = emu;
+    agnus.dma.debugger.dmaDebugger = &emu->main.agnus.dmaDebugger;
+    agnus.copper.emu = emu;
+    agnus.copper.copper = &emu->main.agnus.copper;
+    agnus.blitter.emu = emu;
+    agnus.blitter.blitter = &emu->main.agnus.blitter;
 
     ciaA.emu = emu;
     ciaA.cia = &emu->main.ciaA;
 
     ciaB.emu = emu;
     ciaB.cia = &emu->main.ciaB;
+
+    // Ports
+    audioPort.emu = emu;
+    audioPort.port = &emu->main.audioPort;
 
     controlPort1.emu = emu;
     controlPort1.controlPort = &emu->main.controlPort1;
@@ -695,26 +1138,22 @@ VAmiga::VAmiga() {
     controlPort2.mouse.emu = emu;
     controlPort2.mouse.mouse = &emu->main.controlPort2.mouse;
 
-    copper.emu = emu;
-    copper.copper = &emu->main.agnus.copper;
 
     copperBreakpoints.emu = emu;
     copperBreakpoints.guards = &emu->main.agnus.copper.debugger.breakpoints;
 
     cpu.emu = emu;
     cpu.cpu = &emu->main.cpu;
+    cpu.breakpoints.emu = emu;
+    cpu.breakpoints.guards = &emu->main.cpu.breakpoints;
+    cpu.watchpoints.emu = emu;
+    cpu.watchpoints.guards = &emu->main.cpu.watchpoints;
 
     debugger.emu = emu;
     debugger.debugger = &emu->main.debugger;
 
     denise.emu = emu;
     denise.denise = &emu->main.denise;
-
-    diskController.emu = emu;
-    diskController.diskController = &emu->main.paula.diskController;
-
-    dmaDebugger.emu = emu;
-    dmaDebugger.dmaDebugger = &emu->main.agnus.dmaDebugger;
 
     df0.emu = emu;
     df0.drive = &emu->main.df0;
@@ -730,15 +1169,23 @@ VAmiga::VAmiga() {
 
     hd0.emu = emu;
     hd0.drive = &emu->main.hd0;
+    hd0.controller.emu = emu;
+    hd0.controller.controller = &emu->main.hd0con;
 
     hd1.emu = emu;
     hd1.drive = &emu->main.hd1;
+    hd1.controller.emu = emu;
+    hd1.controller.controller = &emu->main.hd1con;
 
     hd2.emu = emu;
     hd2.drive = &emu->main.hd2;
+    hd2.controller.emu = emu;
+    hd2.controller.controller = &emu->main.hd2con;
 
     hd3.emu = emu;
     hd3.drive = &emu->main.hd3;
+    hd3.controller.emu = emu;
+    hd3.controller.controller = &emu->main.hd3con;
 
     host.emu = emu;
     host.host = &emu->host;
@@ -748,9 +1195,23 @@ VAmiga::VAmiga() {
 
     mem.emu = emu;
     mem.mem = &emu->main.mem;
+    mem.debugger.emu = emu;
+    mem.debugger.debugger = &emu->main.mem.debugger;
 
     paula.emu = emu;
     paula.paula = &emu->main.paula;
+    paula.audioChannel0.emu = emu;
+    paula.audioChannel0.paula = &emu->main.paula;
+    paula.audioChannel1.emu = emu;
+    paula.audioChannel1.paula = &emu->main.paula;
+    paula.audioChannel2.emu = emu;
+    paula.audioChannel2.paula = &emu->main.paula;
+    paula.audioChannel3.emu = emu;
+    paula.audioChannel3.paula = &emu->main.paula;
+    paula.diskController.emu = emu;
+    paula.diskController.diskController = &emu->main.paula.diskController;
+    paula.uart.emu = emu;
+    paula.uart.uart = &emu->main.paula.uart;
 
     retroShell.emu = emu;
     retroShell.retroShell = &emu->main.retroShell;
@@ -770,8 +1231,8 @@ VAmiga::VAmiga() {
     videoPort.emu = emu;
     videoPort.videoPort = &emu->main.videoPort;
     
-    watchpoints.emu = emu;
-    watchpoints.guards = &emu->main.cpu.debugger.watchpoints;
+    // watchpoints.emu = emu;
+    // watchpoints.guards = &emu->main.cpu.debugger.watchpoints;
 }
 
 VAmiga::~VAmiga()

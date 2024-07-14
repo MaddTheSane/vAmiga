@@ -25,25 +25,31 @@ namespace moira { class Guards; }
 //
 
 class API {
-    
+
 public:
-    
+
     class Emulator *emu = nullptr;
-    
+
     API() { }
     API(Emulator *emu) : emu(emu) { }
-    
+
+    bool isUserThread() const;
+
+private:
+
     void suspend();
     void resume();
-    
-    bool isUserThread() const;
 };
 
 //
 // Components
 //
 
-struct AmigaAPI : API {
+class AmigaAPI : public API {
+
+    friend class VAmiga;
+
+public:
 
     class Amiga *amiga = nullptr;
 
@@ -122,114 +128,16 @@ struct AmigaAPI : API {
     /// @}
 };
 
-struct AgnusAPI : API {
 
-    class Agnus *agnus = nullptr;
+//
+// Agnus
+//
 
-    /** @brief  Returns the component's current configuration.
-     */
-    const AgnusConfig &getConfig() const;
+class DmaDebuggerAPI : public API {
 
-    /** @brief  Returns the component's current state.
-     */
-    const AgnusInfo &getInfo() const;
-    const AgnusInfo &getCachedInfo() const;
+    friend class VAmiga;
 
-    /** @brief  Provides details about the currently selected chip revision.
-     */
-    AgnusTraits getTraits() const;
-};
-
-struct BlitterAPI : API {
-
-    class Blitter *blitter = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    const BlitterConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    const BlitterInfo &getInfo() const;
-    const BlitterInfo &getCachedInfo() const;
-};
-
-struct CIAAPI : API {
-
-    class CIA *cia = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    const CIAConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    const CIAInfo &getInfo() const;
-    const CIAInfo &getCachedInfo() const;
-};
-
-struct CopperAPI : API {
-
-    class Copper *copper = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    // const BlitterConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    const CopperInfo &getInfo() const;
-    const CopperInfo &getCachedInfo() const;
-};
-
-struct CPUAPI : API {
-
-    class CPU *cpu = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    const CPUConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    const CPUInfo &getInfo() const;
-    const CPUInfo &getCachedInfo() const;
-};
-
-struct GuardsAPI : API {
-
-    class moira::Guards *guards = nullptr;
-};
-
-struct DeniseAPI : API {
-
-    class Denise *denise = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    const DeniseConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    const DeniseInfo &getInfo() const;
-    const DeniseInfo &getCachedInfo() const;
-};
-
-struct DiskControllerAPI : API {
-
-    class DiskController *diskController = nullptr;
-
-    /** @brief  Returns the component's current configuration.
-     */
-    const DiskControllerConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    const DiskControllerInfo &getInfo() const;
-    const DiskControllerInfo &getCachedInfo() const;
-};
-
-struct DmaDebuggerAPI : API {
+public:
 
     class DmaDebugger *dmaDebugger = nullptr;
 
@@ -243,9 +151,278 @@ struct DmaDebuggerAPI : API {
     const DmaDebuggerInfo &getCachedInfo() const;
 };
 
-struct MemoryAPI : API {
+class DmaAPI : public API {
+
+    friend class VAmiga;
+
+public:
+
+    DmaDebuggerAPI debugger;
+};
+
+class BlitterAPI : public API {
+
+    friend class VAmiga;
+
+    class Blitter *blitter = nullptr;
+
+public:
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const BlitterConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const BlitterInfo &getInfo() const;
+    const BlitterInfo &getCachedInfo() const;
+};
+
+class CopperAPI : public API {
+
+    friend class VAmiga;
+
+    class Copper *copper = nullptr;
+
+public:
+
+    /** @brief  Returns the component's current state.
+     */
+    const CopperInfo &getInfo() const;
+    const CopperInfo &getCachedInfo() const;
+
+    /** @brief  Disassembles a Copper instruction.
+     *  @param  list     The Cooper list to take the instruction from
+     *  @param  offset   Offset of the instruction relative to the start of the
+     *                   list.
+     *  @param  symbolic The output format. The flag indicates whether the
+     *                   instruction should be be disassembled in symbolic,
+     *                   human-readable form or in raw form as a sequence of
+     *                   hexadecimal numbers.
+     */
+    string disassemble(isize list, isize offset, bool symbolic) const;
+
+    /** @brief  Disassembles a Copper instruction.
+     *  @param  addr     The address of the Cooper instruction in memory.
+     *  @param  symbolic Output format.
+     */
+    string disassemble(u32 addr, bool symbolic) const;
+
+    /** @brief  Checks whether a Copper instruction is illegal.
+     *          A Copper instruction is classified as illegal if it is tries
+     *          custom chip register it has no access to.
+     *  @param  addr     The address of the Cooper instruction in memory.
+     */
+    bool isIllegalInstr(u32 addr) const;
+};
+
+class AgnusAPI : public API {
+
+    friend class VAmiga;
+
+    class Agnus *agnus = nullptr;
+
+public:
+
+    DmaAPI dma;
+    CopperAPI copper;
+    BlitterAPI blitter;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const AgnusConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const AgnusInfo &getInfo() const;
+    const AgnusInfo &getCachedInfo() const;
+
+    /** @brief  Returns statistical information about the components.
+     */
+    const AgnusStats &getStats() const;
+
+    /** @brief  Provides details about the currently selected chip revision.
+     */
+    const AgnusTraits getTraits() const;
+};
+
+
+//
+// CIA
+//
+
+class CIAAPI : public API {
+
+    friend class VAmiga;
+
+    class CIA *cia = nullptr;
+
+public:
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const CIAConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const CIAInfo &getInfo() const;
+    const CIAInfo &getCachedInfo() const;
+};
+
+
+//
+// CPU
+//
+
+class GuardsAPI : public API {
+
+    friend class VAmiga;
+
+    class GuardsWrapper *guards = nullptr;
+
+public:
+
+    /** @brief  Returns the number of guards in the guard list.
+     */
+    isize elements() const;
+
+    /** @brief  Returns information about a guard.
+     *  @param  nr      Number of the guard in the guard list
+     */
+    std::optional<GuardInfo> guardNr(long nr) const;
+
+    /** @brief  Returns information about a guard.
+     *  @param  target  The target of the guard to query
+     */
+    std::optional<GuardInfo> guardAt(u32 target) const;
+
+    /** @brief  Sets a guard.
+     *  @param  target  The observed target. For breakpoints and watchpoints,
+     *                  the target is a memory address. For catchpoints, the
+     *                  target is a vector number (interrupts or traps).
+     *  @param  ignores If a value greater zero is given, the guard has to
+     *                  to be hit the specified number of times until program
+     *                  execution is paused.
+     */
+    void setAt(u32 target, isize ignores = 0);
+
+    /** @brief  Relocates a guard.
+     *  @param  nr      Number of the guard in the guard list
+     *  @param  target  New target
+     */
+    void moveTo(isize nr, u32 target);
+
+    /** @brief  Deletes a guard.
+     *  @param  nr      Number of the guard in the guard list
+     */
+    void remove(isize nr);
+
+    /** @brief  Deletes a guard.
+     *  @param  target  The target of the guard to be deleted.
+     */
+    void removeAt(u32 target);
+
+    /** @brief  Deletes all guards.
+     */
+    void removeAll();
+
+    /** @brief  Enables a guard.
+     *  @param  nr      Number of the guard in the guard list
+     */
+    void enable(isize nr);
+
+    /** @brief  Enables a guard.
+     *  @param  target  The target of the guard to be deleted
+     */
+    void enableAt(u32 target);
+
+    /** @brief  Enables all guards.
+     */
+    void enableAll();
+
+    /** @brief  Disables a guard.
+     *  @param  nr      Number of the guard in the guard list
+     */
+    void disable(isize nr);
+
+    /** @brief  Disables a guard.
+     *  @param  target  The target of the guard to be deleted
+     */
+    void disableAt(u32 target);
+
+    /** @brief  Disables all guards.
+     */
+    void disableAll();
+    void toggle(isize nr);
+
+};
+
+struct CPUAPI : public API {
+
+    friend class VAmiga;
+
+    class CPU *cpu = nullptr;
+
+    GuardsAPI breakpoints;
+    GuardsAPI watchpoints;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const CPUConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const CPUInfo &getInfo() const;
+    const CPUInfo &getCachedInfo() const;
+};
+
+class DeniseAPI : public API {
+
+    friend class VAmiga;
+
+    class Denise *denise = nullptr;
+
+public:
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const DeniseConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const DeniseInfo &getInfo() const;
+    const DeniseInfo &getCachedInfo() const;
+};
+
+
+//
+// Memory
+//
+
+class MemoryDebuggerAPI : public API {
+
+    friend class VAmiga;
+
+    class MemoryDebugger *debugger = nullptr;
+
+public:
+
+    /** @brief  Returns a string representations for a portion of memory.
+     */
+    string ascDump(Accessor acc, u32 addr, isize bytes) const;
+    string hexDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
+    string memDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
+};
+
+struct MemoryAPI : public API {
+
+    friend class VAmiga;
 
     class Memory *mem = nullptr;
+
+public:
+
+    MemoryDebuggerAPI debugger;
 
     /** @brief  Returns the component's current configuration.
      */
@@ -253,13 +430,93 @@ struct MemoryAPI : API {
 
     /** @brief  Returns the component's current state.
      */
-     const MemInfo &getInfo() const;
-     const MemInfo &getCachedInfo() const;
+    const MemInfo &getInfo() const;
+    const MemInfo &getCachedInfo() const;
+
+    /** @brief  Returns statistical information about the components.
+     */
+    const MemStats &getStats() const;
+
+    /** @brief  Provides details about the installed ROM, WOM, or ROM extension.
+     */
+    const RomTraits &getRomTraits() const;
+    const RomTraits &getWomTraits() const;
+    const RomTraits &getExtTraits() const;
+
+    /** @brief  Removes a ROM
+     */
+    void deleteRom();
+    void deleteWom();
+    void deleteExt();
 };
 
-struct PaulaAPI : API {
+//
+// Paula
+//
+
+class AudioChannelAPI : public API {
+
+    friend class VAmiga;
 
     class Paula *paula = nullptr;
+    isize channel = 0;
+
+public:
+
+    AudioChannelAPI(isize channel) : API(), channel(channel) { }
+
+    /** @brief  Returns the component's current state.
+     */
+    const StateMachineInfo &getInfo() const;
+    const StateMachineInfo &getCachedInfo() const;
+};
+
+class DiskControllerAPI : public API {
+
+    friend class VAmiga;
+
+    class DiskController *diskController = nullptr;
+
+public:
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const DiskControllerConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const DiskControllerInfo &getInfo() const;
+    const DiskControllerInfo &getCachedInfo() const;
+};
+
+class UARTAPI : public API {
+
+    friend class VAmiga;
+
+    class UART *uart = nullptr;
+
+public:
+
+    /** @brief  Returns the component's current state.
+     */
+    const UARTInfo &getInfo() const;
+    const UARTInfo &getCachedInfo() const;
+};
+
+class PaulaAPI : public API {
+
+    friend class VAmiga;
+
+public:
+
+    class Paula *paula = nullptr;
+
+    AudioChannelAPI audioChannel0 = AudioChannelAPI(0);
+    AudioChannelAPI audioChannel1 = AudioChannelAPI(1);
+    AudioChannelAPI audioChannel2 = AudioChannelAPI(2);
+    AudioChannelAPI audioChannel3 = AudioChannelAPI(3);
+    DiskControllerAPI diskController;
+    UARTAPI uart;
 
     /** @brief  Returns the component's current configuration.
      */
@@ -271,18 +528,23 @@ struct PaulaAPI : API {
     const PaulaInfo &getCachedInfo() const;
 };
 
-struct RtcAPI : API {
+class RTCAPI : public API {
+
+    friend class VAmiga;
 
     class RTC *rtc = nullptr;
+
+public:
 
     /** @brief  Returns the component's current configuration.
      */
     const RTCConfig &getConfig() const;
 
-    /** @brief  Returns the component's current state.
+    /** @brief  Updates the RTC's internal state.
+     *          Call this function if you want, e.g., spypeek to return an
+     *          up-to-date value from the RTC register memory locations.
      */
-    // const RTCInfo &getInfo() const;
-    // const RTCInfo &getCachedInfo() const;
+    void update();
 };
 
 
@@ -290,7 +552,13 @@ struct RtcAPI : API {
 // Peripherals
 //
 
-struct FloppyDriveAPI : API {
+//
+// Peripherals (FloppyDrive)
+//
+
+struct FloppyDriveAPI : public API {
+
+    friend class VAmiga;
 
     class FloppyDrive *drive = nullptr;
 
@@ -310,11 +578,67 @@ struct FloppyDriveAPI : API {
     /** @brief Sets or clears one or more disk flags
      */
     void setFlag(DiskFlags mask, bool value);
+
+    /** @brief  Inserts a new disk.
+     *  @param  fstype  File system format
+     *  @param  id      Boot block identifier
+     *  @param  name    Name of the disk
+     */
+    void insertBlankDisk(FSVolumeType fstype, BootBlockId id, string name);
+
+    /** @brief  Inserts a disk created from a media file.
+     *  @param  file    A media file wrapper object.
+     *  @param  wp      Write-protection status of the disk.
+     */
+    void insertMedia(MediaFile &file, bool wp);
+
+    /** @brief  Inserts a disk created from a file system.
+     *  @param  fs      A file system wrapper object.
+     *  @param  wp      Write-protection status of the disk.
+     */
+    void insertFileSystem(const class MutableFileSystem &fs, bool wp);
+
+    /** @brief  Ejects the current disk.
+     */
+    void ejectDisk();
 };
 
-struct HardDriveAPI : API {
+
+//
+// Peripherals (HardDrive)
+//
+
+class HdControllerAPI : public API {
+
+    friend class VAmiga;
+
+    class HdController *controller = nullptr;
+
+public:
+
+    /** @brief  Provides details about the currently selected chip revision.
+     */
+    // const HdcTraits &getTraits() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const HdcInfo &getInfo() const;
+    const HdcInfo &getCachedInfo() const;
+
+    /** @brief  Returns statistical information about the components.
+     */
+    const HdcStats &getStats() const;
+};
+
+struct HardDriveAPI : public API {
+
+    friend class VAmiga;
 
     class HardDrive *drive = nullptr;
+
+public:
+
+    HdControllerAPI controller;
 
     /** @brief  Returns the component's current configuration.
      */
@@ -325,6 +649,11 @@ struct HardDriveAPI : API {
     const HardDriveInfo &getInfo() const;
     const HardDriveInfo &getCachedInfo() const;
 
+    /** @brief  Provides details about the hard drive and its partitions
+     */
+    const HardDriveTraits &getTraits() const;
+    const PartitionTraits &getPartitionTraits(isize nr) const;
+
     /** @brief Queries a disk flag
      */
     bool getFlag(DiskFlags mask);
@@ -332,9 +661,33 @@ struct HardDriveAPI : API {
     /** @brief Sets or clears one or more disk flags
      */
     void setFlag(DiskFlags mask, bool value);
+
+    /** @brief Returns possible drive geometries for a given capacity.
+     *  The function takes a number of blocks and returns all common
+     *  cyclinder/heads/sectors combinations that match the given size.
+     */
+    std::vector<std::tuple<isize,isize,isize>> geometries(isize numBlocks);
+
+    /** @brief Changes the drives geometry.
+     *  @param c    Cylinders
+     *  @param h    Heads
+     *  @param s    Sectors
+     *  @param b    Block size
+     *  ‘
+     */
+    void changeGeometry(isize c, isize h, isize s, isize b = 512);
 };
 
-struct JoystickAPI : API {
+
+//
+// Peripherals (Joystick)
+//
+
+class JoystickAPI : public API {
+
+    friend class VAmiga;
+
+public:
 
     class Joystick *joystick = nullptr;
 
@@ -344,13 +697,22 @@ struct JoystickAPI : API {
 
     /** @brief  Returns the component's current state.
      */
-    // const JoystickInfo &getInfo() const;
-    // const JoystickInfo &getCachedInfo() const;
+    const JoystickInfo &getInfo() const;
+    const JoystickInfo &getCachedInfo() const;
 };
 
-struct KeyboardAPI : API {
+
+//
+// Peripherals (Keyboard)
+//
+
+class KeyboardAPI : public API {
+
+    friend class VAmiga;
 
     class Keyboard *keyboard = nullptr;
+
+public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -404,9 +766,18 @@ struct KeyboardAPI : API {
     void abortAutoTyping();
 };
 
-struct MouseAPI : API {
+
+//
+// Peripherals (Mouse)
+//
+
+class MouseAPI : public API {
+
+    friend class VAmiga;
 
     class Mouse *mouse = nullptr;
+
+public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -416,6 +787,47 @@ struct MouseAPI : API {
      */
     // const MouseInfo &getInfo() const;
     // const MouseInfo &getCachedInfo() const;
+
+    /** Feeds a coordinate into the shake detector.
+     *
+     *  The shake detector keeps track of the transmitted coordinates and
+     *  scans for rapid movements caused by shaking the mouse.
+     *
+     *  @param x    Current horizontal mouse position.
+     *  @param y    Current vertical mouse position.
+     *  @return     true iff a shaking mouse has been detected.
+     */
+    bool detectShakeXY(double x, double y);
+
+    /** Feeds a coordinate into the shake detector.
+     *
+     *  The shake detector keeps track of the transmitted coordinates and
+     *  scans for rapid movements caused by shaking the mouse.
+     *
+     *  @param dx   Current horizontal mouse position, relative to the
+     *              previous position.
+     *  @param dy   Current vertical mouse position, relative to the
+     *              previous position.
+     *  @return     true iff a shaking mouse has been detected.
+     */
+    bool detectShakeDxDy(double dx, double dy);
+
+    /** Moves the mouse
+     *  @param x    New absolute horizontal coordinate
+     *  @param y    New absolute vertical coordinate
+     */
+    void setXY(double x, double y);
+
+    /** Moves the mouse
+     *  @param dx       Relative horizontal mouse movement
+     *  @param dy       Relative vertical mouse movement
+     */
+    void setDxDy(double dx, double dy);
+
+    /** Triggers a mouse button event
+     *  @param action   The triggered event
+     */
+    void trigger(GamePadAction action);
 };
 
 
@@ -423,21 +835,88 @@ struct MouseAPI : API {
 // Ports
 //
 
-struct SerialPortAPI : API {
 
-    class SerialPort *serialPort = nullptr;
-};
+//
+// Ports (AudioPort)
+//
 
-struct ControlPortAPI : API {
+class AudioPortAPI : public API {
 
-    class ControlPort *controlPort = nullptr;
+    friend class VAmiga;
 
-    JoystickAPI joystick;
-    MouseAPI mouse;
+public:
+
+    class AudioPort *port = nullptr;
 
     /** @brief  Returns the component's current configuration.
      */
-    // const ControlPortConfig &getConfig() const;
+    const AudioPortConfig &getConfig() const;
+
+    /** @brief  Returns statistical information about the components.
+     */
+    const AudioPortStats &getStats() const;
+
+    /// @}
+    /// @name Retrieving audio data
+    /// @{
+
+    /** @brief  Extracts a number of mono samples from the audio buffer
+     *  Internally, the audio port maintains a ringbuffer storing stereo
+     *  audio samples. When this function is used, both internal stream are
+     *  added together and written to to the destination buffer.
+     *  @param  buffer  Pointer to the destination buffer
+     *  @param  n       Number of sound samples to copy.
+     *  @return         Number of actually copied sound sound samples.
+     */
+    isize copyMono(float *buffer, isize n);
+
+    /** @brief  Extracts a number of stereo samples from the audio buffer.
+     *  @param  left    Pointer to the left channel's destination buffer.
+     *  @param  right   Pointer to the right channel's destination buffer.
+     *  @param  n       Number of sound samples to copy.
+     *  @return         Number of actually copied sound sound samples.
+     */
+    isize copyStereo(float *left, float *right, isize n);
+
+    /** @brief  Extracts a number of stereo samples from the audio buffer.
+     *  This function has to be used if a stereo stream is managed in a
+     *  single destination buffer. The samples of both channels will be
+     *  interleaved, that is, a sample for the left channel will be
+     *  followed by a sample of the right channel and vice versa.
+     *  @param  buffer  Pointer to the destinationleft buffer.
+     *  @param  n       Number of sound samples to copy.
+     *  @return         Number of actually copied sound sound samples.
+     */
+    isize copyInterleaved(float *buffer, isize n);
+
+    /// @}
+    /// @name Visualizing waveforms
+    /// @{
+
+    /** @brief  Draws a visual representation of the waveform.
+     *  The Mac app uses this function to visualize the contents of the
+     *  audio buffer in one of it's inspector panels. */
+    void drawL(u32 *buffer, isize width, isize height, u32 color) const;
+    void drawR(u32 *buffer, isize width, isize height, u32 color) const;
+
+    /// @}};
+};
+
+
+//
+// Ports (ControlPort)
+//
+
+class ControlPortAPI : public API {
+
+    friend class VAmiga;
+
+    class ControlPort *controlPort = nullptr;
+
+public:
+
+    JoystickAPI joystick;
+    MouseAPI mouse;
 
     /** @brief  Returns the component's current state.
      */
@@ -445,7 +924,28 @@ struct ControlPortAPI : API {
     const ControlPortInfo &getCachedInfo() const;
 };
 
-struct VideoPortAPI : API {
+
+//
+// Ports (SerialPort)
+//
+
+struct SerialPortAPI : public API {
+
+    friend class VAmiga;
+
+    class SerialPort *serialPort = nullptr;
+};
+
+
+//
+// Ports (VideoPort)
+//
+
+class VideoPortAPI : public API {
+
+    friend class VAmiga;
+
+public:
 
     class VideoPort *videoPort = nullptr;
 
@@ -473,7 +973,6 @@ struct VideoPortAPI : API {
 };
 
 
-
 //
 // Media
 //
@@ -483,15 +982,21 @@ struct VideoPortAPI : API {
 // Misc (Debugger)
 //
 
-struct DebuggerAPI : API {
+class DebuggerAPI : public API {
+
+    friend class VAmiga;
 
     class Debugger *debugger = nullptr;
 
+public:
+
     /** @brief  Returns a string representations for a portion of memory.
      */
+    /*
     string ascDump(Accessor acc, u32 addr, isize bytes) const;
     string hexDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
     string memDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
+     */
 };
 
 //
@@ -523,9 +1028,13 @@ struct DebuggerAPI : API {
  *    storing shader-relevant parameters that are irrelevant to the emulation
  *    core.
  */
-struct DefaultsAPI : API {
+class DefaultsAPI : public API {
+
+    friend class VAmiga;
 
     class Defaults *defaults = nullptr;
+
+public:
 
     DefaultsAPI(Defaults *defaults) : defaults(defaults) { }
 
@@ -722,7 +1231,11 @@ public:
     /// @}
 };
 
-struct HostAPI : API {
+class HostAPI : public API {
+
+    friend class VAmiga;
+
+public:
 
     class Host *host = nullptr;
 };
@@ -734,7 +1247,11 @@ struct HostAPI : API {
 
 /** RetroShell Public API
  */
-struct RetroShellAPI : API {
+class RetroShellAPI : public API {
+
+    friend class VAmiga;
+
+public:
 
     class RetroShell *retroShell = nullptr;
     
@@ -811,7 +1328,9 @@ struct RetroShellAPI : API {
 // Misc (Recorder)
 //
 
-struct RecorderAPI : API {
+struct RecorderAPI : public API {
+
+    friend class VAmiga;
 
     class Recorder *recorder = nullptr;
 };
@@ -821,7 +1340,9 @@ struct RecorderAPI : API {
 // Misc (Debugger)
 //
 
-struct RemoteManagerAPI : API {
+struct RemoteManagerAPI : public API {
+
+    friend class VAmiga;
 
     class RemoteManager *remoteManager = nullptr;
 
@@ -847,33 +1368,36 @@ public:
 
     static DefaultsAPI defaults;
 
+    // Components
     AmigaAPI amiga;
     AgnusAPI agnus;
-    BlitterAPI blitter;
-    GuardsAPI breakpoints;
     CIAAPI ciaA, ciaB;
+    CPUAPI cpu;
+    DeniseAPI denise;
+    MemoryAPI mem;
+    PaulaAPI paula;
+    RTCAPI rtc;
+
+    // Ports
+    AudioPortAPI audioPort;
     VideoPortAPI videoPort;
     ControlPortAPI controlPort1;
     ControlPortAPI controlPort2;
-    CopperAPI copper;
     GuardsAPI copperBreakpoints;
-    CPUAPI cpu;
     DebuggerAPI debugger;
-    DeniseAPI denise;
-    DiskControllerAPI diskController;
-    DmaDebuggerAPI dmaDebugger;
+    SerialPortAPI serialPort;
+
+    // Peripherals
     FloppyDriveAPI df0, df1, df2, df3;
-    HardDriveAPI hd0,hd1, hd2, hd3;
-    HostAPI host;
+    HardDriveAPI hd0, hd1, hd2, hd3;
     KeyboardAPI keyboard;
-    MemoryAPI mem;
-    PaulaAPI paula;
-    RetroShellAPI retroShell;
-    RtcAPI rtc;
+
+    // Misc
+    HostAPI host;
     RecorderAPI recorder;
     RemoteManagerAPI remoteManager;
-    SerialPortAPI serialPort;
-    GuardsAPI watchpoints;
+    RetroShellAPI retroShell;
+
 
     //
     // Static methods
@@ -1195,9 +1719,8 @@ public:
     void put(CmdType type, KeyCmd payload)  { put(Cmd(type, payload)); }
     void put(CmdType type, GamePadCmd payload)  { put(Cmd(type, payload)); }
     void put(CmdType type, CoordCmd payload)  { put(Cmd(type, payload)); }
-    /*
     void put(CmdType type, AlarmCmd payload)  { put(Cmd(type, payload)); }
-    */
+
     /// @}
 };
 

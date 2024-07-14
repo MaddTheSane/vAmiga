@@ -338,13 +338,13 @@ extension MyDocument {
 
     func proceedWithUnsavedHardDisks(drives: [HardDriveProxy]) -> Bool {
         
-        let modified = drives.filter { $0.hasModifiedDisk }
+        let modified = drives.filter { $0.info.hasModifiedDisk }
         
         if modified.isEmpty || parent.pref.detachWithoutAsking {
             return true
         }
         
-        let names = modified.map({ "hd" + String($0.nr) }).joined(separator: ", ")
+        let names = modified.map({ "hd" + String($0.traits.nr) }).joined(separator: ", ")
         let text = modified.count == 1 ?
         "Hard drive \(names) contains an unsaved disk." :
         "Hard drives \(names) contain unsaved disks."

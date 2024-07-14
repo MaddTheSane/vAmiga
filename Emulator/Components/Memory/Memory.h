@@ -10,7 +10,7 @@
 #pragma once
 
 #include "MemoryTypes.h"
-#include "SubComponent.h"
+#include "MemoryDebugger.h"
 #include "RomFileTypes.h"
 #include "MemUtils.h"
 #include "Buffer.h"
@@ -131,6 +131,9 @@ class Memory : public SubComponent, public Inspectable<MemInfo, MemStats> {
 
 public:
 
+    // Subcomponents
+    MemoryDebugger debugger = MemoryDebugger(amiga);
+
     /* About
      *
      * There are 6 types of dynamically allocated memory:
@@ -221,7 +224,7 @@ public:
 
 public:
     
-    using SubComponent::SubComponent;
+    Memory(Amiga& ref);
 
     Memory& operator= (const Memory& other) {
 
@@ -374,10 +377,10 @@ private:
 public:
 
     // Queries ROM information
-    static RomTraits getRomTraits(u32 crc);
-    RomTraits getRomTraits() const;
-    RomTraits getWomTraits() const;
-    RomTraits getExtTraits() const;
+    static RomTraits &getRomTraits(u32 crc);
+    RomTraits &getRomTraits() const;
+    RomTraits &getWomTraits() const;
+    RomTraits &getExtTraits() const;
 
     // Computes a CRC-32 checksum
     u32 romFingerprint() const;

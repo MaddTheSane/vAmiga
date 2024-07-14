@@ -49,11 +49,9 @@ enum_long(MSG_TYPE)
 
     // CPU
     MSG_OVERCLOCKING,
-    MSG_BREAKPOINT_UPDATED,
+    MSG_GUARD_UPDATED,
     MSG_BREAKPOINT_REACHED,
-    MSG_WATCHPOINT_UPDATED,
     MSG_WATCHPOINT_REACHED,
-    MSG_CATCHPOINT_UPDATED,
     MSG_CATCHPOINT_REACHED,
     MSG_SWTRAP_REACHED,
     MSG_CPU_HALT,
@@ -163,11 +161,9 @@ struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType>
             case MSG_VIDEO_FORMAT:          return "VIDEO_FORMAT";
                 
             case MSG_OVERCLOCKING:          return "OVERCLOCKING";
-            case MSG_BREAKPOINT_UPDATED:    return "BREAKPOINT_UPDATED";
+            case MSG_GUARD_UPDATED:         return "GUARD_UPDATED";
             case MSG_BREAKPOINT_REACHED:    return "BREAKPOINT_REACHED";
-            case MSG_WATCHPOINT_UPDATED:    return "WATCHPOINT_UPDATED";
             case MSG_WATCHPOINT_REACHED:    return "WATCHPOINT_REACHED";
-            case MSG_CATCHPOINT_UPDATED:    return "CATCHPOINT_UPDATED";
             case MSG_CATCHPOINT_REACHED:    return "CATCHPOINT_REACHED";
             case MSG_SWTRAP_REACHED:        return "SWTRAP_REACHED";
             case MSG_CPU_HALT:              return "CPU_HALT";

@@ -90,6 +90,10 @@
 		5057E4C5243DF10A004005EB /* Primitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5057E4C4243DF10A004005EB /* Primitives.swift */; };
 		505A13212C2FE27B00FF8D2C /* VideoPort.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A131F2C2FE27A00FF8D2C /* VideoPort.cpp */; };
 		505A13222C2FE27B00FF8D2C /* VideoPort.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A131F2C2FE27A00FF8D2C /* VideoPort.cpp */; };
+		505A133F2C3BA8A000FF8D2C /* MemoryDebugger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A133D2C3BA8A000FF8D2C /* MemoryDebugger.cpp */; };
+		505A13402C3BA8A000FF8D2C /* MemoryDebugger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A133D2C3BA8A000FF8D2C /* MemoryDebugger.cpp */; };
+		505A13432C3D15F200FF8D2C /* CPUDebugger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A13412C3D15F200FF8D2C /* CPUDebugger.cpp */; };
+		505A13442C3D15F200FF8D2C /* CPUDebugger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A13412C3D15F200FF8D2C /* CPUDebugger.cpp */; };
 		505A215022869FF10016EA21 /* AudioFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505A214E22869FF10016EA21 /* AudioFilter.cpp */; };
 		505B331F2B46D25700D3736F /* config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505B331E2B46D0CA00D3736F /* config.cpp */; };
 		505B33202B46D25700D3736F /* config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 505B331E2B46D0CA00D3736F /* config.cpp */; };
@@ -178,6 +182,8 @@
 		50927DAB24865F11008DF3B8 /* MoiraExceptions_cpp.h in Sources */ = {isa = PBXBuildFile; fileRef = 50927DAA24865F11008DF3B8 /* MoiraExceptions_cpp.h */; };
 		50950ED822881B7A0073F755 /* ZorroManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50950ED622881B7A0073F755 /* ZorroManager.cpp */; };
 		50984B65263A9E9C00E37184 /* RegressionTester.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50984B63263A9B5100E37184 /* RegressionTester.cpp */; };
+		50985ABB2C418D190079CFC5 /* MediaFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50985AB92C418D190079CFC5 /* MediaFile.cpp */; };
+		50985ABC2C418D190079CFC5 /* MediaFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50985AB92C418D190079CFC5 /* MediaFile.cpp */; };
 		5099432A29C2114C00867E8F /* Amiga.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50B14C0E21EB410B002E32A6 /* Amiga.cpp */; };
 		509C365A260B1766004F160A /* Command.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 509C3658260B1766004F160A /* Command.cpp */; };
 		509C365E260B177E004F160A /* Console.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 509C365C260B177E004F160A /* Console.cpp */; };
@@ -607,6 +613,10 @@
 		505A13282C313BB700FF8D2C /* Animated.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Animated.h; sourceTree = "<group>"; };
 		505A133B2C3704DB00FF8D2C /* RomDatabase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RomDatabase.h; sourceTree = "<group>"; };
 		505A133C2C3A837A00FF8D2C /* CoreComponentTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoreComponentTypes.h; sourceTree = "<group>"; };
+		505A133D2C3BA8A000FF8D2C /* MemoryDebugger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MemoryDebugger.cpp; sourceTree = "<group>"; };
+		505A133E2C3BA8A000FF8D2C /* MemoryDebugger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MemoryDebugger.h; sourceTree = "<group>"; };
+		505A13412C3D15F200FF8D2C /* CPUDebugger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CPUDebugger.cpp; sourceTree = "<group>"; };
+		505A13422C3D15F200FF8D2C /* CPUDebugger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CPUDebugger.h; sourceTree = "<group>"; };
 		505A214E22869FF10016EA21 /* AudioFilter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudioFilter.cpp; sourceTree = "<group>"; };
 		505A214F22869FF10016EA21 /* AudioFilter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioFilter.h; sourceTree = "<group>"; };
 		505AD259224A67CD0052A014 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
@@ -736,6 +746,9 @@
 		50950ED722881B7A0073F755 /* ZorroManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZorroManager.h; sourceTree = "<group>"; };
 		50984B63263A9B5100E37184 /* RegressionTester.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RegressionTester.cpp; sourceTree = "<group>"; };
 		50984B64263A9B5100E37184 /* RegressionTester.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RegressionTester.h; sourceTree = "<group>"; };
+		50985AB92C418D190079CFC5 /* MediaFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MediaFile.cpp; sourceTree = "<group>"; };
+		50985ABA2C418D190079CFC5 /* MediaFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaFile.h; sourceTree = "<group>"; };
+		50985ABD2C418D370079CFC5 /* MediaFileTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaFileTypes.h; sourceTree = "<group>"; };
 		5099432B29C2116500867E8F /* VAmiga.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VAmiga.h; sourceTree = "<group>"; };
 		5099432C29C224BB00867E8F /* Media.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Media.h; sourceTree = "<group>"; };
 		509C3658260B1766004F160A /* Command.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Command.cpp; sourceTree = "<group>"; };
@@ -1231,6 +1244,8 @@
 				5051922A22B61DAA0012C4BB /* MemoryTypes.h */,
 				5064851021EC7A1700FC4AC3 /* Memory.h */,
 				5064850F21EC7A1700FC4AC3 /* Memory.cpp */,
+				505A133E2C3BA8A000FF8D2C /* MemoryDebugger.h */,
+				505A133D2C3BA8A000FF8D2C /* MemoryDebugger.cpp */,
 			);
 			path = Memory;
 			sourceTree = "<group>";
@@ -1294,8 +1309,8 @@
 				502F7DD0222170AE00AEEC65 /* Agnus */,
 				505B801C23FE626E002407FE /* Memory */,
 				50EC7A2E29C9EC1000060CAA /* RTC */,
-				505B801D23FE628F002407FE /* Ports */,
 				508AC36527B7F634006AD2E7 /* Zorro */,
+				505B801D23FE628F002407FE /* Ports */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -1330,6 +1345,8 @@
 				5051922822B61C8A0012C4BB /* CPUTypes.h */,
 				508E7F942206CDBD00F7D88C /* CPU.h */,
 				508E7F932206CDBD00F7D88C /* CPU.cpp */,
+				505A13422C3D15F200FF8D2C /* CPUDebugger.h */,
+				505A13412C3D15F200FF8D2C /* CPUDebugger.cpp */,
 				50E2BE25240D417200155AE4 /* Moira */,
 			);
 			path = CPU;
@@ -1523,6 +1540,9 @@
 			children = (
 				50CF46492620432B00BB3B95 /* CMakeLists.txt */,
 				5099432C29C224BB00867E8F /* Media.h */,
+				50985ABD2C418D370079CFC5 /* MediaFileTypes.h */,
+				50985ABA2C418D190079CFC5 /* MediaFile.h */,
+				50985AB92C418D190079CFC5 /* MediaFile.cpp */,
 				5051922722B61C1B0012C4BB /* AmigaFileTypes.h */,
 				508FE06421EA318D0043D0E9 /* AmigaFile.h */,
 				508FE06321EA318D0043D0E9 /* AmigaFile.cpp */,
@@ -2294,6 +2314,7 @@
 				50FC08AF27819E2400F0C567 /* CopperInfo.cpp in Sources */,
 				50E1905C277F69B300B8DBE2 /* FFmpeg.cpp in Sources */,
 				506ACE46279AC76700BA7877 /* SequencerBpl.cpp in Sources */,
+				505A133F2C3BA8A000FF8D2C /* MemoryDebugger.cpp in Sources */,
 				50300AF0258CF1F700D261E3 /* TypeExtensions.swift in Sources */,
 				50B14C2821EB97EC002E32A6 /* EmulatorProxy.mm in Sources */,
 				501FB3172762008C00D0A57B /* OSDebuggerRead.cpp in Sources */,
@@ -2337,6 +2358,7 @@
 				5057E4C5243DF10A004005EB /* Primitives.swift in Sources */,
 				50826F7827F0B2AD005FBF3B /* DiagBoard.cpp in Sources */,
 				507957AC244AD25B007B8B8D /* Configuration.swift in Sources */,
+				505A13432C3D15F200FF8D2C /* CPUDebugger.cpp in Sources */,
 				50F54B3024B5D31D0078FDC9 /* u_quick.c in Sources */,
 				50DD33CC2756113300AE18B4 /* pfile.c in Sources */,
 				50950ED822881B7A0073F755 /* ZorroManager.cpp in Sources */,
@@ -2410,6 +2432,7 @@
 				508FDF8721EA1FBC0043D0E9 /* MsgQueue.cpp in Sources */,
 				5020B38E295336E5009732AC /* Host.cpp in Sources */,
 				50BF1CC8276D174200386540 /* GdbServer.cpp in Sources */,
+				50985ABB2C418D190079CFC5 /* MediaFile.cpp in Sources */,
 				500A0A2A262305BE0019F013 /* MemUtils.cpp in Sources */,
 				50AFEBBA278EF5FD00F422D5 /* Sequencer.cpp in Sources */,
 				50AEBED124D3D61A0037082D /* PaulaEvents.cpp in Sources */,
@@ -2468,6 +2491,7 @@
 				50FC04B727DA19A900C3E566 /* ZorroBoard.cpp in Sources */,
 				50FC04DE27DA1A1400C3E566 /* u_medium.c in Sources */,
 				50FC04C727DA19E900C3E566 /* EXEFile.cpp in Sources */,
+				50985ABC2C418D190079CFC5 /* MediaFile.cpp in Sources */,
 				50FC04C627DA19E900C3E566 /* Folder.cpp in Sources */,
 				50EF2237281595B800440C4D /* DiagBoard.cpp in Sources */,
 				50FC04DD27DA1A1400C3E566 /* tables.c in Sources */,
@@ -2499,6 +2523,7 @@
 				50FC04EE27DA1A4500C3E566 /* GdbServer.cpp in Sources */,
 				50FC04C227DA19DA00C3E566 /* Script.cpp in Sources */,
 				5020B38F295336E5009732AC /* Host.cpp in Sources */,
+				505A13402C3BA8A000FF8D2C /* MemoryDebugger.cpp in Sources */,
 				50FC04CB27DA19E900C3E566 /* FloppyFile.cpp in Sources */,
 				50FC04B627DA19A900C3E566 /* RamExpansion.cpp in Sources */,
 				50FC04A327DA197A00C3E566 /* SequencerRegs.cpp in Sources */,
@@ -2547,6 +2572,7 @@
 				50FC04A427DA198100C3E566 /* Copper.cpp in Sources */,
 				50FC04A627DA198100C3E566 /* CopperEvents.cpp in Sources */,
 				50FC04C427DA19DE00C3E566 /* ExtendedRomFile.cpp in Sources */,
+				505A13442C3D15F200FF8D2C /* CPUDebugger.cpp in Sources */,
 				50DA83E62C161961001209AA /* VAmiga.cpp in Sources */,
 				50FC04D027DA19F600C3E566 /* FileSystem.cpp in Sources */,
 				50EFB0CD2C18D95B0013B73C /* Inspectable.cpp in Sources */,

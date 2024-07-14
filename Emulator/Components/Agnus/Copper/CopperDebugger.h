@@ -10,6 +10,7 @@
 #pragma once
 
 #include "SubComponent.h"
+#include "CPU.h"
 #include "MoiraDebugger.h"
 #include <map>
 
@@ -70,8 +71,13 @@ class CopperDebugger: public SubComponent {
 public:
     
     // Breakpoint and watchpoints
-    CopperBreakpoints breakpoints = CopperBreakpoints(copper);
-    CopperWatchpoints watchpoints = CopperWatchpoints(copper);
+    CopperBreakpoints cbreakpoints = CopperBreakpoints(copper);
+    CopperWatchpoints cwatchpoints = CopperWatchpoints(copper);
+
+public:
+
+    GuardsWrapper breakpoints = GuardsWrapper(emulator, cbreakpoints);
+    GuardsWrapper watchpoints = GuardsWrapper(emulator, cwatchpoints);
 
     
     //
@@ -139,25 +145,6 @@ public:
     // Disassembles a single Copper command
     string disassemble(isize list, isize offset, bool symbolic) const;
     string disassemble(u32 addr, bool symbolic) const;
-    
-
-    //
-    // Manages the breakpoint and watchpoint lists
-    //
-
-    void setBreakpoint(u32 addr, isize ignores = 0) throws;
-    void deleteBreakpoint(isize nr) throws;
-    void enableBreakpoint(isize nr) throws;
-    void disableBreakpoint(isize nr) throws;
-    void toggleBreakpoint(isize nr) throws;
-    void ignoreBreakpoint(isize nr, isize count) throws;
-
-    void setWatchpoint(u32 addr, isize ignores = 0) throws;
-    void deleteWatchpoint(isize nr) throws;
-    void enableWatchpoint(isize nr) throws;
-    void disableWatchpoint(isize nr) throws;
-    void toggleWatchpoint(isize nr) throws;
-    void ignoreWatchpoint(isize nr, isize count) throws;
 };
 
 }

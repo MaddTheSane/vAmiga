@@ -92,16 +92,6 @@ using namespace vamiga::moira;
 
 @implementation CoreComponentProxy
 
--(CoreComponent *)component
-{
-    return (CoreComponent *)obj;
-}
-
--(NSInteger)objid
-{
-    return [self component]->objid;
-}
-
 @end
 
 //
@@ -234,88 +224,94 @@ using namespace vamiga::moira;
 
 - (NSInteger)count
 {
-    return [self guards]->guards->elements();
+    return [self guards]->elements();
 }
 
 - (NSInteger)addr:(NSInteger)nr
 {
-    auto addr = [self guards]->guards->guardAddr(nr);
-    return addr ? *addr : 0;
+    auto guard = [self guards]->guardNr(nr);
+    return guard ? (*guard).addr : 0;
 }
 
 - (BOOL)isSet:(NSInteger)nr
 {
-    return [self guards]->guards->isSet(nr);
+    auto guard = [self guards]->guardNr(nr);
+    return guard.has_value();
 }
 
 - (BOOL)isSetAt:(NSInteger)addr
 {
-    return [self guards]->guards->isSetAt(u32(addr));
+    auto guard = [self guards]->guardAt(u32(addr));
+    return guard.has_value();
 }
 
 - (void)setAt:(NSInteger)addr
 {
-    [self guards]->guards->setAt((u32)addr);
+    [self guards]->setAt((u32)addr);
 }
 
 - (void)remove:(NSInteger)nr
 {
-    return [self guards]->guards->remove(nr);
+    [self guards]->remove(nr);
 }
 
 - (void)removeAt:(NSInteger)addr
 {
-    [self guards]->guards->removeAt((u32)addr);
+    [self guards]->removeAt((u32)addr);
 }
 
 - (void)removeAll
 {
-    return [self guards]->guards->removeAll();
+    return [self guards]->removeAll();
 }
 
 - (void)replace:(NSInteger)nr addr:(NSInteger)addr
 {
-    [self guards]->guards->replace(nr, (u32)addr);
+    [self guards]->moveTo(nr, (u32)addr);
 }
 
 - (BOOL)isEnabled:(NSInteger)nr
 {
-    return [self guards]->guards->isEnabled(nr);
+    auto guard = [self guards]->guardNr(nr);
+    return guard ? (*guard).enabled : false;
 }
 
 - (BOOL)isEnabledAt:(NSInteger)addr
 {
-    return [self guards]->guards->isEnabledAt(u32(addr));
+    auto guard = [self guards]->guardAt(u32(addr));
+    return guard ? (*guard).enabled : false;
 }
 
 - (BOOL)isDisabled:(NSInteger)nr
 {
-    return [self guards]->guards->isDisabled(nr);
+    auto guard = [self guards]->guardNr(nr);
+    return guard ? (*guard).enabled == false : false;
 }
 
 - (BOOL)isDisabledAt:(NSInteger)addr
 {
-    return [self guards]->guards->isDisabledAt(u32(addr));
+    auto guard = [self guards]->guardAt(u32(addr));
+    return guard ? (*guard).enabled == false : false;
 }
 
 - (void)enable:(NSInteger)nr
 {
-    [self guards]->guards->enable(nr);
+    [self guards]->enable(nr);
 }
 
 - (void)enableAt:(NSInteger)addr
 {
-    [self guards]->guards->enableAt((u32)addr);
+    [self guards]->enableAt((u32)addr);
 }
 
 - (void)disable:(NSInteger)nr
 {
-    [self guards]->guards->disable(nr);
+    [self guards]->disable(nr);
 }
 
 - (void)disableAt:(NSInteger)addr
 {
-    [self guards]->guards->disableAt((u32)addr);
+    [self guards]->disableAt((u32)addr);
 }
 
 @end
@@ -437,12 +433,12 @@ using namespace vamiga::moira;
 
 - (CIAInfo)info
 {
-    return [self cia]->cia->getInfo();
+    return [self cia]->getInfo();
 }
 
 - (CIAInfo)cachedInfo
 {
-    return [self cia]->cia->getCachedInfo();
+    return [self cia]->getCachedInfo();
 }
 
 @end
@@ -461,42 +457,42 @@ using namespace vamiga::moira;
 
 - (MemConfig)config
 {
-    return [self mem]->mem->getConfig();
+    return [self mem]->getConfig();
 }
 
 - (MemInfo)info
 {
-    return [self mem]->mem->getInfo();
+    return [self mem]->getInfo();
 }
 
 - (MemInfo)cachedInfo
 {
-    return [self mem]->mem->getCachedInfo();
+    return [self mem]->getCachedInfo();
 }
 
 - (MemStats)stats
 {
-    return [self mem]->mem->getStats();
+    return [self mem]->getStats();
 }
 
 - (RomTraits)romTraits
 {
-    return [self mem]->mem->getRomTraits();
+    return [self mem]->getRomTraits();
 }
 
 - (RomTraits)womTraits
 {
-    return [self mem]->mem->getWomTraits();
+    return [self mem]->getWomTraits();
 }
 
 - (RomTraits)extTraits
 {
-    return [self mem]->mem->getExtTraits();
+    return [self mem]->getExtTraits();
 }
 
 - (void)deleteRom
 {
-    [self mem]->mem->deleteRom();
+    [self mem]->deleteRom();
 }
 
 - (BOOL)isRom:(NSURL *)url
@@ -601,6 +597,82 @@ using namespace vamiga::moira;
     }
 }
 
+- (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes
+{
+    assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
+    auto str = [self mem]->debugger.ascDump(accessor, (u32)addr, bytes);
+
+    return @(str.c_str());
+}
+
+- (NSString *)hexDump:(Accessor)accessor addr: (NSInteger)addr bytes:(NSInteger)bytes
+{
+    assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
+    auto str = [self mem]->debugger.hexDump(accessor, (u32)addr, bytes);
+
+    return @(str.c_str());
+}
+
+@end
+
+
+//
+// Audio port
+//
+
+@implementation AudioPortProxy
+
+- (AudioPortAPI *)port
+{
+    return (AudioPortAPI *)obj;
+}
+
+- (AudioPortStats)stats
+{
+    return [self port]->getStats();
+}
+
+- (NSInteger)copyMono:(float *)target size:(NSInteger)n
+{
+    return [self port]->copyMono(target, n);
+}
+
+- (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n
+{
+    return [self port]->copyStereo(target1, target2, n);
+}
+
+- (NSInteger)copyInterleaved:(float *)target size:(NSInteger)n
+{
+    return [self port]->copyInterleaved(target, n);
+}
+
+- (void)drawWaveformL:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h color:(u32)c
+{
+    [self port]->drawL(buffer, w, h, c);
+}
+
+- (void)drawWaveformL:(u32 *)buffer size:(NSSize)size color:(u32)c
+{
+    [self drawWaveformL:buffer
+                      w:(NSInteger)size.width
+                      h:(NSInteger)size.height
+                  color:c];
+}
+
+- (void)drawWaveformR:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h color:(u32)c
+{
+    [self port]->drawR(buffer, w, h, c);
+}
+
+- (void)drawWaveformR:(u32 *)buffer size:(NSSize)size color:(u32)c
+{
+    [self drawWaveformR:buffer
+                      w:(NSInteger)size.width
+                      h:(NSInteger)size.height
+                  color:c];
+}
+
 @end
 
 
@@ -617,32 +689,27 @@ using namespace vamiga::moira;
 
 - (AgnusInfo)info
 {
-    return [self agnus]->agnus->getInfo();
+    return [self agnus]->getInfo();
 }
 
 - (AgnusInfo)cachedInfo
 {
-    return [self agnus]->agnus->getCachedInfo();
+    return [self agnus]->getCachedInfo();
 }
 
 - (AgnusStats)stats
 {
-    return [self agnus]->agnus->getStats();
+    return [self agnus]->getStats();
 }
 
 - (AgnusTraits)traits
 {
-    return [self agnus]->agnus->getTraits();
+    return [self agnus]->getTraits();
 }
 
 - (EventSlotInfo)cachedSlotInfo:(NSInteger)slot
 {
-    return [self agnus]->agnus->getCachedInfo().slotInfo[slot];
-}
-
-- (NSInteger)frameCount
-{
-    return [self agnus]->agnus->pos.frame;
+    return [self agnus]->getCachedInfo().slotInfo[slot];
 }
 
 @end
@@ -661,28 +728,28 @@ using namespace vamiga::moira;
 
 - (CopperInfo)info
 {
-    return [self copper]->copper->getInfo();
+    return [self copper]->getInfo();
 }
 
 - (CopperInfo)cachedInfo
 {
-    return [self copper]->copper->getCachedInfo();
+    return [self copper]->getCachedInfo();
 }
 
 - (BOOL)isIllegalInstr:(NSInteger)addr
 {
-    return [self copper]->copper->isIllegalInstr((u32)addr);
+    return [self copper]->isIllegalInstr((u32)addr);
 }
 
 - (NSString *)disassemble:(NSInteger)addr symbolic:(BOOL)sym
 {
-    string str = [self copper]->copper->debugger.disassemble((u32)addr, sym);
+    string str = [self copper]->disassemble((u32)addr, sym);
     return @(str.c_str());
 }
 
 - (NSString *)disassemble:(NSInteger)list instr:(NSInteger)offset symbolic:(BOOL)sym
 {
-    string str = [self copper]->copper->debugger.disassemble(list, offset, sym);
+    string str = [self copper]->disassemble(list, offset, sym);
     return @(str.c_str());
 }
 
@@ -702,12 +769,12 @@ using namespace vamiga::moira;
 
 - (BlitterInfo)info
 {
-    return [self blitter]->blitter->getInfo();
+    return [self blitter]->getInfo();
 }
 
 - (BlitterInfo)cachedInfo
 {
-    return [self blitter]->blitter->getCachedInfo();
+    return [self blitter]->getCachedInfo();
 }
 
 @end
@@ -726,7 +793,7 @@ using namespace vamiga::moira;
 
 - (DmaDebuggerInfo)info
 {
-    return [self debugger]->dmaDebugger->getInfo();
+    return [self debugger]->getInfo();
 }
 
 @end
@@ -745,32 +812,22 @@ using namespace vamiga::moira;
 
 - (DeniseInfo)info
 {
-    return [self denise]->denise->getInfo();
+    return [self denise]->getInfo();
 }
 
 - (DeniseInfo)cachedInfo
 {
-    return [self denise]->denise->getCachedInfo();
+    return [self denise]->getCachedInfo();
 }
 
 - (SpriteInfo)getSpriteInfo:(NSInteger)nr
 {
-    return [self denise]->denise->debugger.getSpriteInfo(nr);
+    return [self info].sprite[nr];
 }
 
-- (NSInteger)sprDataLines:(NSInteger)nr
+- (SpriteInfo)getCachedSpriteInfo:(NSInteger)nr
 {
-    return [self denise]->denise->debugger.getSpriteHeight(nr);
-}
-
-- (u64)sprData:(NSInteger)nr line:(NSInteger)line
-{
-    return [self denise]->denise->debugger.getSpriteData(nr, line);
-}
-
-- (u16)sprColor:(NSInteger)nr reg:(NSInteger)reg
-{
-    return [self denise]->denise->debugger.getSpriteColor(nr, reg);
+    return [self cachedInfo].sprite[nr];
 }
 
 @end
@@ -882,32 +939,32 @@ using namespace vamiga::moira;
 
 - (PaulaInfo)info
 {
-    return [self paula]->paula->getInfo();
+    return [self paula]->getInfo();
 }
 
 - (PaulaInfo)cachedInfo
 {
-    return [self paula]->paula->getCachedInfo();
+    return [self paula]->getCachedInfo();
 }
 
 - (StateMachineInfo)audioInfo0
 {
-    return [self paula]->paula->channel0.getInfo();
+    return [self paula]->audioChannel0.getInfo();
 }
 
 - (StateMachineInfo)audioInfo1
 {
-    return [self paula]->paula->channel1.getInfo();
+    return [self paula]->audioChannel1.getInfo();
 }
 
 - (StateMachineInfo)audioInfo2
 {
-    return [self paula]->paula->channel2.getInfo();
+    return [self paula]->audioChannel2.getInfo();
 }
 
 - (StateMachineInfo)audioInfo3
 {
-    return [self paula]->paula->channel3.getInfo();
+    return [self paula]->audioChannel3.getInfo();
 }
 
 - (UARTInfo)uartInfo
@@ -925,44 +982,6 @@ using namespace vamiga::moira;
     return [self paula]->paula->emulator.main.audioPort.getStats();
 }
 
-- (NSInteger)copyMono:(float *)target size:(NSInteger)n
-{
-    return [self paula]->paula->emulator.main.audioPort.copyMono(target, n);
-}
-
-- (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n
-{
-    return [self paula]->paula->emulator.main.audioPort.copyStereo(target1, target2, n);
-}
-
-- (float)drawWaveformL:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c
-{
-    return [self paula]->paula->emulator.main.audioPort.stream.draw(buffer, w, h, true, s, c);
-}
-
-- (float)drawWaveformL:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c
-{
-    return [self drawWaveformL:buffer
-                             w:(NSInteger)size.width
-                             h:(NSInteger)size.height
-                         scale:s
-                         color:c];
-}
-
-- (float)drawWaveformR:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c
-{
-    return [self paula]->paula->emulator.main.audioPort.stream.draw(buffer, w, h, false, s, c);
-}
-
-- (float)drawWaveformR:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c
-{
-    return [self drawWaveformR:buffer
-                             w:(NSInteger)size.width
-                             h:(NSInteger)size.height
-                         scale:s
-                         color:c];
-}
-
 @end
 
 
@@ -972,14 +991,14 @@ using namespace vamiga::moira;
 
 @implementation RtcProxy
 
-- (RtcAPI *)rtc
+- (RTCAPI *)rtc
 {
-    return (RtcAPI *)obj;
+    return (RTCAPI *)obj;
 }
 
 - (void)update
 {
-    [self rtc]->rtc->update();
+    [self rtc]->update();
 }
 
 @end
@@ -998,27 +1017,27 @@ using namespace vamiga::moira;
 
 - (BOOL)detectShakeAbs:(NSPoint)pos
 {
-    return [self mouse]->mouse->detectShakeXY(pos.x, pos.y);
+    return [self mouse]->detectShakeXY(pos.x, pos.y);
 }
 
 - (BOOL)detectShakeRel:(NSPoint)pos
 {
-    return [self mouse]->mouse->detectShakeDxDy(pos.x, pos.y);
+    return [self mouse]->detectShakeDxDy(pos.x, pos.y);
 }
 
 - (void)setXY:(NSPoint)pos
 {
-    [self mouse]->mouse->setXY((double)pos.x, (double)pos.y);
+    [self mouse]->setXY(pos.x, pos.y);
 }
 
 - (void)setDxDy:(NSPoint)pos
 {
-    [self mouse]->mouse->setDxDy((double)pos.x, (double)pos.y);
+    [self mouse]->setDxDy((double)pos.x, (double)pos.y);
 }
 
 - (void)trigger:(GamePadAction)event
 {
-    [self mouse]->mouse->trigger(event);
+    [self mouse]->trigger(event);
 }
 
 @end
@@ -1071,12 +1090,12 @@ using namespace vamiga::moira;
 
 - (ControlPortInfo)info
 {
-    return [self cp]->controlPort->getInfo();
+    return [self cp]->getInfo();
 }
 
 - (ControlPortInfo)cachedInfo
 {
-    return [self cp]->controlPort->getCachedInfo();
+    return [self cp]->getCachedInfo();
 }
 
 @end
@@ -1191,17 +1210,17 @@ using namespace vamiga::moira;
 
 - (DiskControllerConfig)config
 {
-    return [self dc]->diskController->getConfig();
+    return [self dc]->getConfig();
 }
 
 - (DiskControllerInfo)info
 {
-    return [self dc]->diskController->getInfo();
+    return [self dc]->getInfo();
 }
 
 - (DiskControllerInfo)cachedInfo
 {
-    return [self dc]->diskController->getCachedInfo();
+    return [self dc]->getCachedInfo();
 }
 
 @end
@@ -1235,17 +1254,28 @@ using namespace vamiga::moira;
 
 - (FloppyDriveInfo)info
 {
-    return [self drive]->drive->getInfo();
+    return [self drive]->getInfo();
 }
 
 - (FloppyDriveInfo)cachedInfo
 {
-    return [self drive]->drive->getCachedInfo();
+    return [self drive]->getCachedInfo();
 }
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density
 {
     return [self drive]->drive->isInsertable(type, density);
+}
+
+- (void)insertBlankDisk:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex
+{
+    try { return [self drive]->drive->insertNew(fs, bb, [name UTF8String]); }
+    catch (Error &error) { [ex save:error]; }
+}
+
+- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp
+{
+    [self drive]->insertMedia(*(MediaFile *)proxy->obj, wp);
 }
 
 - (void)eject
@@ -1256,12 +1286,6 @@ using namespace vamiga::moira;
 - (void)swap:(FloppyFileProxy *)fileProxy exception:(ExceptionWrapper *)ex
 {
     try { return [self drive]->drive->swapDisk(*(FloppyFile *)fileProxy->obj); }
-    catch (Error &error) { [ex save:error]; }
-}
-
-- (void)insertNew:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex
-{
-    try { return [self drive]->drive->insertNew(fs, bb, [name UTF8String]); }
     catch (Error &error) { [ex save:error]; }
 }
 
@@ -1279,59 +1303,37 @@ using namespace vamiga::moira;
 
 @implementation HardDriveProxy
 
+@synthesize controller;
+
+- (instancetype)initWith:(void *)ref
+{
+    if (self = [super init]) {
+
+        HardDriveAPI *hd = (HardDriveAPI *)ref;
+        obj = ref;
+        controller = [[HdControllerProxy alloc] initWith:&hd->controller];
+    }
+    return self;
+}
+
 - (HardDriveAPI *)drive
 {
     return (HardDriveAPI *)obj;
 }
 
-- (NSInteger)nr
+- (HardDriveTraits)traits
 {
-    return [self drive]->drive->objid;
+    return [self drive]->getTraits();
 }
 
-- (BOOL)isConnected
+- (PartitionTraits) partitionTraits:(NSInteger)nr
 {
-    return [self drive]->drive->isConnected();
+    return [self drive]->getPartitionTraits(nr);
 }
 
-- (NSInteger)currentCyl
+- (HardDriveInfo)info
 {
-    return [self drive]->drive->currentCyl();
-}
-
-- (NSInteger)currentHead
-{
-    return [self drive]->drive->currentHead();
-}
-
-- (NSInteger)currentOffset
-{
-    return [self drive]->drive->currentOffset();
-}
-
-- (BOOL)hasDisk
-{
-    return [self drive]->drive->hasDisk();
-}
-
-- (BOOL)hasModifiedDisk
-{
-    return [self drive]->drive->hasModifiedDisk();
-}
-
-- (BOOL)hasProtectedDisk
-{
-    return [self drive]->drive->hasProtectedDisk();
-}
-
-- (BOOL)hasUnmodifiedDisk
-{
-    return [self drive]->drive->hasUnmodifiedDisk();
-}
-
-- (BOOL)hasUnprotectedDisk
-{
-    return [self drive]->drive->hasUnprotectedDisk();
+    return [self drive]->getInfo();
 }
 
 - (BOOL)getFlag:(DiskFlags)mask
@@ -1342,11 +1344,6 @@ using namespace vamiga::moira;
 - (void)setFlag:(DiskFlags)mask value:(BOOL)value
 {
     [self drive]->setFlag(mask, value);
-}
-
-- (HardDriveInfo)info
-{
-    return [self drive]->drive->getInfo();
 }
 
 - (NSInteger)capacity
@@ -1377,44 +1374,6 @@ using namespace vamiga::moira;
 - (NSInteger)bsize
 {
     return [self drive]->drive->getGeometry().bsize;
-}
-
-- (HdcState)hdcState
-{
-    return [self drive]->drive->getHdcState();
-}
-
-- (BOOL)isCompatible
-{
-    return [self drive]->drive->isCompatible();
-}
-
-- (BOOL)writeThroughEnabled
-{
-    return [self drive]->drive->writeThroughEnabled();
-}
-
-- (NSString *)nameOfPartition:(NSInteger)nr
-{
-    auto &info = [self drive]->drive->getPartitionInfo(nr);
-    return @(info.name.c_str());
-}
-
-- (NSInteger)lowerCylOfPartition:(NSInteger)nr
-{
-    auto &info = [self drive]->drive->getPartitionInfo(nr);
-    return info.lowCyl;
-}
-
-- (NSInteger)upperCylOfPartition:(NSInteger)nr
-{
-    auto &info = [self drive]->drive->getPartitionInfo(nr);
-    return info.highCyl;
-}
-
-- (HardDriveState)state
-{
-    return [self drive]->drive->getState();
 }
 
 - (void)attachFile:(NSURL *)url exception:(ExceptionWrapper *)ex
@@ -1465,7 +1424,7 @@ using namespace vamiga::moira;
 - (void)changeGeometry:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex
 {
     try {
-        [self drive]->drive->changeGeometry(c, h, s, b);
+        [self drive]->changeGeometry(c, h, s, b);
     }  catch (Error &error) {
         [ex save:error];
     }
@@ -1474,13 +1433,16 @@ using namespace vamiga::moira;
 - (NSMutableArray *)geometries
 {
     NSMutableArray *data = [[NSMutableArray alloc] init];
-    
-    auto geometry = [self drive]->drive->getGeometry();
-    auto geometries = GeometryDescriptor::driveGeometries(geometry.numBlocks());
-        
+
+    auto geometries = [self drive]->geometries([self traits].blocks);
+
     for (auto &g : geometries) {
-        
-        NSInteger encoded = g.cylinders << 32 | g.heads << 16 | g.sectors;
+
+        auto c = std::get<0>(g);
+        auto h = std::get<1>(g);
+        auto s = std::get<2>(g);
+
+        NSInteger encoded = c << 32 | h << 16 | s;
         [data addObject: [NSNumber numberWithInteger:encoded]];
     }
     
@@ -1502,6 +1464,29 @@ using namespace vamiga::moira;
 - (void)disableWriteThrough
 {
     [self drive]->drive->disableWriteThrough();
+}
+
+@end
+
+//
+// HdController proxy
+//
+
+@implementation HdControllerProxy
+
+- (HdControllerAPI *)controller
+{
+    return (HdControllerAPI *)obj;
+}
+
+- (HdcInfo)info
+{
+    return [self controller]->getInfo();
+}
+
+- (HdcStats)stats
+{
+    return [self controller]->getStats();
 }
 
 @end
@@ -1727,64 +1712,6 @@ using namespace vamiga::moira;
 
 @end
 
-//
-// Debugger proxy
-//
-
-@implementation DebuggerProxy
-
-- (vamiga::DebuggerAPI *)debugger
-{
-    return (vamiga::DebuggerAPI *)obj;
-}
-
-+ (instancetype)make:(vamiga::DebuggerAPI *)object
-{
-    if (object == nullptr) { return nil; }
-
-    DebuggerProxy *proxy = [[self alloc] initWith: object];
-    return proxy;
-}
-
-- (void)stepInto
-{
-    [self debugger]->emu->stepInto();
-}
-
-- (void)stepOver
-{
-    [self debugger]->emu->stepOver();
-}
-
-- (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes
-{
-    assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
-    const char *str;
-
-    if (accessor == ACCESSOR_CPU) {
-        str = [self debugger]->debugger->ascDump <ACCESSOR_CPU> ((u32)addr, bytes);
-    } else {
-        str = [self debugger]->debugger->ascDump <ACCESSOR_AGNUS> ((u32)addr, bytes);
-    }
-
-    return str ? @(str) : nullptr;
-}
-
-- (NSString *)hexDump:(Accessor)accessor addr: (NSInteger)addr bytes:(NSInteger)bytes
-{
-    assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
-    const char *str;
-
-    if (accessor == ACCESSOR_CPU) {
-        str = [self debugger]->debugger->hexDump <ACCESSOR_CPU> ((u32)addr, bytes);
-    } else {
-        str = [self debugger]->debugger->hexDump <ACCESSOR_AGNUS> ((u32)addr, bytes);
-    }
-
-    return str ? @(str) : nullptr;
-}
-
-@end
 
 //
 // RetroShell proxy
@@ -1866,6 +1793,138 @@ using namespace vamiga::moira;
 
 @end
 
+
+//
+// MediaFile
+//
+
+@implementation MediaFileProxy
+
+- (MediaFile *)file
+{
+    return (MediaFile *)obj;
+}
+
++ (instancetype)make:(MediaFile *)file
+{
+    return file ? [[self alloc] initWith:file] : nil;
+}
+
++ (FileType)typeOfUrl:(NSURL *)url
+{
+    return MediaFile::type([url fileSystemRepresentation]);
+}
+
++ (instancetype)makeWithFile:(NSString *)path
+                   exception:(ExceptionWrapper *)ex
+{
+    try { return [self make: MediaFile::make([path fileSystemRepresentation])]; }
+    catch (Error &error) { [ex save:error]; return nil; }
+}
+
++ (instancetype)makeWithFile:(NSString *)path
+                        type:(FileType)type
+                   exception:(ExceptionWrapper *)ex
+{
+    try { return [self make: MediaFile::make([path fileSystemRepresentation], type)]; }
+    catch (Error &error) { [ex save:error]; return nil; }
+}
+
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len
+                          type:(FileType)type
+                     exception:(ExceptionWrapper *)ex
+{
+    try { return [self make: MediaFile::make((u8 *)buf, len, type)]; }
+    catch (Error &error) { [ex save:error]; return nil; }
+}
+
++ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy
+{
+    auto amiga = (VAmiga *)proxy->obj;
+    return [self make:amiga->amiga.takeSnapshot()];
+}
+
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy
+                         type:(FileType)type
+                    exception:(ExceptionWrapper *)ex
+{
+    auto drive = (FloppyDriveAPI *)proxy->obj;
+    try { return [self make: MediaFile::make(*drive, type)]; }
+    catch (Error &error) { [ex save:error]; return nil; }
+}
+
++ (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy
+                              type:(FileType)type
+                         exception:(ExceptionWrapper *)ex
+{
+    auto fs = (MutableFileSystem *)proxy->obj;
+    try { return [self make: MediaFile::make(*fs, type)]; }
+    catch (Error &error) { [ex save:error]; return nil; }
+}
+
+- (FileType)type
+{
+    return [self file]->type();
+}
+
+/*
+- (NSString *)name
+{
+    return @([self file]->getName().c_str());
+}
+*/
+
+- (u64)fnv
+{
+    return [self file]->fnv64();
+}
+
+- (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex
+{
+    try { [self file]->writeToFile(string([path fileSystemRepresentation])); }
+    catch (Error &err) { [ex save:err]; }
+}
+
+- (NSImage *)previewImage
+{
+    // Return cached image (if any)
+    if (preview) { return preview; }
+
+    // Get dimensions and data
+    auto size = [self file]->previewImageSize();
+    auto data = (unsigned char *)[self file]->previewImageData();
+
+    // Create preview image
+    if (data) {
+
+        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
+                                 initWithBitmapDataPlanes: &data
+                                 pixelsWide:size.first
+                                 pixelsHigh:size.second
+                                 bitsPerSample:8
+                                 samplesPerPixel:4
+                                 hasAlpha:true
+                                 isPlanar:false
+                                 colorSpaceName:NSCalibratedRGBColorSpace
+                                 bytesPerRow:4*size.first
+                                 bitsPerPixel:32];
+
+        preview = [[NSImage alloc] initWithSize:[rep size]];
+        [preview addRepresentation:rep];
+
+        // image.makeGlossy()
+    }
+    return preview;
+}
+
+- (time_t)timeStamp
+{
+    return [self file]->timestamp();
+}
+
+@end
+
+
 //
 // AmigaFile proxy
 //
@@ -1894,12 +1953,12 @@ using namespace vamiga::moira;
 
 - (NSInteger)size
 {
-    return [self file]->size();
+    return [self file]->getSize();
 }
 
-- (NSString *)sizeAsString
+- (NSString *)getSizeAsString
 {
-    const string &str = [self file]->sizeAsString();
+    const string &str = [self file]->getSizeAsString();
     return @(str.c_str());
 }
 
@@ -1959,12 +2018,7 @@ using namespace vamiga::moira;
 
 + (instancetype)makeWithAmiga:(AmigaProxy *)proxy
 {
-    AmigaAPI *amiga = (AmigaAPI *)proxy->obj;
-
-    amiga->suspend();
-    Snapshot *snapshot = new Snapshot(*(amiga->amiga));
-    amiga->resume();
-    
+    Snapshot *snapshot = ((AmigaAPI *)proxy->obj)->takeSnapshot();
     return [self make:snapshot];
 }
 
@@ -2556,6 +2610,7 @@ using namespace vamiga::moira;
 
 @implementation EmulatorProxy
 
+@synthesize audioPort;
 @synthesize agnus;
 @synthesize amiga;
 @synthesize blitter;
@@ -2567,7 +2622,6 @@ using namespace vamiga::moira;
 @synthesize copper;
 @synthesize copperBreakpoints;
 @synthesize cpu;
-@synthesize debugger;
 @synthesize denise;
 @synthesize df0;
 @synthesize df1;
@@ -2600,21 +2654,21 @@ using namespace vamiga::moira;
     obj = vamiga;
 
     // Create sub proxys
+    audioPort = [[AudioPortProxy alloc] initWith:&vamiga->audioPort];
     agnus = [[AgnusProxy alloc] initWith:&vamiga->agnus];
     amiga = [[AmigaProxy alloc] initWith:&vamiga->amiga];
-    blitter = [[BlitterProxy alloc] initWith:&vamiga->blitter];
-    breakpoints = [[GuardsProxy alloc] initWith:&vamiga->breakpoints];
+    blitter = [[BlitterProxy alloc] initWith:&vamiga->agnus.blitter];
+    breakpoints = [[GuardsProxy alloc] initWith:&vamiga->cpu.breakpoints];
     ciaA = [[CIAProxy alloc] initWith:&vamiga->ciaA];
     ciaB = [[CIAProxy alloc] initWith:&vamiga->ciaB];
     controlPort1 = [[ControlPortProxy alloc] initWith:&vamiga->controlPort1];
     controlPort2 = [[ControlPortProxy alloc] initWith:&vamiga->controlPort2];
-    copper = [[CopperProxy alloc] initWith:&vamiga->copper];
+    copper = [[CopperProxy alloc] initWith:&vamiga->agnus.copper];
     copperBreakpoints = [[GuardsProxy alloc] initWith:&vamiga->copperBreakpoints];
     cpu = [[CPUProxy alloc] initWith:&vamiga->cpu];
-    debugger = [[DebuggerProxy alloc] initWith:&vamiga->debugger];
     denise = [[DeniseProxy alloc] initWith:&vamiga->denise];
-    diskController = [[DiskControllerProxy alloc] initWith:&vamiga->diskController];
-    dmaDebugger = [[DmaDebuggerProxy alloc] initWith:&vamiga->dmaDebugger];
+    diskController = [[DiskControllerProxy alloc] initWith:&vamiga->paula.diskController];
+    dmaDebugger = [[DmaDebuggerProxy alloc] initWith:&vamiga->agnus.dma.debugger];
     df0 = [[FloppyDriveProxy alloc] initWith:&vamiga->df0];
     df1 = [[FloppyDriveProxy alloc] initWith:&vamiga->df1];
     df2 = [[FloppyDriveProxy alloc] initWith:&vamiga->df2];
@@ -2632,7 +2686,7 @@ using namespace vamiga::moira;
     remoteManager = [[RemoteManagerProxy alloc] initWith:&vamiga->remoteManager];
     serialPort = [[SerialPortProxy alloc] initWith:&vamiga->serialPort];
     videoPort = [[VideoPortProxy alloc] initWith:&vamiga->videoPort];
-    watchpoints = [[GuardsProxy alloc] initWith:&vamiga->watchpoints];
+    watchpoints = [[GuardsProxy alloc] initWith:&vamiga->cpu.watchpoints];
 
     return self;
 }
@@ -2736,6 +2790,7 @@ using namespace vamiga::moira;
     return [self emu]->isTracking();
 }
 
+/*
 - (void)setTrackMode:(BOOL)value
 {
     if (value) {
@@ -2743,6 +2798,17 @@ using namespace vamiga::moira;
     } else {
         [self emu]->emu->trackOff();
     }
+}
+*/
+
+- (void)stepInto
+{
+    [self emu]->emu->stepInto();
+}
+
+- (void)stepOver
+{
+    [self emu]->emu->stepOver();
 }
 
 - (SnapshotProxy *)takeSnapshot
@@ -2933,96 +2999,6 @@ using namespace vamiga::moira;
 {
     try { [self emu]->emu->main.loadSnapshot(*[proxy snapshot]); }
     catch (Error &error) { [ex save:error]; }
-}
-
-- (NSInteger)getConfig:(Option)opt
-{
-    return [self emu]->emu->get(opt);
-}
-
-- (NSInteger)getConfig:(Option)opt id:(NSInteger)id
-{
-    return [self emu]->emu->get(opt, id);
-}
-
-- (NSInteger)getConfig:(Option)opt drive:(NSInteger)id
-{
-    return [self emu]->emu->get(opt, (long)id);
-}
-
-- (BOOL)configure:(Option)opt value:(NSInteger)val
-{
-    try {
-        [self emu]->set(opt, val);
-        return true;
-    } catch (Error &exception) {
-        return false;
-    }
-}
-
-- (BOOL)configure:(Option)opt enable:(BOOL)val
-{
-    try {
-        [self emu]->set(opt, val ? 1 : 0);
-        return true;
-    } catch (Error &exception) {
-        return false;
-    }
-}
-
-- (BOOL)configure:(Option)opt id:(NSInteger)id value:(NSInteger)val
-{
-    try {
-        [self emu]->set(opt, val, id);
-        return true;
-    } catch (Error &exception) {
-        return false;
-    }
-}
-
-- (BOOL)configure:(Option)opt id:(NSInteger)id enable:(BOOL)val
-{
-    try {
-        [self emu]->set(opt, val ? 1 : 0, id);
-        return true;
-    } catch (Error &exception) {
-        return false;
-    }
-}
-
-- (BOOL)configure:(Option)opt drive:(NSInteger)id value:(NSInteger)val
-{
-    try {
-        [self emu]->set(opt, val, (long)id);
-        return true;
-    } catch (Error &exception) {
-        return false;
-    }
-}
-
-- (BOOL)configure:(Option)opt drive:(NSInteger)id enable:(BOOL)val
-{
-    try {
-        [self emu]->set(opt, val ? 1 : 0, (long)id);
-        return true;
-    } catch (Error &exception) {
-        return false;
-    }
-}
-
-- (void)setListener:(const void *)sender function:(Callback *)func
-{
-    [self emu]->emu->main.msgQueue.setListener(sender, func);
-}
-
-- (void)setAlarmAbs:(NSInteger)cycle payload:(NSInteger)value
-{
-    [self emu]->emu->main.setAlarmAbs(cycle, value);
-}
-
-- (void)setAlarmRel:(NSInteger)cycle payload:(NSInteger)value
-{
-    [self emu]->emu->main.setAlarmRel(cycle, value);
 }
 
 - (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex

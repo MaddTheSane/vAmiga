@@ -10,13 +10,15 @@
 #pragma once
 
 #include "CPUTypes.h"
+#include "CPUDebugger.h"
 #include "SubComponent.h"
+#include "CmdQueue.h"
 #include "RingBuffer.h"
 #include "Moira.h"
 
 namespace vamiga {
 
-class CPU : public moira::Moira, public Inspectable<CPUInfo> 
+class CPU : public moira::Moira, public Inspectable<CPUInfo>
 {
     Descriptions descriptions = {{
 
@@ -41,6 +43,13 @@ class CPU : public moira::Moira, public Inspectable<CPUInfo>
 
     // Result of the latest inspection
     mutable CPUInfo info = {};
+
+public:
+    
+    // Breakpoints, Watchpoints, Catchpoints
+    GuardsWrapper breakpoints = GuardsWrapper(emulator, debugger.breakpoints);
+    GuardsWrapper watchpoints = GuardsWrapper(emulator, debugger.watchpoints);
+    GuardsWrapper catchpoints = GuardsWrapper(emulator, debugger.catchpoints);
 
 
     //
@@ -247,34 +256,15 @@ public:
     void willExecute(moira::ExceptionType exc, u16 vector);
     void didExecute(moira::ExceptionType exc, u16 vector);
 
-    
-    //
-    // Debugging
-    //
-    
-    // Manages the breakpoint list
-    void setBreakpoint(u32 addr, isize ignores = 0) throws;
-    void deleteBreakpoint(isize nr) throws;
-    void enableBreakpoint(isize nr) throws;
-    void disableBreakpoint(isize nr) throws;
-    void toggleBreakpoint(isize nr) throws;
-    void ignoreBreakpoint(isize nr, isize ignores) throws;
 
-    // Manages the watchpoint list
-    void setWatchpoint(u32 addr, isize ignores = 0) throws;
-    void deleteWatchpoint(isize nr) throws;
-    void enableWatchpoint(isize nr) throws;
-    void disableWatchpoint(isize nr) throws;
-    void toggleWatchpoint(isize nr) throws;
-    void ignoreWatchpoint(isize nr, isize ignores) throws;
+    //
+    // Processing commands
+    //
 
-    // Manages the catchpoint list
-    void setCatchpoint(u8 vector, isize ignores = 0) throws;
-    void deleteCatchpoint(isize nr) throws;
-    void enableCatchpoint(isize nr) throws;
-    void disableCatchpoint(isize nr) throws;
-    void toggleCatchpoint(isize nr) throws;
-    void ignoreCatchpoint(isize nr, isize ignores) throws;
+public:
+
+    // Processes a command from the command queue
+    void processCommand(const Cmd &cmd);
 };
 
 }

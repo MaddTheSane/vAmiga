@@ -175,6 +175,12 @@ Emulator::put(const Cmd &cmd)
     cmdQueue.put(cmd);
 }
 
+void 
+Emulator::put(CmdType type, i64 payload)
+{
+    put (Cmd(type, payload));
+}
+
 i64
 Emulator::get(Option opt, isize objid) const
 {
@@ -392,6 +398,29 @@ Emulator::update()
                 set(cmd.config.option, cmd.config.value, { });
                 break;
 
+            case CMD_ALARM_ABS:
+            case CMD_ALARM_REL:
+            case CMD_INSPECTION_TARGET:
+
+                main.processCommand(cmd);
+                break;
+
+            case CMD_GUARD_SET_AT:
+            case CMD_GUARD_MOVE_NR:
+            case CMD_GUARD_IGNORE_NR:
+            case CMD_GUARD_REMOVE_NR:
+            case CMD_GUARD_REMOVE_AT:
+            case CMD_GUARD_REMOVE_ALL:
+            case CMD_GUARD_ENABLE_NR:
+            case CMD_GUARD_ENABLE_AT:
+            case CMD_GUARD_ENABLE_ALL:
+            case CMD_GUARD_DISABLE_NR:
+            case CMD_GUARD_DISABLE_AT:
+            case CMD_GUARD_DISABLE_ALL:
+
+                main.cpu.processCommand(cmd);
+                break;
+
             case CMD_KEY_PRESS:
             case CMD_KEY_RELEASE:
             case CMD_KEY_RELEASE_ALL:
@@ -423,7 +452,7 @@ Emulator::update()
 
                 main.retroShell.exec();
                 break;
-
+                
             case CMD_FOCUS:
 
                 cmd.value ? main.focus() : main.unfocus();

@@ -20,6 +20,7 @@
 // Forward declarations
 //
 
+@class AudioPortProxy;
 @class ADFFileProxy;
 @class AgnusProxy;
 @class AmigaProxy;
@@ -29,7 +30,6 @@
 @class ControlPortProxy;
 @class CopperProxy;
 @class CPUProxy;
-@class DebuggerProxy;
 @class DeniseProxy;
 @class DiskControllerProxy;
 @class DiskFileProxy;
@@ -42,10 +42,12 @@
 @class FolderProxy;
 @class GuardsProxy;
 @class HardDriveProxy;
+@class HdControllerProxy;
 @class HDFFileProxy;
 @class IMGFileProxy;
 @class JoystickProxy;
 @class KeyboardProxy;
+@class MediaFileProxy;
 @class MemProxy;
 @class MouseProxy;
 @class PaulaProxy;
@@ -132,6 +134,7 @@
 
 @interface EmulatorProxy : CoreComponentProxy {
         
+    AudioPortProxy *audioPort;
     AgnusProxy *agnus;
     AmigaProxy *amiga;
     CIAProxy *ciaA;
@@ -140,7 +143,6 @@
     ControlPortProxy *controlPort2;
     CopperProxy *copper;
     CPUProxy *cpu;
-    DebuggerProxy *debugger;
     DeniseProxy *denise;
     DiskControllerProxy *diskController;
     DmaDebuggerProxy *dmaDebugger;
@@ -154,6 +156,12 @@
     HardDriveProxy *hd1;
     HardDriveProxy *hd2;
     HardDriveProxy *hd3;
+    /*
+    HdControllerProxy *hd0con;
+    HdControllerProxy *hd1con;
+    HdControllerProxy *hd2con;
+    HdControllerProxy *hd3con;
+    */
     KeyboardProxy *keyboard;
     MemProxy *mem;
     PaulaProxy *paula;
@@ -166,6 +174,7 @@
     VideoPortProxy *videoPort;
 }
 
+@property (readonly, strong) AudioPortProxy *audioPort;
 @property (readonly, strong) AgnusProxy *agnus;
 @property (readonly, strong) AmigaProxy *amiga;
 @property (readonly, strong) BlitterProxy *blitter;
@@ -175,7 +184,6 @@
 @property (readonly, strong) ControlPortProxy *controlPort2;
 @property (readonly, strong) CopperProxy *copper;
 @property (readonly, strong) CPUProxy *cpu;
-@property (readonly, strong) DebuggerProxy *debugger;
 @property (readonly, strong) DeniseProxy *denise;
 @property (readonly, strong) DiskControllerProxy *diskController;
 @property (readonly, strong) DmaDebuggerProxy *dmaDebugger;
@@ -222,6 +230,9 @@
 @property (readonly) BOOL warping;
 @property (readonly) BOOL tracking;
 
+- (void)launch:(const void *)listener function:(Callback *)func;
+- (void)wakeUp;
+
 - (void)isReady:(ExceptionWrapper *)ex;
 - (void)powerOn;
 - (void)powerOff;
@@ -242,8 +253,8 @@
 - (void)hardReset;
 - (void)softReset;
 
-- (void)launch:(const void *)listener function:(Callback *)func;
-- (void)wakeUp;
+- (void)stepInto;
+- (void)stepOver;
 
 - (NSInteger)get:(Option)opt;
 - (NSInteger)get:(Option)opt id:(NSInteger)id;
@@ -254,33 +265,6 @@
 - (BOOL)set:(Option)opt id:(NSInteger)id enable:(BOOL)val;
 - (BOOL)set:(Option)opt drive:(NSInteger)id value:(NSInteger)val;
 - (BOOL)set:(Option)opt drive:(NSInteger)id enable:(BOOL)val;
-
-
-
-
-
-
-
-
-// - (void)continueScript;
-
- - (void) loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex;
-
-- (NSInteger)getConfig:(Option)opt;
-- (NSInteger)getConfig:(Option)opt id:(NSInteger)id;
-- (NSInteger)getConfig:(Option)opt drive:(NSInteger)id;
-- (BOOL)configure:(Option)opt value:(NSInteger)val;
-- (BOOL)configure:(Option)opt enable:(BOOL)val;
-- (BOOL)configure:(Option)opt id:(NSInteger)id value:(NSInteger)val;
-- (BOOL)configure:(Option)opt id:(NSInteger)id enable:(BOOL)val;
-- (BOOL)configure:(Option)opt drive:(NSInteger)id value:(NSInteger)val;
-- (BOOL)configure:(Option)opt drive:(NSInteger)id enable:(BOOL)val;
-
-- (void)setListener:(const void *)sender function:(Callback *)func;
-
-- (void)setAlarmAbs:(NSInteger)cycle payload:(NSInteger)value;
-- (void)setAlarmRel:(NSInteger)cycle payload:(NSInteger)value;
-
 - (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
 - (void)put:(CmdType)cmd;
@@ -290,11 +274,13 @@
 - (void)put:(CmdType)type action:(GamePadCmd)cmd;
 - (void)put:(CmdType)type coord:(CoordCmd)cmd;
 
+ - (void) loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex;
+
 @end
 
 
 //
-// Properties
+// Defaults
 //
 
 @interface DefaultsProxy : Proxy { }
@@ -417,7 +403,6 @@
 @property (readonly) MemInfo info;
 @property (readonly) MemInfo cachedInfo;
 @property (readonly) MemStats stats;
-
 @property (readonly) RomTraits romTraits;
 @property (readonly) RomTraits womTraits;
 @property (readonly) RomTraits extTraits;
@@ -441,6 +426,29 @@
 - (MemorySource)memSrc:(Accessor)accessor addr:(NSInteger)addr;
 - (NSInteger)spypeek16:(Accessor)accessor addr:(NSInteger)addr;
 
+- (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes;
+- (NSString *)hexDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes;
+
+@end
+
+
+//
+// Audio port
+//
+
+@interface AudioPortProxy : CoreComponentProxy { }
+
+@property (readonly) AudioPortStats stats;
+
+- (NSInteger)copyMono:(float *)target size:(NSInteger)n;
+- (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n;
+- (NSInteger)copyInterleaved:(float *)target size:(NSInteger)n;
+
+- (void)drawWaveformL:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h color:(u32)c;
+- (void)drawWaveformL:(u32 *)buffer size:(NSSize)size color:(u32)c;
+- (void)drawWaveformR:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h color:(u32)c;
+- (void)drawWaveformR:(u32 *)buffer size:(NSSize)size color:(u32)c;
+
 @end
 
 
@@ -456,7 +464,6 @@
 @property (readonly) AgnusTraits traits;
 
 - (EventSlotInfo)cachedSlotInfo:(NSInteger)slot;
-@property (readonly) NSInteger frameCount;
 
 @end
 
@@ -509,10 +516,7 @@
 @property (readonly) DeniseInfo info;
 @property (readonly) DeniseInfo cachedInfo;
 - (SpriteInfo)getSpriteInfo:(NSInteger)nr;
-
-- (NSInteger)sprDataLines:(NSInteger)nr;
-- (u64)sprData:(NSInteger)nr line:(NSInteger)line;
-- (u16)sprColor:(NSInteger)nr reg:(NSInteger)reg;
+- (SpriteInfo)getCachedSpriteInfo:(NSInteger)nr;
 
 @end
 
@@ -558,14 +562,6 @@
 @property (readonly) UARTInfo uartInfo;
 @property (readonly) UARTInfo cachedUartInfo;
 @property (readonly) AudioPortStats audioPortStats;
-
-- (NSInteger)copyMono:(float *)target size:(NSInteger)n;
-- (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n;
-
-- (float)drawWaveformL:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c;
-- (float)drawWaveformL:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c;
-- (float)drawWaveformR:(u32 *)buffer w:(NSInteger)w h:(NSInteger)h scale:(float)s color:(u32)c;
-- (float)drawWaveformR:(u32 *)buffer size:(NSSize)size scale:(float)s color:(u32)c;
 
 @end
 
@@ -632,11 +628,11 @@
 
 @interface MouseProxy : CoreComponentProxy { }
 
-- (BOOL)detectShakeAbs:(NSPoint)pos;
-- (BOOL)detectShakeRel:(NSPoint)pos;
 - (void)setXY:(NSPoint)pos;
 - (void)setDxDy:(NSPoint)pos;
 - (void)trigger:(GamePadAction)event;
+- (BOOL)detectShakeAbs:(NSPoint)pos;
+- (BOOL)detectShakeRel:(NSPoint)pos;
 
 @end
 
@@ -694,11 +690,24 @@
 - (void)setFlag:(DiskFlags)mask value:(BOOL)value;
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density;
+- (void)insertBlankDisk:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex;
+- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp;
 - (void)eject;
 - (void)swap:(FloppyFileProxy *)fileProxy exception:(ExceptionWrapper *)ex;
-- (void)insertNew:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex;
 
 - (NSString *)readTrackBits:(NSInteger)track;
+
+@end
+
+
+//
+// HdController
+//
+
+@interface HdControllerProxy : CoreComponentProxy { }
+
+@property (readonly) HdcInfo info;
+@property (readonly) HdcStats stats;
 
 @end
 
@@ -707,33 +716,21 @@
 // HardDrive
 //
 
-@interface HardDriveProxy : CoreComponentProxy { }
+@interface HardDriveProxy : CoreComponentProxy { 
 
-@property (readonly) NSInteger nr;
-@property (readonly) BOOL isConnected;
-@property (readonly) NSInteger currentCyl;
-@property (readonly) NSInteger currentHead;
-@property (readonly) NSInteger currentOffset;
+    HdControllerProxy *controller;
+}
 
-@property (readonly) BOOL hasDisk;
-@property (readonly) BOOL hasModifiedDisk;
-@property (readonly) BOOL hasProtectedDisk;
-@property (readonly) BOOL hasUnmodifiedDisk;
-@property (readonly) BOOL hasUnprotectedDisk;
+@property (readonly, strong) HdControllerProxy *controller;
+
+@property (readonly) HardDriveInfo info;
+@property (readonly) HardDriveTraits traits;
+- (PartitionTraits) partitionTraits:(NSInteger)nr;
 
 - (BOOL)getFlag:(DiskFlags)mask;
 - (void)setFlag:(DiskFlags)mask value:(BOOL)value;
 
-@property (readonly) HardDriveInfo info;
-
-@property (readonly) HdcState hdcState;
-@property (readonly) BOOL isCompatible;
-@property (readonly) BOOL writeThroughEnabled;
-- (NSString *)nameOfPartition:(NSInteger)nr;
-- (NSInteger)lowerCylOfPartition:(NSInteger)nr;
-- (NSInteger)upperCylOfPartition:(NSInteger)nr;
-@property (readonly) HardDriveState state;
-- (void)attachFile:(NSURL *)path exception:(ExceptionWrapper *)ex;
+ - (void)attachFile:(NSURL *)path exception:(ExceptionWrapper *)ex;
 - (void)attach:(HDFFileProxy *)hdf exception:(ExceptionWrapper *)ex;
 - (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex;
 - (void)format:(FSVolumeType)fs name:(NSString *)name exception:(ExceptionWrapper *)ex;
@@ -744,7 +741,6 @@
 - (void)disableWriteThrough;
 
 @end
-
 
 //
 // FileSystem
@@ -787,21 +783,6 @@
 - (NSInteger)diagnoseImageSlice:(NSInteger)column;
 - (NSInteger)nextBlockOfType:(FSBlockType)type after:(NSInteger)after;
 - (NSInteger)nextCorruptedBlock:(NSInteger)after;
-
-@end
-
-
-//
-// Debugger
-//
-
-@interface DebuggerProxy : CoreComponentProxy { }
-
-- (void)stepInto;
-- (void)stepOver;
-
-- (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes;
-- (NSString *)hexDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes;
 
 @end
 
@@ -857,6 +838,37 @@
 + (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy exception:(ExceptionWrapper *)ex;
 @end
 
+
+//
+// MediaFile
+//
+
+@interface MediaFileProxy : Proxy
+{
+    NSImage *preview;
+}
+
++ (FileType) typeOfUrl:(NSURL *)url;
+
++ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithFile:(NSString *)path type:(FileType)t exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len type:(FileType)t exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy;
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
+
+@property (readonly) FileType type;
+// @property (readonly) NSString *name;
+@property (readonly) u64 fnv;
+
+- (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex;
+
+@property (readonly, strong) NSImage *previewImage;
+@property (readonly) time_t timeStamp;
+
+@end
+
+
 //
 // AmigaFile
 //
@@ -867,7 +879,7 @@
 
 @property (readonly) FileType type;
 @property (readonly) NSInteger size;
-@property (readonly) NSString *sizeAsString;
+@property (readonly) NSString *getSizeAsString;
 @property (readonly) u64 fnv;
 
 - (void)setPath:(NSString *)path;

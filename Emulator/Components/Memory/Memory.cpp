@@ -25,6 +25,14 @@
 
 namespace vamiga {
 
+Memory::Memory(Amiga& ref) : SubComponent(ref)
+{
+    subComponents = std::vector<CoreComponent *> {
+
+        &debugger
+    };
+}
+
 void
 Memory::_dump(Category category, std::ostream& os) const
 {
@@ -564,13 +572,10 @@ Memory::fillRamWithInitPattern()
     }
 }
 
-RomTraits
+RomTraits &
 Memory::getRomTraits(u32 crc)
 {
-    // Crawl through the Rom database
-    for (auto &traits : roms) if (traits.crc == crc) return traits;
-
-    return RomTraits {
+    static RomTraits fallback = RomTraits {
 
         .crc = crc,
         .title = "Unknown ROM",
@@ -579,21 +584,26 @@ Memory::getRomTraits(u32 crc)
         .model = "",
         .vendor = ROM_VENDOR_OTHER
     };
+
+    // Crawl through the Rom database
+    for (auto &traits : roms) if (traits.crc == crc) return traits;
+
+    return fallback;
 }
 
-RomTraits 
+RomTraits &
 Memory::getRomTraits() const
 {
     return getRomTraits(util::crc32(rom, config.romSize));
 }
 
-RomTraits
+RomTraits &
 Memory::getWomTraits() const
 {
     return getRomTraits(util::crc32(wom, config.womSize));
 }
 
-RomTraits
+RomTraits &
 Memory::getExtTraits() const
 {
     return getRomTraits(util::crc32(ext, config.extSize));

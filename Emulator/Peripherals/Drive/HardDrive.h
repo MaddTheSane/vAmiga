@@ -122,6 +122,47 @@ public:
     // Creates a hard drive with the contents of an HDF file
     void init(const string &path) throws;
 
+    const HardDriveTraits &getTraits() const {
+
+        static HardDriveTraits traits;
+
+        traits.nr = objid;
+        
+        traits.diskVendor = diskVendor.c_str();
+        traits.diskProduct = diskProduct.c_str();
+        traits.diskRevision = diskRevision.c_str();
+        traits.controllerVendor = controllerVendor.c_str();
+        traits.controllerProduct = controllerProduct.c_str();
+        traits.controllerRevision = controllerRevision.c_str();
+
+        traits.cylinders = geometry.cylinders;
+        traits.heads = geometry.heads;
+        traits.sectors = geometry.sectors;
+        traits.bsize = geometry.bsize;
+
+        traits.tracks = geometry.numTracks();
+        traits.blocks = geometry.numBlocks();
+        traits.bytes = geometry.numBytes();
+        traits.upperCyl = geometry.upperCyl();
+        traits.upperHead = geometry.upperHead();
+        traits.upperTrack = geometry.upperTrack();
+
+        return traits;
+    }
+
+    const PartitionTraits &getPartitionTraits(isize nr) const {
+
+        static PartitionTraits traits;
+
+        auto descr = getPartitionDescriptor(nr);
+        traits.nr = nr;
+        traits.name = descr.name.c_str();
+        traits.lowerCyl = descr.lowCyl;
+        traits.upperCyl = descr.highCyl;
+
+        return traits;
+    }
+
 private:
 
     // Restors the initial state
@@ -203,16 +244,15 @@ public:
     string getControllerRevision() const override { return controllerRevision; }
 
     bool isConnected() const override;
-    
+
     Cylinder currentCyl() const override { return head.cylinder; }
     Head currentHead() const override { return head.head; }
     isize currentOffset() const override { return head.offset; }
 
-    bool hasDisk() const override;
-
     bool getFlag(DiskFlags mask) const override;
     void setFlag(DiskFlags mask, bool value) override;
 
+    bool hasDisk() const override;
     bool hasModifiedDisk() const override;
     bool hasProtectedDisk() const override;
     void setModificationFlag(bool value) override;
@@ -242,11 +282,13 @@ private:
 
 public:
 
-    // Returns information about the disk or one of its partitions
-    // HardDriveInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // Returns information about the disk
     void cacheInfo(HardDriveInfo &info) const override;
 
-    const PartitionDescriptor &getPartitionInfo(isize nr);
+    // Returns information about a specific partition
+    // void getPartitionInfo(isize nr) const;
+
+    const PartitionDescriptor &getPartitionDescriptor(isize nr) const;
 
     // Returns the disk geometry
     const GeometryDescriptor &getGeometry() const { return geometry; }
@@ -265,10 +307,10 @@ public:
     void setModified(bool value) { value ? flags |= FLAG_MODIFIED : flags &= ~FLAG_MODIFIED; }
 
     // Returns the current controller state
-    HdcState getHdcState();
+    HdcState getHdcState() const;
 
     // Checks whether the drive will work with the currently installed Rom
-    bool isCompatible();
+    bool isCompatible() const;
     
     
     //
@@ -276,7 +318,7 @@ public:
     //
     
     // Returns a default volume name
-    string defaultName(isize partition = 0);
+    string defaultName(isize partition = 0) const;
 
     // Formats the disk
     void format(FSVolumeType fs, string name) throws;

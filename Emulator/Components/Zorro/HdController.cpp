@@ -45,6 +45,19 @@ HdController::_dump(Category category, std::ostream& os) const
     }
 }
 
+void 
+HdController::cacheInfo(HdcInfo &result) const
+{
+    result.pluggedIn = pluggedIn();
+    result.state = getHdcState();
+}
+
+void 
+HdController::cacheStats(HdcStats &result) const
+{
+    
+}
+
 void
 HdController::_didReset(bool hard)
 {    
@@ -132,7 +145,7 @@ HdController::updateMemSrcTables()
 }
 
 bool
-HdController::isCompatible(u32 crc32)
+HdController::isCompatible(u32 crc32) const
 {
     switch (crc32) {
             
@@ -162,7 +175,7 @@ HdController::isCompatible(u32 crc32)
 }
 
 bool
-HdController::isCompatible()
+HdController::isCompatible() const
 {
     return isCompatible(mem.romFingerprint());
 }

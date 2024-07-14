@@ -197,7 +197,7 @@ extension FloppyDriveProxy {
     func insertNew(fileSystem: FSVolumeType, bootBlock: BootBlockId, name: String) throws {
         
         let exception = ExceptionWrapper()
-        insertNew(fileSystem, bootBlock: bootBlock, name: name, exception: exception)
+        insertBlankDisk(fileSystem, bootBlock: bootBlock, name: name, exception: exception)
         if exception.errorCode != .OK { throw VAError(exception) }
     }
 }
@@ -443,13 +443,13 @@ extension HardDriveProxy {
         
         var name: String
                 
-        switch hdcState {
-            
+        switch controller.info.state {
+
         case .UNDETECTED, .INITIALIZING:
             name = "hdrETemplate"
             
         default:
-            name = hasModifiedDisk ? "hdrUTemplate" : "hdrTemplate"
+            name = info.hasModifiedDisk ? "hdrUTemplate" : "hdrTemplate"
         }
         
         return NSImage(named: name)!
@@ -457,7 +457,7 @@ extension HardDriveProxy {
     
     var toolTip: String? {
         
-        switch hdcState {
+        switch controller.info.state {
             
         case .UNDETECTED:
             return "The hard drive is waiting to be initialized by the OS."
@@ -472,11 +472,11 @@ extension HardDriveProxy {
         }
     }
     
-    var ledIcon: NSImage? {
-        
-        if !isConnected { return nil }
-        
-        switch state {
+    func ledIcon(info: HardDriveInfo) -> NSImage? {
+
+        if !info.isConnected { return nil }
+
+        switch info.state {
             
         case .IDLE: return NSImage(named: "ledGrey")
         case .READING: return NSImage(named: "ledGreen")
@@ -558,7 +558,7 @@ extension HDFFileProxy {
     
     var layoutInfo: String {
         
-        let capacity = sizeAsString!
+        let capacity = getSizeAsString!
         return "\(capacity), \(numBlocks) sectors"
     }
     

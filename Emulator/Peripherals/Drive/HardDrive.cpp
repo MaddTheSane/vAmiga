@@ -37,9 +37,9 @@ HardDrive::init()
     diskVendor = "VAMIGA";
     diskProduct = "VDRIVE";
     diskRevision = "1.0";
-    controllerVendor = amiga.hdcon[objid]->vendorName();
-    controllerProduct = amiga.hdcon[objid]->productName();
-    controllerRevision = amiga.hdcon[objid]->revisionName();
+    controllerVendor = "RASTEC";
+    controllerProduct = "HD controller";
+    controllerRevision = "0.3";
     geometry = GeometryDescriptor();
     ptable.clear();
     drivers.clear();
@@ -276,20 +276,20 @@ HardDrive::disconnect()
 }
 
 const PartitionDescriptor &
-HardDrive::getPartitionInfo(isize nr)
+HardDrive::getPartitionDescriptor(isize nr) const
 {
     assert(nr >= 0 && nr < numPartitions());
     return ptable[nr];
 }
 
 HdcState
-HardDrive::getHdcState()
+HardDrive::getHdcState() const
 {
     return amiga.hdcon[objid]->getHdcState();
 }
 
 bool
-HardDrive::isCompatible()
+HardDrive::isCompatible() const
 {
     return amiga.hdcon[objid]->isCompatible();
 }
@@ -299,17 +299,15 @@ HardDrive::cacheInfo(HardDriveInfo &info) const
 {
     {   SYNCHRONIZED
         
-        info.cylinders = geometry.cylinders;
-        info.heads = geometry.heads;
-        info.sectors = geometry.sectors;
-        info.bsize = geometry.bsize;
+        info.isConnected = isConnected();
+        info.isCompatible = isCompatible();
+        info.writeThrough = writeThroughEnabled();
 
-        info.tracks = geometry.numTracks();
-        info.blocks = geometry.numBlocks();
-        info.bytes = geometry.numBytes();
-        info.upperCyl = geometry.upperCyl();
-        info.upperHead = geometry.upperHead();
-        info.upperTrack = geometry.upperTrack();
+        info.hasDisk = hasDisk();
+        info.hasModifiedDisk = hasModifiedDisk();
+        info.hasUnmodifiedDisk = hasUnmodifiedDisk();
+        info.hasProtectedDisk = hasProtectedDisk();
+        info.hasUnprotectedDisk = hasUnprotectedDisk();
 
         info.partitions = numPartitions();
 
@@ -317,7 +315,8 @@ HardDrive::cacheInfo(HardDriveInfo &info) const
         info.writeProtected = getFlag(FLAG_PROTECTED);
         info.modified = getFlag(FLAG_MODIFIED);
 
-        // Head
+        // State
+        info.state = state;
         info.head = head;
     }
 }
@@ -520,7 +519,7 @@ HardDrive::saveWriteThroughImage()
 }
 
 string
-HardDrive::defaultName(isize partition)
+HardDrive::defaultName(isize partition) const
 {
     if (objid >= 1) partition += amiga.hd0.numPartitions();
     if (objid >= 2) partition += amiga.hd1.numPartitions();

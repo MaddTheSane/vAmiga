@@ -683,7 +683,7 @@ Amiga::computeFrame()
             // Did we reach a Copper breakpoint?
             if (flags & RL::COPPERBP_REACHED) {
                 clearFlag(RL::COPPERBP_REACHED);
-                auto addr = u8(agnus.copper.debugger.breakpoints.hit->addr);
+                auto addr = u8(agnus.copper.debugger.cbreakpoints.hit->addr);
                 msgQueue.put(MSG_COPPERBP_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
@@ -692,7 +692,7 @@ Amiga::computeFrame()
             // Did we reach a Copper watchpoint?
             if (flags & RL::COPPERWP_REACHED) {
                 clearFlag(RL::COPPERWP_REACHED);
-                auto addr = u8(agnus.copper.debugger.watchpoints.hit->addr);
+                auto addr = u8(agnus.copper.debugger.cwatchpoints.hit->addr);
                 msgQueue.put(MSG_COPPERWP_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
@@ -957,6 +957,31 @@ Amiga::takeUserSnapshot()
     msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
 }
 */
+
+void
+Amiga::processCommand(const Cmd &cmd)
+{
+    switch (cmd.type) {
+
+        case CMD_ALARM_ABS:
+
+            setAlarmAbs(cmd.alarm.cycle, cmd.alarm.value);
+            break;
+
+        case CMD_ALARM_REL:
+
+            setAlarmRel(cmd.alarm.cycle, cmd.alarm.value);
+            break;
+
+        case CMD_INSPECTION_TARGET:
+
+            setAutoInspectionMask(cmd.value);
+            break;
+
+        default:
+            fatalError;
+    }
+}
 
 void
 Amiga::eolHandler()

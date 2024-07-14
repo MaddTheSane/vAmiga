@@ -450,10 +450,12 @@ extension MyController {
             activityBar.warningValue = 77.0 * acceleration 
             activityBar.criticalValue = 105.0 * acceleration
 
-        case .BREAKPOINT_UPDATED, .WATCHPOINT_UPDATED, .CATCHPOINT_UPDATED,
-                .COPPERBP_UPDATED, .COPPERWP_UPDATED:
+        case .COPPERBP_UPDATED, .COPPERWP_UPDATED:
             inspector?.fullRefresh()
-            
+
+        case .GUARD_UPDATED:
+            inspector?.fullRefresh()
+
         case .BREAKPOINT_REACHED:
             inspector?.signalBreakPoint(pc: pc)
             
