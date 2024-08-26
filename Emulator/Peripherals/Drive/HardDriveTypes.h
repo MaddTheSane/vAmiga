@@ -27,12 +27,11 @@ enum_long(HDR_TYPE)
 typedef HDR_TYPE HardDriveType;
 
 #ifdef __cplusplus
-struct HardDriveTypeEnum : util::Reflection<HardDriveTypeEnum, HardDriveType>
+struct HardDriveTypeEnum : vamiga::util::Reflection<HardDriveTypeEnum, HardDriveType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = HDR_GENERIC;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
-    
+
     static const char *prefix() { return "HDR"; }
     static const char *_key(long value)
     {
@@ -54,11 +53,10 @@ enum_long(HDR_STATE)
 typedef HDR_STATE HardDriveState;
 
 #ifdef __cplusplus
-struct HardDriveStateEnum : util::Reflection<HardDriveStateEnum, HardDriveState>
+struct HardDriveStateEnum : vamiga::util::Reflection<HardDriveStateEnum, HardDriveState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = HDR_STATE_WRITING;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "HDR_STATE"; }
     static const char *_key(long value)
@@ -82,6 +80,7 @@ struct HardDriveStateEnum : util::Reflection<HardDriveStateEnum, HardDriveState>
 typedef struct
 {
     HardDriveType type;
+    bool writeThrough;
     i16 pan;
     u8 stepVolume;
 }
@@ -127,10 +126,11 @@ PartitionTraits;
 
 typedef struct
 {
+    isize nr;
+    
     // Drive properties
     bool isConnected;
     bool isCompatible;
-    bool writeThrough;
     
     // Disk properties
     bool hasDisk;

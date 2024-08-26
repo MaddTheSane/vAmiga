@@ -20,7 +20,7 @@ protected:
     
     Descriptions descriptions = {{
 
-        .type           = COMP_ZORRO_BOARD,
+        .type           = ZorroBoardClass,
         .name           = "ZorroBoard",
         .description    = "Zorro Board",
         .shell          = ""
@@ -38,7 +38,7 @@ protected:
     u32 baseAddr = 0;
     
     // Current state
-    BoardState state;
+    BoardState state = STATE_AUTOCONF;
     
     
     //
@@ -48,7 +48,7 @@ protected:
 public:
     
     using SubComponent::SubComponent;
-    
+
     
     //
     // Methods from CoreObject

@@ -10,8 +10,11 @@
 #include "config.h"
 #include "VAmiga.h"
 #include "Emulator.h"
+#include "GuardList.h"
 
 namespace vamiga {
+
+DefaultsAPI VAmiga::defaults(&Emulator::defaults);
 
 //
 // API
@@ -151,6 +154,12 @@ CIAAPI::getCachedInfo() const
     return cia->getCachedInfo();
 }
 
+CIAStats
+CIAAPI::getStats() const
+{
+    return cia->getStats();
+}
+
 
 //
 // Components (Copper)
@@ -281,6 +290,72 @@ GuardsAPI::toggle(isize nr)
     guards->toggle(nr);
 }
 
+isize
+CPUDebuggerAPI::loggedInstructions() const
+{
+    return cpu->debugger.loggedInstructions();
+}
+
+void
+CPUDebuggerAPI::clearLog()
+{
+    return cpu->debugger.clearLog();
+}
+
+const char *
+CPUDebuggerAPI::disassembleRecordedInstr(isize i, isize *len)
+{
+    return cpu->disassembleRecordedInstr(i, len);
+}
+
+const char *
+CPUDebuggerAPI::disassembleRecordedWords(isize i, isize len)
+{
+    return cpu->disassembleRecordedWords(i, len);
+}
+
+const char *
+CPUDebuggerAPI::disassembleRecordedFlags(isize i)
+{
+    return cpu->disassembleRecordedFlags(i);
+}
+
+const char *
+CPUDebuggerAPI::disassembleRecordedPC(isize i)
+{
+    return cpu->disassembleRecordedPC(i);
+}
+
+const char *
+CPUDebuggerAPI::disassembleWord(u16 value)
+{
+    return cpu->disassembleWord(value);
+}
+
+const char *
+CPUDebuggerAPI::disassembleAddr(u32 addr)
+{
+    return cpu->disassembleAddr(addr);
+}
+
+const char *
+CPUDebuggerAPI::disassembleInstr(u32 addr, isize *len)
+{
+    return cpu->disassembleInstr(addr, len);
+}
+
+const char *
+CPUDebuggerAPI::disassembleWords(u32 addr, isize len)
+{
+    return cpu->disassembleWords(addr, len);
+}
+
+string
+CPUDebuggerAPI::vectorName(isize i)
+{
+    return cpu->debugger.vectorName(u8(i));
+}
+
 const CPUConfig &
 CPUAPI::getConfig() const
 {
@@ -327,6 +402,45 @@ DeniseAPI::getCachedInfo() const
 // Components (Memory)
 //
 
+MemorySource 
+MemoryDebuggerAPI::getMemSrc(Accessor acc, u32 addr) const
+{
+    switch (acc) {
+
+        case ACCESSOR_CPU:      return mem->getMemSrc<ACCESSOR_CPU>(addr);
+        case ACCESSOR_AGNUS:    return mem->getMemSrc<ACCESSOR_AGNUS>(addr);
+
+        default:
+            fatalError;
+    }
+}
+
+u8
+MemoryDebuggerAPI::spypeek8(Accessor acc, u32 addr) const
+{
+    switch (acc) {
+
+        case ACCESSOR_CPU:      return mem->spypeek8<ACCESSOR_CPU>(addr);
+        case ACCESSOR_AGNUS:    return mem->spypeek8<ACCESSOR_AGNUS>(addr);
+
+        default:
+            fatalError;
+    }
+}
+
+u16 
+MemoryDebuggerAPI::spypeek16(Accessor acc, u32 addr) const
+{
+    switch (acc) {
+
+        case ACCESSOR_CPU:      return mem->spypeek16<ACCESSOR_CPU>(addr);
+        case ACCESSOR_AGNUS:    return mem->spypeek16<ACCESSOR_AGNUS>(addr);
+
+        default:
+            fatalError;
+    }
+}
+
 string
 MemoryDebuggerAPI::ascDump(Accessor acc, u32 addr, isize bytes) const
 {
@@ -334,8 +448,8 @@ MemoryDebuggerAPI::ascDump(Accessor acc, u32 addr, isize bytes) const
 
     switch (acc) {
 
-        case ACCESSOR_CPU:      return debugger->ascDump<ACCESSOR_CPU>(addr, bytes);
-        case ACCESSOR_AGNUS:    return debugger->ascDump<ACCESSOR_AGNUS>(addr, bytes);
+        case ACCESSOR_CPU:      return mem->debugger.ascDump<ACCESSOR_CPU>(addr, bytes);
+        case ACCESSOR_AGNUS:    return mem->debugger.ascDump<ACCESSOR_AGNUS>(addr, bytes);
 
         default:
             fatalError;
@@ -349,8 +463,8 @@ MemoryDebuggerAPI::hexDump(Accessor acc, u32 addr, isize bytes, isize sz) const
 
     switch (acc) {
 
-        case ACCESSOR_CPU:      return debugger->hexDump<ACCESSOR_CPU>(addr, bytes, sz);
-        case ACCESSOR_AGNUS:    return debugger->hexDump<ACCESSOR_AGNUS>(addr, bytes, sz);
+        case ACCESSOR_CPU:      return mem->debugger.hexDump<ACCESSOR_CPU>(addr, bytes, sz);
+        case ACCESSOR_AGNUS:    return mem->debugger.hexDump<ACCESSOR_AGNUS>(addr, bytes, sz);
 
         default:
             fatalError;
@@ -364,8 +478,8 @@ MemoryDebuggerAPI::memDump(Accessor acc, u32 addr, isize bytes, isize sz) const
 
     switch (acc) {
 
-        case ACCESSOR_CPU:      return debugger->memDump<ACCESSOR_CPU>(addr, bytes, sz);
-        case ACCESSOR_AGNUS:    return debugger->memDump<ACCESSOR_AGNUS>(addr, bytes, sz);
+        case ACCESSOR_CPU:      return mem->debugger.memDump<ACCESSOR_CPU>(addr, bytes, sz);
+        case ACCESSOR_AGNUS:    return mem->debugger.memDump<ACCESSOR_AGNUS>(addr, bytes, sz);
 
         default:
             fatalError;
@@ -419,22 +533,86 @@ MemoryAPI::getExtTraits() const
 }
 
 void 
+MemoryAPI::loadRom(const fs::path &path)
+{
+    mem->loadRom(path);
+    emu->isDirty = true;
+}
+
+void
+MemoryAPI::loadExt(const fs::path &path)
+{
+    mem->loadExt(path);
+    emu->isDirty = true;
+}
+
+void
+MemoryAPI::loadRom(MediaFile &file)
+{
+    mem->loadRom(file);
+    emu->isDirty = true;
+}
+
+void
+MemoryAPI::loadExt(MediaFile &file)
+{
+    mem->loadExt(file);
+    emu->isDirty = true;
+}
+
+void
+MemoryAPI::loadRom(const u8 *buf, isize len)
+{
+    mem->loadRom(buf, len);
+    emu->isDirty = true;
+}
+
+void
+MemoryAPI::loadExt(const u8 *buf, isize len)
+{
+    mem->loadExt(buf, len);
+    emu->isDirty = true;
+}
+
+void 
+MemoryAPI::saveRom(const std::filesystem::path &path)
+{
+    mem->saveRom(path);
+}
+
+void 
+MemoryAPI::saveWom(const std::filesystem::path &path)
+{
+    mem->saveWom(path);
+}
+
+void 
+MemoryAPI::saveExt(const std::filesystem::path &path)
+{
+    mem->saveExt(path);
+}
+
+void
 MemoryAPI::deleteRom()
 {
     mem->deleteRom();
+    emu->isDirty = true;
 }
 
 void 
 MemoryAPI::deleteWom()
 {
     mem->deleteWom();
+    emu->isDirty = true;
 }
 
 void 
 MemoryAPI::deleteExt()
 {
     mem->deleteExt();
+    emu->isDirty = true;
 }
+
 
 //
 // Components (Paula)
@@ -521,6 +699,7 @@ void
 RTCAPI::update()
 {
     rtc->update();
+    emu->isDirty = true;
 }
 
 
@@ -594,13 +773,68 @@ ControlPortAPI::getCachedInfo() const
 
 
 //
+// Ports (SerialPort)
+//
+
+const SerialPortConfig &
+SerialPortAPI::getConfig() const
+{
+    return serialPort->getConfig();
+}
+
+const SerialPortInfo &
+SerialPortAPI::getInfo() const
+{
+    return serialPort->getInfo();
+}
+
+const SerialPortInfo &
+SerialPortAPI::getCachedInfo() const
+{
+    return serialPort->getCachedInfo();
+}
+
+int 
+SerialPortAPI::readIncomingPrintableByte() const
+{
+    return serialPort->readIncomingPrintableByte();
+}
+
+int 
+SerialPortAPI::readOutgoingPrintableByte() const
+{
+    return serialPort->readOutgoingPrintableByte();
+}
+
+
+//
 // Ports (VideoPort)
 //
 
+/*
 const class FrameBuffer &
 VideoPortAPI::getTexture() const
 {
     return videoPort->getTexture();
+}
+*/
+
+const u32 *
+VideoPortAPI::getTexture() const
+{
+    return emu->getTexture().pixels.ptr;
+}
+
+const u32 *
+VideoPortAPI::getTexture(isize *nr, bool *lof, bool *prevlof) const
+{
+    auto &frameBuffer = emu->getTexture();
+
+    *nr = isize(frameBuffer.nr);
+    *lof = frameBuffer.lof;
+    *prevlof = frameBuffer.prevlof;
+
+    return frameBuffer.pixels.ptr;
 }
 
 
@@ -619,16 +853,18 @@ KeyboardAPI::isPressed(KeyCode key) const
 }
 
 void
-KeyboardAPI::press(KeyCode key, double delay)
+KeyboardAPI::press(KeyCode key, double delay, double duration)
 {
-    if (delay != 0) throw std::runtime_error("Not implemented yet");
     emu->put(Cmd(CMD_KEY_PRESS, KeyCmd { .keycode = key, .delay = delay }));
+
+    if (duration != 0.0) {
+        emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay + duration }));
+    }
 }
 
 void
 KeyboardAPI::release(KeyCode key, double delay)
 {
-    if (delay != 0) throw std::runtime_error("Not implemented yet");
     emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay }));
 }
 
@@ -638,14 +874,16 @@ KeyboardAPI::releaseAll()
     emu->put(Cmd(CMD_KEY_RELEASE_ALL));
 }
 
+/*
 void KeyboardAPI::autoType(const string &text)
 {
-    throw std::runtime_error("Not implemented yet");
+    keyboard->autoType(text);
 }
+*/
 
 void KeyboardAPI::abortAutoTyping()
 {
-    throw std::runtime_error("Not implemented yet");
+    keyboard->abortAutoTyping();
 }
 
 
@@ -671,8 +909,14 @@ FloppyDriveAPI::getCachedInfo() const
     return drive->getCachedInfo();
 }
 
+FloppyDisk &
+FloppyDriveAPI::getDisk()
+{
+    return *(drive->disk);
+}
+
 bool
-FloppyDriveAPI::getFlag(DiskFlags mask)
+FloppyDriveAPI::getFlag(DiskFlags mask) const
 {
     return drive->getFlag(mask);
 }
@@ -681,18 +925,27 @@ void
 FloppyDriveAPI::setFlag(DiskFlags mask, bool value)
 {
     drive->setFlag(mask, value);
+    emu->isDirty = true;
+}
+
+bool 
+FloppyDriveAPI::isInsertable(Diameter t, Density d) const
+{
+    return drive->isInsertable(t, d);
 }
 
 void
 FloppyDriveAPI::insertBlankDisk(FSVolumeType fstype, BootBlockId bb, string name)
 {
     drive->insertNew(fstype, bb, name);
+    emu->isDirty = true;
 }
 
 void
 FloppyDriveAPI::insertMedia(MediaFile &file, bool wp)
 {
     drive->insertMediaFile(file, wp);
+    emu->isDirty = true;
 }
 
 /*
@@ -712,10 +965,28 @@ FloppyDriveAPI::ejectDisk()
     drive->ejectDisk();
 }
 
+class MediaFile *
+FloppyDriveAPI::exportDisk(FileType type)
+{
+    return drive->exportDisk(type);
+}
+
+string
+FloppyDriveAPI::readTrackBits(isize track)
+{
+    return drive->readTrackBits(track);
+}
+
 
 //
 // Peripherals (HardDrive)
 //
+
+class HardDrive &
+HardDriveAPI::getDrive()
+{
+    return *drive;
+}
 
 const HardDriveConfig &
 HardDriveAPI::getConfig() const
@@ -771,6 +1042,43 @@ HardDriveAPI::changeGeometry(isize c, isize h, isize s, isize b)
     return drive->changeGeometry(c, h, s, b);
 }
 
+void
+HardDriveAPI::attach(const std::filesystem::path &path)
+{
+    drive->init(path.string());
+}
+
+void 
+HardDriveAPI::attach(const MediaFile &file)
+{
+    drive->init(file);
+}
+
+void
+HardDriveAPI::attach(isize c, isize h, isize s, isize b)
+{
+    auto geometry = GeometryDescriptor(c, h, s, b);
+    drive->init(geometry);
+}
+
+void 
+HardDriveAPI::format(FSVolumeType fs, const string &name)
+{
+    drive->format(fs, name);
+}
+
+void 
+HardDriveAPI::writeToFile(std::filesystem::path path)
+{
+    drive->writeToFile(path);
+}
+
+MediaFile *
+HardDriveAPI::createHDF()
+{
+    return new HDFFile(*drive);
+}
+
 
 //
 // Peripherals (HdController)
@@ -809,6 +1117,12 @@ const JoystickInfo &
 JoystickAPI::getCachedInfo() const
 {
     return joystick->getCachedInfo();
+}
+
+void 
+JoystickAPI::trigger(GamePadAction event)
+{
+    emu->put(CMD_JOY_EVENT, GamePadCmd { .port = joystick->objid, .action = event });
 }
 
 
@@ -1007,6 +1321,81 @@ DefaultsAPI::remove(Option option, std::vector <isize> objids)
     defaults->remove(option, objids);
 }
 
+
+//
+// RecorderAPI
+//
+
+/*
+const RecorderConfig &
+RecorderAPI::getConfig() const
+{
+    return recorder->getConfig();
+}
+
+const RecorderInfo &
+RecorderAPI::getInfo() const
+{
+    return recorder->getInfo();
+}
+
+const RecorderInfo &
+RecorderAPI::getCachedInfo() const
+{
+    return recorder->getCachedInfo();
+}
+*/
+
+double RecorderAPI::getDuration() const { return recorder->getDuration().asSeconds(); }
+isize RecorderAPI::getFrameRate() const { return recorder->getFrameRate(); }
+isize RecorderAPI::getBitRate() const { return recorder->getBitRate(); }
+isize RecorderAPI::getSampleRate() const { return recorder->getSampleRate(); }
+bool RecorderAPI::isRecording() const { return recorder->isRecording(); }
+
+const std::vector<std::filesystem::path> &
+RecorderAPI::paths() const
+{
+    return FFmpeg::paths;
+}
+
+bool 
+RecorderAPI::hasFFmpeg() const
+{
+    return FFmpeg::available();
+}
+
+const fs::path
+RecorderAPI::getExecPath() const
+{
+    return FFmpeg::getExecPath();
+}
+
+void RecorderAPI::setExecPath(const std::filesystem::path &path)
+{
+    FFmpeg::setExecPath(path);
+}
+
+void
+RecorderAPI::startRecording(isize x1, isize y1, isize x2, isize y2,
+                            isize bitRate,
+                            isize aspectX, isize aspectY)
+{
+    recorder->startRecording(x1, y1, x2, y2, bitRate, aspectX, aspectY);
+}
+
+void
+RecorderAPI::stopRecording()
+{
+    recorder->stopRecording();
+}
+
+bool
+RecorderAPI::exportAs(const std::filesystem::path &path)
+{
+    return recorder->exportAs(path);
+}
+
+
 //
 // RemoteManagerAPI
 //
@@ -1060,28 +1449,26 @@ RetroShellAPI::press(const string &s)
 void
 RetroShellAPI::execScript(std::stringstream &ss)
 {
-    retroShell->execScript(ss);
+    retroShell->asyncExecScript(ss);
 }
 
 void
 RetroShellAPI::execScript(const std::ifstream &fs)
 {
-    retroShell->execScript(fs);
+    retroShell->asyncExecScript(fs);
 }
 
 void
 RetroShellAPI::execScript(const string &contents)
 {
-    retroShell->execScript(contents);
+    retroShell->asyncExecScript(contents);
 }
 
-/*
- void
- RetroShellAPI::execScript(const MediaFile &file)
- {
- retroShell->execScript(file);
- }
- */
+void
+RetroShellAPI::execScript(const MediaFile &file)
+{
+    retroShell->asyncExecScript(file);
+}
 
 void
 RetroShellAPI::setStream(std::ostream &os)
@@ -1138,19 +1525,17 @@ VAmiga::VAmiga() {
     controlPort2.mouse.emu = emu;
     controlPort2.mouse.mouse = &emu->main.controlPort2.mouse;
 
-
     copperBreakpoints.emu = emu;
     copperBreakpoints.guards = &emu->main.agnus.copper.debugger.breakpoints;
 
     cpu.emu = emu;
     cpu.cpu = &emu->main.cpu;
+    cpu.debugger.emu = emu;
+    cpu.debugger.cpu = &emu->main.cpu;
     cpu.breakpoints.emu = emu;
     cpu.breakpoints.guards = &emu->main.cpu.breakpoints;
     cpu.watchpoints.emu = emu;
     cpu.watchpoints.guards = &emu->main.cpu.watchpoints;
-
-    debugger.emu = emu;
-    debugger.debugger = &emu->main.debugger;
 
     denise.emu = emu;
     denise.denise = &emu->main.denise;
@@ -1188,7 +1573,7 @@ VAmiga::VAmiga() {
     hd3.controller.controller = &emu->main.hd3con;
 
     host.emu = emu;
-    host.host = &emu->host;
+    host.host = &emu->main.host;
 
     keyboard.emu = emu;
     keyboard.keyboard = &emu->main.keyboard;
@@ -1196,7 +1581,7 @@ VAmiga::VAmiga() {
     mem.emu = emu;
     mem.mem = &emu->main.mem;
     mem.debugger.emu = emu;
-    mem.debugger.debugger = &emu->main.mem.debugger;
+    mem.debugger.mem = &emu->main.mem;
 
     paula.emu = emu;
     paula.paula = &emu->main.paula;
@@ -1272,55 +1657,55 @@ VAmiga::getStats() const
 }
 
 bool
-VAmiga::isPoweredOn()
+VAmiga::isPoweredOn() const
 {
     return emu->main.isPoweredOn();
 }
 
 bool
-VAmiga::isPoweredOff()
+VAmiga::isPoweredOff() const
 {
     return emu->main.isPoweredOff();
 }
 
 bool
-VAmiga::isPaused()
+VAmiga::isPaused() const
 {
     return emu->main.isPaused();
 }
 
 bool
-VAmiga::isRunning()
+VAmiga::isRunning() const
 {
     return emu->main.isRunning();
 }
 
 bool
-VAmiga::isSuspended()
+VAmiga::isSuspended() const
 {
     return emu->main.isSuspended();
 }
 
 bool
-VAmiga::isHalted()
+VAmiga::isHalted() const
 {
     return emu->main.isHalted();
 }
 
 bool
-VAmiga::isWarping()
+VAmiga::isWarping() const
 {
     return emu->isWarping();
 }
 
 bool
-VAmiga::isTracking()
+VAmiga::isTracking() const
 {
     return emu->isTracking();
 }
 
 void
-VAmiga::isReady()
+VAmiga::isReady() const
 {
     return emu->isReady();
 }
@@ -1329,42 +1714,49 @@ void
 VAmiga::powerOn()
 {
     emu->Thread::powerOn();
+    emu->isDirty = true;
 }
 
 void
 VAmiga::powerOff()
 {
     emu->Thread::powerOff();
+    emu->isDirty = true;
 }
 
 void
 VAmiga::run()
 {
     emu->run();
+    emu->isDirty = true;
 }
 
 void
 VAmiga::pause()
 {
     emu->pause();
+    emu->isDirty = true;
 }
 
 void 
 VAmiga::hardReset()
 {
     emu->hardReset();
+    emu->isDirty = true;
 }
 
 void
 VAmiga::softReset()
 {
     emu->softReset();
+    emu->isDirty = true;
 }
 
 void
 VAmiga::halt()
 {
     emu->halt();
+    emu->isDirty = true;
 }
 
 void
@@ -1453,7 +1845,7 @@ VAmiga::set(ConfigScheme model)
 {
     assert(isUserThread());
     emu->set(model);
-    // emu->main.markAsDirty();
+    emu->isDirty = true;
 }
 
 void
@@ -1463,7 +1855,7 @@ VAmiga::set(Option opt, i64 value) throws
 
     emu->check(opt, value);
     put(CMD_CONFIG_ALL, ConfigCmd { .option = opt, .value = value });
-    // emu->main.markAsDirty();
+    emu->isDirty = true;
 }
 
 void
@@ -1473,27 +1865,25 @@ VAmiga::set(Option opt, i64 value, long id)
 
     emu->check(opt, value, { id });
     put(CMD_CONFIG, ConfigCmd { .option = opt, .value = value, .id = id });
-    // emu->main.markAsDirty();
+    emu->isDirty = true;
 }
 
 void
-VAmiga::exportConfig(const fs::path &path) const
+VAmiga::exportConfig(const fs::path &path, bool diff) const
 {
     assert(isUserThread());
-    emu->main.exportConfig(path);
+    emu->main.exportConfig(path, diff);
 }
 
 void
-VAmiga::exportConfig(std::ostream& stream) const
+VAmiga::exportConfig(std::ostream& stream, bool diff) const
 {
-    assert(isUserThread());
-    emu->main.exportConfig(stream);
+    emu->main.exportConfig(stream, diff);
 }
 
 void
 VAmiga::put(const Cmd &cmd)
 {
-    assert(isUserThread());
     emu->put(cmd);
 }
 
@@ -1502,20 +1892,21 @@ VAmiga::put(const Cmd &cmd)
 // AmigaAPI
 //
 
-Snapshot *
+MediaFile *
 AmigaAPI::takeSnapshot()
 {
     return amiga->takeSnapshot();
 }
 
-void
-AmigaAPI::loadSnapshot(const Snapshot &snapshot)
+void 
+AmigaAPI::loadSnapshot(const MediaFile &snapshot)
 {
     amiga->loadSnapshot(snapshot);
+    emu->isDirty = true;
 }
-
-u64 
-AmigaAPI::getAutoInspectionMask()
+    
+u64
+AmigaAPI::getAutoInspectionMask() const
 {
     return amiga->getAutoInspectionMask();
 }

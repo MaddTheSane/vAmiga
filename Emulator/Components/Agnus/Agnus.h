@@ -36,7 +36,7 @@ class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_AGNUS,
+        .type           = AgnusClass,
         .name           = "Agnus",
         .description    = "DMA Controller",
         .shell          = "agnus"
@@ -50,12 +50,6 @@ class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
 
     // Current configuration
     AgnusConfig config = {};
-
-    // Result of the latest inspection
-    mutable AgnusInfo info = {};
-
-    // Current workload
-    AgnusStats stats = {};
 
 
     //
@@ -206,6 +200,13 @@ public:
 
     
     //
+    // Class methods
+    //
+
+    static const char *eventName(EventSlot slot, EventID id);
+
+
+    //
     // Initializing
     //
     
@@ -213,44 +214,81 @@ public:
     
     Agnus(Amiga& ref);
     
-    
-    //
-    // Class methods
-    //
-    
-    static const char *eventName(EventSlot slot, EventID id);
+    Agnus& operator= (const Agnus& other) {
 
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+        CLONE(sequencer)
+        CLONE(copper)
+        CLONE(blitter)
 
-    
+        CLONE_ARRAY(trigger)
+        CLONE_ARRAY(id)
+        CLONE_ARRAY(data)
+        CLONE(nextTrigger)
+        CLONE(changeRecorder)
+        CLONE(syncEvent)
+
+        CLONE(pos)
+        CLONE(latchedPos)
+
+        CLONE(bplcon0)
+        CLONE(bplcon0Initial)
+        CLONE(bplcon1)
+        CLONE(bplcon1Initial)
+        CLONE(dmacon)
+        CLONE(dmaconInitial)
+        CLONE(dskpt)
+        CLONE_ARRAY(audpt)
+        CLONE_ARRAY(audlc)
+        CLONE_ARRAY(bplpt)
+        CLONE(bpl1mod)
+        CLONE(bpl2mod)
+        CLONE_ARRAY(sprpt)
+        CLONE(res)
+        CLONE(scrollOdd)
+        CLONE(scrollEven)
+
+        CLONE_ARRAY(busValue)
+        CLONE_ARRAY(busOwner)
+        CLONE_ARRAY(lastCtlWrite)
+
+        CLONE_ARRAY(audxDR)
+        CLONE_ARRAY(audxDSR)
+        CLONE(bls)
+
+        CLONE_ARRAY(sprVStrt)
+        CLONE_ARRAY(sprVStop)
+        CLONE_ARRAY(sprDmaState)
+
+        CLONE(clock)
+
+        CLONE(config)
+        CLONE(ptrMask)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
-    
+
 private:
-    
+
     template <class T>
     void serialize(T& worker)
     {
         worker
-        
+
         << trigger
         << id
         << data
         << nextTrigger
         << changeRecorder
         << syncEvent
-        
+
         << pos
         << latchedPos
-        
+
         << bplcon0
         << bplcon0Initial
         << bplcon1
@@ -267,7 +305,7 @@ private:
         << res
         << scrollOdd
         << scrollEven
-        
+
         << busValue
         << busOwner
         << lastCtlWrite
@@ -301,9 +339,18 @@ private:
     void operator << (SerReader &worker) override { serialize(worker); }
     void operator << (SerWriter &worker) override { serialize(worker); }
 
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+    
+    void _dump(Category category, std::ostream& os) const override;
 
     
     //
@@ -315,6 +362,7 @@ public:
     const AgnusConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
     void setVideoFormat(VideoFormat newFormat);

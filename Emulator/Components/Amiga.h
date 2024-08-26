@@ -10,54 +10,60 @@
 #pragma once
 
 #include "AmigaTypes.h"
-#include "CoreComponent.h"
+#include "MsgQueue.h"
+#include "Thread.h"
+
+// Components
 #include "Agnus.h"
-#include "ControlPort.h"
 #include "CIA.h"
 #include "CPU.h"
-#include "Debugger.h"
 #include "Defaults.h"
 #include "Denise.h"
-#include "FloppyDrive.h"
-#include "GdbServer.h"
-#include "HardDrive.h"
-#include "Host.h"
-#include "Keyboard.h"
 #include "Memory.h"
-#include "MsgQueue.h"
-#include "OSDebugger.h"
 #include "Paula.h"
+#include "RTC.h"
+
+// Ports
+#include "AudioPort.h"
+#include "ControlPort.h"
+#include "VideoPort.h"
+#include "ZorroManager.h"
+
+// Peripherals
+#include "FloppyDrive.h"
+#include "HardDrive.h"
+#include "Keyboard.h"
+
+// Misc
+#include "GdbServer.h"
+#include "Host.h"
+#include "OSDebugger.h"
 #include "RegressionTester.h"
 #include "RemoteManager.h"
 #include "RetroShell.h"
 #include "RshServer.h"
-#include "RTC.h"
 #include "SerialPort.h"
-#include "Snapshot.h"
-#include "Thread.h"
-#include "VideoPort.h"
-#include "ZorroManager.h"
 
 namespace vamiga {
 
-/* A complete virtual Amiga. This class is the most prominent one of all. To
- * run the emulator, it is sufficient to create a single object of this type.
- * All subcomponents are created automatically. The public API gives you
- * control over the emulator's behaviour such as running and pausing emulation.
- * Please note that most subcomponents have their own public API. E.g., to
- * query information from Paula, you need to invoke a public method on
- * amiga.paula.
- */
 class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
 
     friend class Emulator;
-    
-    Descriptions descriptions = {{
 
-        .name           = "Amiga",
-        .description    = "Commodore Amiga",
-        .shell          = "amiga"
-    }};
+    Descriptions descriptions = {
+        {
+            .type           = AmigaClass,
+            .name           = "Amiga",
+            .description    = "Commodore Amiga",
+            .shell          = "amiga"
+        },
+        {
+            .type           = AmigaClass,
+            .name           = "Amiga",
+            .description    = "Commodore Amiga",
+            .shell          = ""
+        }
+    };
 
     ConfigOptions options = {
 
@@ -67,19 +73,12 @@ class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
         OPT_AMIGA_VSYNC,
         OPT_AMIGA_SPEED_BOOST,
         OPT_AMIGA_SNAPSHOTS,
-        OPT_AMIGA_SNAPSHOT_DELAY
+        OPT_AMIGA_SNAPSHOT_DELAY,
+        OPT_AMIGA_RUN_AHEAD
     };
     
     // The current configuration
     AmigaConfig config = {};
-
-    /* Result of the latest inspection. In order to update the GUI inspector
-     * panels, the emulator schedules events in the inspector slot (SLOT_INS in
-     * the secondary table) on a periodic basis. Inside the event handler, the
-     * current state is recorded. When the GUI updates the inspector panels, it
-     * displays the result of the latest inspection.
-     */
-    // mutable AmigaInfo info = {};
 
 
     //
@@ -88,7 +87,10 @@ class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
 
 public:
 
-    // Core components
+    // Host system information
+    Host host = Host(*this);
+
+    // Components
     CPU cpu = CPU(*this);
     CIAA ciaA = CIAA(*this);
     CIAB ciaB = CIAB(*this);
@@ -96,14 +98,14 @@ public:
     Agnus agnus = Agnus(*this);
     Denise denise = Denise(*this);
     Paula paula = Paula(*this);
+    RTC rtc = RTC(*this);
 
-    // Logic board
+    // Ports
     AudioPort audioPort = AudioPort(*this);
     VideoPort videoPort = VideoPort(*this);
     ControlPort controlPort1 = ControlPort(*this, 0);
     ControlPort controlPort2 = ControlPort(*this, 1);
     SerialPort serialPort = SerialPort(*this);
-    RTC rtc = RTC(*this);
     ZorroManager zorro = ZorroManager(*this);
 
     // Floppy drives
@@ -129,20 +131,19 @@ public:
     // Other Peripherals
     Keyboard keyboard = Keyboard(*this);
 
-    // Shortcuts
-    FloppyDrive *df[4] = { &df0, &df1, &df2, &df3 };
-    HardDrive *hd[4] = { &hd0, &hd1, &hd2, &hd3 };
-    HdController *hdcon[4] = { &hd0con, &hd1con, &hd2con, &hd3con };
-
     // Gateway to the GUI
     MsgQueue msgQueue = MsgQueue();
 
     // Misc
     RetroShell retroShell = RetroShell(*this);
     RemoteManager remoteManager = RemoteManager(*this);
-    Debugger debugger = Debugger(*this);
     OSDebugger osDebugger = OSDebugger(*this);
     RegressionTester regressionTester = RegressionTester(*this);
+
+    // Shortcuts
+    FloppyDrive *df[4] = { &df0, &df1, &df2, &df3 };
+    HardDrive *hd[4] = { &hd0, &hd1, &hd2, &hd3 };
+    HdController *hdcon[4] = { &hd0con, &hd1con, &hd2con, &hd3con };
 
 
     //
@@ -165,9 +166,6 @@ private:
     //
 
 private:
-
-    Snapshot *autoSnapshot = nullptr;
-    // Snapshot *userSnapshot = nullptr;
 
     typedef struct { Cycle trigger; i64 payload; } Alarm;
     std::vector<Alarm> alarms;
@@ -197,41 +195,58 @@ public:
 
 
     //
-    // Methods from CoreObject
+    // Operators
     //
 
 public:
 
-    void prefix() const override;
+    Amiga& operator= (const Amiga& other) {
 
-private:
+        CLONE(host)
+        CLONE(agnus)
+        CLONE(audioPort)
+        CLONE(videoPort)
+        CLONE(rtc)
+        CLONE(denise)
+        CLONE(paula)
+        CLONE(zorro)
+        CLONE(controlPort1)
+        CLONE(controlPort2)
+        CLONE(serialPort)
+        CLONE(keyboard)
+        CLONE(df0)
+        CLONE(df1)
+        CLONE(df2)
+        CLONE(df3)
+        CLONE(hd0)
+        CLONE(hd1)
+        CLONE(hd2)
+        CLONE(hd3)
+        CLONE(hd0con)
+        CLONE(hd1con)
+        CLONE(hd2con)
+        CLONE(hd3con)
+        CLONE(ramExpansion)
+        CLONE(diagBoard)
+        CLONE(ciaA)
+        CLONE(ciaB)
+        CLONE(mem)
+        CLONE(cpu)
+        CLONE(remoteManager)
+        CLONE(retroShell)
+        CLONE(osDebugger)
+        CLONE(regressionTester)
 
-    void _dump(Category category, std::ostream& os) const override;
+        CLONE(flags)
+        CLONE(config)
+
+        return *this;
+    }
 
 
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
-
-public:
-
-    const Descriptions &getDescriptions() const override { return descriptions; }
-
-    void reset(bool hard);
-    void hardReset() { reset(true); }
-    void softReset() { reset(false); }
-
-private:
-
-    void _powerOn() override;
-    void _powerOff() override;
-    void _run() override;
-    void _pause() override;
-    void _halt() override;
-    void _warpOn() override;
-    void _warpOff() override;
-    void _trackOn() override;
-    void _trackOff() override;
 
     template <class T>
     void serialize(T& worker)
@@ -248,12 +263,31 @@ private:
 
     } SERIALIZERS(serialize);
 
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+    void prefix(isize level, const char *component, isize line) const override;
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
 
     void _willReset(bool hard) override;
     void _didReset(bool hard) override;
-    isize load(const u8 *buffer) override;
-    isize save(u8 *buffer) override;
+    void _powerOn() override;
+    void _powerOff() override;
+    void _run() override;
+    void _pause() override;
+    void _halt() override;
+    void _warpOn() override;
+    void _warpOff() override;
+    void _trackOn() override;
+    void _trackOff() override;
 
 
     //
@@ -267,11 +301,6 @@ public:
     u64 getAutoInspectionMask() const;
     void setAutoInspectionMask(u64 mask);
 
-    /*
-    [[deprecated]] CType getInspectionTarget() const;
-    [[deprecated]] void setInspectionTarget(CType target, Cycle trigger = 0);
-    [[deprecated]] void removeInspectionTarget() { setInspectionTarget(0); }
-    */
 
     //
     // Methods from Configurable
@@ -287,8 +316,8 @@ public:
     void setOption(Option option, i64 value) override;
 
     // Exports the current configuration to a script file
-    void exportConfig(const fs::path &path) const;
-    void exportConfig(std::ostream& stream) const;
+    void exportConfig(const fs::path &path, bool diff = false) const;
+    void exportConfig(std::ostream& stream, bool diff = false) const;
 
     // Reverts to factory settings
     void revertToFactorySettings();
@@ -300,14 +329,42 @@ private:
 
 
     //
-    // Analyzing
+    // Main API for configuring the emulator
     //
 
 public:
 
-    // AmigaInfo getInfo() const { return CoreComponent::getInfo(info); }
+    // Queries an option
+    i64 get(Option opt, isize id = 0) const throws;
 
-    void computeFrame();
+    // Checks an option
+    void check(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
+
+    // Sets an option
+    void set(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
+
+    // Convenience wrappers
+    void set(Option opt, const string &value, const std::vector<isize> objids = { }) throws;
+    void set(const string &opt, const string &value, const std::vector<isize> objids = { }) throws;
+
+    // Configures the emulator to match a specific Amiga model
+    void set(ConfigScheme model);
+
+public: // private
+
+    // Returns the target component for an option
+    Configurable *routeOption(Option opt, isize objid);
+    const Configurable *routeOption(Option opt, isize objid) const;
+
+    // Overrides a config option if the corresponding debug option is enabled
+    i64 overrideOption(Option opt, i64 value) const;
+
+
+    //
+    // Analyzing
+    //
+
+public:
 
     // Returns the native refresh rate of the emulated Amiga (50Hz or 60Hz)
     double nativeRefreshRate() const;
@@ -323,29 +380,23 @@ public:
 
 
     //
-    // Controlling the state
+    // Emulating
     //
 
-    void initialize();
-    void powerOn();
-    void powerOff();
-    void run();
-    void pause();
-    void halt();
-    void warpOn();
-    void warpOff();
-    void trackOn();
-    void trackOff();
-    void focus();
-    void unfocus();
+public:
 
-    void powerOnOff(bool value) { value ? powerOn() : powerOff(); }
-    void warpOnOff(bool value) { value ? warpOn() : warpOff(); }
-    void trackOnOff(bool value) { value ? trackOn() : trackOff(); }
+    // Called by the Emulator class in it's own update function
+    void update(CmdQueue &queue);
+
+    // Emulates a frame
+    void computeFrame();
+
+    // Fast-forward the run-ahead instance
+    void fastForward(isize frames);
 
 
     //
-    // Interacting with the run loop
+    // Controlling the run loop
     //
 
 public:
@@ -387,10 +438,11 @@ public:
 public:
 
     // Takes a snapshot
-    Snapshot *takeSnapshot();
+    MediaFile *takeSnapshot();
 
     // Loads the current state from a snapshot file
-    void loadSnapshot(const Snapshot &snapshot) throws;
+    void loadSnapshot(const MediaFile &file) throws;
+    void loadSnapshot(const class Snapshot &snapshot) throws;
 
     // Services a snapshot event
     void serviceSnpEvent(EventID id);
@@ -435,8 +487,11 @@ private:
 
 public:
 
-    // Modifies an internal debug variable (only available in debug builds)
-    static void setDebugVariable(const string &name, int val);
+    // Translates the current clock cycle into pseudo-random number
+    u32 random();
+
+    // Translates seed into a pseudo-random number
+    u32 random(u32 seed);
 };
 
 }

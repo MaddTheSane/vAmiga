@@ -158,7 +158,7 @@ class SnapshotDialog: DialogController {
     }
     
     func timeDiffInfo(interval: TimeInterval?) -> String {
-        
+
         guard let interval else {
             return ""
         }
@@ -170,7 +170,7 @@ class SnapshotDialog: DialogController {
         guard let date else {
             return ""
         }
-        return timeDiffInfo(interval: date.timeIntervalSince(now))
+        return timeDiffInfo(interval: -date.timeIntervalSince(now))
     }
     
     func timeDiffInfo(time: time_t) -> String {

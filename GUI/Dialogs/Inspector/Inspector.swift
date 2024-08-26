@@ -579,6 +579,7 @@ class Inspector: DialogController {
     // Cached states of all Amiga components
     var cpuInfo: CPUInfo!
     var ciaInfo: CIAInfo!
+    var ciaStats: CIAStats!
     var agnusInfo: AgnusInfo!
     var copperInfo: CopperInfo!
     var blitterInfo: BlitterInfo!
@@ -766,6 +767,11 @@ class Inspector: DialogController {
         message.stringValue = "Copper watchpoint reached"
     }
 
+    func signalBeamtrap() {
+
+        message.stringValue = "Beamtrap reached"
+    }
+
     @IBAction func refreshAction(_ sender: Any!) {
         
         fullRefresh()
@@ -797,7 +803,7 @@ extension Inspector {
 
         // Leave debug mode
         emu?.trackOff()
-        emu?.autoInspectionMask = 0
+        emu?.amiga.autoInspectionMask = 0
     }
 }
 
@@ -818,16 +824,16 @@ extension Inspector: NSTabViewDelegate {
 
             switch id {
 
-            case "CPU":     emu.autoInspectionMask = mask([.CPU])
-            case "CIA":     emu.autoInspectionMask = mask([.CIA])
-            case "Memory":  emu.autoInspectionMask = mask([.MEM])
-            case "Agnus":   emu.autoInspectionMask = mask([.AGNUS])
-            case "Copper":  emu.autoInspectionMask = mask([.COPPER])
-            case "Blitter": emu.autoInspectionMask = mask([.BLITTER])
-            case "Denise":  emu.autoInspectionMask = mask([.DENISE])
-            case "Paula":   emu.autoInspectionMask = mask([.PAULA])
-            case "Ports":   emu.autoInspectionMask = mask([.PAULA, .CONTROL_PORT, .SERIAL_PORT])
-            case "Events":  emu.autoInspectionMask =  mask([.AGNUS])
+            case "CPU":     amiga.autoInspectionMask = mask([.CPUClass])
+            case "CIA":     amiga.autoInspectionMask = mask([.CIAClass])
+            case "Memory":  amiga.autoInspectionMask = mask([.MemoryClass])
+            case "Agnus":   amiga.autoInspectionMask = mask([.AgnusClass])
+            case "Copper":  amiga.autoInspectionMask = mask([.CopperClass])
+            case "Blitter": amiga.autoInspectionMask = mask([.BlitterClass])
+            case "Denise":  amiga.autoInspectionMask = mask([.DeniseClass])
+            case "Paula":   amiga.autoInspectionMask = mask([.PaulaClass])
+            case "Ports":   amiga.autoInspectionMask = mask([.PaulaClass, .ControlPortClass, .SerialPortClass])
+            case "Events":  amiga.autoInspectionMask =  mask([.AgnusClass])
             default:        break
             }
             

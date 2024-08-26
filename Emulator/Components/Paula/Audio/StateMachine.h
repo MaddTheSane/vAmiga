@@ -21,25 +21,25 @@ class StateMachine : public SubComponent, public Inspectable<StateMachineInfo> {
 
     Descriptions descriptions = {
         {
-            .type           = COMP_STATE_MACHINE,
+            .type           = StateMachineClass,
             .name           = "StateMachine1",
             .description    = "Audio State Machine 1",
             .shell          = ""
         },
         {
-            .type           = COMP_STATE_MACHINE,
+            .type           = StateMachineClass,
             .name           = "StateMachine2",
             .description    = "Audio State Machine 2",
             .shell          = ""
         },
         {
-            .type           = COMP_STATE_MACHINE,
+            .type           = StateMachineClass,
             .name           = "StateMachine3",
             .description    = "Audio State Machine 3",
             .shell          = ""
         },
         {
-            .type           = COMP_STATE_MACHINE,
+            .type           = StateMachineClass,
             .name           = "StateMachine4",
             .description    = "Audio State Machine 4",
             .shell          = ""
@@ -49,9 +49,6 @@ class StateMachine : public SubComponent, public Inspectable<StateMachineInfo> {
     ConfigOptions options = {
 
     };
-
-    // Result of the latest inspection
-    mutable StateMachineInfo info = {};
 
 public:
 
@@ -114,18 +111,30 @@ public:
 
     StateMachine(Amiga& ref);
 
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+    StateMachine& operator= (const StateMachine& other) {
 
-    
+        CLONE(state)
+        CLONE(buffer)
+        CLONE(audlenLatch)
+        CLONE(audlen)
+        CLONE(audperLatch)
+        CLONE(audper)
+        CLONE(audvolLatch)
+        CLONE(audvol)
+        CLONE(auddat)
+        CLONE(audlcLatch)
+        CLONE(audDR)
+        CLONE(intreq2)
+        CLONE(enablePenlo)
+        CLONE(enablePenhi)
+        CLONE(clock)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
     
 private:
@@ -158,9 +167,27 @@ private:
 
     } SERIALIZERS(serialize);
 
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(StateMachineInfo &result) const override;
 
 
     //
@@ -171,15 +198,6 @@ public:
 
     const ConfigOptions &getOptions() const override { return options; }
 
-
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    // StateMachineInfo getInfo() const { return CoreComponent::getInfo(info); }
-    void cacheInfo(StateMachineInfo &result) const override;
 
     //
     // Performing state machine actions
@@ -260,6 +278,7 @@ private:
     void move_101_010();
     void move_010_011();
     void move_011_000();
+    void move_010_000();
     void move_011_010();
 
     

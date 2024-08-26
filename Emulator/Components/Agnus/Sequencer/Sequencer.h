@@ -119,7 +119,7 @@ class Sequencer : public SubComponent
 {
     Descriptions descriptions = {{
 
-        .type           = COMP_SEQUENCER,
+        .type           = SequencerClass,
         .name           = "Sequencer",
         .description    = "Agnus Sequencer",
         .shell          = ""
@@ -219,28 +219,46 @@ public:
     
     Sequencer(Amiga& ref);
 
+    Sequencer& operator= (const Sequencer& other) {
+
+        CLONE(dmaDAS)
+        CLONE_ARRAY(fetch[0])
+        CLONE_ARRAY(fetch[1])
+        CLONE_ARRAY(bplEvent)
+        CLONE_ARRAY(dasEvent)
+        CLONE_ARRAY(nextBplEvent)
+        CLONE_ARRAY(nextDasEvent)
+
+        CLONE(ddfstrt)
+        CLONE(ddfstop)
+        CLONE(ddfInitial)
+        CLONE(ddf)
+        CLONE(bprunUp)
+
+        CLONE(diwstrt)
+        CLONE(diwstop)
+        CLONE(diwhigh)
+        CLONE(vstrt)
+        CLONE(vstop)
+
+        CLONE(sigRecorder)
+
+        CLONE(hsyncActions)
+
+        return *this;
+    }
+
 private:
     
     void initDasEventTable();
 
 
     //
-    // Methods from CoreObject
+    // Methods from Serializable
     //
 
 private:
 
-    void _dump(Category category, std::ostream& os) const override;
-
-
-    //
-    // Methods from CoreComponent
-    //
-
-private:
-
-    void _initialize() override;
-    
     template <class T>
     void serialize(T& worker)
     {
@@ -276,9 +294,19 @@ private:
     void operator << (SerReader &worker) override { serialize(worker); }
     void operator << (SerWriter &worker) override { serialize(worker); }
 
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _initialize() override;
+    void _dump(Category category, std::ostream& os) const override;
 
 
     //

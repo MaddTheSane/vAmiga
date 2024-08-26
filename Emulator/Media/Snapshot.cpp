@@ -41,7 +41,7 @@ Thumbnail::take(Amiga &amiga, isize dx, isize dy)
 }
 
 bool
-Snapshot::isCompatible(const string &path)
+Snapshot::isCompatible(const std::filesystem::path &path)
 {
     return true;
 }
@@ -87,6 +87,24 @@ Snapshot::finalizeRead()
     if (isTooOld()) throw Error(ERROR_SNAP_TOO_OLD);
     if (isTooNew()) throw Error(ERROR_SNAP_TOO_NEW);
     if (isBeta() && !betaRelease) throw Error(ERROR_SNAP_IS_BETA);
+}
+
+std::pair <isize,isize>
+Snapshot::previewImageSize() const
+{
+    return { getThumbnail().width, getThumbnail().height };
+}
+
+const u32 *
+Snapshot::previewImageData() const
+{
+    return getThumbnail().screen;
+}
+
+time_t
+Snapshot::timestamp() const
+{
+    return getThumbnail().timestamp;
 }
 
 bool

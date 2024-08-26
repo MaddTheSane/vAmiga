@@ -9,10 +9,11 @@
 
 #pragma once
 
-#include "Types.h"
+#include "BasicTypes.h"
 #include <utility>
+#include <vector>
 
-namespace util {
+namespace vamiga::util {
 
 /* The emulator uses buffers at various places. Most of them are derived from
  * one of the following two classes:
@@ -43,6 +44,14 @@ template <class T, isize capacity> struct Array
     Array() { clear(); }
     ~Array() { delete[] elements; }
 
+    Array& operator= (const Array& other) {
+
+        for (isize i = 0; i < capacity; i++) elements[i] = other.elements[i];
+        w = other.w;
+
+        return *this;
+    }
+
     void clear() { w = 0; }
     void clear(T t) { for (isize i = 0; i < capacity; i++) elements[i] = t; clear(); }
     void align(isize offset) { w = offset; }
@@ -66,13 +75,11 @@ template <class T, isize capacity> struct Array
     
     T operator [] (isize i) const
     {
-        assert(i >= 0 && i < capacity);
         return elements[i];
     }
 
     T& operator [] (isize i)
     {
-        assert(i >= 0 && i < capacity);
         return elements[i];
     }
 
@@ -95,6 +102,14 @@ struct SortedArray : public Array<T, capacity>
     //
 
     ~SortedArray() { delete[] keys; }
+
+    SortedArray& operator= (const SortedArray& other) {
+
+        Array<T, capacity>::operator=(other);
+        for (isize i = 0; i < capacity; i++) keys[i] = other.keys[i];
+
+        return *this;
+    }
 
 
     //
@@ -140,7 +155,7 @@ struct SortedArray : public Array<T, capacity>
 template <class T, isize capacity> struct RingBuffer
 {
     // Element storage
-    T *elements = new T[capacity];
+    T *elements = new T[capacity]();
 
     // Read and write pointers
     isize r, w;
@@ -155,7 +170,7 @@ template <class T, isize capacity> struct RingBuffer
 
     RingBuffer& operator= (const RingBuffer& other) {
 
-        memcpy(elements, other.elements, capacity);
+        for (isize i = 0; i < capacity; i++) elements[i] = other.elements[i];
         r = other.r;
         w = other.w;
 
@@ -172,13 +187,12 @@ template <class T, isize capacity> struct RingBuffer
     //
 
     isize cap() const { return capacity; }
-    isize oldcount() const { return (capacity + w - r) % capacity; }
-    isize count() const { assert(oldcount() == (r > w ? capacity - (r - w) : w - r)); return r > w ? capacity - (r - w) : w - r; }
+    isize count() const { return r > w ? capacity - (r - w) : w - r; }
     isize free() const { return capacity - count() - 1; }
     double fillLevel() const { return (double)count() / capacity; }
     bool isEmpty() const { return r == w; }
     bool isFull() const { return count() == capacity - 1; }
-    
+
     
     //
     // Working with indices
@@ -251,6 +265,15 @@ template <class T, isize capacity> struct RingBuffer
     {
         return elements[prev(w)];
     }
+
+    std::vector<T> vector() const
+    {
+        std::vector<T> result;
+        for (auto i = begin(); i != end(); i = next(i)) {
+            result.push_back(elements[i]);
+        }
+        return result;
+    }
 };
 
 template <class T, isize capacity>
@@ -258,7 +281,7 @@ struct SortedRingBuffer : public RingBuffer<T, capacity>
 {
     // Key storage
     i64 *keys = new i64[capacity];
- 
+
 
     //
     // Initializing
@@ -269,7 +292,7 @@ struct SortedRingBuffer : public RingBuffer<T, capacity>
     SortedRingBuffer& operator= (const SortedRingBuffer& other) {
 
         RingBuffer<T, capacity>::operator=(other);
-        memcpy(keys, other.keys, capacity);
+        for (isize i = 0; i < capacity; i++) keys[i] = other.keys[i];
 
         return *this;
     }

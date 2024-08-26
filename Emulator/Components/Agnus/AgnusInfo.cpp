@@ -414,8 +414,7 @@ Agnus::eventName(EventSlot slot, EventID id)
             switch (id) {
                     
                 case EVENT_NONE:        return "none";
-                case KEY_PRESS:         return "KEY_PRESS";
-                case KEY_RELEASE:       return "KEY_RELEASE";
+                case KEY_AUTO_TYPE:     return "KEY_AUTO_TYPE";
                 default:                return "*** INVALID ***";
             }
             break;
@@ -437,6 +436,16 @@ Agnus::eventName(EventSlot slot, EventID id)
                 case EVENT_NONE:        return "none";
                 case SER_RECEIVE:       return "SER_RECEIVE";
                 default:                return "*** INVALID ***";
+            }
+            break;
+
+        case SLOT_BTR:
+
+            switch (id) {
+
+                case EVENT_NONE:    return "none";
+                case BTR_TRIGGER:   return "BTR_TRIGGER";
+                default:            return "*** INVALID ***";
             }
             break;
 

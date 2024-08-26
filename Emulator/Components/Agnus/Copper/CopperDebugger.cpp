@@ -15,10 +15,20 @@
 
 namespace vamiga {
 
+CopperBreakpoints::CopperBreakpoints(Copper& ref) : GuardList(ref.emulator), copper(ref)
+{
+
+}
+
 void
 CopperBreakpoints::setNeedsCheck(bool value)
 {
     copper.checkForBreakpoints = value;
+}
+
+CopperWatchpoints::CopperWatchpoints(Copper& ref) : GuardList(ref.emulator), copper(ref)
+{
+
 }
 
 void
@@ -40,7 +50,7 @@ CopperDebugger::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
 
-    auto print = [&](const string &name, const GuardsWrapper &guards) {
+    auto print = [&](const string &name, const GuardList &guards) {
 
         for (int i = 0; i < guards.elements(); i++) {
 
@@ -192,7 +202,7 @@ CopperDebugger::disassemble(u32 addr, bool symbolic) const
         if (copper.isMoveCmd(addr)) {
             
             auto source = copper.getDW(addr);
-            auto target = Debugger::regName(copper.getRA(addr));
+            auto target = MemoryDebugger::regName(copper.getRA(addr));
             snprintf(txt, sizeof(txt), "MOVE $%04X, %s", source, target);
             
             return string(txt);

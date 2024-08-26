@@ -46,13 +46,13 @@ class Mouse : public SubComponent {
 
     Descriptions descriptions = {
         {
-            .type           = COMP_MOUSE,
+            .type           = MouseClass,
             .name           = "Mouse1",
             .description    = "Mouse in Port 1",
             .shell          = "mouse 1"
         },
         {
-            .type           = COMP_MOUSE,
+            .type           = MouseClass,
             .name           = "Mouse2",
             .description    = "Mouse in Port 2",
             .shell          = "mouse 2"
@@ -117,7 +117,24 @@ public:
     
     Mouse(Amiga& ref, ControlPort& pref);
     
-    
+    Mouse& operator= (const Mouse& other) {
+
+        CLONE(leftButton)
+        CLONE(middleButton)
+        CLONE(rightButton)
+        CLONE(mouseX)
+        CLONE(mouseY)
+        CLONE(oldMouseX)
+        CLONE(oldMouseY)
+        CLONE(targetX)
+        CLONE(targetY)
+
+        CLONE(config)
+
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //
@@ -173,6 +190,7 @@ public:
     const MouseConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
     
 private:

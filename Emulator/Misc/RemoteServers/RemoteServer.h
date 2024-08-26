@@ -23,10 +23,17 @@ class RemoteServer : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_REMOTE_SERVER,
-        .name           = "RemoteServer",
-        .description    = "Remote Server",
-        .shell          = ""
+        .name           = "SerServer",
+        .description    = "Serial Port Server",
+        .shell          = "server serial"
+    }, {
+        .name           = "RshServer",
+        .description    = "Remote Shell Server",
+        .shell          = "server rshell"
+    }, {
+        .name           = "GdbServer",
+        .description    = "GDB Remote Server",
+        .shell          = "server gdb"
     }};
 
     ConfigOptions options = {
@@ -63,11 +70,18 @@ protected:
     
 public:
     
-    RemoteServer(Amiga& ref);
+    RemoteServer(Amiga& ref, isize objid);
     ~RemoteServer() { shutDownServer(); }
     void shutDownServer();
     
-    
+    RemoteServer& operator= (const RemoteServer& other) {
+
+        CLONE(config)
+        
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //
@@ -114,6 +128,7 @@ public:
     const ServerConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
 

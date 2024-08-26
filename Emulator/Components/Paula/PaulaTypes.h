@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "DiskControllerTypes.h"
 #include "StateMachineTypes.h"
 #include "UARTTypes.h"
@@ -39,11 +39,10 @@ enum_long(INT_SOURCE)
 typedef INT_SOURCE IrqSource;
 
 #ifdef __cplusplus
-struct IrqSourceEnum : util::Reflection<IrqSourceEnum, IrqSource>
+struct IrqSourceEnum : vamiga::util::Reflection<IrqSourceEnum, IrqSource>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = INT_EXTER;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "INT"; }
     static const char *_key(long value)

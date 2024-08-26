@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -35,11 +35,10 @@ enum_long(FILETYPE)
 typedef FILETYPE FileType;
 
 #ifdef __cplusplus
-struct FileTypeEnum : util::Reflection<FileTypeEnum, FileType>
+struct FileTypeEnum : vamiga::util::Reflection<FileTypeEnum, FileType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = FILETYPE_EXTENDED_ROM;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "FILETYPE"; }
     static const char *_key(long value)
@@ -64,3 +63,28 @@ struct FileTypeEnum : util::Reflection<FileTypeEnum, FileType>
     }
 };
 #endif
+
+
+//
+// Structures
+//
+
+typedef struct
+{
+    isize cyls;
+    isize heads;
+    isize sectors;
+    isize bsize;
+    isize tracks;
+    isize blocks;
+    isize bytes;
+}
+DiskInfo;
+
+typedef struct
+{
+    isize partitions;
+    isize drivers;
+    bool hasRDB;
+}
+HDFInfo;

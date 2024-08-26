@@ -32,9 +32,11 @@ namespace vamiga {
 
 class Blitter : public SubComponent, public Inspectable<BlitterInfo>
 {
+    friend class Agnus;
+
     Descriptions descriptions = {{
 
-        .type           = COMP_BLITTER,
+        .type           = BlitterClass,
         .name           = "Blitter",
         .description    = "Blitter",
         .shell          = "blitter"
@@ -45,14 +47,9 @@ class Blitter : public SubComponent, public Inspectable<BlitterInfo>
         OPT_BLITTER_ACCURACY
     };
 
-    friend class Agnus;
-    
     // Current configuration
     BlitterConfig config = {};
-    
-    // Result of the latest inspection
-    mutable BlitterInfo info = {};
-    
+
     // The fill pattern lookup tables
     u8 fillPattern[2][2][256];     // [inclusive/exclusive][carry in][data]
     u8 nextCarryIn[2][256];        // [carry in][data]
@@ -198,29 +195,77 @@ public:
     Blitter(Amiga& ref);
     
 private:
-    
+
     void initFastBlitter();
     void initSlowBlitter();
-    
-    
+
+public:
+
+    Blitter& operator= (const Blitter& other) {
+
+        CLONE(bltcon0)
+        CLONE(bltcon1)
+
+        CLONE(bltapt)
+        CLONE(bltbpt)
+        CLONE(bltcpt)
+        CLONE(bltdpt)
+
+        CLONE(bltafwm)
+        CLONE(bltalwm)
+
+        CLONE(bltsizeH)
+        CLONE(bltsizeV)
+
+        CLONE(bltamod)
+        CLONE(bltbmod)
+        CLONE(bltcmod)
+        CLONE(bltdmod)
+
+        CLONE(anew)
+        CLONE(bnew)
+        CLONE(aold)
+        CLONE(bold)
+        CLONE(ahold)
+        CLONE(bhold)
+        CLONE(chold)
+        CLONE(dhold)
+        CLONE(ashift)
+        CLONE(bshift)
+
+        CLONE(bltpc)
+        CLONE(iteration)
+
+        CLONE(xCounter)
+        CLONE(yCounter)
+        CLONE(cntA)
+        CLONE(cntB)
+        CLONE(cntC)
+        CLONE(cntD)
+
+        CLONE(fillCarry)
+        CLONE(mask)
+        CLONE(lockD)
+
+        CLONE(running)
+        CLONE(bbusy)
+        CLONE(bzero)
+        CLONE(birq)
+
+        CLONE(remaining)
+
+        CLONE(config)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreObject
+    // Methods from Serializable
     //
     
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Methods from CoreComponent
-    //
-    
-private:
-    
-    void _initialize() override;
-    void _run() override;
-    
+public:
+
     template <class T>
     void serialize(T& worker)
     {
@@ -284,11 +329,32 @@ private:
         << config.accuracy;
 
     } SERIALIZERS(serialize);
+
+    
+    //
+    // Methods from CoreComponent
+    //
     
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+    void _initialize() override;
+    void _run() override;
     void _didReset(bool hard) override;
+
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(BlitterInfo &result) const override;
+    
 
     //
     // Methods from Configurable
@@ -299,17 +365,9 @@ public:
     const BlitterConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
-    
-    
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    // BlitterInfo getInfo() const { return CoreComponent::getInfo(info); }
-    void cacheInfo(BlitterInfo &result) const override;
+
 
     //
     // Accessing

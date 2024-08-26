@@ -10,9 +10,9 @@
 #pragma once
 
 #include "CPUTypes.h"
-#include "CPUDebugger.h"
 #include "SubComponent.h"
 #include "CmdQueue.h"
+#include "GuardList.h"
 #include "RingBuffer.h"
 #include "Moira.h"
 
@@ -22,6 +22,7 @@ class CPU : public moira::Moira, public Inspectable<CPUInfo>
 {
     Descriptions descriptions = {{
 
+        .type           = CPUClass,
         .name           = "CPU",
         .description    = "Central Processing Unit",
         .shell          = "cpu"
@@ -41,27 +42,17 @@ class CPU : public moira::Moira, public Inspectable<CPUInfo>
     // The current configuration
     CPUConfig config = {};
 
-    // Result of the latest inspection
-    mutable CPUInfo info = {};
-
 public:
     
     // Breakpoints, Watchpoints, Catchpoints
-    GuardsWrapper breakpoints = GuardsWrapper(emulator, debugger.breakpoints);
-    GuardsWrapper watchpoints = GuardsWrapper(emulator, debugger.watchpoints);
-    GuardsWrapper catchpoints = GuardsWrapper(emulator, debugger.catchpoints);
+    GuardList breakpoints = GuardList(emulator, debugger.breakpoints);
+    GuardList watchpoints = GuardList(emulator, debugger.watchpoints);
+    GuardList catchpoints = GuardList(emulator, debugger.catchpoints);
 
-
-    //
-    // Overclocking
-    //
-
-public:
-
-    // Sub-cycle counter
+    // Sub-cycle counter (overclocking)
     i64 debt;
 
-    // Number of cycles that should be executed at normal speed
+    // Number of cycles that should be executed at normal speed (overclocking)
     i64 slowCycles;
 
 
@@ -73,25 +64,60 @@ public:
 
     CPU(Amiga& ref);
 
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+    CPU& operator= (const CPU& other) {
+
+        CLONE(debt)
+        CLONE(slowCycles)
+
+        CLONE(clock)
+        CLONE(reg.pc)
+        CLONE(reg.pc0)
+        CLONE(reg.sr.t1)
+        CLONE(reg.sr.t0)
+        CLONE(reg.sr.s)
+        CLONE(reg.sr.m)
+        CLONE(reg.sr.x)
+        CLONE(reg.sr.n)
+        CLONE(reg.sr.z)
+        CLONE(reg.sr.v)
+        CLONE(reg.sr.c)
+        CLONE(reg.sr.ipl)
+        CLONE_ARRAY(reg.r)
+        CLONE(reg.usp)
+        CLONE(reg.isp)
+        CLONE(reg.msp)
+        CLONE(reg.ipl)
+        CLONE(reg.vbr)
+        CLONE(reg.sfc)
+        CLONE(reg.dfc)
+        CLONE(reg.cacr)
+        CLONE(reg.caar)
+
+        CLONE(queue.irc)
+        CLONE(queue.ird)
+
+        CLONE(ipl)
+        CLONE(fcl)
+        CLONE(fcSource)
+        CLONE(exception)
+        CLONE(cp)
+        CLONE(loopModeDelay)
+        CLONE(readBuffer)
+        CLONE(writeBuffer)
+        CLONE(flags)
+
+        CLONE(config)
+
+        return *this;
+    }
 
     
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
     
 private:
-    
-    void _trackOn() override;
-    void _trackOff() override;
-    
+
     template <class T>
     void serialize(T& worker)
     {
@@ -153,7 +179,19 @@ private:
 
     } SERIALIZERS(serialize);
 
+
+    //
+    // Methods from CoreComponent
+    //
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+
+
     void _didLoad() override;
+    void _trackOn() override;
+    void _trackOff() override;
 
 public:
 
@@ -170,6 +208,15 @@ public:
     
 
     //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(CPUInfo &result) const override;
+
+
+    //
     // Methods from Configurable
     //
 
@@ -178,17 +225,9 @@ public:
     const CPUConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;
 
-    
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    // CPUInfo getInfo() const { return CoreComponent::getInfo(info); }
-    void cacheInfo(CPUInfo &result) const override;
 
     //
     // Working with the clock

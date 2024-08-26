@@ -47,19 +47,6 @@ Memory::_dump(Category category, std::ostream& os) const
         auto womTraits = getWomTraits();
         auto extTraits = getExtTraits();
 
-        auto romcrc = util::crc32(rom, config.romSize);
-        auto womcrc = util::crc32(wom, config.womSize);
-        auto extcrc = util::crc32(ext, config.extSize);
-        /*
-        auto chipcrc = util::crc32(chip, config.chipSize);
-        auto slowcrc = util::crc32(slow, config.slowSize);
-        auto fastcrc = util::crc32(fast, config.fastSize);
-        */
-
-        assert(romTraits.crc == romcrc);
-        assert(womTraits.crc == womcrc);
-        assert(extTraits.crc == extcrc);
-
         os << util::tab("Rom");
         os << util::hex(romTraits.crc) << " (CRC32)  ";
         os << romTraits.title << " " << romTraits.released << std::endl;
@@ -109,9 +96,7 @@ Memory::_dump(Category category, std::ostream& os) const
 
 void
 Memory::_initialize()
-{
-    CoreComponent::_initialize();
-    
+{    
     if (auto romPath = Emulator::defaults.getRaw("ROM_PATH"); romPath != "") {
 
         debug(CNF_DEBUG, "Trying to load Rom from %s...\n", romPath.c_str());
@@ -153,55 +138,105 @@ Memory::getOption(Option option) const
 }
 
 void
-Memory::setOption(Option option, i64 value)
+Memory::checkOption(Option opt, i64 value)
 {
-    switch (option) {
-            
+    switch (opt) {
+
         case OPT_MEM_CHIP_RAM:
-            
+
             if (!isPoweredOff()) {
                 throw Error(ERROR_OPT_LOCKED);
             }
             if (value != 256 && value != 512 && value != 1024 && value != 2048) {
                 throw Error(ERROR_OPT_INV_ARG, "256, 512, 1024, 2048");
             }
-            
-            mem.allocChip((i32)KB(value));
             return;
-            
+
         case OPT_MEM_SLOW_RAM:
-            
+
             if (!isPoweredOff()) {
                 throw Error(ERROR_OPT_LOCKED);
             }
             if ((value % 256) != 0 || value > 1536) {
                 throw Error(ERROR_OPT_INV_ARG, "0, 256, 512, ..., 1536");
             }
-
-            mem.allocSlow((i32)KB(value));
             return;
-            
+
         case OPT_MEM_FAST_RAM:
-            
+
             if (!isPoweredOff()) {
                 throw Error(ERROR_OPT_LOCKED);
             }
             if ((value % 64) != 0 || value > 8192) {
                 throw Error(ERROR_OPT_INV_ARG, "0, 64, 128, ..., 8192");
             }
-
-            mem.allocFast((i32)KB(value));
             return;
-            
+
         case OPT_MEM_EXT_START:
-            
+
             if (!isPoweredOff()) {
                 throw Error(ERROR_OPT_LOCKED);
             }
             if (value != 0xE0 && value != 0xF0) {
                 throw Error(ERROR_OPT_INV_ARG, "E0, F0");
             }
+            return;
+
+        case OPT_MEM_SAVE_ROMS:
+        case OPT_MEM_SLOW_RAM_DELAY:
+        case OPT_MEM_SLOW_RAM_MIRROR:
+
+            return;
+
+        case OPT_MEM_BANKMAP:
+
+            if (!BankMapEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, BankMapEnum::keyList());
+            }
+            return;
+
+        case OPT_MEM_UNMAPPING_TYPE:
+
+            if (!UnmappedMemoryEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, UnmappedMemoryEnum::keyList());
+            }
+            return;
+
+        case OPT_MEM_RAM_INIT_PATTERN:
+
+            if (!RamInitPatternEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, RamInitPatternEnum::keyList());
+            }
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
+    }
+}
+
+
+void
+Memory::setOption(Option option, i64 value)
+{
+    switch (option) {
             
+        case OPT_MEM_CHIP_RAM:
+
+            mem.allocChip((i32)KB(value));
+            return;
+            
+        case OPT_MEM_SLOW_RAM:
+
+            mem.allocSlow((i32)KB(value));
+            return;
+            
+        case OPT_MEM_FAST_RAM:
+
+            mem.allocFast((i32)KB(value));
+            return;
+            
+        case OPT_MEM_EXT_START:
+
             config.extStart = (u32)value;
             updateMemSrcTables();
             return;
@@ -223,29 +258,17 @@ Memory::setOption(Option option, i64 value)
             return;
 
         case OPT_MEM_BANKMAP:
-        {
-            if (!BankMapEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, BankMapEnum::keyList());
-            }
-            
+
             config.bankMap = (BankMap)value;
             updateMemSrcTables();
             return;
-        }
+
         case OPT_MEM_UNMAPPING_TYPE:
-        {
-            if (!UnmappedMemoryEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, UnmappedMemoryEnum::keyList());
-            }
-            
+
             config.unmappingType = (UnmappedMemory)value;
             return;
-        }
-        case OPT_MEM_RAM_INIT_PATTERN:
 
-            if (!RamInitPatternEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, RamInitPatternEnum::keyList());
-            }
+        case OPT_MEM_RAM_INIT_PATTERN:
 
             config.ramInitPattern = (RamInitPattern)value;
             if (isPoweredOff()) fillRamWithInitPattern();
@@ -294,6 +317,15 @@ Memory::operator << (SerChecker &worker)
     }
     if (config.fastSize) {
         for (isize i = 0; i < config.fastSize; i++) worker << fast[i];
+    }
+    if (romAllocator.size) {
+        for (isize i = 0; i < romAllocator.size; i++) worker << rom[i];
+    }
+    if (womAllocator.size) {
+        for (isize i = 0; i < womAllocator.size; i++) worker << wom[i];
+    }
+    if (extAllocator.size) {
+        for (isize i = 0; i < extAllocator.size; i++) worker << ext[i];
     }
 }
 
@@ -575,18 +607,20 @@ Memory::fillRamWithInitPattern()
 RomTraits &
 Memory::getRomTraits(u32 crc)
 {
-    static RomTraits fallback = RomTraits {
+    static RomTraits fallback;
+
+    // Crawl through the Rom database
+    for (auto &traits : roms) if (traits.crc == crc) return traits;
+
+    fallback = RomTraits {
 
         .crc = crc,
-        .title = "Unknown ROM",
+        .title = crc ? "Unknown ROM" : "",
         .revision = "",
         .released = "",
         .model = "",
         .vendor = ROM_VENDOR_OTHER
     };
-
-    // Crawl through the Rom database
-    for (auto &traits : roms) if (traits.crc == crc) return traits;
 
     return fallback;
 }
@@ -621,85 +655,49 @@ Memory::extFingerprint() const
     return util::crc32(ext, config.extSize);
 }
 
-/*
-const char *
-Memory::romTitle()
-{
-    return RomFile::title(romFingerprint());
-}
-
-const char *
-Memory::romVersion()
-{
-    return RomFile::version(romFingerprint());
-}
-
-const char *
-Memory::romReleased()
-{
-    return RomFile::released(romFingerprint());
-}
-
-const char *
-Memory::romModel()
-{
-    return RomFile::model(romFingerprint());
-}
-
-const char *
-Memory::extTitle()
-{
-    return RomFile::title(extFingerprint());
-}
-
-const char *
-Memory::extVersion()
-{
-    return RomFile::version(extFingerprint());
-}
-
-const char *
-Memory::extReleased()
-{
-    return RomFile::released(extFingerprint());
-}
-
-const char *
-Memory::extModel()
-{
-    return RomFile::model(extFingerprint());
-}
-
-bool
-Memory::hasArosRom() const
-{
-    return RomFile::isArosRom(romFingerprint());
-}
-*/
-
 void
-Memory::loadRom(RomFile &file)
+Memory::loadRom(MediaFile &file)
 {
-    assert(amiga.isPoweredOff());
-    
-    // Decrypt Rom
-    file.decrypt();
+    // if (amiga.isPoweredOn()) throw Error(ERROR_POWERED_ON);
 
-    // Allocate memory
-    allocRom((i32)file.data.size);
+    try {
 
-    // Load Rom
-    file.flash(rom);
+        auto &romFile = dynamic_cast<RomFile &>(file);
 
-    // Add a Wom if a Boot Rom is installed instead of a Kickstart Rom
-    hasBootRom() ? (void)allocWom(KB(256)) : deleteWom();
+        if (romFile.type())
+            // Decrypt Rom
+            romFile.decrypt();
 
-    // Remove extended Rom (if any)
-    deleteExt();
+        // Allocate memory
+        allocRom((i32)romFile.data.size);
+
+        // Load Rom
+        romFile.flash(rom);
+
+        // Add a Wom if a Boot Rom is installed instead of a Kickstart Rom
+        hasBootRom() ? (void)allocWom(KB(256)) : deleteWom();
+
+        // Remove extended Rom (if any)
+        deleteExt();
+
+    } catch (...) { try {
+
+        auto &extFile = dynamic_cast<ExtendedRomFile &>(file);
+
+        // Allocate memory
+        allocExt((i32)extFile.data.size);
+
+        // Load Rom
+        extFile.flash(ext);
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
+    }}
 }
 
 void
-Memory::loadRom(const string &path)
+Memory::loadRom(const std::filesystem::path &path)
 {
     RomFile file(path);
     loadRom(file);
@@ -713,17 +711,26 @@ Memory::loadRom(const u8 *buf, isize len)
 }
 
 void
-Memory::loadExt(ExtendedRomFile &file)
+Memory::loadExt(MediaFile &file)
 {
-    // Allocate memory
-    allocExt((i32)file.data.size);
-    
-    // Load Rom
-    file.flash(ext);
+    try {
+
+        ExtendedRomFile &extFile = dynamic_cast<ExtendedRomFile &>(file);
+
+        // Allocate memory
+        allocExt((i32)extFile.data.size);
+
+        // Load Rom
+        file.flash(ext);
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
+    }
 }
 
 void
-Memory::loadExt(const string &path)
+Memory::loadExt(const std::filesystem::path &path)
 {
     ExtendedRomFile file(path);
     loadExt(file);
@@ -737,27 +744,27 @@ Memory::loadExt(const u8 *buf, isize len)
 }
 
 void
-Memory::saveRom(const string &path)
+Memory::saveRom(const std::filesystem::path &path)
 {
-    if (rom == nullptr) return;
-    
+    if (rom == nullptr) throw Error(ERROR_ROM_MISSING);
+
     RomFile file(rom, config.romSize);
     file.writeToFile(path);
 }
 
 void
-Memory::saveWom(const string &path)
+Memory::saveWom(const std::filesystem::path &path)
 {
-    if (wom == nullptr) return;
-    
+    if (wom == nullptr) throw Error(ERROR_ROM_MISSING);
+
     RomFile file(wom, config.womSize);
     file.writeToFile(path);
 }
 
 void
-Memory::saveExt(const string &path)
+Memory::saveExt(const std::filesystem::path &path)
 {
-    if (ext == nullptr) return;
+    if (ext == nullptr) throw Error(ERROR_ROM_MISSING);
 
     RomFile file(ext, config.extSize);
     file.writeToFile(path);
@@ -2075,10 +2082,10 @@ Memory::peekRTC8(u32 addr) const
     /* Addr: 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011
      * Reg:        00        00        11        11        22        22
      */
-    if (rtc.isPresent()) {
-        return rtc.peek((addr >> 2) & 0b1111);
-    } else {
+    if (rtc.getConfig().model == RTC_NONE) {
         return 0x40; // This is the value I've seen on my A500
+    } else {
+        return rtc.peek((addr >> 2) & 0b1111);
     }
 }
 
@@ -2153,7 +2160,7 @@ Memory::peekCustom16(u32 addr)
 
     }
 
-    trace(OCSREG_DEBUG, "peekCustom16(%X [%s]) = %X\n", addr, Debugger::regName(addr), result);
+    trace(OCSREG_DEBUG, "peekCustom16(%X [%s]) = %X\n", addr, MemoryDebugger::regName(addr), result);
 
     dataBus = result;
     return result;
@@ -2232,7 +2239,7 @@ Memory::pokeCustom16(u32 addr, u16 value)
     if ((addr & 0xFFF) == 0x30) {
         trace(OCSREG_DEBUG, "pokeCustom16(SERDAT, '%c')\n", (char)value);
     } else {
-        trace(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, Debugger::regName(addr), value);
+        trace(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, MemoryDebugger::regName(addr), value);
     }
 
     dataBus = value;
@@ -2653,10 +2660,10 @@ Memory::pokeCustom16(u32 addr, u16 value)
     
     if (addr <= 0x1E) {
         trace(INVREG_DEBUG,
-              "pokeCustom16(%X [%s]): READ-ONLY\n", addr, Debugger::regName(addr));
+              "pokeCustom16(%X [%s]): READ-ONLY\n", addr, MemoryDebugger::regName(addr));
     } else {
         trace(INVREG_DEBUG,
-              "pokeCustom16(%X [%s]): NON-OCS\n", addr, Debugger::regName(addr));
+              "pokeCustom16(%X [%s]): NON-OCS\n", addr, MemoryDebugger::regName(addr));
     }
 }
 

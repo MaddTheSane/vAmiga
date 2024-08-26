@@ -16,15 +16,15 @@
 #include "AudioPort.h"
 #include "NamedPipe.h"
 
-using util::Buffer;
-
 namespace vamiga {
+
+using util::Buffer;
 
 class Recorder : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_RECORDER,
+        .type           = RecorderClass,
         .name           = "Recorder",
         .description    = "Video Recorder",
         .shell          = ""
@@ -102,14 +102,13 @@ public:
     
     Recorder(Amiga& ref);
     
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+    Recorder& operator= (const Recorder& other) {
+
+        CLONE(audioPort)
+        CLONE(audioClock)
+
+        return *this;
+    }
 
 
     //
@@ -117,7 +116,7 @@ private:
     //
 
 public:
-    
+
     template <class T>
     void serialize(T& worker)
     {
@@ -139,6 +138,7 @@ public:
 
 private:
 
+    void _dump(Category category, std::ostream& os) const override;
     void _initialize() override;
 
 
@@ -197,13 +197,13 @@ public:
     void stopRecording();
 
     // Exports the recorded video
-    bool exportAs(const string &path);
-    
+    bool exportAs(const std::filesystem::path &path);
+
     
     //
     // Recording a video stream
     //
-
+   
 public:
 
     // Records a single frame

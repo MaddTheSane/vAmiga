@@ -19,10 +19,10 @@ class RegressionTester : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_REGRESSION_TESTER,
+        .type           = RegressionTesterClass,
         .name           = "Regression",
         .description    = "Regression Tester",
-        .shell          = ""
+        .shell          = "regression"
     }};
 
     ConfigOptions options = {
@@ -59,7 +59,12 @@ public:
     
     using SubComponent::SubComponent;
     
-    
+    RegressionTester& operator= (const RegressionTester& other) {
+
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //

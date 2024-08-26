@@ -29,7 +29,8 @@ extension MyController {
     func refreshStatusBar() {
         
         let running = emu.running
-        let halted = emu.cpu.halted
+        let tracking = emu.tracking
+        let cpuinfo = emu.cpu.info
         let warp = emu.warping
 
         // Df0 - Df3
@@ -61,7 +62,7 @@ extension MyController {
         cmdRightIcon.image = cmdKeyIcon(mapRight)
 
         // Remote server icon
-        debugIcon.image = emu.remoteManager.icon
+        serverIcon.image = emu.remoteManager.icon
         
         // Warp mode icon
         warpIcon.image = hourglassIcon
@@ -84,10 +85,11 @@ extension MyController {
             cylSlot2: true,
             cylSlot3: true,
 
-            haltIcon: halted,
+            haltIcon: cpuinfo.halt,
+            trackIcon: tracking,
             cmdLeftIcon: false, // mapLeft || mapRight,
             cmdRightIcon: false, // mapLeft || mapRight,
-            debugIcon: true,
+            serverIcon: true,
             muteIcon: warp || muted,
 
             warpIcon: running,
@@ -218,9 +220,9 @@ extension MyController {
             activityBar.fillColor = color[index]
         }
 
-        let clock = emu.cpu.clock
+        let state = emu.cpu.info
 
-        speedometer.updateWith(cycle: clock,
+        speedometer.updateWith(cycle: state.clock,
                                emuFrame: Int64(emu.agnus.info.frame),
                                gpuFrame: renderer.frames)
 
@@ -252,7 +254,7 @@ extension MyController {
             setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])
 
         case 4:
-            let fill = emu.paula.audioPortStats.fillLevel * 100.0
+            let fill = emu.audioPort.stats.fillLevel * 100.0
             activityBar.doubleValue = fill
             activityInfo.stringValue = String(format: "Fill level %d%%", Int(fill))
             setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])

@@ -11,7 +11,6 @@
 
 #include "CoreComponentTypes.h"
 #include "EmulatorTypes.h"
-#include "ThreadTypes.h"
 #include "CoreObject.h"
 #include "Inspectable.h"
 #include "Synchronizable.h"
@@ -35,7 +34,7 @@ struct Description {
 typedef std::vector<Description> Descriptions;
 
 class CoreComponent : 
-public CoreObject, public Serializable, public Synchronizable, public Suspendable, public Configurable {
+public CoreObject, public Serializable, public Suspendable, public Synchronizable, public Configurable {
 
 public:
     
@@ -82,9 +81,6 @@ public:
     const char *description() const override;
     const char *shellName() const;
 
-    // Computes a checksum
-    u64 checksum(bool recursive = false);
-
     // State properties (see Thread class for details)
     virtual bool isInitialized() const;
     virtual bool isPoweredOff() const;
@@ -94,16 +90,24 @@ public:
     virtual bool isSuspended() const;
     virtual bool isHalted() const;
 
+    // Throws an exception if the emulator is not ready to power on
+    virtual void isReady() const throws;
+
+    // Computes a checksum
+    u64 checksum(bool recursive);
+
+
+    //
+    // Suspending and Resuming
+    //
+
     // Suspends or resumes the emulator thread
     void suspend() override;
     void resume() override;
 
-    // Throws an exception if the emulator is not ready to power on
-    virtual void isReady() const throws;
-
 
     //
-    // Configurating
+    // Configuring
     //
 
 public:
@@ -111,20 +115,44 @@ public:
     // Initializes all configuration items with their default values
     virtual void resetConfig();
 
-    // Returns the target components for a given configuration option
+    // Returns the target component for a given configuration option
     Configurable *routeOption(Option opt, isize objid);
-    // [[deprecated]] void routeOption(Option opt, std::vector<Configurable *> &result);
+
+    // Returns the fallback value for a config option
+    i64 getFallback(Option opt) const override;
 
 
     //
-    // Processing state changes
+    // Controlling the state
     //
 
 public:
+
+    void initialize();
+    void powerOn();
+    void powerOff();
+    void run();
+    void pause();
+    void halt();
+    void warpOn();
+    void warpOff();
+    void trackOn();
+    void trackOff();
+    void focus();
+    void unfocus();
+
+    void powerOnOff(bool value) { value ? powerOn() : powerOff(); }
+    void warpOnOff(bool value) { value ? warpOn() : warpOff(); }
+    void trackOnOff(bool value) { value ? trackOn() : trackOff(); }
+
+
+    //
+    // Performing state changes
+    //
+
+private:
     
     virtual void _initialize() { }
-    virtual void _willReset(bool hard) { }
-    virtual void _didReset(bool hard) { }
     virtual void _isReady() const throws { }
     virtual void _powerOn() { }
     virtual void _powerOff() { }
@@ -146,20 +174,31 @@ public:
 public:
     
     // Returns the size of the internal state in bytes
-    isize size();
+    isize size(bool recursive = true);
+
+    // Resets the internal state
+    void reset(bool hard);
+    virtual void _willReset(bool hard) { }
+    virtual void _didReset(bool hard) { }
+
+    // Convenience wrappers
+    void hardReset() { reset(true); }
+    void softReset() { reset(false); }
 
     // Loads the internal state from a memory buffer
-    virtual isize load(const u8 *buf) throws;
-    virtual void _didLoad() { };
+    isize load(const u8 *buf) throws;
+    virtual void _didLoad() { }
 
     // Saves the internal state to a memory buffer
-    virtual isize save(u8 *buf);
-    virtual void _didSave() { };
+    isize save(u8 *buf);
+    virtual void _didSave() { }
 
 
     //
     // Working with subcomponents
     //
+
+public:
 
     // Collects references to this components and all subcomponents
     std::vector<CoreComponent *> collectComponents();
@@ -175,6 +214,9 @@ public:
     //
 
 public:
+
+    // Compares two components and reports differences (for debugging)
+    void diff(CoreComponent &other);
 
     // Exports the current configuration to a script file
     void exportConfig(std::ostream& ss, bool diff = false) const;

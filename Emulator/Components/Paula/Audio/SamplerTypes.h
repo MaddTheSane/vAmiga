@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -25,11 +25,10 @@ enum_long(SMP_METHOD)
 typedef SMP_METHOD SamplingMethod;
 
 #ifdef __cplusplus
-struct SamplingMethodEnum : util::Reflection<SamplingMethodEnum, SamplingMethod>
+struct SamplingMethodEnum : vamiga::util::Reflection<SamplingMethodEnum, SamplingMethod>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SMP_LINEAR;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "SMP"; }
     static const char *_key(long value)

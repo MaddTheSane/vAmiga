@@ -59,16 +59,10 @@
  { \
  { OPT_AGNUS_REVISION,   AGNUS_OCS      }, \
  { OPT_BLITTER_ACCURACY, 0              }, \
- { OPT_CHIP_RAM,         512            }, \
- { OPT_SLOW_RAM,         512            }, \
- { OPT_FAST_RAM,         0              }, \
- { OPT_RTC_MODEL,        RTC_NONE       }, \
- { OPT_DRIVE_SPEED,      -1             }  }
+ { OPT_MEM_CHIP_RAM,     512            }, \
+ { OPT_MEM_SLOW_RAM,     512            }, \
+ { OPT_MEM_FAST_RAM,     0              }
 */
-
-// Uncomment to colorize a certain scanline
-// #define LINE_DEBUG (vpos == 0 || vpos == 160)
-// #define LINE_DEBUG (vpos == 200)
 
 
 //
@@ -98,10 +92,10 @@
 // Video settings
 //
 
-/* Texels per pixel. Set to 1 to generate a texture in hires resolution (every
- * hires pixel is represented by a single texel). Set to 2 to generate a
- * texture in super-hires resolution (every hires pixel is represented by a
- * two texels).
+/* Texels per pixel. Set to 1 to create a texture in hires resolution where
+ * every hires pixel is represented by a single texel). Set to 2 to generate a
+ * texture in super-hires resolution where every hires pixel is represented by
+ * two texels.
  */
 #define TPP 1
 
@@ -110,9 +104,8 @@
 // Execution settings
 //
 
-static const int NO_SEQ_FASTPATH = 0; // Disable sequencer fast path
-static const int NO_BPL_FASTPATH = 0; // Disable drawing fast path
 static const int DIAG_BOARD      = 0; // Plug in the diagnose board
+static const int ALLOW_ALL_ROMS  = 0; // Disable the magic bytes check
 
 
 //
@@ -151,12 +144,18 @@ extern debugflag OBJ_DEBUG;
 extern debugflag DEF_DEBUG;
 extern debugflag MIMIC_UAE;
 
-// Runloop
+// Emulator
 extern debugflag RUN_DEBUG;
 extern debugflag TIM_DEBUG;
 extern debugflag WARP_DEBUG;
+extern debugflag CMD_DEBUG;
 extern debugflag QUEUE_DEBUG;
 extern debugflag SNP_DEBUG;
+
+// Run ahead
+extern debugflag RUA_DEBUG;
+extern debugflag RUA_CHECKSUM;
+extern debugflag RUA_ON_STEROIDS;
 
 // CPU
 extern debugflag CPU_DEBUG;
@@ -172,6 +171,7 @@ extern debugflag MEM_DEBUG;
 extern debugflag DMA_DEBUG;
 extern debugflag DDF_DEBUG;
 extern debugflag SEQ_DEBUG;
+extern debugflag SEQ_ON_STEROIDS;
 extern debugflag NTSC_DEBUG;
 
 // Copper
@@ -196,11 +196,13 @@ extern debugflag BPLMOD_DEBUG;
 extern debugflag SPRREG_DEBUG;
 extern debugflag COLREG_DEBUG;
 extern debugflag CLXREG_DEBUG;
-extern debugflag BPL_DEBUG;
+extern debugflag BPL_ON_STEROIDS;
 extern debugflag DIW_DEBUG;
 extern debugflag SPR_DEBUG;
 extern debugflag CLX_DEBUG;
 extern debugflag BORDER_DEBUG;
+extern debugflag LINE_DEBUG;
+extern debugflag DENISE_ON_STEROIDS;
 
 // Paula
 extern debugflag INTREG_DEBUG;
@@ -236,6 +238,7 @@ extern debugflag DISABLE_AUDIRQ;
 extern debugflag POSREG_DEBUG;
 extern debugflag JOYREG_DEBUG;
 extern debugflag POTREG_DEBUG;
+extern debugflag VID_DEBUG;
 extern debugflag PRT_DEBUG;
 extern debugflag SER_DEBUG;
 extern debugflag POT_DEBUG;
@@ -255,9 +258,12 @@ extern debugflag ADF_DEBUG;
 extern debugflag DMS_DEBUG;
 extern debugflag IMG_DEBUG;
 
-// Other components
+// Real-time clock
 extern debugflag RTC_DEBUG;
+
+// Keyboard
 extern debugflag KBD_DEBUG;
+extern debugflag KEY_DEBUG;
 
 // Misc
 extern debugflag REC_DEBUG;

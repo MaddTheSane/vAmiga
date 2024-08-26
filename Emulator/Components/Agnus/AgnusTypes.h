@@ -9,12 +9,12 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
+#include "AmigaTypes.h"
 #include "BeamTypes.h"
 #include "BlitterTypes.h"
 #include "BusTypes.h"
 #include "CopperTypes.h"
-#include "DeniseTypes.h"
 #include "DmaDebuggerTypes.h"
 #include "SequencerTypes.h"
 #include "Reflection.h"
@@ -50,11 +50,10 @@ enum_long(AGNUS_REVISION)
 typedef AGNUS_REVISION AgnusRevision;
 
 #ifdef __cplusplus
-struct AgnusRevisionEnum : util::Reflection<AgnusRevisionEnum, AgnusRevision>
+struct AgnusRevisionEnum : vamiga::util::Reflection<AgnusRevisionEnum, AgnusRevision>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = AGNUS_ECS_2MB;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "AGNUS"; }
     static const char *_key(long value)
@@ -114,6 +113,7 @@ enum_long(SLOT)
     SLOT_KEY,                       // Auto-typing
     SLOT_SRV,                       // Remote server manager
     SLOT_SER,                       // Serial remote server
+    SLOT_BTR,                       // Beam traps
     SLOT_ALA,                       // Alarms (set by the GUI)
     SLOT_INS,                       // Handles periodic calls to inspect()
 
@@ -122,12 +122,11 @@ enum_long(SLOT)
 typedef SLOT EventSlot;
 
 #ifdef __cplusplus
-struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
+struct EventSlotEnum : vamiga::util::Reflection<EventSlotEnum, EventSlot>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SLOT_COUNT - 1;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
-    
+
     static const char *prefix() { return "SLOT"; }
     static const char *_key(long value)
     {
@@ -171,9 +170,9 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
             case SLOT_KEY:   return "KEY";
             case SLOT_SRV:   return "SRV";
             case SLOT_SER:   return "SER";
+            case SLOT_BTR:   return "BTR";
             case SLOT_ALA:   return "ALA";
             case SLOT_INS:   return "INS";
-
             case SLOT_COUNT: return "???";
         }
         return "???";
@@ -376,8 +375,9 @@ enum_i8(EventID)
     RSH_EVENT_COUNT,
 
     // Auto typing
-    KEY_PRESS           = 1,
-    KEY_RELEASE,
+    KEY_PRESS           = 1,    // DEPRECATED
+    KEY_RELEASE,                // DEPRECATED
+    KEY_AUTO_TYPE,
     KEY_EVENT_COUNT,
 
     // Remote server manager
@@ -387,6 +387,10 @@ enum_i8(EventID)
     // Serial remote server
     SER_RECEIVE         = 1,
     SER_EVENT_COUNT,
+
+    // Beamtrap event slot
+    BTR_TRIGGER         = 1,
+    BTR_EVENT_COUNT,
 
     // Alarm event slot
     ALA_TRIGGER         = 1,
@@ -421,11 +425,10 @@ enum_long(SPR_DMA_STATE)
 typedef SPR_DMA_STATE SprDMAState;
 
 #ifdef __cplusplus
-struct SprDmaStateEnum : util::Reflection<SprDmaStateEnum, SprDMAState>
+struct SprDmaStateEnum : vamiga::util::Reflection<SprDmaStateEnum, SprDMAState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SPR_DMA_ACTIVE;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "SPR_DMA"; }
     static const char *_key(long value)
@@ -502,8 +505,8 @@ typedef struct
 {
     isize vpos;
     isize hpos;
-    isize frame;
-    
+    i64 frame;
+
     u16 dmacon;
     u16 bplcon0;
     u16 ddfstrt;

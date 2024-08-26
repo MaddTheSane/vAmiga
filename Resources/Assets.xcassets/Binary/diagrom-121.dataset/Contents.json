@@ -2,7 +2,8 @@
   "data" : [
     {
       "filename" : "diagrom-121.bin",
-      "idiom" : "universal"
+      "idiom" : "universal",
+      "universal-type-identifier" : "public.data"
     }
   ],
   "info" : {

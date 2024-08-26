@@ -25,7 +25,7 @@ class Paula : public SubComponent, public Inspectable<PaulaInfo> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_PAULA,
+        .type           = PaulaClass,
         .name           = "Paula",
         .description    = "Audio, Interrupts, Disk Control",
         .shell          = "paula"
@@ -34,11 +34,6 @@ class Paula : public SubComponent, public Inspectable<PaulaInfo> {
     ConfigOptions options = {
 
     };
-
-private:
-
-    // Result of the latest inspection
-    mutable PaulaInfo info = {};
 
     
     //
@@ -116,26 +111,40 @@ public:
 
     Paula(Amiga& ref);
     
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+    Paula& operator= (const Paula& other) {
 
-    
+        CLONE(channel0)
+        CLONE(channel1)
+        CLONE(channel2)
+        CLONE(channel3)
+        CLONE(diskController)
+        CLONE(uart)
+
+        CLONE(intreq)
+        CLONE(intena)
+        CLONE_ARRAY(setIntreq)
+        CLONE(iplPipe)
+        CLONE(potgo)
+        CLONE(potCntX0)
+        CLONE(potCntY0)
+        CLONE(potCntX1)
+        CLONE(potCntY1)
+        CLONE(chargeX0)
+        CLONE(chargeY0)
+        CLONE(chargeX1)
+        CLONE(chargeY1)
+        CLONE(adkcon)
+        CLONE(audioClock)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
 
 private:
-    
-    void _run() override;
-    void _pause() override;
-    void _warpOn() override;
-    void _warpOff() override;
 
     template <class T>
     void serialize(T& worker)
@@ -165,12 +174,26 @@ private:
 
     } SERIALIZERS(serialize);
 
-    void _didLoad() override;
+
+    //
+    // Methods from CoreObject
+    //
 
 public:
 
-    void _didReset(bool hard) override;
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+
+    void _run() override;
+    void _pause() override;
+    void _warpOn() override;
+    void _warpOff() override;
+
+    void _didReset(bool hard) override;
+    void _didLoad() override;
 
 
     //
@@ -183,12 +206,11 @@ public:
 
 
     //
-    // Analyzing
+    // Methods from Inspectable
     //
     
 public:
     
-    // PaulaInfo getInfo() const { return CoreComponent::getInfo(info); }
     void cacheInfo(PaulaInfo &result) const override;
 
 

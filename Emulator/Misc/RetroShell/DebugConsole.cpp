@@ -13,14 +13,10 @@
 
 namespace vamiga {
 
-#define VAMIGA_CONCAT(x,y) x##y
-#define VAMIGA_GROUP_NAME(x) VAMIGA_CONCAT(group_,x)
-#define VAMIGA_GROUP(x) CommandGroup VAMIGA_GROUP_NAME(__COUNTER__)(root,x);
-
 void
 DebugConsole::_pause()
 {
-    asyncExec("state");
+    retroShell.asyncExec("state");
 }
 
 string
@@ -63,7 +59,7 @@ DebugConsole::pressReturn(bool shift)
 {
     if (!shift && input.empty()) {
 
-        emulator.isRunning() ? emulator.pause() : debugger.stepInto();
+        emulator.isRunning() ? emulator.pause() : emulator.stepInto();
 
     } else {
 
@@ -80,15 +76,13 @@ DebugConsole::initCommands(Command &root)
     // Top-level commands
     //
 
-    {   VAMIGA_GROUP("Program execution")
-
-        root.pushGroup("Program execution");
+    {   Command::currentGroup = "Program execution";
 
         root.add({"goto"}, { }, { Arg::value },
                  std::pair <string, string>("g[oto]", "Goto address"),
                  [this](Arguments& argv, long value) {
 
-            argv.empty() ? emulator.run() : debugger.jump(parseAddr(argv[0]));
+            argv.empty() ? emulator.run() : cpu.jump(parseAddr(argv[0]));
         });
 
         root.clone("g", {"goto"});
@@ -97,7 +91,7 @@ DebugConsole::initCommands(Command &root)
                  std::pair <string, string>("s[tep]", "Step into the next instruction"),
                  [this](Arguments& argv, long value) {
 
-            debugger.stepInto();
+            emulator.stepInto();
         });
 
         root.clone("s", {"step"});
@@ -106,14 +100,14 @@ DebugConsole::initCommands(Command &root)
                  std::pair <string, string>("n[next]", "Step over the next instruction"),
                  [this](Arguments& argv, long value) {
 
-            debugger.stepOver();
+            emulator.stepOver();
         });
 
         root.clone("n", {"next"});
 
         root.add({"break"},     "Manage CPU breakpoints");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"break", ""},
                      "List all breakpoints",
@@ -148,7 +142,7 @@ DebugConsole::initCommands(Command &root)
 
         root.add({"watch"},     "Manage CPU watchpoints");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"watch", ""},
                      "Lists all watchpoints",
@@ -182,7 +176,7 @@ DebugConsole::initCommands(Command &root)
 
         root.add({"catch"},     "Manage CPU catchpoints");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"catch", ""},
                      "List all catchpoints",
@@ -235,7 +229,7 @@ DebugConsole::initCommands(Command &root)
 
         root.add({"cbreak"},    "Manage Copper breakpoints");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"cbreak", ""},
                      "List all breakpoints",
@@ -250,7 +244,7 @@ DebugConsole::initCommands(Command &root)
 
                 auto addr = parseAddr(argv[0]);
                 if (IS_ODD(addr)) throw Error(ERROR_ADDR_UNALIGNED);
-                copper.debugger.breakpoints.setAt(addr, parseNum(argv[1], 0));
+                copper.debugger.breakpoints.setAt(addr, parseNum(argv, 1, 0));
             });
 
             root.add({"cbreak", "delete"}, { Arg::value },
@@ -270,7 +264,7 @@ DebugConsole::initCommands(Command &root)
 
         root.add({"cwatch"},    "Manage Copper watchpoints");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"cwatch", ""},
                      "List all watchpoints",
@@ -285,7 +279,7 @@ DebugConsole::initCommands(Command &root)
 
                 auto addr = parseAddr(argv[0]);
                 if (IS_ODD(addr)) throw Error(ERROR_ADDR_UNALIGNED);
-                copper.debugger.watchpoints.setAt(addr, parseNum(argv[1], 0));
+                copper.debugger.watchpoints.setAt(addr, parseNum(argv, 1, 0));
             });
 
             root.add({"cwatch", "delete"}, { Arg::value },
@@ -302,9 +296,44 @@ DebugConsole::initCommands(Command &root)
                 copper.debugger.watchpoints.toggle(parseNum(argv[0]));
             });
         }
+
+        root.add({"btrap"},    "Manage beamtraps");
+
+        {
+
+            root.add({"btrap", ""},
+                     "List all beamtraps",
+                     [this](Arguments& argv, long value) {
+
+                dump(agnus.dmaDebugger, Category::Beamtraps);
+            });
+
+            root.add({"btrap", "at"}, { Arg::value, Arg::value }, { Arg::ignores },
+                     "Set a beamtrap at the specified coordinate",
+                     [this](Arguments& argv, long value) {
+
+                auto v = parseNum(argv[0]);
+                auto h = parseNum(argv[1]);
+                agnus.dmaDebugger.beamtraps.setAt(HI_W_LO_W(v, h), parseNum(argv, 2, 0));
+            });
+
+            root.add({"btrap", "delete"}, { Arg::value },
+                     "Delete a beamtrap",
+                     [this](Arguments& argv, long value) {
+
+                agnus.dmaDebugger.beamtraps.remove(parseNum(argv[0]));
+            });
+
+            root.add({"btrap", "toggle"}, { Arg::value },
+                     "Enable or disable a beamtrap",
+                     [this](Arguments& argv, long value) {
+
+                agnus.dmaDebugger.beamtraps.toggle(parseNum(argv[0]));
+            });
+        }
     }
 
-    {   VAMIGA_GROUP("Monitoring")
+    {   Command::currentGroup = "Monitoring";
 
         root.add({"d"}, { }, { Arg::address },
                  "Disassemble instructions",
@@ -320,7 +349,7 @@ DebugConsole::initCommands(Command &root)
                  [this](Arguments& argv, long value) {
 
             std::stringstream ss;
-            debugger.ascDump<ACCESSOR_CPU>(ss, parseAddr(argv, 0, debugger.current), 16);
+            mem.debugger.ascDump<ACCESSOR_CPU>(ss, parseAddr(argv, 0, mem.debugger.current), 16);
             retroShell << '\n' << ss << '\n';
         });
 
@@ -329,7 +358,7 @@ DebugConsole::initCommands(Command &root)
                  [this](Arguments& argv, long value) {
 
             std::stringstream ss;
-            debugger.memDump<ACCESSOR_CPU>(ss, parseAddr(argv, 0, debugger.current), 16, value);
+            mem.debugger.memDump<ACCESSOR_CPU>(ss, parseAddr(argv, 0, mem.debugger.current), 16, value);
             retroShell << '\n' << ss << '\n';
         }, 2);
 
@@ -342,7 +371,7 @@ DebugConsole::initCommands(Command &root)
                  [this](Arguments& argv, long value) {
 
             // Resolve address
-            u32 addr = debugger.current;
+            u32 addr = mem.debugger.current;
 
             if (argv.size() > 1) {
                 try {
@@ -353,7 +382,7 @@ DebugConsole::initCommands(Command &root)
             }
 
             // Access memory
-            debugger.write(addr, u32(parseNum(argv[0])), value);
+            mem.debugger.write(addr, u32(parseNum(argv[0])), value);
         }, 2);
 
         root.clone("w.b", {"w"}, "", 1);
@@ -394,13 +423,13 @@ DebugConsole::initCommands(Command &root)
             {   SUSPENDED
 
                 auto pattern = parseSeq(argv[0]);
-                auto addr = u32(parseNum(argv[1], debugger.current));
-                auto found = debugger.memSearch(pattern, addr, value == 1 ? 1 : 2);
+                auto addr = u32(parseNum(argv, 1, mem.debugger.current));
+                auto found = mem.debugger.memSearch(pattern, addr, value == 1 ? 1 : 2);
 
                 if (found >= 0) {
 
                     std::stringstream ss;
-                    debugger.memDump<ACCESSOR_CPU>(ss, u32(found), 1, value);
+                    mem.debugger.memDump<ACCESSOR_CPU>(ss, u32(found), 1, value);
                     retroShell << ss;
 
                 } else {
@@ -431,7 +460,7 @@ DebugConsole::initCommands(Command &root)
                 auto count = parseNum(argv[1]);
                 auto val = u32(parseNum(argv, 2, 0));
 
-                debugger.write(addr, val, value, count);
+                mem.debugger.write(addr, val, value, count);
             }
         }, 1);
 
@@ -442,29 +471,29 @@ DebugConsole::initCommands(Command &root)
         root.add({"i"},
                  "Inspect a component");
 
-        {   VAMIGA_GROUP("Components");
+        {   Command::currentGroup = "Components";
 
-            root.add({"i", "amiga"},         "Main computer");
+            root.add({"i", "amiga"}, "Main computer");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "amiga", ""},
                          "Inspects the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(amiga, { Category::Config, Category::State } );
+                    dump(amiga, Category::State );
                 });
             }
 
-            root.add({"i", "memory"},        "RAM and ROM");
+            root.add({"i", "memory"}, "RAM and ROM");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "memory", ""},
                          "Inspects the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(mem, { Category::Config, Category::State } );
+                    dump(mem, Category::State );
                 });
 
                 root.add({"i", "memory", "bankmap"},
@@ -475,33 +504,33 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "cpu"},           "Motorola CPU");
+            root.add({"i", "cpu"}, "Motorola CPU");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "cpu", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(cpu, { Category::Config, Category::State } );
+                    dump(cpu, Category::State );
                 });
             }
 
             for (isize i = 0; i < 2; i++) {
 
                 string cia = (i == 0) ? "ciaa" : "ciab";
-                root.add({"i", cia},          "Complex Interface Adapter");
+                root.add({"i", cia}, "Complex Interface Adapter");
 
-                {   VAMIGA_GROUP("")
+                {
 
                     root.add({"i", cia, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
                         if (value == 0) {
-                            dump(ciaa, { Category::Config, Category::State } );
+                            dump(ciaa, Category::State );
                         } else {
-                            dump(ciab, { Category::Config, Category::State } );
+                            dump(ciab, Category::State );
                         }
                     }, i);
 
@@ -518,15 +547,15 @@ DebugConsole::initCommands(Command &root)
                 }
             }
 
-            root.add({"i", "agnus"},         "Custom Chipset");
+            root.add({"i", "agnus"}, "Custom Chipset");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "agnus", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(agnus, { Category::Config, Category::State } );
+                    dump(agnus, Category::State );
                 });
 
                 root.add({"i", "agnus", "beam"},
@@ -558,27 +587,27 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "blitter"},       "Coprocessor");
+            root.add({"i", "blitter"}, "Coprocessor");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "blitter", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(blitter, { Category::Config, Category::State } );
+                    dump(blitter, Category::State );
                 });
             }
 
-            root.add({"i", "copper"},        "Coprocessor");
+            root.add({"i", "copper"}, "Coprocessor");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "copper", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(copper, { Category::Config, Category::State } );
+                    dump(copper, Category::State );
                 });
 
                 root.add({"i", "copper", "list"}, { Arg::value },
@@ -598,9 +627,9 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "paula"},         "Ports, Audio, Interrupts");
+            root.add({"i", "paula"}, "Ports, Audio, Interrupts");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "paula", "audio"},
                          "Audio unit");
@@ -615,21 +644,21 @@ DebugConsole::initCommands(Command &root)
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(audioPort, { Category::Config, Category::State } );
+                    dump(audioPort, Category::State );
                 });
 
                 root.add({"i", "paula", "audio", "filter"},
                          "Inspect the internal filter state",
                          [this](Arguments& argv, long value) {
 
-                    dump(audioPort.filter, { Category::Config, Category::State } );
+                    dump(audioPort.filter, Category::State );
                 });
 
                 root.add({"i", "paula", "dc", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(diskController, { Category::Config, Category::State } );
+                    dump(diskController, Category::State );
                 });
 
                 root.add({"i", "paula", "uart", ""},
@@ -640,33 +669,33 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "denise"},        "Graphics");
+            root.add({"i", "denise"}, "Graphics");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "denise", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(denise, { Category::Config, Category::State } );
+                    dump(denise, Category::State );
                 });
             }
 
-            root.add({"i", "rtc"},           "Real-time clock");
+            root.add({"i", "rtc"}, "Real-time clock");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "rtc", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(rtc, { Category::Config, Category::State } );
+                    dump(rtc, Category::State );
                 });
             }
 
-            root.add({"i", "zorro"},         "Expansion boards");
+            root.add({"i", "zorro"}, "Expansion boards");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "zorro", ""},
                          "List all connected boards",
@@ -688,9 +717,9 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "controlport"},   "Control ports");
+            root.add({"i", "controlport"}, "Control ports");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 for (isize i = 1; i <= 2; i++) {
 
@@ -710,35 +739,35 @@ DebugConsole::initCommands(Command &root)
                 }
             }
 
-            root.add({"i", "serial"},        "Serial port");
+            root.add({"i", "serial"}, "Serial port");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "serial", ""},
                          "Display the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(serialPort, { Category::Config, Category::State } );
+                    dump(serialPort, Category::State );
                 });
             }
         }
-        {   VAMIGA_GROUP("Peripherals")
+        {   Command::currentGroup = "Peripherals";
 
-            root.add({"i", "keyboard"},      "Keyboard");
+            root.add({"i", "keyboard"}, "Keyboard");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "keyboard", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(keyboard, { Category::Config, Category::State } );
+                    dump(keyboard, Category::State );
                 });
             }
 
-            root.add({"i", "mouse"},         "Mouse");
+            root.add({"i", "mouse"}, "Mouse");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 for (isize i = 1; i <= 2; i++) {
 
@@ -751,16 +780,16 @@ DebugConsole::initCommands(Command &root)
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
-                        if (value == 1) dump(controlPort1.mouse, { Category::Config, Category::State } );
-                        if (value == 2) dump(controlPort2.mouse, { Category::Config, Category::State } );
+                        if (value == 1) dump(controlPort1.mouse, Category::State );
+                        if (value == 2) dump(controlPort2.mouse, Category::State );
 
                     }, i);
                 }
             }
 
-            root.add({"i", "joystick"},      "Joystick");
+            root.add({"i", "joystick"}, "Joystick");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 for (isize i = 1; i <= 2; i++) {
 
@@ -790,13 +819,13 @@ DebugConsole::initCommands(Command &root)
                     root.add({"i", df}, "");
                 }
 
-                {   VAMIGA_GROUP("")
+                {
 
                     root.add({"i", df, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
-                        dump(*amiga.df[value], { Category::Config, Category::State } );
+                        dump(*amiga.df[value], Category::State );
 
                     }, i);
 
@@ -820,13 +849,13 @@ DebugConsole::initCommands(Command &root)
                     root.add({"i", hd}, "");
                 }
 
-                {   VAMIGA_GROUP("")
+                {
 
                     root.add({"i", hd, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
-                        dump(*amiga.hd[value], { Category::Config, Category::State } );
+                        dump(*amiga.hd[value], Category::State );
 
                     }, i);
 
@@ -856,11 +885,11 @@ DebugConsole::initCommands(Command &root)
                 }
             }
         }
-        {   VAMIGA_GROUP("Miscellaneous")
+        {   Command::currentGroup = "Miscellaneous";
 
-            root.add({"i", "host"},          "Host machine");
+            root.add({"i", "host"}, "Host machine");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "host", ""},
                          "Display information about the host machine",
@@ -870,9 +899,9 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "server"},        "Remote server");
+            root.add({"i", "server"}, "Remote server");
 
-            {   VAMIGA_GROUP("")
+            {
 
                 root.add({"i", "server", ""},
                          "Display a server status summary",
@@ -888,7 +917,7 @@ DebugConsole::initCommands(Command &root)
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(remoteManager.serServer, { Category::Config, Category::State } );
+                    dump(remoteManager.serServer, Category::State );
                 });
 
                 root.add({"i", "server", "rshell"},
@@ -898,7 +927,7 @@ DebugConsole::initCommands(Command &root)
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(remoteManager.rshServer, { Category::Config, Category::State } );
+                    dump(remoteManager.rshServer, Category::State );
                 });
 
                 root.add({"i", "server", "gdb"},
@@ -908,7 +937,7 @@ DebugConsole::initCommands(Command &root)
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
-                    dump(remoteManager.gdbServer, { Category::Config, Category::State } );
+                    dump(remoteManager.gdbServer, Category::State );
                 });
             }
         }
@@ -916,7 +945,7 @@ DebugConsole::initCommands(Command &root)
 
         root.add({"r"}, "Show registers");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"r", "cpu"},
                      "Motorola CPU",
@@ -989,7 +1018,7 @@ DebugConsole::initCommands(Command &root)
         root.add({"os"},
                  "Run the OS debugger");
 
-        {   VAMIGA_GROUP("")
+        {
 
             root.add({"os", "info"},
                      "Display basic system information",
@@ -1131,14 +1160,37 @@ DebugConsole::initCommands(Command &root)
     //
     // Miscellaneous
     //
-    {   VAMIGA_GROUP("Miscellaneous");
+    {   Command::currentGroup = "Miscellaneous";
 
-        root.add({"set"}, { "<variable>", Arg::value },
-                 "Sets an internal debug variable",
+        root.add({"debug"}, "Debug variables");
+
+        root.add({"debug", ""}, {},
+                 "Display all debug variables",
                  [this](Arguments& argv, long value) {
 
-            Amiga::setDebugVariable(argv[0], int(parseNum(argv[1])));
+            dump(emulator, Category::Debug);
         });
+
+        if (debugBuild) {
+
+            for (isize i = DebugFlagEnum::minVal; i < DebugFlagEnum::maxVal; i++) {
+
+                root.add({"debug", DebugFlagEnum::key(i)}, { Arg::boolean },
+                         DebugFlagEnum::help(i),
+                         [this](Arguments& argv, long value) {
+
+                    emulator.setDebugVariable(DebugFlag(value), int(util::parseNum(argv[0])));
+
+                }, i);
+            }
+
+            root.add({"debug", "verbosity"}, { Arg::value },
+                     "Set the verbosity level for generated debug output",
+                     [](Arguments& argv, long value) {
+
+                CoreObject::verbosity = isize(util::parseNum(argv[0]));
+            });
+        }
 
         root.add({"?"}, { Arg::value },
                  "Convert a value into different formats",
@@ -1147,9 +1199,9 @@ DebugConsole::initCommands(Command &root)
             std::stringstream ss;
 
             if (isNum(argv[0])) {
-                debugger.convertNumeric(ss, u32(parseNum(argv[0])));
+                mem.debugger.convertNumeric(ss, u32(parseNum(argv[0])));
             } else {
-                debugger.convertNumeric(ss, argv.front());
+                mem.debugger.convertNumeric(ss, argv.front());
             }
 
             retroShell << '\n' << ss << '\n';

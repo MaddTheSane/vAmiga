@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -41,11 +41,10 @@ enum_long(GAME_PAD_ACTION)
 typedef GAME_PAD_ACTION GamePadAction;
 
 #ifdef __cplusplus
-struct GamePadActionEnum : util::Reflection<GamePadActionEnum, GamePadAction>
+struct GamePadActionEnum : vamiga::util::Reflection<GamePadActionEnum, GamePadAction>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = RELEASE_RIGHT;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return nullptr; }
     static const char *_key(long value)
@@ -83,6 +82,7 @@ struct GamePadActionEnum : util::Reflection<GamePadActionEnum, GamePadAction>
 typedef struct
 {
     bool autofire;
+    bool autofireBursts;
     isize autofireBullets;
     isize autofireDelay;
 }
@@ -91,7 +91,7 @@ JoystickConfig;
 typedef struct
 {
     bool button;
-    int axisX;
-    int axisY;
+    isize axisX;
+    isize axisY;
 }
 JoystickInfo;

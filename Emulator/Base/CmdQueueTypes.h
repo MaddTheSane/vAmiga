@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Types.h"
 #include "OptionTypes.h"
 #include "JoystickTypes.h"
 #include "KeyboardTypes.h"
@@ -20,7 +21,7 @@
 /// Emulator command
 enum_long(CMD_TYPE)
 {
-    CMD_NONE = 0,               ///< None
+    CMD_NONE,                   ///< None
 
     // Emulator
     CMD_CONFIG,                 ///< Configure the emulator
@@ -76,7 +77,7 @@ enum_long(CMD_TYPE)
 typedef CMD_TYPE CmdType;
 
 #ifdef __cplusplus
-struct CmdTypeEnum : util::Reflection<CmdTypeEnum, CmdType> {
+struct CmdTypeEnum : vamiga::util::Reflection<CmdTypeEnum, CmdType> {
 
     static constexpr long minVal = 0;
     static constexpr long maxVal = CMD_FOCUS;

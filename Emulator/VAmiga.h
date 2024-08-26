@@ -11,14 +11,13 @@
 
 #include "VAmigaTypes.h"
 #include "Error.h"
+#include "MediaFile.h"
 #include <filesystem>
 
-// REMOVE EVENTUALLY:
-#include "Media.h"
 
 namespace vamiga {
 
-namespace moira { class Guards; }
+namespace moira { class Guards; class Debugger; }
 
 //
 // Base class for all APIs
@@ -33,23 +32,19 @@ public:
     API() { }
     API(Emulator *emu) : emu(emu) { }
 
-    bool isUserThread() const;
-
-private:
-
     void suspend();
     void resume();
+
+protected:
+
+    bool isUserThread() const;
 };
 
 //
 // Components
 //
 
-class AmigaAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct AmigaAPI : public API {
 
     class Amiga *amiga = nullptr;
 
@@ -93,13 +88,13 @@ public:
      *  @note   The function transfers the ownership to the caller. It is
      *          his responsibility of the caller to free the object.
      */
-    Snapshot *takeSnapshot();
+    MediaFile *takeSnapshot();
 
     /** @brief  Loads a snapshot into the emulator.
      *
      *  @param  snapshot    Reference to a snapshot.
      */
-    void loadSnapshot(const Snapshot &snapshot);
+    void loadSnapshot(const MediaFile &snapshot);
 
     /// @}
     /// @name Auto-inspecting components
@@ -114,7 +109,7 @@ public:
      *
      *  @return A bit mask indicating the components under inspection
      */
-    u64 getAutoInspectionMask();
+    u64 getAutoInspectionMask() const;
 
     /** @brief  Sets the current auto-inspection mask
      *
@@ -133,11 +128,7 @@ public:
 // Agnus
 //
 
-class DmaDebuggerAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct DmaDebuggerAPI : public API {
 
     class DmaDebugger *dmaDebugger = nullptr;
 
@@ -151,22 +142,14 @@ public:
     const DmaDebuggerInfo &getCachedInfo() const;
 };
 
-class DmaAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct DmaAPI : public API {
 
     DmaDebuggerAPI debugger;
 };
 
-class BlitterAPI : public API {
-
-    friend class VAmiga;
+struct BlitterAPI : public API {
 
     class Blitter *blitter = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -178,13 +161,9 @@ public:
     const BlitterInfo &getCachedInfo() const;
 };
 
-class CopperAPI : public API {
-
-    friend class VAmiga;
+struct CopperAPI : public API {
 
     class Copper *copper = nullptr;
-
-public:
 
     /** @brief  Returns the component's current state.
      */
@@ -216,13 +195,9 @@ public:
     bool isIllegalInstr(u32 addr) const;
 };
 
-class AgnusAPI : public API {
-
-    friend class VAmiga;
+struct AgnusAPI : public API {
 
     class Agnus *agnus = nullptr;
-
-public:
 
     DmaAPI dma;
     CopperAPI copper;
@@ -251,13 +226,9 @@ public:
 // CIA
 //
 
-class CIAAPI : public API {
-
-    friend class VAmiga;
+struct CIAAPI : public API {
 
     class CIA *cia = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -267,6 +238,10 @@ public:
      */
     const CIAInfo &getInfo() const;
     const CIAInfo &getCachedInfo() const;
+
+    /** @brief  Returns statistical information about the components.
+     */
+    CIAStats getStats() const;
 };
 
 
@@ -274,13 +249,9 @@ public:
 // CPU
 //
 
-class GuardsAPI : public API {
+struct GuardsAPI : public API {
 
-    friend class VAmiga;
-
-    class GuardsWrapper *guards = nullptr;
-
-public:
+    class GuardList *guards = nullptr;
 
     /** @brief  Returns the number of guards in the guard list.
      */
@@ -357,12 +328,44 @@ public:
 
 };
 
-struct CPUAPI : public API {
-
-    friend class VAmiga;
+struct CPUDebuggerAPI : public API {
 
     class CPU *cpu = nullptr;
 
+    /** @brief  Returns the number of instructions in the record buffer.
+     *  @note   The record buffer is only filled in track mode. To save
+     *          computation time, the GUI enables track mode when the CPU
+     *          inspector is opened and disables track mode when it is
+     *          closed.
+     */
+    isize loggedInstructions() const;
+
+    /** @brief  Empties the record buffer.
+     */
+    void clearLog();
+
+    /** @brief  Disassembles a recorded instruction from the log buffer
+     */
+    const char *disassembleRecordedInstr(isize i, isize *len);
+    const char *disassembleRecordedWords(isize i, isize len);
+    const char *disassembleRecordedFlags(isize i);
+    const char *disassembleRecordedPC(isize i);
+
+    /** @brief  Disassembles the instruction at the specified address
+     */
+    const char *disassembleWord(u16 value);
+    const char *disassembleAddr(u32 addr);
+    const char *disassembleInstr(u32 addr, isize *len);
+    const char *disassembleWords(u32 addr, isize len);
+
+    string vectorName(isize i);
+};
+
+struct CPUAPI : public API {
+
+    class CPU *cpu = nullptr;
+
+    CPUDebuggerAPI debugger;
     GuardsAPI breakpoints;
     GuardsAPI watchpoints;
 
@@ -376,13 +379,9 @@ struct CPUAPI : public API {
     const CPUInfo &getCachedInfo() const;
 };
 
-class DeniseAPI : public API {
-
-    friend class VAmiga;
+struct DeniseAPI : public API {
 
     class Denise *denise = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -399,30 +398,39 @@ public:
 // Memory
 //
 
-class MemoryDebuggerAPI : public API {
+struct MemoryDebuggerAPI : public API {
 
-    friend class VAmiga;
+    class Memory *mem = nullptr;
 
-    class MemoryDebugger *debugger = nullptr;
+    /// @name Debugging memory
+    /// @{
 
-public:
+    /**  @brief  Returns the memory source for a given address
+     */
+    MemorySource getMemSrc(Accessor acc, u32 addr) const;
+
+    /** @brief  Reads a value from memory without causing side effects.
+     */
+    u8 spypeek8(Accessor acc, u32 addr) const;
+    u16 spypeek16(Accessor acc, u32 addr) const;
 
     /** @brief  Returns a string representations for a portion of memory.
      */
     string ascDump(Accessor acc, u32 addr, isize bytes) const;
     string hexDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
     string memDump(Accessor acc, u32 addr, isize bytes, isize sz = 1) const;
+
+    /// @}
 };
 
 struct MemoryAPI : public API {
 
-    friend class VAmiga;
-
     class Memory *mem = nullptr;
 
-public:
-
     MemoryDebuggerAPI debugger;
+
+    /// @name Analying the component
+    /// @{
 
     /** @brief  Returns the component's current configuration.
      */
@@ -443,25 +451,49 @@ public:
     const RomTraits &getWomTraits() const;
     const RomTraits &getExtTraits() const;
 
+    /// @}
+    /// @name Handling ROMs
+    /// @{
+
+    /** @brief  Loads a ROM from a file
+     *          The ROM type is determined automatically.
+     */
+    void loadRom(const fs::path &path);
+    void loadExt(const fs::path &path);
+
+    /** @brief  Loads a ROM, provided by a RomFile
+     */
+    void loadRom(MediaFile &file);
+    void loadExt(MediaFile &file);
+
+    /** @brief  Loads a ROM, provided by a memory buffer
+     */
+    void loadRom(const u8 *buf, isize len);
+    void loadExt(const u8 *buf, isize len);
+
+    /** @brief  Saves a Rom to disk
+     */
+    void saveRom(const std::filesystem::path &path);
+    void saveWom(const std::filesystem::path &path);
+    void saveExt(const std::filesystem::path &path);
+
     /** @brief  Removes a ROM
      */
     void deleteRom();
     void deleteWom();
     void deleteExt();
+
+    /// @}
 };
 
 //
 // Paula
 //
 
-class AudioChannelAPI : public API {
-
-    friend class VAmiga;
+struct AudioChannelAPI : public API {
 
     class Paula *paula = nullptr;
     isize channel = 0;
-
-public:
 
     AudioChannelAPI(isize channel) : API(), channel(channel) { }
 
@@ -471,13 +503,9 @@ public:
     const StateMachineInfo &getCachedInfo() const;
 };
 
-class DiskControllerAPI : public API {
-
-    friend class VAmiga;
+struct DiskControllerAPI : public API {
 
     class DiskController *diskController = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -489,13 +517,9 @@ public:
     const DiskControllerInfo &getCachedInfo() const;
 };
 
-class UARTAPI : public API {
-
-    friend class VAmiga;
+struct UARTAPI : public API {
 
     class UART *uart = nullptr;
-
-public:
 
     /** @brief  Returns the component's current state.
      */
@@ -503,11 +527,7 @@ public:
     const UARTInfo &getCachedInfo() const;
 };
 
-class PaulaAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct PaulaAPI : public API {
 
     class Paula *paula = nullptr;
 
@@ -528,13 +548,9 @@ public:
     const PaulaInfo &getCachedInfo() const;
 };
 
-class RTCAPI : public API {
-
-    friend class VAmiga;
+struct RTCAPI : public API {
 
     class RTC *rtc = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -558,8 +574,6 @@ public:
 
 struct FloppyDriveAPI : public API {
 
-    friend class VAmiga;
-
     class FloppyDrive *drive = nullptr;
 
     /** @brief  Returns the component's current configuration.
@@ -571,13 +585,23 @@ struct FloppyDriveAPI : public API {
     const FloppyDriveInfo &getInfo() const;
     const FloppyDriveInfo &getCachedInfo() const;
 
+    /** @brief  Getter for the raw disk object
+     *  @return A pointer to the disk object or nullptr if no disk is present.
+     */
+    class FloppyDisk &getDisk();
+
     /** @brief Queries a disk flag
      */
-    bool getFlag(DiskFlags mask);
+    bool getFlag(DiskFlags mask) const;
 
     /** @brief Sets or clears one or more disk flags
      */
     void setFlag(DiskFlags mask, bool value);
+
+    /** @brief  Checks whether the drive is compatible with disks of a
+     *          particular geometry.
+     */
+    bool isInsertable(Diameter t, Density d) const;
 
     /** @brief  Inserts a new disk.
      *  @param  fstype  File system format
@@ -601,6 +625,12 @@ struct FloppyDriveAPI : public API {
     /** @brief  Ejects the current disk.
      */
     void ejectDisk();
+
+    class MediaFile *exportDisk(FileType type);
+
+    /** @brief  Creates a textual bit representation of a track's data
+     */
+    string readTrackBits(isize track);
 };
 
 
@@ -608,15 +638,11 @@ struct FloppyDriveAPI : public API {
 // Peripherals (HardDrive)
 //
 
-class HdControllerAPI : public API {
-
-    friend class VAmiga;
+struct HdControllerAPI : public API {
 
     class HdController *controller = nullptr;
 
-public:
-
-    /** @brief  Provides details about the currently selected chip revision.
+    /** @brief  Provides details about the controller
      */
     // const HdcTraits &getTraits() const;
 
@@ -632,13 +658,13 @@ public:
 
 struct HardDriveAPI : public API {
 
-    friend class VAmiga;
-
     class HardDrive *drive = nullptr;
 
-public:
-
     HdControllerAPI controller;
+
+    /** @brief  Getter for the raw disk object
+     */
+    class HardDrive &getDrive();
 
     /** @brief  Returns the component's current configuration.
      */
@@ -673,9 +699,34 @@ public:
      *  @param h    Heads
      *  @param s    Sectors
      *  @param b    Block size
-     *  ‘
      */
     void changeGeometry(isize c, isize h, isize s, isize b = 512);
+
+    /** @brief  Attaches a hard drive provided by an URL to a media file.
+     *  @param  path    Path to the media file.
+     */
+    void attach(const std::filesystem::path &path);
+
+    /** @brief  Attaches a hard drive provided by a media file.
+     *  @param  file    A media file wrapper object.
+     */
+    void attach(const MediaFile &file);
+
+    /** @brief  Attaches a hard drive with a particular geometry.
+     *  @param  c       Number of cylinders
+     *  @param  h       Number of heads
+     *  @param  s       Number of sectors
+     *  @param  b       Bytes per sector
+     */
+    void attach(isize c, isize h, isize s, isize b = 512);
+
+    /** @brief  Formats the hard drive
+     */
+    void format(FSVolumeType fs, const string &name);
+
+    void writeToFile(std::filesystem::path path);
+
+    MediaFile *createHDF();
 };
 
 
@@ -683,11 +734,7 @@ public:
 // Peripherals (Joystick)
 //
 
-class JoystickAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct JoystickAPI : public API {
 
     class Joystick *joystick = nullptr;
 
@@ -699,6 +746,10 @@ public:
      */
     const JoystickInfo &getInfo() const;
     const JoystickInfo &getCachedInfo() const;
+
+    /** @brief  Triggers a joystick action.
+     */
+    void trigger(GamePadAction event);
 };
 
 
@@ -706,13 +757,9 @@ public:
 // Peripherals (Keyboard)
 //
 
-class KeyboardAPI : public API {
-
-    friend class VAmiga;
+struct KeyboardAPI : public API {
 
     class Keyboard *keyboard = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -729,26 +776,15 @@ public:
     bool isPressed(KeyCode key) const;
 
     /** @brief  Presses a key
-     *  @param  key     The key to press.
-     *  @param  delay   An optional delay in seconds.
-     *
-     *  If no delay is specified, the function will immediately modify the
-     *  C64's keyboard matrix. Otherwise, it will ask the event scheduler
-     *  to modify the matrix with the specified delay.
-     *
-     *  @note If you wish to press multiple keys, make sure to let some time
-     *  pass between two key presses. You need to give the C64 time to scan the
-     *  keyboard matrix before another key can be pressed.
+     *  @param  key         The key to press.
+     *  @param  delay       An optional delay in seconds until the key is pressed.
+     *  @param  duration    If specified, the key will be automatically released.
      */
-    void press(KeyCode key, double delay = 0.0);
+    void press(KeyCode key, double delay = 0.0, double duration = 0.0);
 
     /** @brief  Releases a key
      *  @param  key     The key to release.
      *  @param  delay   An optional delay in seconds.
-     *
-     *  If no delay is specified, the function will immediately modify the
-     *  C64's keyboard matrix. Otherwise, it will ask the event scheduler
-     *  to modify the matrix with the specified delay.
      */
     void release(KeyCode key, double delay = 0.0);
 
@@ -759,7 +795,7 @@ public:
     /** @brief  Uses the auto-typing daemon to type a string.
      *  @param  text    The text to type.
      */
-    void autoType(const string &text);
+    // void autoType(const string &text);
 
     /** @brief  Aborts any active auto-typing activity.
      */
@@ -771,13 +807,9 @@ public:
 // Peripherals (Mouse)
 //
 
-class MouseAPI : public API {
-
-    friend class VAmiga;
+struct MouseAPI : public API {
 
     class Mouse *mouse = nullptr;
-
-public:
 
     /** @brief  Returns the component's current configuration.
      */
@@ -840,11 +872,7 @@ public:
 // Ports (AudioPort)
 //
 
-class AudioPortAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct AudioPortAPI : public API {
 
     class AudioPort *port = nullptr;
 
@@ -907,13 +935,9 @@ public:
 // Ports (ControlPort)
 //
 
-class ControlPortAPI : public API {
-
-    friend class VAmiga;
+struct ControlPortAPI : public API {
 
     class ControlPort *controlPort = nullptr;
-
-public:
 
     JoystickAPI joystick;
     MouseAPI mouse;
@@ -931,9 +955,19 @@ public:
 
 struct SerialPortAPI : public API {
 
-    friend class VAmiga;
-
     class SerialPort *serialPort = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const SerialPortConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    const SerialPortInfo &getInfo() const;
+    const SerialPortInfo &getCachedInfo() const;
+
+    int readIncomingPrintableByte() const;
+    int readOutgoingPrintableByte() const;
 };
 
 
@@ -941,11 +975,7 @@ struct SerialPortAPI : public API {
 // Ports (VideoPort)
 //
 
-class VideoPortAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct VideoPortAPI : public API {
 
     class VideoPort *videoPort = nullptr;
 
@@ -964,11 +994,14 @@ public:
 
     /** @brief  Returns a pointer to the most recent stable texture
      *
-     * The texture dimensions are given by constants vc64::Texture::width
-     * and vc64::Texture::height texels. Each texel is represented by a
+     * The texture dimensions are given by constants vamiga::Texture::width
+     * and vamiga::Texture::height texels. Each texel is represented by a
      * 32 bit color value.
      */
-    const class FrameBuffer &getTexture() const;
+    // const class FrameBuffer &getTexture() const;
+    const u32 *getTexture() const;
+    const u32 *getTexture(isize *nr, bool *lof, bool *prevlof) const;
+
 
 };
 
@@ -982,13 +1015,9 @@ public:
 // Misc (Debugger)
 //
 
-class DebuggerAPI : public API {
-
-    friend class VAmiga;
+struct DebuggerAPI : public API {
 
     class Debugger *debugger = nullptr;
-
-public:
 
     /** @brief  Returns a string representations for a portion of memory.
      */
@@ -1028,21 +1057,15 @@ public:
  *    storing shader-relevant parameters that are irrelevant to the emulation
  *    core.
  */
-class DefaultsAPI : public API {
-
-    friend class VAmiga;
+struct DefaultsAPI : public API {
 
     class Defaults *defaults = nullptr;
-
-public:
 
     DefaultsAPI(Defaults *defaults) : defaults(defaults) { }
 
     ///
     /// @{
     /// @name Loading and saving the key-value storage
-
-public:
 
     /** @brief  Loads a storage file from disk
      *  @throw  VC64Error (#ERROR_FILE_NOT_FOUND)
@@ -1077,8 +1100,6 @@ public:
     /// @}
     /// @{
     /// @name Reading key-value pairs
-
-public:
 
     /** @brief  Queries a key-value pair.
      *  @param  key     The key.
@@ -1231,13 +1252,10 @@ public:
     /// @}
 };
 
-class HostAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct HostAPI : public API {
 
     class Host *host = nullptr;
+
 };
 
 
@@ -1247,14 +1265,10 @@ public:
 
 /** RetroShell Public API
  */
-class RetroShellAPI : public API {
-
-    friend class VAmiga;
-
-public:
+struct RetroShellAPI : public API {
 
     class RetroShell *retroShell = nullptr;
-    
+
     /// @name Querying the console
     /// @{
     ///
@@ -1318,7 +1332,7 @@ public:
     void execScript(std::stringstream &ss);
     void execScript(const std::ifstream &fs);
     void execScript(const string &contents);
-    // void execScript(const MediaFile &file);
+    void execScript(const MediaFile &file);
 
     /// @}
 };
@@ -1330,19 +1344,65 @@ public:
 
 struct RecorderAPI : public API {
 
-    friend class VAmiga;
-
     class Recorder *recorder = nullptr;
+
+    /** @brief  Returns the component's configuration.
+     */
+    // const RecorderConfig &getConfig() const;
+
+    /** @brief  Returns the component's current state.
+     */
+    // const RecorderInfo &getInfo() const;
+    // const RecorderInfo &getCachedInfo() const;
+
+    const std::vector<std::filesystem::path> &paths() const;
+    bool hasFFmpeg() const;
+
+    /** @brief  Returns the path to the FFmpeg executable.
+     */
+    const fs::path getExecPath() const;
+
+    /** @brief  Sets the path to the FFmpeg executable.
+     */
+    void setExecPath(const std::filesystem::path &path);
+
+    // INTEGRATE INTO RecorderInfo, RecorderConfig
+    double getDuration() const;
+    isize getFrameRate() const;
+    isize getBitRate() const;
+    isize getSampleRate() const;
+    bool isRecording() const;
+
+    /** @brief  Starts the recorder.
+     *  @param  x1      Horizontal start coordinate of the recorded area
+     *  @param  y1      Vertical start coordinate of the recorded area
+     *  @param  x2      Horizontal end coordinate of the recorded area
+     *  @param  y2      Vertical stop coordinate of the recorded area
+     *  @param  bitRate To be removed
+     *  @param  aspectX To be removed
+     *  @param  aspectY To be removed
+     */
+    void startRecording(isize x1, isize y1, isize x2, isize y2,
+                        isize bitRate,
+                        isize aspectX, isize aspectY) throws;
+
+    /** @brief  Interrupts a recording in progress.
+     */
+    void stopRecording();
+
+    /** @brief  Exports the recorded video to a file.
+     *  @param  path    The export destination.
+     *  @return true on success.
+     */
+    bool exportAs(const std::filesystem::path &path);
 };
 
 
 //
-// Misc (Debugger)
+// Misc (RemoteManager)
 //
 
 struct RemoteManagerAPI : public API {
-
-    friend class VAmiga;
 
     class RemoteManager *remoteManager = nullptr;
 
@@ -1402,9 +1462,7 @@ public:
     //
     // Static methods
     //
-    
-public:
-    
+
     /** @brief  Returns a version string for this release.
      */
     static string version();
@@ -1417,9 +1475,7 @@ public:
     //
     // Initializing
     //
-    
-public:
-    
+
     VAmiga();
     ~VAmiga();
 
@@ -1441,42 +1497,42 @@ public:
 
     /** @brief  Returns true iff the emulator if the emulator is powered on.
      */
-    bool isPoweredOn();
+    bool isPoweredOn() const;
 
     /** @brief  Returns true iff the emulator if the emulator is powered off.
      */
-    bool isPoweredOff();
+    bool isPoweredOff() const;
 
     /** @brief  Returns true iff the emulator is in paused state.
      */
-    bool isPaused();
+    bool isPaused() const;
 
     /** @brief  Returns true iff the emulator is running.
      */
-    bool isRunning();
+    bool isRunning() const;
 
     /** @brief  Returns true iff the emulator has been suspended.
      */
-    bool isSuspended();
+    bool isSuspended() const;
 
     /** @brief  Returns true iff the emulator has shut down.
      */
-    bool isHalted();
+    bool isHalted() const;
 
     /** @brief  Returns true iff warp mode is active.
      */
-    bool isWarping();
+    bool isWarping() const;
 
     /** @brief  Returns true iff the emulator runs in track mode.
      */
-    bool isTracking();
+    bool isTracking() const;
 
     /** @brief  Checks if the emulator is runnable.
      *  The function checks if the necessary ROMs are installed to lauch the
      *  emulator. On success, the functions returns. Otherwise, an exception
      *  is thrown.
      */
-    void isReady();
+    void isReady() const;
 
 
     /// @}
@@ -1702,9 +1758,14 @@ public:
      *
      *  The current configuration is exported in form of a RetroShell script.
      *  Reading in the script at a later point will restore the configuration.
+     *
+     *  @param diff When set to true, the script will only contains settings
+     *              for items that differ from the default configuration.
+     *              This feature is useful for debugging to compare two virtual
+     *              machine configurations.
      */
-    void exportConfig(const std::filesystem::path &path) const;
-    void exportConfig(std::ostream& stream) const;
+    void exportConfig(const std::filesystem::path &path, bool diff = false) const;
+    void exportConfig(std::ostream& stream, bool diff = false) const;
 
 
     /// @}

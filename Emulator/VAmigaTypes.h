@@ -14,6 +14,7 @@
 #include "CmdQueueTypes.h"
 #include "CoreComponentTypes.h"
 #include "ErrorTypes.h"
+#include "GuardListTypes.h"
 #include "MsgQueueTypes.h"
 
 // Components
@@ -52,3 +53,6 @@
 #include "RemoteServerTypes.h"
 #include "RetroShellTypes.h"
 #include "RTCTypes.h"
+
+// Constants
+#include "Constants.h"

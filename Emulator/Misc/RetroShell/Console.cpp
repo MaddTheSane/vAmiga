@@ -11,6 +11,7 @@
 #include "Console.h"
 #include "Emulator.h"
 #include "Parser.h"
+#include "Option.h"
 #include <istream>
 #include <sstream>
 #include <string>
@@ -20,8 +21,6 @@ namespace vamiga {
 void
 Console::_initialize()
 {
-    CoreComponent::_initialize();
-
     // Register commands
     initCommands(root);
 
@@ -30,9 +29,6 @@ Console::_initialize()
 
     // Initialize the input buffer
     history.push_back( { "", 0 } );
-
-    // Print the startup message and the input prompt
-    asyncExec("welcome");
 }
 
 Console&
@@ -152,7 +148,7 @@ Console::setStream(std::ostream &os)
 void
 Console::needsDisplay()
 {
-    msgQueue.put(MSG_CONSOLE_UPDATE);
+    retroShell.isDirty = true;
 }
 
 void
@@ -160,6 +156,18 @@ Console::clear()
 {
     storage.clear();
     needsDisplay();
+}
+
+bool
+Console::isEmpty()
+{
+    return storage.isCleared();
+}
+
+bool 
+Console::lastLineIsEmpty()
+{
+    return storage.lastLineIsEmpty();
 }
 
 void
@@ -256,7 +264,7 @@ Console::press(RetroShellKey key, bool shift)
             if (tabPressed) {
 
                 // TAB was pressed twice
-                asyncExec("help \"" + input + "\"");
+                retroShell.asyncExec("help \"" + input + "\"");
 
             } else {
 
@@ -341,7 +349,8 @@ Console::pressReturn(bool shift)
     if (shift) {
 
         // Switch the interpreter
-        retroShell.switchConsole();
+        // retroShell.switchConsole();
+        retroShell.asyncExec(".");
 
     } else {
 
@@ -354,7 +363,7 @@ Console::pressReturn(bool shift)
         ipos = (isize)history.size() - 1;
 
         // Feed the command into the command queue
-        asyncExec(input);
+        retroShell.asyncExec(input);
 
         // Clear the input line
         input = "";
@@ -517,131 +526,6 @@ string
 Console::parseSeq(const string &argv, const string &fallback)
 {
     try { return parseSeq(argv); } catch(...) { return fallback; }
-}
-
-Command &
-Console::getRoot()
-{
-    return root;
-}
-
-void
-Console::asyncExec(const string &command)
-{
-    // Feed the command into the command queue
-    commands.push_back({ 0, command});
-    emulator.put(Cmd(CMD_RSH_EXECUTE));
-}
-
-void
-Console::exec()
-{
-    SYNCHRONIZED
-
-    // Only proceed if there is anything to process
-    if (commands.empty()) return;
-
-    std::pair<isize, string> cmd;
-
-    try {
-
-        while (!commands.empty()) {
-
-            cmd = commands.front();
-            commands.erase(commands.begin());
-
-            exec(cmd);
-        }
-
-    } catch (...) { }
-
-    // Print prompt
-    *this << getPrompt();
-}
-
-void
-Console::exec(QueuedCmd cmd)
-{
-    auto line = cmd.first;
-    auto command = cmd.second;
-
-    try {
-
-        // Print the command if it comes from a script
-        if (line) *this << command << '\n';
-
-        // Call the interpreter
-        exec(command);
-
-    } catch (ScriptInterruption &) {
-
-        // Rethrow the exception
-        throw;
-
-    } catch (std::exception &err) {
-
-        // Print error message
-        describe(err, line, command);
-
-        // Rethrow the exception if the command is not prefixed with 'try'
-        if (command.rfind("try", 0)) throw;
-    }
-}
-
-void
-Console::asyncExecScript(std::stringstream &ss)
-{
-    SYNCHRONIZED
-    
-    std::string line;
-    isize nr = 1;
-
-    while (std::getline(ss, line)) {
-
-        commands.push_back({ nr++, line });
-    }
-
-    emulator.put(Cmd(CMD_RSH_EXECUTE));
-}
-
-void
-Console::asyncExecScript(const std::ifstream &fs)
-{
-    std::stringstream ss;
-    ss << fs.rdbuf();
-    asyncExecScript(ss);
-}
-
-void
-Console::asyncExecScript(const string &contents)
-{
-    std::stringstream ss;
-    ss << contents;
-    asyncExecScript(ss);
-}
-
-/*
- void
- Console::asyncExecScript(const MediaFile &file)
- {
- if (file.type() != FILETYPE_SCRIPT) throw Error(ERROR_FILE_TYPE_MISMATCH);
-
- string s((char *)file.getData(), file.getSize());
- try { execScript(s); } catch (util::Exception &) { }
- }
- */
-
-void
-Console::abortScript()
-{
-    {   SYNCHRONIZED
-
-        if (!commands.empty()) {
-
-            commands.clear();
-            agnus.cancel<SLOT_RSH>();
-        }
-    }
 }
 
 void
@@ -879,6 +763,116 @@ Console::_dump(CoreObject &component, Category category)
     component.dump(category, ss);
 
     *this << ss << '\n';
+}
+
+void
+Console::initCommands(Command &root)
+{
+    //
+    // Common commands
+    //
+
+    {   Command::currentGroup = "Shell commands";
+
+        root.add({"welcome"},
+                 "", // Prints the welcome message
+                 [this](Arguments& argv, long value) {
+
+            welcome();
+        });
+
+        root.add({"."},
+                 "Enter or exit the debugger",
+                 [this](Arguments& argv, long value) {
+
+            retroShell.switchConsole();
+        });
+
+        root.add({"clear"},
+                 "Clear the console window",
+                 [this](Arguments& argv, long value) {
+
+            clear();
+        });
+
+        root.add({"close"},
+                 "Hide the console window",
+                 [this](Arguments& argv, long value) {
+
+            msgQueue.put(MSG_RSH_CLOSE);
+        });
+
+        root.add({"help"}, { }, {Arg::command},
+                 "Print usage information",
+                 [this](Arguments& argv, long value) {
+
+            help(argv.empty() ? "" : argv.front());
+        });
+
+        root.add({"state"},
+                 "", // Prints the welcome message
+                 [this](Arguments& argv, long value) {
+
+            printState();
+        });
+
+        root.add({"joshua"},
+                 "",
+                 [this](Arguments& argv, long value) {
+
+            *this << "\nGREETINGS PROFESSOR HOFFMANN.\n";
+            *this << "THE ONLY WINNING MOVE IS NOT TO PLAY.\n";
+            *this << "HOW ABOUT A NICE GAME OF CHESS?\n\n";
+        });
+
+        root.add({"source"}, {Arg::path},
+                 "Process a command script",
+                 [this](Arguments& argv, long value) {
+
+            auto stream = std::ifstream(argv.front());
+            if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, argv.front());
+            retroShell.asyncExecScript(stream);
+        });
+
+        root.add({"wait"}, {Arg::value, Arg::seconds},
+                 "", // Pause the execution of a command script",
+                 [this](Arguments& argv, long value) {
+
+            auto seconds = parseNum(argv[0]);
+            agnus.scheduleRel<SLOT_RSH>(SEC(seconds), RSH_WAKEUP);
+            throw ScriptInterruption();
+        });
+
+        root.add({"shutdown"},
+                 "Terminates the application",
+                 [this](Arguments& argv, long value) {
+
+            msgQueue.put(MSG_ABORT, 0);
+        });
+    }
+}
+
+void
+Console::initSetters(Command &root, const CoreComponent &c)
+{
+    if (auto cmd = string(c.shellName()); !cmd.empty()) {
+
+        if (auto &options = c.getOptions(); !options.empty()) {
+
+            root.add({cmd, "set"}, "Configure the component");
+            for (auto &opt : options) {
+
+                root.add({cmd, "set", OptionEnum::key(opt)},
+                         {OptionParser::argList(opt)},
+                         OptionEnum::help(opt),
+                         [this](Arguments& argv, long value) {
+
+                    emulator.set(Option(HI_WORD(value)), argv[0], { LO_WORD(value) });
+
+                }, HI_W_LO_W(opt, c.objid));
+            }
+        }
+    }
 }
 
 }

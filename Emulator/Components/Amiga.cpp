@@ -10,6 +10,7 @@
 #include "config.h"
 #include "Amiga.h"
 #include "Emulator.h"
+#include "Option.h"
 #include "Snapshot.h"
 #include "ADFFile.h"
 #include <algorithm>
@@ -55,6 +56,7 @@ Amiga::Amiga(class Emulator& ref, isize id) : CoreComponent(ref, id)
 
     subComponents = std::vector<CoreComponent *> {
 
+        &host,
         &agnus,
         &audioPort,
         &videoPort,
@@ -86,7 +88,6 @@ Amiga::Amiga(class Emulator& ref, isize id) : CoreComponent(ref, id)
         &cpu,
         &remoteManager,
         &retroShell,
-        &debugger,
         &osDebugger,
         &regressionTester
     };
@@ -98,50 +99,44 @@ Amiga::~Amiga()
 }
 
 void
-Amiga::prefix() const
+Amiga::prefix(isize level, const char *component, isize line) const
 {
-    fprintf(stderr, "[%lld] (%3ld,%3ld) ",
-            agnus.pos.frame, agnus.pos.v, agnus.pos.h);
+    if (level) {
 
-    fprintf(stderr, "%06X ", cpu.getPC0());
-    fprintf(stderr, "%2X ", cpu.getIPL());
+        if (level >= 2) {
 
-    u16 dmacon = agnus.dmacon;
-    bool dmaen = dmacon & DMAEN;
-    fprintf(stderr, "%c%c%c%c%c%c ",
-            (dmacon & BPLEN) ? (dmaen ? 'B' : 'B') : '-',
-            (dmacon & COPEN) ? (dmaen ? 'C' : 'c') : '-',
-            (dmacon & BLTEN) ? (dmaen ? 'B' : 'b') : '-',
-            (dmacon & SPREN) ? (dmaen ? 'S' : 's') : '-',
-            (dmacon & DSKEN) ? (dmaen ? 'D' : 'd') : '-',
-            (dmacon & AUDEN) ? (dmaen ? 'A' : 'a') : '-');
+            if (objid == 1) fprintf(stderr, "[Run-ahead] ");
+            fprintf(stderr, "%s:%ld", component, line);
+        }
+        if (level >= 3) {
 
-    fprintf(stderr, "%04X %04X ", paula.intena, paula.intreq);
+            fprintf(stderr, " [%lld] (%3ld,%3ld)",
+                    agnus.pos.frame, agnus.pos.v, agnus.pos.h);
+        }
+        if (level >= 4) {
 
-    if (agnus.copper.servicing) {
-        fprintf(stderr, "[%06X] ", agnus.copper.getCopPC0());
+            fprintf(stderr, " %06X ", cpu.getPC0());
+            if (agnus.copper.servicing) {
+                fprintf(stderr, " [%06X]", agnus.copper.getCopPC0());
+            }
+            fprintf(stderr, " %2X ", cpu.getIPL());
+        }
+        if (level >= 5) {
+
+            u16 dmacon = agnus.dmacon;
+            bool dmaen = dmacon & DMAEN;
+            fprintf(stderr, " %c%c%c%c%c%c",
+                    (dmacon & BPLEN) ? (dmaen ? 'B' : 'B') : '-',
+                    (dmacon & COPEN) ? (dmaen ? 'C' : 'c') : '-',
+                    (dmacon & BLTEN) ? (dmaen ? 'B' : 'b') : '-',
+                    (dmacon & SPREN) ? (dmaen ? 'S' : 's') : '-',
+                    (dmacon & DSKEN) ? (dmaen ? 'D' : 'd') : '-',
+                    (dmacon & AUDEN) ? (dmaen ? 'A' : 'a') : '-');
+
+            fprintf(stderr, " %04X %04X", paula.intena, paula.intreq);
+        }
+        fprintf(stderr, " ");
     }
-}
-
-void
-Amiga::reset(bool hard)
-{
-    SerResetter resetter(hard);
-
-    {   SUSPENDED
-
-        // Call the pre-reset delegate
-        postorderWalk([hard](CoreComponent *c) { c->_willReset(hard); });
-
-        // Revert to a clean state
-        postorderWalk([&resetter](CoreComponent *c) { *c << resetter; });
-
-        // Call the post-reset delegate
-        postorderWalk([hard](CoreComponent *c) { c->_didReset(hard); });
-    }
-
-    // Inform the GUI
-    if (hard) msgQueue.put(MSG_RESET);
 }
 
 void
@@ -162,6 +157,9 @@ Amiga::_didReset(bool hard)
 
     // Clear all runloop flags
     flags = 0;
+
+    // Inform the GUI
+    if (hard) msgQueue.put(MSG_RESET);
 }
 
 i64
@@ -176,6 +174,7 @@ Amiga::getOption(Option option) const
         case OPT_AMIGA_SPEED_BOOST:     return config.timeLapse;
         case OPT_AMIGA_SNAPSHOTS:       return config.snapshots;
         case OPT_AMIGA_SNAPSHOT_DELAY:  return config.snapshotDelay;
+        case OPT_AMIGA_RUN_AHEAD:       return config.runAhead;
 
         default:
             fatalError;
@@ -188,6 +187,12 @@ Amiga::checkOption(Option opt, i64 value)
     switch (opt) {
 
         case OPT_AMIGA_VIDEO_FORMAT:
+
+            if (!VideoFormatEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, VideoFormatEnum::keyList());
+            }
+            return;
+
         case OPT_AMIGA_WARP_BOOT:
 
             return;
@@ -200,7 +205,16 @@ Amiga::checkOption(Option opt, i64 value)
             return;
 
         case OPT_AMIGA_VSYNC:
+
+            return;
+
         case OPT_AMIGA_SPEED_BOOST:
+
+            if (value < 50 || value > 200) {
+                throw Error(ERROR_OPT_INV_ARG, "50...200");
+            }
+            return;
+
         case OPT_AMIGA_SNAPSHOTS:
 
             return;
@@ -209,6 +223,13 @@ Amiga::checkOption(Option opt, i64 value)
 
             if (value < 10 || value > 3600) {
                 throw Error(ERROR_OPT_INV_ARG, "10...3600");
+            }
+            return;
+
+        case OPT_AMIGA_RUN_AHEAD:
+
+            if (value < 0 || value > 12) {
+                throw Error(ERROR_OPT_INV_ARG, "0...12");
             }
             return;
 
@@ -224,13 +245,7 @@ Amiga::setOption(Option option, i64 value)
 
         case OPT_AMIGA_VIDEO_FORMAT:
 
-            if (!VideoFormatEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, VideoFormatEnum::keyList());
-            }
-
             if (value != config.type) {
-
-                SUSPENDED
 
                 config.type = VideoFormat(value);
                 agnus.setVideoFormat(config.type);
@@ -244,10 +259,6 @@ Amiga::setOption(Option option, i64 value)
 
         case OPT_AMIGA_WARP_MODE:
 
-            if (!WarpModeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, WarpModeEnum::keyList());
-            }
-
             config.warpMode = WarpMode(value);
             return;
 
@@ -257,10 +268,6 @@ Amiga::setOption(Option option, i64 value)
             return;
 
         case OPT_AMIGA_SPEED_BOOST:
-
-            if (value < 50 || value > 200) {
-                throw Error(ERROR_OPT_INV_ARG, "50...200");
-            }
 
             config.timeLapse = isize(value);
             return;
@@ -277,13 +284,18 @@ Amiga::setOption(Option option, i64 value)
             scheduleNextSnpEvent();
             return;
 
+        case OPT_AMIGA_RUN_AHEAD:
+
+            config.runAhead = isize(value);
+            return;
+
         default:
             fatalError;
     }
 }
 
 void
-Amiga::exportConfig(const fs::path &path) const
+Amiga::exportConfig(const fs::path &path, bool diff) const
 {
     auto fs = std::ofstream(path, std::ofstream::binary);
 
@@ -291,17 +303,17 @@ Amiga::exportConfig(const fs::path &path) const
         throw Error(ERROR_FILE_CANT_WRITE);
     }
 
-    exportConfig(fs);
+    exportConfig(fs, diff);
 }
 
 void
-Amiga::exportConfig(std::ostream &stream) const
+Amiga::exportConfig(std::ostream &stream, bool diff) const
 {
     stream << "# vAmiga " << Amiga::build() << "\n";
     stream << "\n";
     stream << "amiga power off\n";
     stream << "\n";
-    CoreComponent::exportConfig(stream);
+    CoreComponent::exportConfig(stream, diff);
     stream << "amiga power on\n";
 }
 
@@ -329,7 +341,165 @@ Amiga::overrideOption(Option option, i64 value)
     return value;
 }
 
-u64 
+i64
+Amiga::get(Option opt, isize objid) const
+{
+    debug(CNF_DEBUG, "get(%s, %ld)\n", OptionEnum::key(opt), objid);
+
+    auto target = routeOption(opt, objid);
+    if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
+    return target->getOption(opt);
+}
+
+void
+Amiga::check(Option opt, i64 value, const std::vector<isize> objids)
+{
+    value = overrideOption(opt, value);
+
+    if (objids.empty()) {
+
+        for (isize objid = 0;; objid++) {
+
+            auto target = routeOption(opt, objid);
+            if (target == nullptr) break;
+
+            debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+            target->checkOption(opt, value);
+        }
+    }
+    for (auto &objid : objids) {
+
+        debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+
+        auto target = routeOption(opt, objid);
+        if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
+
+        target->checkOption(opt, value);
+    }
+}
+
+void
+Amiga::set(Option opt, i64 value, const std::vector<isize> objids)
+{
+    value = overrideOption(opt, value);
+
+    if (objids.empty()) {
+
+        for (isize objid = 0;; objid++) {
+
+            auto target = routeOption(opt, objid);
+            if (target == nullptr) break;
+
+            debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+            target->setOption(opt, value);
+        }
+    }
+    for (auto &objid : objids) {
+
+        debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+
+        auto target = routeOption(opt, objid);
+        if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
+
+        target->setOption(opt, value);
+    }
+}
+
+void
+Amiga::set(Option opt, const string &value, const std::vector<isize> objids)
+{
+    set(opt, OptionParser::parse(opt, value), objids);
+}
+
+void
+Amiga::set(const string &opt, const string &value, const std::vector<isize> objids)
+{
+    set(Option(util::parseEnum<OptionEnum>(opt)), value, objids);
+}
+
+void
+Amiga::set(ConfigScheme scheme)
+{
+    assert_enum(ConfigScheme, scheme);
+
+    {   SUSPENDED
+
+        switch(scheme) {
+
+            case CONFIG_A1000_OCS_1MB:
+
+                set(OPT_CPU_REVISION, CPU_68000);
+                set(OPT_AGNUS_REVISION, AGNUS_OCS_OLD);
+                set(OPT_DENISE_REVISION, DENISE_OCS);
+                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_MEM_CHIP_RAM, 512);
+                set(OPT_MEM_SLOW_RAM, 512);
+                break;
+
+            case CONFIG_A500_OCS_1MB:
+
+                set(OPT_CPU_REVISION, CPU_68000);
+                set(OPT_AGNUS_REVISION, AGNUS_OCS);
+                set(OPT_DENISE_REVISION, DENISE_OCS);
+                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_MEM_CHIP_RAM, 512);
+                set(OPT_MEM_SLOW_RAM, 512);
+                break;
+
+            case CONFIG_A500_ECS_1MB:
+
+                set(OPT_CPU_REVISION, CPU_68000);
+                set(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
+                set(OPT_DENISE_REVISION, DENISE_OCS);
+                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_MEM_CHIP_RAM, 512);
+                set(OPT_MEM_SLOW_RAM, 512);
+                break;
+
+            case CONFIG_A500_PLUS_1MB:
+
+                set(OPT_CPU_REVISION, CPU_68000);
+                set(OPT_AGNUS_REVISION, AGNUS_ECS_2MB);
+                set(OPT_DENISE_REVISION, DENISE_ECS);
+                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_MEM_CHIP_RAM, 512);
+                set(OPT_MEM_SLOW_RAM, 512);
+                break;
+
+            default:
+                fatalError;
+        }
+    }
+}
+
+Configurable *
+Amiga::routeOption(Option opt, isize objid)
+{
+    return CoreComponent::routeOption(opt, objid);
+}
+
+const Configurable *
+Amiga::routeOption(Option opt, isize objid) const
+{
+    auto result = const_cast<Amiga *>(this)->routeOption(opt, objid);
+    return const_cast<const Configurable *>(result);
+}
+
+i64
+Amiga::overrideOption(Option opt, i64 value) const
+{
+    static std::map<Option,i64> overrides = OVERRIDES;
+
+    if (overrides.find(opt) != overrides.end()) {
+
+        msg("Overriding option: %s = %lld\n", OptionEnum::key(opt), value);
+        return overrides[opt];
+    }
+
+    return value;
+}
+
+u64
 Amiga::getAutoInspectionMask() const
 {
     return agnus.data[SLOT_INS];
@@ -381,7 +551,7 @@ Amiga::refreshRate() const
 {
     if (config.vsync) {
 
-        return double(emulator.host.getOption(OPT_HOST_REFRESH_RATE));
+        return double(host.getOption(OPT_HOST_REFRESH_RATE));
 
     } else {
 
@@ -595,24 +765,103 @@ Amiga::_trackOff()
     msgQueue.put(MSG_TRACK, 0);
 }
 
-isize
-Amiga::load(const u8 *buffer)
+void 
+Amiga::update(CmdQueue &queue)
 {
-    auto result = CoreComponent::load(buffer);
-    postorderWalk([](CoreComponent *c) { c->_didLoad(); });
+    Cmd cmd;
+    bool cmdConfig = false;
 
-    return result;
+    auto dfn = [&]() -> FloppyDrive& { return *df[cmd.value]; };
+    auto cp = [&]() -> ControlPort& { return cmd.value ? controlPort2 : controlPort1; };
+
+    // Process all commands
+    while (queue.poll(cmd)) {
+
+        switch (cmd.type) {
+
+            case CMD_CONFIG:
+
+                cmdConfig = true;
+                set(cmd.config.option, cmd.config.value, { cmd.config.id });
+                break;
+
+            case CMD_CONFIG_ALL:
+
+                cmdConfig = true;
+                set(cmd.config.option, cmd.config.value, { });
+                break;
+
+            case CMD_ALARM_ABS:
+            case CMD_ALARM_REL:
+            case CMD_INSPECTION_TARGET:
+
+                processCommand(cmd);
+                break;
+
+            case CMD_GUARD_SET_AT:
+            case CMD_GUARD_MOVE_NR:
+            case CMD_GUARD_IGNORE_NR:
+            case CMD_GUARD_REMOVE_NR:
+            case CMD_GUARD_REMOVE_AT:
+            case CMD_GUARD_REMOVE_ALL:
+            case CMD_GUARD_ENABLE_NR:
+            case CMD_GUARD_ENABLE_AT:
+            case CMD_GUARD_ENABLE_ALL:
+            case CMD_GUARD_DISABLE_NR:
+            case CMD_GUARD_DISABLE_AT:
+            case CMD_GUARD_DISABLE_ALL:
+
+                cpu.processCommand(cmd);
+                break;
+
+            case CMD_KEY_PRESS:
+            case CMD_KEY_RELEASE:
+            case CMD_KEY_RELEASE_ALL:
+            case CMD_KEY_TOGGLE:
+
+                keyboard.processCommand(cmd);
+                break;
+
+            case CMD_DSK_TOGGLE_WP:
+            case CMD_DSK_MODIFIED:
+            case CMD_DSK_UNMODIFIED:
+
+                dfn().processCommand(cmd);
+                break;
+
+            case CMD_MOUSE_MOVE_ABS:
+            case CMD_MOUSE_MOVE_REL:
+
+                cp().processCommand(cmd); break;
+                break;
+
+            case CMD_MOUSE_EVENT:
+            case CMD_JOY_EVENT:
+
+                cp().processCommand(cmd); break;
+                break;
+
+            case CMD_RSH_EXECUTE:
+
+                retroShell.exec();
+                break;
+
+            case CMD_FOCUS:
+
+                cmd.value ? focus() : unfocus();
+                break;
+
+            default:
+                fatal("Unhandled command: %s\n", CmdTypeEnum::key(cmd.type));
+        }
+    }
+
+    // Inform the GUI about a changed machine configuration
+    if (cmdConfig) { msgQueue.put(MSG_CONFIG); }
+
+    // Inform the GUI about new RetroShell content
+    if (retroShell.isDirty) { retroShell.isDirty = false; msgQueue.put(MSG_RSH_UPDATE); }
 }
-
-isize
-Amiga::save(u8 *buffer)
-{
-    auto result = CoreComponent::save(buffer);
-    postorderWalk([](CoreComponent *c) { c->_didSave(); });
-
-    return result;
-}
-
 
 void
 Amiga::computeFrame()
@@ -625,22 +874,10 @@ Amiga::computeFrame()
         // Check if special action needs to be taken
         if (flags) {
 
-            // Are we requested to take a snapshot?
-            /*
-            if (flags & RL::AUTO_SNAPSHOT) {
-                clearFlag(RL::AUTO_SNAPSHOT);
-                takeAutoSnapshot();
-            }
-
-            if (flags & RL::USER_SNAPSHOT) {
-                clearFlag(RL::USER_SNAPSHOT);
-                takeUserSnapshot();
-            }
-            */
-
             // Did we reach a soft breakpoint?
             if (flags & RL::SOFTSTOP_REACHED) {
                 clearFlag(RL::SOFTSTOP_REACHED);
+                msgQueue.put(MSG_STEP);
                 throw StateChangeException(STATE_PAUSED);
                 break;
             }
@@ -649,7 +886,7 @@ Amiga::computeFrame()
             if (flags & RL::BREAKPOINT_REACHED) {
                 clearFlag(RL::BREAKPOINT_REACHED);
                 auto addr = cpu.debugger.breakpoints.hit->addr;
-                msgQueue.put(MSG_BREAKPOINT_REACHED, CpuMsg { addr, 0});
+                msgQueue.put(MSG_BREAKPOINT_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
             }
@@ -658,7 +895,7 @@ Amiga::computeFrame()
             if (flags & RL::WATCHPOINT_REACHED) {
                 clearFlag(RL::WATCHPOINT_REACHED);
                 auto addr = cpu.debugger.watchpoints.hit->addr;
-                msgQueue.put(MSG_WATCHPOINT_REACHED, CpuMsg {addr, 0});
+                msgQueue.put(MSG_WATCHPOINT_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
             }
@@ -667,7 +904,7 @@ Amiga::computeFrame()
             if (flags & RL::CATCHPOINT_REACHED) {
                 clearFlag(RL::CATCHPOINT_REACHED);
                 auto vector = u8(cpu.debugger.catchpoints.hit->addr);
-                msgQueue.put(MSG_CATCHPOINT_REACHED, CpuMsg {cpu.getPC0(), vector});
+                msgQueue.put(MSG_CATCHPOINT_REACHED, CpuMsg { cpu.getPC0(), vector });
                 throw StateChangeException(STATE_PAUSED);
                 break;
             }
@@ -675,7 +912,15 @@ Amiga::computeFrame()
             // Did we reach a software trap?
             if (flags & RL::SWTRAP_REACHED) {
                 clearFlag(RL::SWTRAP_REACHED);
-                msgQueue.put(MSG_SWTRAP_REACHED, CpuMsg {cpu.getPC0(), 0});
+                msgQueue.put(MSG_SWTRAP_REACHED, CpuMsg { cpu.getPC0(), 0 });
+                throw StateChangeException(STATE_PAUSED);
+                break;
+            }
+
+            // Did we reach a beam trap?
+            if (flags & RL::BEAMTRAP_REACHED) {
+                clearFlag(RL::BEAMTRAP_REACHED);
+                msgQueue.put(MSG_BEAMTRAP_REACHED, CpuMsg { 0, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
             }
@@ -683,7 +928,7 @@ Amiga::computeFrame()
             // Did we reach a Copper breakpoint?
             if (flags & RL::COPPERBP_REACHED) {
                 clearFlag(RL::COPPERBP_REACHED);
-                auto addr = u8(agnus.copper.debugger.cbreakpoints.hit->addr);
+                auto addr = u8(agnus.copper.debugger.breakpoints.hit()->addr);
                 msgQueue.put(MSG_COPPERBP_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
@@ -692,7 +937,7 @@ Amiga::computeFrame()
             // Did we reach a Copper watchpoint?
             if (flags & RL::COPPERWP_REACHED) {
                 clearFlag(RL::COPPERWP_REACHED);
-                auto addr = u8(agnus.copper.debugger.cwatchpoints.hit->addr);
+                auto addr = u8(agnus.copper.debugger.watchpoints.hit()->addr);
                 msgQueue.put(MSG_COPPERWP_REACHED, CpuMsg { addr, 0 });
                 throw StateChangeException(STATE_PAUSED);
                 break;
@@ -714,7 +959,16 @@ Amiga::computeFrame()
     }
 }
 
-void 
+void
+Amiga::fastForward(isize frames)
+{
+    auto target = agnus.pos.frame + frames;
+
+    // Execute until the target frame has been reached
+    while (agnus.pos.frame < target) computeFrame();
+}
+
+void
 Amiga::cacheInfo(AmigaInfo &result) const
 {
     {   SYNCHRONIZED
@@ -727,78 +981,6 @@ Amiga::cacheInfo(AmigaInfo &result) const
         info.vpos = agnus.pos.v;
         info.hpos = agnus.pos.h;
     }
-}
-
-void
-Amiga::initialize()
-{
-    postorderWalk([](CoreComponent *c) { c->_initialize(); });
-}
-
-void
-Amiga::powerOn()
-{
-    postorderWalk([](CoreComponent *c) { c->_powerOn(); });
-}
-
-void
-Amiga::powerOff()
-{
-    postorderWalk([](CoreComponent *c) { c->_powerOff(); });
-}
-
-void
-Amiga::run()
-{
-    postorderWalk([](CoreComponent *c) { c->_run(); });
-}
-
-void
-Amiga::pause()
-{
-    postorderWalk([](CoreComponent *c) { c->_pause(); });
-}
-
-void
-Amiga::halt()
-{
-    postorderWalk([](CoreComponent *c) { c->_halt(); });
-}
-
-void
-Amiga::warpOn()
-{
-    postorderWalk([](CoreComponent *c) { c->_warpOn(); });
-}
-
-void
-Amiga::warpOff()
-{
-    postorderWalk([](CoreComponent *c) { c->_warpOff(); });
-}
-
-void
-Amiga::trackOn()
-{
-    postorderWalk([](CoreComponent *c) { c->_trackOn(); });
-}
-
-void
-Amiga::trackOff()
-{
-    postorderWalk([](CoreComponent *c) { c->_trackOff(); });
-}
-
-void
-Amiga::focus()
-{
-    postorderWalk([](CoreComponent *c) { c->_focus(); });
-}
-
-void
-Amiga::unfocus()
-{
-    postorderWalk([](CoreComponent *c) { c->_unfocus(); });
 }
 
 void
@@ -817,7 +999,7 @@ Amiga::clearFlag(u32 flag)
     flags &= ~flag;
 }
 
-Snapshot *
+MediaFile *
 Amiga::takeSnapshot()
 {
     {   SUSPENDED
@@ -833,8 +1015,7 @@ Amiga::serviceSnpEvent(EventID eventId)
     if (objid == 0) {
 
         // Take snapshot and hand it over to GUI
-        autoSnapshot = new Snapshot(*this);
-        msgQueue.put(MSG_SNAPSHOT_TAKEN, SnapshotMsg { .snapshot = autoSnapshot } );
+        msgQueue.put(MSG_SNAPSHOT_TAKEN, SnapshotMsg { .snapshot = new Snapshot(*this) } );
     }
 
     // Schedule the next event
@@ -901,6 +1082,20 @@ Amiga::latestUserSnapshot()
     return result;
 }
 */
+
+void 
+Amiga::loadSnapshot(const MediaFile &file)
+{
+    try {
+
+        const Snapshot &snapshot = dynamic_cast<const Snapshot &>(file);
+        loadSnapshot(snapshot);
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
+    }
+}
 
 void
 Amiga::loadSnapshot(const Snapshot &snapshot)
@@ -1047,124 +1242,22 @@ Amiga::scheduleNextAlarm()
     }
 }
 
-void
-Amiga::setDebugVariable(const string &name, int val)
+u32
+Amiga::random()
 {
-#ifdef RELEASEBUILD
+    return random(u32(agnus.clock));
+}
 
-    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables can only be altered in debug builds.");
+u32
+Amiga::random(u32 seed)
+{
+    // Parameters for the Linear Congruential Generator (LCG)
+    u64 a = 1664525;
+    u64 c = 1013904223;
+    u64 m = 1LL << 32;
 
-#else
-
-    if      (name == "XFILES")           XFILES          = val;
-    else if (name == "CNF_DEBUG")        CNF_DEBUG       = val;
-    else if (name == "OBJ_DEBUG")        OBJ_DEBUG       = val;
-    else if (name == "DEF_DEBUG")        DEF_DEBUG       = val;
-    else if (name == "MIMIC_UAE")        MIMIC_UAE       = val;
-
-    else if (name == "RUN_DEBUG")        RUN_DEBUG       = val;
-    else if (name == "TIM_DEBUG")        TIM_DEBUG       = val;
-    else if (name == "WARP_DEBUG")       WARP_DEBUG      = val;
-    else if (name == "QUEUE_DEBUG")      QUEUE_DEBUG     = val;
-    else if (name == "SNP_DEBUG")        SNP_DEBUG       = val;
-
-    else if (name == "CPU_DEBUG")        CPU_DEBUG       = val;
-    else if (name == "CST_DEBUG")        CST_DEBUG       = val;
-
-    else if (name == "OCSREG_DEBUG")     OCSREG_DEBUG    = val;
-    else if (name == "ECSREG_DEBUG")     ECSREG_DEBUG    = val;
-    else if (name == "INVREG_DEBUG")     INVREG_DEBUG    = val;
-    else if (name == "MEM_DEBUG")        MEM_DEBUG       = val;
-
-    else if (name == "DMA_DEBUG")        DMA_DEBUG       = val;
-    else if (name == "DDF_DEBUG")        DDF_DEBUG       = val;
-    else if (name == "SEQ_DEBUG")        SEQ_DEBUG       = val;
-    else if (name == "NTSC_DEBUG")       NTSC_DEBUG      = val;
-
-    else if (name == "COP_CHECKSUM")     COP_CHECKSUM    = val;
-    else if (name == "COPREG_DEBUG")     COPREG_DEBUG    = val;
-    else if (name == "COP_DEBUG")        COP_DEBUG       = val;
-
-    else if (name == "BLT_CHECKSUM")     BLT_CHECKSUM    = val;
-    else if (name == "BLTREG_DEBUG")     BLTREG_DEBUG    = val;
-    else if (name == "BLT_REG_GUARD")    BLT_REG_GUARD   = val;
-    else if (name == "BLT_MEM_GUARD")    BLT_MEM_GUARD   = val;
-    else if (name == "BLT_DEBUG")        BLT_DEBUG       = val;
-    else if (name == "BLTTIM_DEBUG")     BLTTIM_DEBUG    = val;
-    else if (name == "SLOW_BLT_DEBUG")   SLOW_BLT_DEBUG  = val;
-    else if (name == "OLD_LINE_BLIT")    OLD_LINE_BLIT   = val;
-
-    else if (name == "BPLREG_DEBUG")     BPLREG_DEBUG    = val;
-    else if (name == "BPLDAT_DEBUG")     BPLDAT_DEBUG    = val;
-    else if (name == "BPLMOD_DEBUG")     BPLMOD_DEBUG    = val;
-    else if (name == "SPRREG_DEBUG")     SPRREG_DEBUG    = val;
-    else if (name == "COLREG_DEBUG")     COLREG_DEBUG    = val;
-    else if (name == "CLXREG_DEBUG")     CLXREG_DEBUG    = val;
-    else if (name == "BPL_DEBUG")        BPL_DEBUG       = val;
-    else if (name == "DIW_DEBUG")        DIW_DEBUG       = val;
-    else if (name == "SPR_DEBUG")        SPR_DEBUG       = val;
-    else if (name == "CLX_DEBUG")        CLX_DEBUG       = val;
-    else if (name == "BORDER_DEBUG")     BORDER_DEBUG    = val;
-
-    else if (name == "INTREG_DEBUG")     INTREG_DEBUG    = val;
-    else if (name == "INT_DEBUG")        INT_DEBUG       = val;
-
-    else if (name == "CIAREG_DEBUG")     CIAREG_DEBUG    = val;
-    else if (name == "CIASER_DEBUG")     CIASER_DEBUG    = val;
-    else if (name == "CIA_DEBUG")        CIA_DEBUG       = val;
-    else if (name == "TOD_DEBUG")        TOD_DEBUG       = val;
-
-    else if (name == "ALIGN_HEAD")       ALIGN_HEAD      = val;
-    else if (name == "DSK_CHECKSUM")     DSK_CHECKSUM    = val;
-    else if (name == "DSKREG_DEBUG")     DSKREG_DEBUG    = val;
-    else if (name == "DSK_DEBUG")        DSK_DEBUG       = val;
-    else if (name == "MFM_DEBUG")        MFM_DEBUG       = val;
-    else if (name == "FS_DEBUG")         FS_DEBUG        = val;
-
-    else if (name == "HDR_ACCEPT_ALL")   HDR_ACCEPT_ALL  = val;
-    else if (name == "HDR_FS_LOAD_ALL")  HDR_FS_LOAD_ALL = val;
-    else if (name == "WT_DEBUG")         WT_DEBUG        = val;
-
-    else if (name == "AUDREG_DEBUG")     AUDREG_DEBUG    = val;
-    else if (name == "AUD_DEBUG")        AUD_DEBUG       = val;
-    else if (name == "AUDBUF_DEBUG")     AUDBUF_DEBUG    = val;
-    else if (name == "AUDVOL_DEBUG")     AUDVOL_DEBUG    = val;
-    else if (name == "DISABLE_AUDIRQ")   DISABLE_AUDIRQ  = val;
-
-    else if (name == "POSREG_DEBUG")     POSREG_DEBUG    = val;
-    else if (name == "JOYREG_DEBUG")     JOYREG_DEBUG    = val;
-    else if (name == "POTREG_DEBUG")     POTREG_DEBUG    = val;
-    else if (name == "PRT_DEBUG")        PRT_DEBUG       = val;
-    else if (name == "SER_DEBUG")        SER_DEBUG       = val;
-    else if (name == "POT_DEBUG")        POT_DEBUG       = val;
-    else if (name == "HOLD_MOUSE_L")     HOLD_MOUSE_L    = val;
-    else if (name == "HOLD_MOUSE_M")     HOLD_MOUSE_M    = val;
-    else if (name == "HOLD_MOUSE_R")     HOLD_MOUSE_R    = val;
-
-    else if (name == "ZOR_DEBUG")        ZOR_DEBUG       = val;
-    else if (name == "ACF_DEBUG")        ACF_DEBUG       = val;
-    else if (name == "FAS_DEBUG")        FAS_DEBUG       = val;
-    else if (name == "HDR_DEBUG")        HDR_DEBUG       = val;
-    else if (name == "DBD_DEBUG")        DBD_DEBUG       = val;
-
-    else if (name == "ADF_DEBUG")        ADF_DEBUG       = val;
-    else if (name == "DMS_DEBUG")        DMS_DEBUG       = val;
-    else if (name == "IMG_DEBUG")        IMG_DEBUG       = val;
-
-    else if (name == "RTC_DEBUG")        RTC_DEBUG       = val;
-    else if (name == "KBD_DEBUG")        KBD_DEBUG       = val;
-
-    else if (name == "REC_DEBUG")        REC_DEBUG       = val;
-    else if (name == "SCK_DEBUG")        SCK_DEBUG       = val;
-    else if (name == "SRV_DEBUG")        SRV_DEBUG       = val;
-    else if (name == "GDB_DEBUG")        GDB_DEBUG       = val;
-
-    else {
-
-        throw Error(ERROR_OPT_UNSUPPORTED, "Unknown debug variable: " + name);
-    }
-
-#endif
+    // Apply the LCG formula
+    return u32((a * seed + c) % m);
 }
 
 }

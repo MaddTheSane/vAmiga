@@ -22,21 +22,25 @@ class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
     
     Descriptions descriptions = {
         {
+            .type           = HardDriveClass,
             .name           = "HardDrive0",
             .description    = "Hard Drive 0",
             .shell          = "hd0"
         },
         {
+            .type           = HardDriveClass,
             .name           = "HardDrive1",
             .description    = "Hard Drive 1",
             .shell          = "hd1"
         },
         {
+            .type           = HardDriveClass,
             .name           = "HardDrive2",
             .description    = "Hard Drive 2",
             .shell          = "hd2"
         },
         {
+            .type           = HardDriveClass,
             .name           = "HardDrive3",
             .description    = "Hard Drive 3",
             .shell          = "hd3"
@@ -46,6 +50,7 @@ class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
     ConfigOptions options = {
 
         OPT_HDR_TYPE,
+        OPT_HDR_WRITE_THROUGH, 
         OPT_HDR_PAN,
         OPT_HDR_STEP_VOLUME
     };
@@ -59,9 +64,6 @@ class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
     // Current configuration
     HardDriveConfig config = {};
     
-    // Result of the latest inspection
-    mutable HardDriveInfo info = {};
-
     // Product information
     string diskVendor;
     string diskProduct;
@@ -82,6 +84,9 @@ class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
     // Disk data
     Buffer<u8> data;
     
+    // Keeps track of modified blocks (to update the run-ahead instance)
+    Buffer<bool> dirty;
+
     // Current position of the read/write head
     DriveHead head;
 
@@ -90,13 +95,8 @@ class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
     
     // Disk state flags
     DiskFlags flags = 0;
-    [[deprecated]] bool modified = false;
-    [[deprecated]] bool writeProtected = false;
     optional <bool> bootable;
 
-    // Indicates if write-through mode is enabled
-    bool writeThrough = false;
-    
     
     //
     // Initializing
@@ -107,6 +107,8 @@ public:
     HardDrive(Amiga& ref, isize nr);
     ~HardDrive();
     
+    HardDrive& operator= (const HardDrive& other);
+
     // Creates a hard drive with a certain geometry
     void init(const GeometryDescriptor &geometry);
 
@@ -116,11 +118,14 @@ public:
     // Creates a hard drive with the contents of a file system
     void init(const MutableFileSystem &fs) throws;
 
+    // Creates a hard drive with the contents of a media file
+    void init(const MediaFile &file) throws;
+
     // Creates a hard drive with the contents of an HDF
     void init(const HDFFile &hdf) throws;
 
     // Creates a hard drive with the contents of an HDF file
-    void init(const string &path) throws;
+    void init(const std::filesystem::path &path) throws;
 
     const HardDriveTraits &getTraits() const {
 
@@ -216,8 +221,6 @@ private:
         << drivers
         << data
         << flags
-        // << modified
-        // << writeProtected
         << bootable;
 
     } SERIALIZERS(serialize);
@@ -268,6 +271,7 @@ public:
     const HardDriveConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
     
 private:
@@ -363,14 +367,13 @@ public:
     bool restoreDisk() throws;
 
     // Exports the disk in HDF format
-    void writeToFile(const string &path) throws;
+    void writeToFile(const std::filesystem::path &path) throws;
 
     
     //
     // Managing write-through mode
     //
     
-    bool writeThroughEnabled() const { return writeThrough; }
     void enableWriteThrough() throws;
     void disableWriteThrough();
 

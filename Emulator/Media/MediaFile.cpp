@@ -132,14 +132,104 @@ MediaFile::make(class MutableFileSystem &fs, FileType type)
 }
 
 MediaFile *
-MediaFile::make(const FloppyDriveAPI &drive, FileType type)
+MediaFile::make(FloppyDriveAPI &drive, FileType type)
 {
     switch (type) {
 
-        case FILETYPE_ADF:        return new ADFFile(*drive.drive);
+        case FILETYPE_ADF:      return new ADFFile(drive.getDisk());
+        case FILETYPE_EADF:     return new EADFFile(drive.getDisk());
+        case FILETYPE_IMG:      return new IMGFile(drive.getDisk());
 
         default:
             return nullptr;
+    }
+}
+
+MediaFile *
+MediaFile::make(HardDriveAPI &drive, FileType type)
+{
+    switch (type) {
+
+        case FILETYPE_HDF:      return new HDFFile(drive.getDrive());
+
+        default:
+            return nullptr;
+    }
+}
+
+string
+MediaFile::getSizeAsString() const
+{
+    return util::byteCountAsString(getSize());
+}
+
+DiskInfo
+MediaFile::getDiskInfo() const
+{
+    DiskInfo result;
+
+    try {
+
+        auto &disk = dynamic_cast<const DiskFile &>(*this);
+
+        result.cyls = disk.numCyls();
+        result.heads = disk.numHeads();
+        result.sectors = disk.numSectors();
+        result.bsize = disk.bsize();
+        result.tracks = disk.numTracks();
+        result.blocks = disk.numBlocks();
+        result.bytes = disk.numBytes();
+
+        return result;
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
+    }
+}
+
+FloppyDiskInfo
+MediaFile::getFloppyDiskInfo() const
+{
+    FloppyDiskInfo result;
+
+    try {
+
+        auto &disk = dynamic_cast<const FloppyFile &>(*this);
+
+        result.dos = disk.getDos();
+        result.diameter = disk.getDiameter();
+        result.density = disk.getDensity();
+        result.bootBlockType = disk.bootBlockType();
+        result.bootBlockName = disk.bootBlockName();
+        result.hasVirus = disk.hasVirus();
+
+        return result;
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
+    }
+}
+
+HDFInfo
+MediaFile::getHDFInfo() const
+{
+    HDFInfo result;
+
+    try {
+
+        auto &hdf = dynamic_cast<const HDFFile &>(*this);
+
+        result.partitions = hdf.numPartitions();
+        result.drivers = hdf.numDrivers();
+        result.hasRDB = hdf.hasRDB();
+
+        return result;
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
     }
 }
 

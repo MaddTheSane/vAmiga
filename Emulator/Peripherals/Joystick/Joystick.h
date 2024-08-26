@@ -18,13 +18,13 @@ class Joystick : public SubComponent, public Inspectable<JoystickInfo> {
 
     Descriptions descriptions = {
         {
-            .type           = COMP_JOYSTICK,
+            .type           = JoystickClass,
             .name           = "Joystick1",
             .description    = "Joystick in Port 1",
             .shell          = "joystick 1"
         },
         {
-            .type           = COMP_JOYSTICK,
+            .type           = JoystickClass,
             .name           = "Joystick2",
             .description    = "Joystick in Port 2",
             .shell          = "joystick 2"
@@ -34,6 +34,7 @@ class Joystick : public SubComponent, public Inspectable<JoystickInfo> {
     ConfigOptions options = {
 
         OPT_JOY_AUTOFIRE,
+        OPT_JOY_AUTOFIRE_BURSTS,
         OPT_JOY_AUTOFIRE_BULLETS,
         OPT_JOY_AUTOFIRE_DELAY
     };
@@ -50,17 +51,18 @@ class Joystick : public SubComponent, public Inspectable<JoystickInfo> {
     bool button3 = false;
 
     // Horizontal joystick position (-1 = left, 1 = right, 0 = released)
-    int axisX = 0;
-    
-    // Vertical joystick position (-1 = up, 1 = down, 0 = released)
-    int axisY = 0;
+    isize axisX = 0;
 
-    // Bullet counter used in multi-fire mode
-    i64 bulletCounter = 0;
-    
+    // Vertical joystick position (-1 = up, 1 = down, 0 = released)
+    isize axisY = 0;
+
+    // Bullet counter used in autofire mode
+    isize bulletCounter = 0;
+
     // Next frame to auto-press or auto-release the fire button
     i64 nextAutofireFrame = 0;
-    
+    i64 nextAutofireReleaseFrame = 0;
+
     
     //
     // Initializing
@@ -72,11 +74,16 @@ public:
 
     Joystick& operator= (const Joystick& other) {
 
+        CLONE(config)
+
         CLONE(button)
+        CLONE(button2)
+        CLONE(button3)
         CLONE(axisX)
         CLONE(axisY)
-
-        CLONE(config)
+        CLONE(bulletCounter)
+        CLONE(nextAutofireFrame)
+        CLONE(nextAutofireReleaseFrame)
 
         return *this;
     }
@@ -99,7 +106,10 @@ private:
             << button2
             << button3
             << axisX
-            << axisY;
+            << axisY
+            << bulletCounter
+            << nextAutofireFrame
+            << nextAutofireReleaseFrame;
         }
 
     } SERIALIZERS(serialize);
@@ -138,6 +148,7 @@ public:
     const JoystickConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
 
@@ -159,7 +170,7 @@ public:
     // Callback handler for function ControlPort::ciapa()
     u8 ciapa() const;
     
-    // Triggers a gamepad event
+    // Triggers a joystick event
     void trigger(GamePadAction event);
 
     // To be called after each frame
@@ -167,11 +178,19 @@ public:
     
 private:
 
+    // Sets the button state
+    void setButton(bool value);
+
+    // Checks whether autofiring is active
+    bool isAutofiring();
+
+    // Starts or stops autofire mode
+    void startAutofire();
+    void stopAutofire();
+
     // Reloads the autofire magazine
     void reload();
-    
-    // Updates variable nextAutofireFrame
-    void scheduleNextShot();
+    void reload(isize bullets);
 };
 
 }

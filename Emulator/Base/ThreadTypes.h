@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -29,11 +29,10 @@ enum_long(EXEC_STATE)
 typedef EXEC_STATE ExecState;
 
 #ifdef __cplusplus
-struct ExecStateEnum : util::Reflection<ExecStateEnum, ExecState>
+struct ExecStateEnum : vamiga::util::Reflection<ExecStateEnum, ExecState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = STATE_HALTED;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "STATE"; }
     static const char *_key(long value)

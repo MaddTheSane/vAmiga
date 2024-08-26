@@ -51,8 +51,8 @@ public extension MetalView {
                 dropUrl = url.unpacked(maxSize: 2048 * 1024)
 
                 // Analyze the file type
-                let type = AmigaFileProxy.type(of: dropUrl)
-                
+                let type = MediaFileProxy.type(of: dropUrl)
+
                 // Open the drop zone layer
                 parent.renderer.dropZone.open(type: type, delay: 0.25)
             }
@@ -111,7 +111,7 @@ public extension MetalView {
         guard let text = pasteBoard.string(forType: .string) else {
             return false
         }
-        parent.keyboard.autoTypeAsync(text)
+        parent.keyboard.autoType(text, max: 256)
         return true
     }
 

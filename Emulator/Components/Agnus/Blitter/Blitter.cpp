@@ -23,9 +23,7 @@ Blitter::Blitter(Amiga& ref) : SubComponent(ref)
 
 void
 Blitter::_initialize()
-{
-    CoreComponent::_initialize();
-    
+{    
     // Initialize the fill pattern tables
     for (isize carryIn = 0; carryIn < 2; carryIn++) {
 
@@ -86,20 +84,32 @@ Blitter::getOption(Option option) const
 }
 
 void
+Blitter::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_BLITTER_ACCURACY:
+
+            if (value < 0 || value > 2) {
+                throw Error(ERROR_OPT_INV_ARG, "0, 1, 2");
+            }
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
+    }
+}
+
+void
 Blitter::setOption(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_BLITTER_ACCURACY:
-        {
-            if (value < 0 || value > 2) {
-                throw Error(ERROR_OPT_INV_ARG, "0, 1, 2");
-            }
-            
-            SUSPENDED
+
             config.accuracy = (isize)value;
             return;
-        }
+
         default:
             fatalError;
     }

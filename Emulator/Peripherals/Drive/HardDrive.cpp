@@ -29,10 +29,52 @@ HardDrive::~HardDrive()
     disableWriteThrough();
 }
 
+HardDrive& 
+HardDrive::operator= (const HardDrive& other) {
+
+    CLONE(config)
+
+    CLONE(diskVendor)
+    CLONE(diskProduct)
+    CLONE(diskRevision)
+    CLONE(controllerVendor)
+    CLONE(controllerProduct)
+    CLONE(controllerRevision)
+    CLONE(geometry)
+    CLONE(ptable)
+    CLONE(drivers)
+    CLONE(head)
+    CLONE(state)
+    CLONE(flags)
+    CLONE(bootable)
+
+    if (RUA_ON_STEROIDS) {
+
+        // Clone all blocks
+        CLONE(data)
+
+    } else {
+
+        // Clone dirty blocks
+        data.resize(other.data.size);
+        for (isize i = 0; i < other.dirty.size; i++) {
+
+            if (other.dirty[i]) {
+
+                debug(RUA_DEBUG, "Cloning block %ld\n", i);
+                memcpy(data.ptr + 512 * i, other.data.ptr + 512 * i, 512);
+            }
+        }
+    }
+
+    return *this;
+}
+
 void
 HardDrive::init()
 {
     data.dealloc();
+    dirty.dealloc();
 
     diskVendor = "VAMIGA";
     diskProduct = "VDRIVE";
@@ -62,6 +104,7 @@ HardDrive::init(const GeometryDescriptor &geometry)
 
     // Create the new drive
     data.resize(geometry.numBytes());
+    dirty.resize(geometry.numBytes() / 512, true);
 }
 
 void
@@ -80,6 +123,20 @@ HardDrive::init(const MutableFileSystem &fs)
     
     // Copy over all blocks
     fs.exportVolume(data.ptr, geometry.numBytes());
+}
+
+void 
+HardDrive::init(const MediaFile &file)
+{
+    try {
+
+        const HDFFile &hdf = dynamic_cast<const HDFFile &>(file);
+        init(hdf);
+
+    } catch (...) {
+
+        throw Error(ERROR_FILE_TYPE_MISMATCH);
+    }
 }
 
 void
@@ -137,8 +194,8 @@ HardDrive::init(const HDFFile &hdf)
     hdf.flash(data.ptr, 0, numBytes);
     
     // Replace the write-through image on disk
-    if (writeThrough) {
-        
+    if (config.writeThrough) {
+
         // Delete the existing image
         disableWriteThrough();
         
@@ -154,7 +211,7 @@ HardDrive::init(const HDFFile &hdf)
 }
 
 void
-HardDrive::init(const string &path) throws
+HardDrive::init(const std::filesystem::path &path) throws
 {
     HDFFile hdf(path);
     init(hdf);
@@ -163,8 +220,6 @@ HardDrive::init(const string &path) throws
 void
 HardDrive::_initialize()
 {
-    CoreComponent::_initialize();
-
     string path;
 
     if (objid == 0) path = INITIAL_HD0;
@@ -190,6 +245,9 @@ void
 HardDrive::_didReset(bool hard)
 {
     if (FORCE_HDR_MODIFIED) { setFlag(FLAG_MODIFIED, true); }
+
+    // Mark all blocks as dirty
+    dirty.clear(true);
 }
 
 i64
@@ -198,11 +256,38 @@ HardDrive::getOption(Option option) const
     switch (option) {
             
         case OPT_HDR_TYPE:          return (long)config.type;
+        case OPT_HDR_WRITE_THROUGH: return (long)config.writeThrough;
         case OPT_HDR_PAN:           return (long)config.pan;
         case OPT_HDR_STEP_VOLUME:   return (long)config.stepVolume;
 
         default:
             fatalError;
+    }
+}
+
+void
+HardDrive::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_HDR_TYPE:
+
+            if (!HardDriveTypeEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, HardDriveTypeEnum::keyList());
+            }
+            return;
+
+        case OPT_HDR_WRITE_THROUGH:
+
+            return;
+
+        case OPT_HDR_PAN:
+        case OPT_HDR_STEP_VOLUME:
+            
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -217,6 +302,11 @@ HardDrive::setOption(Option option, i64 value)
                 throw Error(ERROR_OPT_INV_ARG, HardDriveTypeEnum::keyList());
             }
             config.type = (HardDriveType)value;
+            return;
+
+        case OPT_HDR_WRITE_THROUGH:
+
+            value ? enableWriteThrough() : disableWriteThrough();
             return;
 
         case OPT_HDR_PAN:
@@ -299,9 +389,10 @@ HardDrive::cacheInfo(HardDriveInfo &info) const
 {
     {   SYNCHRONIZED
         
+        info.nr = objid;
+        
         info.isConnected = isConnected();
         info.isCompatible = isCompatible();
-        info.writeThrough = writeThroughEnabled();
 
         info.hasDisk = hasDisk();
         info.hasModifiedDisk = hasModifiedDisk();
@@ -325,6 +416,9 @@ void
 HardDrive::_didLoad()
 {
     disableWriteThrough();
+
+    // Mark all blocks as dirty
+    dirty.clear(true);
 }
 
 void
@@ -350,7 +444,7 @@ HardDrive::_dump(Category category, std::ostream& os) const
         os << tab("State");
         os << HardDriveStateEnum::key(state) << std::endl;
         os << tab("Flags");
-        os << DiskFlagsEnum::key(flags) << std::endl;
+        os << DiskFlagsEnum::mask(flags) << std::endl;
         os << tab("Bootable");
         if (bootable) {
             os << bol(*bootable) << std::endl;
@@ -460,25 +554,25 @@ HardDrive::enableWriteThrough()
 {
     debug(WT_DEBUG, "enableWriteThrough()\n");
     
-    if (!writeThrough) {
+    if (!config.writeThrough) {
 
         saveWriteThroughImage();
 
         debug(WT_DEBUG, "Write-through mode enabled\n");
-        writeThrough = true;
+        config.writeThrough = true;
     }
 }
 
 void
 HardDrive::disableWriteThrough()
 {
-    if (writeThrough) {
-        
+    if (config.writeThrough) {
+
         // Close file
         wtStream[objid].close();
         
         debug(WT_DEBUG, "Write-through mode disabled\n");
-        writeThrough = false;
+        config.writeThrough = false;
     }
 }
 
@@ -511,6 +605,7 @@ HardDrive::saveWriteThroughImage()
     if (!util::fileExists(path)) {
         throw Error(ERROR_WT, "Can't create storage file");
     }
+
     // Open file
     wtStream[objid].open(path, std::ios::binary | std::ios::in | std::ios::out);
     if (!wtStream[objid].is_open()) {
@@ -628,7 +723,8 @@ HardDrive::write(isize offset, isize length, u32 addr)
             mem.spypeek <ACCESSOR_CPU> (addr, length, data.ptr + offset);
             
             // Handle write-through mode
-            if (writeThrough) {
+            if (config.writeThrough) {
+                
                 wtStream[objid].seekp(offset);
                 wtStream[objid].write((char *)(data.ptr + offset), length);
             }
@@ -728,7 +824,7 @@ HardDrive::moveHead(isize c, isize h, isize s)
 }
 
 void
-HardDrive::writeToFile(const string &path) throws
+HardDrive::writeToFile(const std::filesystem::path &path) throws
 {
     if (!path.empty()) {
 

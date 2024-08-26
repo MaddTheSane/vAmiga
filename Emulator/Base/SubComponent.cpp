@@ -25,7 +25,6 @@ controlPort1(ref.controlPort1),
 controlPort2(ref.controlPort2),
 copper(ref.agnus.copper),
 cpu(ref.cpu),
-debugger(ref.debugger),
 denise(ref.denise),
 diagBoard(ref.diagBoard),
 diskController(ref.paula.diskController),
@@ -42,7 +41,7 @@ hd0con(ref.hd0con),
 hd1con(ref.hd1con),
 hd2con(ref.hd2con),
 hd3con(ref.hd3con),
-host(ref.emulator.host),
+host(ref.host),
 keyboard(ref.keyboard),
 mem(ref.mem),
 msgQueue(ref.msgQueue),
@@ -63,9 +62,9 @@ zorro(ref.zorro)
 SubComponent::SubComponent(Amiga& ref, isize id) : CoreComponent(ref.emulator, id), References(ref) { };
 
 void
-SubComponent::prefix() const
+SubComponent::prefix(isize level, const char *component, isize line) const
 {
-    amiga.prefix();
+    amiga.prefix(level, component, line);
 }
 
 }

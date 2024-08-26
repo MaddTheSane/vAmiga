@@ -19,7 +19,7 @@ class OSDebugger : public SubComponent {
     
     Descriptions descriptions = {{
 
-        .type           = COMP_OS_DEBUGGER,
+        .type           = OSDebuggerClass,
         .name           = "OSDebugger",
         .description    = "Operating System Debugger",
         .shell          = "os"
@@ -39,7 +39,12 @@ public:
     
     using SubComponent::SubComponent;
     
-    
+    OSDebugger& operator= (const OSDebugger& other) {
+
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //

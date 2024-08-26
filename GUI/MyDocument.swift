@@ -13,15 +13,16 @@ class MyDocument: NSDocument {
     
     // The window controller for this document
     var parent: MyController { return windowControllers.first as! MyController }
+    var console: Console { return parent.renderer.console }
 
     // Optional media URL provided on app launch
     var launchUrl: URL?
 
     // Gateway to the core emulator
-    var amiga: EmulatorProxy!
+    var emu: EmulatorProxy!
 
     // Snapshots
-    private(set) var snapshots = ManagedArray<SnapshotProxy>(maxSize: 512 * 1024 * 1024)
+    private(set) var snapshots = ManagedArray<MediaFileProxy>(maxSize: 512 * 1024 * 1024)
 
     //
     // Initializing
@@ -48,7 +49,7 @@ class MyDocument: NSDocument {
         EmulatorProxy.defaults.load()
         
         // Create an emulator instance
-        amiga = EmulatorProxy()
+        emu = EmulatorProxy()
     }
  
     override open func makeWindowControllers() {
@@ -56,7 +57,7 @@ class MyDocument: NSDocument {
         debug(.lifetime)
         
         let controller = MyController(windowNibName: "MyDocument")
-        controller.emu = amiga
+        controller.emu = emu
         self.addWindowController(controller)
     }
   
@@ -64,64 +65,39 @@ class MyDocument: NSDocument {
     // Creating file proxys
     //
 
-    func createFileProxy(from url: URL, allowedTypes: [FileType]) throws -> AmigaFileProxy? {
-            
+    func createMediaFileProxy(from url: URL, allowedTypes: [FileType]) throws -> MediaFileProxy {
+
         debug(.media, "Reading file \(url.lastPathComponent)")
-        
+
         // If the provided URL points to compressed file, decompress it first
         let newUrl = url.unpacked(maxSize: 2048 * 1024)
-        
+
         // Iterate through all allowed file types
         for type in allowedTypes {
-            
+
             do {
                 switch type {
-                
-                case .SNAPSHOT:
-                    return try SnapshotProxy.make(with: newUrl)
-                    
-                case .SCRIPT:
-                    return try ScriptProxy.make(with: newUrl)
-                    
-                case .ADF:
-                    return try ADFFileProxy.make(with: newUrl)
-                    
-                case .EADF:
-                    return try EADFFileProxy.make(with: newUrl)
-                    
-                case .IMG:
-                    return try IMGFileProxy.make(with: newUrl)
 
-                case .ST:
-                    return try STFileProxy.make(with: newUrl)
+                case .SNAPSHOT, .SCRIPT, .ADF, .EADF, .IMG, .ST, .DMS, .EXE, .DIR, .HDF:
 
-                case .DMS:
-                    return try DMSFileProxy.make(with: newUrl)
-                    
-                case .EXE:
-                    return try EXEFileProxy.make(with: newUrl)
-                    
-                case .DIR:
-                    return try FolderProxy.make(with: newUrl)
-                    
-                case .HDF:
-                    return try HDFFileProxy.make(with: newUrl)
-                    
+                    return try MediaFileProxy.make(with: newUrl, type: type)
+
                 default:
-                    fatalError()
+                    break
                 }
-                
+
             } catch let error as VAError {
                 if error.errorCode != .FILE_TYPE_MISMATCH {
                     throw error
                 }
             }
         }
-        
+
         // None of the allowed types matched the file
         throw VAError(.FILE_TYPE_MISMATCH,
                       "The type of this file is not known to the emulator.")
     }
+
 
     //
     // Loading
@@ -170,11 +146,11 @@ class MyDocument: NSDocument {
         
         if typeName == "vAmiga" {
 
-            if let snapshot = SnapshotProxy.make(withAmiga: amiga.amiga) {
+            if let snapshot = emu.amiga.takeSnapshot() {
 
                 do {
                     try snapshot.writeToFile(url: url)
-                    
+
                 } catch let error as VAError {
                     
                     throw NSError(error: error)
@@ -194,46 +170,64 @@ class MyDocument: NSDocument {
                   force: Bool = false,
                   remember: Bool = true) throws {
         
-        let proxy = try createFileProxy(from: url, allowedTypes: types)
-        
-        if remember && proxy is FloppyFileProxy {
-            myAppDelegate.noteNewRecentlyInsertedDiskURL(url)
+        let file = try createMediaFileProxy(from: url, allowedTypes: types)
+
+        // Remember the URL if requested
+        if remember {
+
+            switch file.type {
+
+            case .SNAPSHOT:
+                // document.snapshots.append(file)
+                break
+
+            case .ADF, .EADF, .HDF, .EXE, .IMG, .ST:
+                myAppDelegate.noteNewRecentlyInsertedDiskURL(url)
+
+            default:
+                break
+            }
         }
-        if remember && proxy is HDFFileProxy {
-            myAppDelegate.noteNewRecentlyAttachedHdrURL(url)
-        }
-        
-        try addMedia(proxy: proxy!, df: df, hd: hd, force: force)
+
+        try addMedia(proxy: file, df: df, hd: hd, force: force)
     }
     
-    func addMedia(proxy: AmigaFileProxy,
+    func addMedia(proxy: MediaFileProxy,
                   df: Int = 0,
                   hd: Int = 0,
                   force: Bool = false) throws {
-        
-        if let proxy = proxy as? SnapshotProxy {
-            
-            try processSnapshotFile(proxy)
-        }
-        if let proxy = proxy as? ScriptProxy {
 
-            parent.renderer.console.runScript(script: proxy)
-        }
-        if let proxy = proxy as? HDFFileProxy {
-            
+        switch proxy.type {
+
+        case .SNAPSHOT:
+
+            try processSnapshotFile(proxy)
+
+        case .SCRIPT:
+
+            console.runScript(script: proxy)
+            break
+
+        case .HDF:
+
             try attach(hd: hd, file: proxy, force: force)
-        }
-        if let proxy = proxy as? FloppyFileProxy {
-            
+            break
+
+        case .ADF, .DMS, .EXE, .EADF, .IMG, .ST:
+
             try insert(df: df, file: proxy, force: force)
+
+        default:
+            break
         }
     }
-    
-    func processSnapshotFile(_ proxy: SnapshotProxy, force: Bool = false) throws {
-        
-        try amiga.loadSnapshot(proxy)
+
+    func processSnapshotFile(_ proxy: MediaFileProxy, force: Bool = false) throws {
+
+        try emu.amiga.loadSnapshot(proxy)
         snapshots.append(proxy, size: proxy.size)
     }
+
     
     //
     // Exporting disks
@@ -241,19 +235,19 @@ class MyDocument: NSDocument {
     
     func export(drive nr: Int, to url: URL) throws {
                         
-        var df: FloppyFileProxy?
+        var df: MediaFileProxy?
         switch url.pathExtension.uppercased() {
         case "ADF":
-            df = try ADFFileProxy.make(with: amiga.df(nr)!)
+            df = try MediaFileProxy.make(with: emu.df(nr)!, type: .ADF)
         case "IMG", "IMA":
-            df = try IMGFileProxy.make(with: amiga.df(nr)!)
+            df = try MediaFileProxy.make(with: emu.df(nr)!, type: .IMG)
         default:
             warn("Invalid path extension")
             return
         }
         
         try export(fileProxy: df!, to: url)
-        amiga.df(nr)!.setFlag(.MODIFIED, value: false)
+        emu.df(nr)!.setFlag(.MODIFIED, value: false)
         myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: nr)
         
         debug(.media, "Disk exported successfully")
@@ -261,12 +255,12 @@ class MyDocument: NSDocument {
 
     func export(hardDrive nr: Int, to url: URL) throws {
         
-        let hdn = amiga.hd(nr)!
-        var dh: HDFFileProxy?
+        let hdn = emu.hd(nr)!
+        var dh: MediaFileProxy?
 
         switch url.pathExtension.uppercased() {
         case "HDF":
-            dh = try HDFFileProxy.make(with: amiga.hd(nr)!)
+            dh = try MediaFileProxy.make(with: emu.hd(nr)!, type: .HDF)
         default:
             warn("Invalid path extension")
             return
@@ -279,10 +273,10 @@ class MyDocument: NSDocument {
 
         debug(.media, "Hard Drive exported successfully")
     }
-    
-    func export(fileProxy: AmigaFileProxy, to url: URL) throws {
-        
+
+    func export(fileProxy: MediaFileProxy, to url: URL) throws {
+
         debug(.media, "Exporting to \(url)")
-        try fileProxy.writeToFile(url: url)        
-    }        
+        try fileProxy.writeToFile(url: url)
+    }
 }

@@ -41,67 +41,56 @@ extension ConfigurationController {
     @IBAction func compBltAccuracyAction(_ sender: NSSlider!) {
 
         config.blitterAccuracy = sender.integerValue
-        refresh()
     }
         
     @IBAction func compSlowRamDelayAction(_ sender: NSButton!) {
 
         config.slowRamDelay = sender.state == .on
-        refresh()
     }
 
     @IBAction func compSlowRamMirrorAction(_ sender: NSButton!) {
 
         config.slowRamMirror = sender.state == .on
-        refresh()
     }
 
     @IBAction func compTodBugAction(_ sender: NSButton!) {
 
         config.todBug = sender.state == .on
-        refresh()
     }
 
     @IBAction func compPtrDropAction(_ sender: NSButton!) {
 
         config.ptrDrops = sender.state == .on
-        refresh()
     }
 
     @IBAction func compDriveSpeedAction(_ sender: NSPopUpButton!) {
 
         config.driveSpeed = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func compMechanicsAction(_ sender: NSButton!) {
 
         config.driveMechanics = sender.state == .on ? 1 : 0
-        refresh()
     }
 
     @IBAction func compLockDskSyncAction(_ sender: NSButton!) {
         
         config.lockDskSync = sender.state == .on
-        refresh()
     }
     
     @IBAction func compAutoDskSyncAction(_ sender: NSButton!) {
         
         config.autoDskSync = sender.state == .on
-        refresh()
     }
 
     @IBAction func compEClockSyncingAction(_ sender: NSButton!) {
         
         config.eClockSyncing = sender.state == .on
-        refresh()
     }
 
     @IBAction func compAccurateKeyboardAction(_ sender: NSButton!) {
 
         config.accurateKeyboard = sender.state == .on
-        refresh()
     }
 
     @IBAction func compPresetAction(_ sender: NSPopUpButton!) {
@@ -122,9 +111,7 @@ extension ConfigurationController {
         case 1:
             
             // Accurate
-            defaults.set(.DENISE_CLX_SPR_SPR, true)
-            defaults.set(.DENISE_CLX_SPR_PLF, true)
-            defaults.set(.DENISE_CLX_PLF_PLF, true)
+            break
 
         case 2:
             
@@ -141,7 +128,6 @@ extension ConfigurationController {
         
         // Update the configutation
         config.applyCompatibilityUserDefaults()
-        refresh()
     }
     
     @IBAction func compDefaultsAction(_ sender: NSButton!) {

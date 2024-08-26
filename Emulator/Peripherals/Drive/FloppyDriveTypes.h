@@ -26,12 +26,11 @@ enum_long(DRIVE_TYPE)
 typedef DRIVE_TYPE FloppyDriveType;
 
 #ifdef __cplusplus
-struct FloppyDriveTypeEnum : util::Reflection<FloppyDriveTypeEnum, FloppyDriveType>
+struct FloppyDriveTypeEnum : vamiga::util::Reflection<FloppyDriveTypeEnum, FloppyDriveType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = DRIVE_DD_525;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
-    
+
     static const char *prefix() { return "DRIVE"; }
     static const char *_key(long value)
     {
@@ -54,11 +53,10 @@ enum_long(DRIVE_MECHANICS)
 typedef DRIVE_MECHANICS DriveMechanics;
 
 #ifdef __cplusplus
-struct DriveMechanicsEnum : util::Reflection<DriveMechanicsEnum, DriveMechanics>
+struct DriveMechanicsEnum : vamiga::util::Reflection<DriveMechanicsEnum, DriveMechanics>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = MECHANICS_A1010;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "DMECHANICS"; }
     static const char *_key(long value)

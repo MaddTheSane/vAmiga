@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -25,11 +25,10 @@ enum_long(SERVER_TYPE)
 typedef SERVER_TYPE ServerType;
 
 #ifdef __cplusplus
-struct ServerTypeEnum : util::Reflection<ServerTypeEnum, ServerType>
+struct ServerTypeEnum : vamiga::util::Reflection<ServerTypeEnum, ServerType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SERVER_GDB;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "SERVER"; }
     static const char *_key(long value)

@@ -12,7 +12,9 @@
 #include "Amiga.h"
 #include "BootBlockImage.h"
 #include "DiskController.h"
-#include "FloppyFile.h"
+#include "ADFFile.h"
+#include "EADFFile.h"
+#include "IMGFile.h"
 #include "MutableFileSystem.h"
 #include "MsgQueue.h"
 #include "CmdQueue.h"
@@ -20,16 +22,45 @@
 
 namespace vamiga {
 
-FloppyDrive::FloppyDrive(Amiga& ref, isize nr) : Drive(ref, nr)
-{
+FloppyDrive& 
+FloppyDrive::operator= (const FloppyDrive& other) {
 
+    auto clone = [&](std::unique_ptr<FloppyDisk> &disk, const std::unique_ptr<FloppyDisk> &other) {
+
+        if (other) {
+            if (disk == nullptr) disk = std::make_unique<FloppyDisk>();
+            *disk = *other;
+        } else {
+            disk = nullptr;
+        }
+    };
+
+    clone(disk, other.disk);
+    clone(diskToInsert, other.diskToInsert);
+
+    CLONE(config)
+
+    CLONE(head)
+    CLONE(motor)
+    CLONE(switchCycle)
+    CLONE(switchSpeed)
+    CLONE(idCount)
+    CLONE(idBit)
+    CLONE(latestStepUp)
+    CLONE(latestStepDown)
+    CLONE(latestStep)
+    CLONE(latestStepCompleted)
+    CLONE(dskchange)
+    CLONE(dsklen)
+    CLONE(prb)
+    CLONE(cylinderHistory)
+
+    return *this;
 }
 
 void
 FloppyDrive::_initialize()
 {
-    CoreComponent::_initialize();
-
     string path;
 
     if (objid == 0) path = INITIAL_DF0;
@@ -79,6 +110,47 @@ FloppyDrive::getOption(Option option) const
 }
 
 void
+FloppyDrive::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_DRIVE_CONNECT:
+
+            return;
+
+        case OPT_DRIVE_TYPE:
+
+            if (!FloppyDriveTypeEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, FloppyDriveTypeEnum::keyList());
+            }
+            if (value != DRIVE_DD_35 && value != DRIVE_HD_35) {
+                throw Error(ERROR_OPT_UNSUPPORTED);
+            }
+            return;
+
+        case OPT_DRIVE_MECHANICS:
+
+            if (!DriveMechanicsEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, DriveMechanicsEnum::keyList());
+            }
+            return;
+
+        case OPT_DRIVE_RPM:
+        case OPT_DRIVE_SWAP_DELAY:
+        case OPT_DRIVE_PAN:
+        case OPT_DRIVE_STEP_VOLUME:
+        case OPT_DRIVE_POLL_VOLUME:
+        case OPT_DRIVE_EJECT_VOLUME:
+        case OPT_DRIVE_INSERT_VOLUME:
+
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
+    }
+}
+
+void
 FloppyDrive::setOption(Option option, i64 value)
 {
     switch (option) {
@@ -96,22 +168,11 @@ FloppyDrive::setOption(Option option, i64 value)
             break;
 
         case OPT_DRIVE_TYPE:
-            
-            if (!FloppyDriveTypeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, FloppyDriveTypeEnum::keyList());
-            }
-            if (value != DRIVE_DD_35 && value != DRIVE_HD_35) {
-                throw Error(ERROR_OPT_UNSUPPORTED);
-            }
-            
+
             config.type = (FloppyDriveType)value;
             break;
 
         case OPT_DRIVE_MECHANICS:
-
-            if (!DriveMechanicsEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DriveMechanicsEnum::keyList());
-            }
 
             config.mechanics = (DriveMechanics)value;
             break;
@@ -631,8 +692,8 @@ FloppyDrive::readByte() const
     if (!disk) return 0xFF;
 
     // Case 2: A step operation is in progress
-    if (agnus.clock < latestStepCompleted) return u8(rand() & 0x55);
-    
+    if (agnus.clock < latestStepCompleted) return u8(amiga.random() & 0x55);
+
     // Case 3: Normal operation
     return disk->readByte(head.cylinder, head.head, head.offset);
 }
@@ -911,6 +972,20 @@ FloppyDrive::ejectDisk(Cycle delay)
     if (objid == 3) ejectDisk <SLOT_DC3> (delay);
 }
 
+MediaFile *
+FloppyDrive::exportDisk(FileType type)
+{
+    switch (type) {
+
+        case FILETYPE_ADF:      return new ADFFile(*this);
+        case FILETYPE_EADF:     return new EADFFile(*this);
+        case FILETYPE_IMG:      return new IMGFile(*this);
+
+        default:
+            throw Error(ERROR_FILE_TYPE_UNSUPPORTED);
+    }
+}
+
 template <EventSlot s> void
 FloppyDrive::insertDisk(std::unique_ptr<FloppyDisk> disk, Cycle delay)
 {
@@ -935,7 +1010,7 @@ FloppyDrive::insertDisk(std::unique_ptr<FloppyDisk> disk, Cycle delay)
 }
 
 void
-FloppyDrive::catchFile(const string &path)
+FloppyDrive::catchFile(const std::filesystem::path &path)
 {
     {   SUSPENDED
         
@@ -943,7 +1018,7 @@ FloppyDrive::catchFile(const string &path)
         auto fs = MutableFileSystem(*this);
         
         // Seek file
-        auto file = fs.seekFile(path);
+        auto file = fs.seekFile(path.string());
         if (file == nullptr) throw Error(ERROR_FILE_NOT_FOUND);
         
         // Extract file
@@ -1045,12 +1120,10 @@ FloppyDrive::swapDisk(class FloppyFile &file)
 }
 
 void
-FloppyDrive::swapDisk(const string &name)
+FloppyDrive::swapDisk(const std::filesystem::path &path)
 {
-    bool append = !util::isAbsolutePath(name) && searchPath != "";
-    string path = append ? searchPath + "/" + name : name;
-    
-    std::unique_ptr<FloppyFile> file(FloppyFile::make(path));
+    auto location = path.is_absolute() ? path : searchPath / path;
+    std::unique_ptr<FloppyFile> file(FloppyFile::make(location));
     swapDisk(*file);
 }
 
@@ -1062,22 +1135,10 @@ FloppyDrive::insertMediaFile(class MediaFile &file, bool wp)
         const ADFFile &adf = dynamic_cast<const ADFFile &>(file);
         swapDisk(std::make_unique<FloppyDisk>(adf, wp));
 
-        /*
-    } catch (...) { try {
-
-        const G64File &g64 = dynamic_cast<const G64File &>(file);
-        insertDisk(std::make_unique<Disk>(g64, wp));
-
-    } catch (...) { try {
-
-        AnyCollection &collection = dynamic_cast<AnyCollection &>(file);
-        insertDisk(std::make_unique<Disk>(collection, wp));
-         */
-
     } catch (...) {
 
         throw Error(ERROR_FILE_TYPE_MISMATCH);
-    } // }}
+    }
 }
 
 template <EventSlot s> void
@@ -1189,6 +1250,12 @@ FloppyDrive::PRBdidChange(u8 oldValue, u8 newValue)
     
     // Evaluate the side selection bit
     selectSide((newValue & 0b100) ? 0 : 1);
+}
+
+string
+FloppyDrive::readTrackBits(isize track)
+{
+    return hasDisk() ? disk->readTrackBits(track) : "";
 }
 
 }

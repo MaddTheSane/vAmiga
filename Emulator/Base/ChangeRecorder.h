@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Types.h"
 #include "RingBuffer.h"
 #include "Serializable.h"
 #include "AgnusTypes.h"
@@ -150,15 +151,8 @@ struct RegChange : Serializable
     u32 addr;
     u16 value;
     u16 accessor;
-    
-    /*
-    template <class W>
-    void operator<<(W& worker)
-    {
-        worker << addr << value << accessor;
-    }
-    */
-    
+
+
     //
     // Methods from Serializable
     //
@@ -185,15 +179,6 @@ public:
 template <isize capacity>
 struct RegChangeRecorder : public util::SortedRingBuffer<RegChange, capacity>
 {
-    /*
-    template <class W>
-    void operator<<(W& worker)
-    {
-        // worker >> this->elements << this->r << this->w << this->keys;
-        worker << this->elements << this->r << this->w << this->keys;
-    }
-    */
-
     Cycle trigger() {
         return this->isEmpty() ? NEVER : this->keys[this->r];
     }
@@ -222,6 +207,14 @@ struct SigRecorder : public util::SortedArray<u32, 256>
 {
     bool modified = false;
     
+    SigRecorder& operator= (const SigRecorder& other) {
+
+        SortedArray::operator = (other);
+        CLONE(modified)
+
+        return *this;
+    }
+
     void insert(i64 key, u32 signal) {
 
         modified = true;

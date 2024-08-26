@@ -24,8 +24,10 @@ extension DispatchTime {
 
 extension Date {
 
+    /*
     func diff(_ date: Date) -> TimeInterval {
         
         return self.timeIntervalSince(date)
     }
+    */
 }

@@ -10,12 +10,10 @@
 #pragma once
 
 #include "RetroShellTypes.h"
+#include "SubComponent.h"
 #include "Command.h"
 #include "Parser.h"
-#include "SubComponent.h"
 #include "TextStorage.h"
-#include <sstream>
-#include <fstream>
 
 namespace vamiga {
 
@@ -35,16 +33,24 @@ struct ScriptInterruption: util::Exception {
 
 class Console : public SubComponent {
 
+    friend class RetroShell;
     friend class RshServer;
     friend class Interpreter;
 
-    Descriptions descriptions = {{
-
-        .type           = COMP_CONSOLE,
-        .name           = "Console",
-        .description    = "Command shell",
-        .shell          = ""
-    }};
+    Descriptions descriptions = {
+        {
+            .type           = ConsoleClass,
+            .name           = "CmdConsole",
+            .description    = "Command shell",
+            .shell          = ""
+        },
+        {
+            .type           = ConsoleClass,
+            .name           = "DbgConsole",
+            .description    = "Debug shell",
+            .shell          = ""
+        }
+    };
 
     ConfigOptions options = {
 
@@ -60,6 +66,8 @@ protected:
     // Text storage
     //
 
+protected:
+    
     // The text storage
     TextStorage storage;
 
@@ -74,11 +82,10 @@ protected:
     // User input
     //
 
+protected:
+
     // Input line
     string input;
-
-    // Command queue (stores all pending commands)
-    std::vector<QueuedCmd> commands;
 
     // Cursor position
     isize cursor = 0;
@@ -124,7 +131,6 @@ protected:
 
     void _dump(Category category, std::ostream& os) const override { }
     void _initialize() override;
-    // void _pause() override;
 
 
     //
@@ -172,6 +178,12 @@ protected:
 
     // Clears the console window
     void clear();
+
+    // Returns true if the console is cleared
+    bool isEmpty();
+
+    // Returns true if the last line contains no text
+    bool lastLineIsEmpty();
 
     // Prints the welcome message
     virtual void welcome() = 0;
@@ -268,33 +280,8 @@ protected:
 
 public:
 
-    // Returns the root node of the currently active instruction tree
-    Command &getRoot();
-
-
-    //
-    // Executing commands
-    //
-
-public:
-
-    // Adds a command to the list of pending commands
-    void asyncExec(const string &command);
-
-    // Adds the commands of a shell script to the list of pending commands
-    void asyncExecScript(std::stringstream &ss) throws;
-    void asyncExecScript(const std::ifstream &fs) throws;
-    void asyncExecScript(const string &contents) throws;
-    // void asyncExecScript(const class MediaFile &script) throws;
-
-    // Aborts the execution of a script
-    void abortScript();
-
-    // Executes all pending commands
-    void exec() throws;
-
-    // Executes a single pending command
-    void exec(QueuedCmd cmd) throws;
+    // Returns the root node of the instruction tree
+    Command &getRoot() { return root; }
 
 protected:
 

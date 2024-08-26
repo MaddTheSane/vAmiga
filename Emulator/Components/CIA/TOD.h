@@ -30,7 +30,7 @@ class TOD : public SubComponent, public Inspectable<TODInfo> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_TOD,
+        .type           = TODClass,
         .name           = "TOD",
         .description    = "Time-of-day Clock",
         .shell          = "tod"
@@ -44,9 +44,6 @@ class TOD : public SubComponent, public Inspectable<TODInfo> {
 
     // Reference to the connected CIA
     class CIA &cia;
-
-    // Result of the latest inspection
-    mutable TODInfo info = {};
 
     // The 24 bit counter
     Counter24 tod;
@@ -90,22 +87,27 @@ public:
 
     TOD(CIA &ciaref, Amiga& ref);
 
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+    TOD& operator= (const TOD& other) {
 
-    
+        CLONE(tod.value)
+        CLONE(preTod.value)
+        CLONE(lastInc)
+        CLONE(latch.value)
+        CLONE(alarm.value)
+        CLONE(frozen)
+        CLONE(stopped)
+        CLONE(matching)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
-    
+
 private:
-    
+
     template <class T>
     void serialize(T& worker)
     {
@@ -128,9 +130,27 @@ private:
     void operator << (SerReader &worker) override { serialize(worker); }
     void operator << (SerWriter &worker) override { serialize(worker); }
 
+
+    //
+    // Methods from CoreComponent
+    //
+    
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+    
+    void _dump(Category category, std::ostream& os) const override;
+
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(TODInfo &result) const override;
 
 
     //
@@ -140,15 +160,6 @@ public:
 public:
 
     const ConfigOptions &getOptions() const override { return options; }
-
-
-    //
-    // Analyzing
-    //
-    
-public:
-
-    void cacheInfo(TODInfo &result) const override;
 
 
     //

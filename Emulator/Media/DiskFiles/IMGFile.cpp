@@ -10,16 +10,16 @@
 #include "config.h"
 #include "IMGFile.h"
 #include "Checksum.h"
-#include "FloppyDisk.h"
+#include "FloppyDrive.h"
 #include "IOUtils.h"
 
 namespace vamiga {
 
 bool
-IMGFile::isCompatible(const string &path)
+IMGFile::isCompatible(const std::filesystem::path &path)
 {
-    auto suffix = util::uppercased(util::extractSuffix(path));
-    return suffix == "IMG";
+    auto suffix = util::uppercased(path.extension().string());
+    return suffix == ".IMG";
 }
 
 bool
@@ -50,6 +50,13 @@ IMGFile::init(FloppyDisk &disk)
 {
     init(INCH_35, DENSITY_DD);
     decodeDisk(disk);
+}
+
+void
+IMGFile::init(FloppyDrive &drive)
+{
+    if (drive.disk == nullptr) throw Error(ERROR_DISK_MISSING);
+    init(*drive.disk);
 }
 
 isize

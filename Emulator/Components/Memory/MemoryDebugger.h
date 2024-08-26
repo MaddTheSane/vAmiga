@@ -18,6 +18,7 @@ class MemoryDebugger final : public SubComponent
 {
     Descriptions descriptions = {{
 
+        .type           = MemoryDebuggerClass,
         .name           = "MemoryDebugger",
         .description    = "Memory Debugger",
         .shell          = ""
@@ -70,7 +71,7 @@ private:
 
 
     //
-    // Configuring
+    // Methods from Configurable
     //
 
 public:
@@ -103,10 +104,21 @@ public:
     // Writes a value into memory (multiple times)
     void write(u32 addr, u32 val, isize sz, isize repeats = 1);
 
+    // Loads a chunk of memory from a stream or file
+    void load(std::istream& is, u32 addr);
+    void load(fs::path& path, u32 addr);
+
+    // Saves a chunk of memory to a stream or file
+    void save(std::ostream& is, u32 addr, isize count);
+    void save(fs::path& path, u32 addr, isize count);
+
 
     //
     // Handling registers
     //
+
+    // Returns the name of a chipset register
+    static const char *regName(u32 addr);
 
     bool isUnused(ChipsetReg reg) const;
     bool isReadable(ChipsetReg reg) const;

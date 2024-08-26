@@ -9,5 +9,22 @@
 
 #pragma once
 
-#include "Aliases.h"
-#include "Reflection.h"
+#include "BasicTypes.h"
+
+namespace vamiga {
+
+class NamedPipe {
+    
+    int pipe = -1;
+    string name;
+    
+public:
+    
+    bool create(const string &name);
+    bool open();
+    bool isOpen();
+    bool close();
+    isize write(u8 *buffer, isize length);
+};
+
+}

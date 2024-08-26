@@ -300,6 +300,42 @@ CPU::getOption(Option option) const
 }
 
 void
+CPU::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_CPU_REVISION:
+
+            if (!CPURevisionEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, CPURevisionEnum::keyList());
+            }
+            return;
+
+        case OPT_CPU_DASM_REVISION:
+
+            if (!DasmRevisionEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, DasmRevisionEnum::keyList());
+            }
+            return;
+
+        case OPT_CPU_DASM_SYNTAX:
+
+            if (!DasmSyntaxEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, DasmSyntaxEnum::keyList());
+            }
+            return;
+
+        case OPT_CPU_OVERCLOCKING:
+        case OPT_CPU_RESET_VAL:
+
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
+    }
+}
+
+void
 CPU::setOption(Option option, i64 value)
 {
     auto cpuModel = [&](CPURevision rev) { return moira::Model(rev); };
@@ -310,45 +346,25 @@ CPU::setOption(Option option, i64 value)
 
         case OPT_CPU_REVISION:
 
-            if (!CPURevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, CPURevisionEnum::keyList());
-            }
-
-            suspend();
             config.revision = CPURevision(value);
             setModel(cpuModel(config.revision), dasmModel(config.dasmRevision));
-            resume();
             return;
 
         case OPT_CPU_DASM_REVISION:
 
-            if (!DasmRevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DasmRevisionEnum::keyList());
-            }
-
-            suspend();
             config.dasmRevision = DasmRevision(value);
             setModel(cpuModel(config.revision), dasmModel(config.dasmRevision));
-            resume();
             return;
 
         case OPT_CPU_DASM_SYNTAX:
 
-            if (!DasmSyntaxEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DasmSyntaxEnum::keyList());
-            }
-
-            suspend();
             config.dasmSyntax = DasmSyntax(value);
             setDasmSyntax(syntax(config.dasmSyntax));
-            resume();
             return;
 
         case OPT_CPU_OVERCLOCKING:
 
-            suspend();
             config.overclocking = isize(value);
-            resume();
             msgQueue.put(MSG_OVERCLOCKING, config.overclocking);
             return;
 
@@ -372,10 +388,12 @@ CPU::_didReset(bool hard)
         
         // Initialize all data and address registers with the startup value
         for(int i = 0; i < 8; i++) reg.d[i] = reg.a[i] = config.regResetVal;
+        reg.a[7] = reg.isp;
         
-        // Remove all previously recorded instructions
+        // Remove all recorded instructions and set the log flag if needed
         debugger.clearLog();
-        
+        if (emulator.isTracking()) flags |= moira::CPU_LOG_INSTRUCTION;
+
     } else {
         
         /* "The RESET instruction causes the processor to assert RESET for 124
@@ -394,6 +412,8 @@ CPU::cacheInfo(CPUInfo &info) const
 {
     {   SYNCHRONIZED
         
+        info.clock = clock;
+
         info.pc0 = getPC0() & 0xFFFFFF;
         info.ird = getIRD();
         info.irc = getIRC();
@@ -413,6 +433,7 @@ CPU::cacheInfo(CPUInfo &info) const
         info.caar = (u8)getCAAR();
         info.ipl = (u8)getIPL();
         info.fc = (u8)readFC(); // TODO
+        
         info.halt = isHalted();
     }
 }
@@ -420,7 +441,7 @@ CPU::cacheInfo(CPUInfo &info) const
 void
 CPU::_dump(Category category, std::ostream& os) const
 {
-    auto print = [&](const string &name, const GuardsWrapper &guards) {
+    auto print = [&](const string &name, const GuardList &guards) {
 
         for (int i = 0; i < guards.elements(); i++) {
 
@@ -787,7 +808,7 @@ CPU::processCommand(const Cmd &cmd)
 {
     isize nr = isize(cmd.value);
     u32 addr = u32(cmd.value);
-    auto guards = (GuardsWrapper *)cmd.sender;
+    auto guards = (GuardList *)cmd.sender;
 
     switch (cmd.type) {
 

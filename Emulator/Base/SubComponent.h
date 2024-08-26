@@ -27,7 +27,6 @@ public:
     class ControlPort &controlPort2;
     class Copper &copper;
     class CPU &cpu;
-    class Debugger &debugger;
     class Denise &denise;
     class DiagBoard &diagBoard;
     class DiskController &diskController;
@@ -75,7 +74,7 @@ public:
 
     SubComponent(Amiga& ref, isize id = 0);
 
-    void prefix() const override;
+    void prefix(isize level,  const char *component, isize line) const override;
 };
 
 }

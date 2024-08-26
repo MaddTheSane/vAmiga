@@ -32,8 +32,6 @@ CIA::CIA(Amiga& ref, isize objid) : SubComponent(ref, objid)
 void
 CIA::_initialize()
 {
-    CoreComponent::_initialize();
-
     pa = 0xFF;
     pb = 0xFF;
 }
@@ -77,13 +75,36 @@ CIA::getOption(Option option) const
 {
     switch (option) {
             
-        case OPT_CIA_REVISION:   return config.revision;
-        case OPT_CIA_TODBUG:         return config.todBug;
-        case OPT_CIA_ECLOCK_SYNCING: return config.eClockSyncing;
-        case OPT_CIA_IDLE_SLEEP: return config.idleSleep;
+        case OPT_CIA_REVISION:          return config.revision;
+        case OPT_CIA_TODBUG:            return config.todBug;
+        case OPT_CIA_ECLOCK_SYNCING:    return config.eClockSyncing;
+        case OPT_CIA_IDLE_SLEEP:        return config.idleSleep;
 
         default:
             fatalError;
+    }
+}
+
+void
+CIA::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_CIA_REVISION:
+
+            if (!CIARevisionEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
+            }
+            return;
+
+        case OPT_CIA_TODBUG:
+        case OPT_CIA_ECLOCK_SYNCING:
+        case OPT_CIA_IDLE_SLEEP:
+
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -93,11 +114,7 @@ CIA::setOption(Option option, i64 value)
     switch (option) {
             
         case OPT_CIA_REVISION:
-            
-            if (!CIARevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
-            }
-            
+
             config.revision = (CIARevision)value;
             return;
 
@@ -155,11 +172,19 @@ CIA::cacheInfo(CIAInfo &info) const
         info.irq = irq;
         
         info.tod = tod.info;
-        info.todIrqEnable = imr & 0x04;
-        
-        info.idleSince = idleSince();
-        info.idleTotal = idleTotal();
-        info.idlePercentage = clock ? (double)idleCycles / (double)clock : 100.0;
+        info.todIrqEnable = imr & 0x04;        
+    }
+}
+
+
+void 
+CIA::cacheStats(CIAStats &result) const
+{
+    {   SYNCHRONIZED
+
+        result.idleSince = idleSince();
+        result.idleTotal = idleTotal() + result.idleSince;
+        result.idlePercentage =  clock ? (double)result.idleTotal / (double)clock : 100.0;
     }
 }
 
@@ -265,7 +290,6 @@ CIA::emulateRisingEdgeOnCntPin()
             
             // Trigger interrupt
             delay |= CIASerInt0;
-            // debug(KBD_DEBUG, "Received serial byte: %02x\n", sdr);
         }
     }
 }
@@ -662,7 +686,7 @@ CIA::executeOneCycle()
     // Write back local copy
     this->delay = delay;
 
-    // Sleep if threshold is reached
+    // Sleep when threshold is reached
     if (tiredness > 8 && config.idleSleep) {
         sleep();
         scheduleWakeUp();
@@ -686,10 +710,17 @@ CIA::sleep()
     if (!(feed & CIACountA0)) sleepA = INT64_MAX;
     if (!(feed & CIACountB0)) sleepB = INT64_MAX;
     
-    // ZZzzz
-    sleepCycle = clock;
-    wakeUpCycle = std::min(sleepA, sleepB);;
-    sleeping = true;
+    // Determine the wakeup cycle
+    auto wakeupAt = std::min(sleepA, sleepB);
+
+    if (wakeupAt > clock) {
+
+        // ZZzzz
+        sleepCycle = clock;
+        wakeUpCycle = std::min(sleepA, sleepB);
+        sleeping = true;
+    }
+
     tiredness = 0;
 }
 
@@ -716,10 +747,12 @@ CIA::wakeUp(Cycle targetCycle)
     if (missedCycles > 0) {
         
         if (feed & CIACountA0) {
+
             assert(counterA >= AS_CIA_CYCLES(missedCycles));
             counterA -= (u16)AS_CIA_CYCLES(missedCycles);
         }
         if (feed & CIACountB0) {
+
             assert(counterB >= AS_CIA_CYCLES(missedCycles));
             counterB -= (u16)AS_CIA_CYCLES(missedCycles);
         }

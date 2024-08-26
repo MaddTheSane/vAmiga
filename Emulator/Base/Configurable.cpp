@@ -41,7 +41,7 @@ Configurable::checkOption(const string &opt, const string &value)
 }
 
 void
-Configurable::setOption(Option opt, const string &value)
+Configurable::setOption(Option opt, const string &value) 
 {
     setOption(opt, OptionParser::parse(opt, value));
 }
@@ -56,16 +56,7 @@ void
 Configurable::resetConfig(const Defaults &defaults, isize objid)
 {
     for (auto &option : getOptions()) {
-
-        try {
-
-            setOption(option, defaults.get(option, objid));
-
-        } catch (Error &e) {
-
-            std::cout << "Config error: " << e.what() << std::endl;
-            throw;
-        }
+        setOption(option, defaults.get(option, objid));
     }
 }
 
@@ -76,7 +67,7 @@ Configurable::dumpConfig(std::ostream& os) const
 
     for (auto &opt: getOptions()) {
 
-        auto name = OptionEnum::plainkey(opt);
+        auto name = OptionEnum::key(opt);
         auto help = OptionEnum::help(opt);
         auto arg  = OptionParser::asString(opt, getOption(opt));
 
@@ -84,18 +75,6 @@ Configurable::dumpConfig(std::ostream& os) const
         os << std::setw(16) << std::left << std::setfill(' ') << arg;
         os <<help << std::endl;
     }
-}
-
-string 
-Configurable::keyList() 
-{
-    return OptionEnum::keyList([&](Option i) { return isValidOption(i); });
-}
-
-string
-Configurable::argList() 
-{
-    return OptionEnum::argList([&](Option i) { return isValidOption(i); });
 }
 
 }

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 #include "ThreadTypes.h"
 
@@ -25,11 +25,10 @@ enum_long(VIDEO_FORMAT)
 typedef VIDEO_FORMAT VideoFormat;
 
 #ifdef __cplusplus
-struct VideoFormatEnum : util::Reflection<VideoFormatEnum, VideoFormat>
+struct VideoFormatEnum : vamiga::util::Reflection<VideoFormatEnum, VideoFormat>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = NTSC;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return ""; }
     static const char *_key(long value)
@@ -38,6 +37,34 @@ struct VideoFormatEnum : util::Reflection<VideoFormatEnum, VideoFormat>
 
             case PAL:   return "PAL";
             case NTSC:  return "NTSC";
+        }
+        return "???";
+    }
+};
+#endif
+
+enum_long(RESOLUTION)
+{
+    LORES,      // Lores mode
+    HIRES,      // Hires mode
+    SHRES       // SuperHires mode (ECS only)
+};
+typedef RESOLUTION Resolution;
+
+#ifdef __cplusplus
+struct ResolutionEnum : vamiga::util::Reflection<ResolutionEnum, Resolution>
+{
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = SHRES;
+
+    static const char *prefix() { return ""; }
+    static const char *_key(long value)
+    {
+        switch (value) {
+
+            case LORES:          return "LORES";
+            case HIRES:          return "HIRES";
+            case SHRES:          return "SHRES";
         }
         return "???";
     }
@@ -53,11 +80,10 @@ enum_long(WARP_MODE)
 typedef WARP_MODE WarpMode;
 
 #ifdef __cplusplus
-struct WarpModeEnum : util::Reflection<WarpModeEnum, WarpMode>
+struct WarpModeEnum : vamiga::util::Reflection<WarpModeEnum, WarpMode>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = WARP_ALWAYS;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "WARP"; }
     static const char *_key(long value)
@@ -83,11 +109,10 @@ enum_long(CONFIG_SCHEME)
 typedef CONFIG_SCHEME ConfigScheme;
 
 #ifdef __cplusplus
-struct ConfigSchemeEnum : util::Reflection<ConfigSchemeEnum, ConfigScheme>
+struct ConfigSchemeEnum : vamiga::util::Reflection<ConfigSchemeEnum, ConfigScheme>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = CONFIG_A500_PLUS_1MB;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "CONFIG"; }
     static const char *_key(long value)
@@ -103,55 +128,6 @@ struct ConfigSchemeEnum : util::Reflection<ConfigSchemeEnum, ConfigScheme>
     }
 };
 #endif
-
-/*
-enum_long(INSPECTION_TARGET)
-{
-    INSPECTION_NONE,
-    INSPECTION_AMIGA,
-    INSPECTION_CPU,
-    INSPECTION_CIA,
-    INSPECTION_MEM,
-    INSPECTION_AGNUS,
-    INSPECTION_BLITTER,
-    INSPECTION_COPPER,
-    INSPECTION_DENISE,
-    INSPECTION_PAULA,
-    INSPECTION_PORTS,
-    INSPECTION_EVENTS,
-};
-typedef INSPECTION_TARGET InspectionTarget;
-
-#ifdef __cplusplus
-struct InspectionTargetEnum : util::Reflection<InspectionTargetEnum, InspectionTarget>
-{
-    static constexpr long minVal = 0;
-    static constexpr long maxVal = INSPECTION_EVENTS;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
-    
-    static const char *prefix() { return "INSPECTION"; }
-    static const char *_key(long value)
-    {
-        switch (value) {
-                
-            case INSPECTION_NONE:    return "NONE";
-            case INSPECTION_AMIGA:   return "AMIGA";
-            case INSPECTION_CPU:     return "CPU";
-            case INSPECTION_CIA:     return "CIA";
-            case INSPECTION_MEM:     return "MEM";
-            case INSPECTION_AGNUS:   return "AGNUS";
-            case INSPECTION_BLITTER: return "BLITTER";
-            case INSPECTION_COPPER:  return "COPPER";
-            case INSPECTION_DENISE:  return "DENISE";
-            case INSPECTION_PAULA:   return "PAULA";
-            case INSPECTION_PORTS:   return "PORTS";
-            case INSPECTION_EVENTS:  return "EVENTS";
-        }
-        return "???";
-    }
-};
-#endif
-*/
 
 enum_long(REG_CHIPSET)
 {
@@ -212,11 +188,10 @@ typedef REG_CHIPSET ChipsetReg;
 
 #ifdef __cplusplus
 static_assert(REG_NO_OP == (0x1FE >> 1));
-struct ChipsetRegEnum : util::Reflection<ChipsetRegEnum, ChipsetReg>
+struct ChipsetRegEnum : vamiga::util::Reflection<ChipsetRegEnum, ChipsetReg>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = REG_NO_OP;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "REG"; }
     static const char *_key(long value)
@@ -346,6 +321,9 @@ typedef struct
 
     //! Delay between two auto-snapshots in seconds
     isize snapshotDelay;
+
+    //! Number of run-ahead frames (0 = run-ahead is disabled)
+    isize runAhead;
 }
 AmigaConfig;
 
@@ -378,11 +356,12 @@ constexpr u32 BREAKPOINT_REACHED = (1 << 2);
 constexpr u32 WATCHPOINT_REACHED = (1 << 3);
 constexpr u32 CATCHPOINT_REACHED = (1 << 4);
 constexpr u32 SWTRAP_REACHED     = (1 << 5);
-constexpr u32 COPPERBP_REACHED   = (1 << 6);
-constexpr u32 COPPERWP_REACHED   = (1 << 7);
-constexpr u32 AUTO_SNAPSHOT      = (1 << 8);
-constexpr u32 USER_SNAPSHOT      = (1 << 9);
-constexpr u32 SYNC_THREAD        = (1 << 10);
+constexpr u32 BEAMTRAP_REACHED   = (1 << 6);
+constexpr u32 COPPERBP_REACHED   = (1 << 7);
+constexpr u32 COPPERWP_REACHED   = (1 << 8);
+constexpr u32 AUTO_SNAPSHOT      = (1 << 9);
+constexpr u32 USER_SNAPSHOT      = (1 << 10);
+constexpr u32 SYNC_THREAD        = (1 << 11);
 };
 
 #endif

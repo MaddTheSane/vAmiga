@@ -107,9 +107,10 @@ class MyController: NSWindowController, MessageReceiver {
     @IBOutlet weak var iconSlot3: NSButton!
     
     @IBOutlet weak var haltIcon: NSButton!
+    @IBOutlet weak var trackIcon: NSButton!
     @IBOutlet weak var cmdLeftIcon: NSButton!
     @IBOutlet weak var cmdRightIcon: NSButton!
-    @IBOutlet weak var debugIcon: NSButton!
+    @IBOutlet weak var serverIcon: NSButton!
     @IBOutlet weak var muteIcon: NSButton!
     
     @IBOutlet weak var warpIcon: NSButton!
@@ -330,7 +331,8 @@ extension MyController {
         // Memory monitors
         let mem = emu.mem.stats
 
-        let max = Float((HPOS_CNT_PAL * VPOS_CNT) / 2)
+        // let max = Float((HPOS_CNT_PAL * VPOS_CNT) / 2)
+        let max = Float((Constants.hpos_cnt_pal * Constants.vpos_cnt) / 2)
         let chipR = Float(mem.chipReads.accumulated) / max
         let chipW = Float(mem.chipWrites.accumulated) / max
         let slowR = Float(mem.slowReads.accumulated) / max
@@ -402,16 +404,20 @@ extension MyController {
         case .RESET:
             inspector?.reset()
 
-        case .CONSOLE_CLOSE:
+        case .RSH_CLOSE:
             renderer.console.close(delay: 0.25)
             
-        case .CONSOLE_UPDATE:
+        case .RSH_UPDATE:
             renderer.console.isDirty = true
 
-        case .CONSOLE_DEBUGGER:
+        case .RSH_DEBUGGER:
             break
 
-        case .SCRIPT_DONE, .SCRIPT_ABORT:
+        case .RSH_WAIT:
+            renderer.console.isDirty = true
+
+        case .RSH_ERROR:
+            NSSound.beep()
             renderer.console.isDirty = true
 
         case .SHUTDOWN:
@@ -477,6 +483,10 @@ extension MyController {
         case .CPU_HALT:
             refreshStatusBar()
             
+        case .BEAMTRAP_REACHED:
+
+            inspector?.signalBeamtrap()
+
         case .VIEWPORT:
             renderer.canvas.updateTextureRect(hstrt: Int(msg.viewport.hstrt),
                                               vstrt: Int(msg.viewport.vstrt),
@@ -578,7 +588,9 @@ extension MyController {
             }
 
         case .SNAPSHOT_TAKEN:
-            mydocument.snapshots.append(SnapshotProxy.make(msg.snapshot.snapshot))
+            let ptr = msg.snapshot.snapshot
+            let proxy = MediaFileProxy.init(ptr)!
+            mydocument.snapshots.append(proxy, size: proxy.size)
 
         case .SNAPSHOT_RESTORED:
             renderer.flash(steps: 60)
@@ -587,7 +599,7 @@ extension MyController {
             refreshStatusBar()
             
         case .RECORDING_STARTED:
-            window?.backgroundColor = .warningColor
+            window?.backgroundColor = .warning
             window?.styleMask.remove(.resizable)
             refreshStatusBar()
             

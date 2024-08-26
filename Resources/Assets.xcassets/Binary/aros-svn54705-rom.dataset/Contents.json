@@ -2,7 +2,8 @@
   "data" : [
     {
       "filename" : "aros-svn54705-rom.bin",
-      "idiom" : "universal"
+      "idiom" : "universal",
+      "universal-type-identifier" : "public.data"
     }
   ],
   "info" : {

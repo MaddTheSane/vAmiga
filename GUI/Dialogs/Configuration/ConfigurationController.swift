@@ -146,6 +146,17 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var perSerialPort: NSTextField!
     @IBOutlet weak var perSerialPortText: NSTextField!
 
+    // Joystick
+    @IBOutlet weak var perAutofire: NSButton!
+    @IBOutlet weak var perAutofireText: NSTextField!
+    @IBOutlet weak var perAutofireFrequency: NSSlider!
+    @IBOutlet weak var perAutofireFrequencyText1: NSTextField!
+    @IBOutlet weak var perAutofireFrequencyText2: NSTextField!
+    @IBOutlet weak var perAutofireCease: NSButton!
+    @IBOutlet weak var perAutofireCeaseText: NSTextField!
+    @IBOutlet weak var perAutofireBullets: NSTextField!
+    @IBOutlet weak var perAutofireBulletsText: NSTextField!
+
     // Lock
     @IBOutlet weak var perLockImage: NSButton!
     @IBOutlet weak var perLockInfo1: NSTextField!
@@ -168,6 +179,8 @@ class ConfigurationController: DialogController {
     @IBOutlet weak var prfVSync: NSButton!
     @IBOutlet weak var prfTimeLapse: NSSlider!
     @IBOutlet weak var prfTimeLapseInfo: NSTextField!
+    @IBOutlet weak var prfRunAheadSlider: NSSlider!
+    @IBOutlet weak var prfRunAheadInfo: NSTextField!
 
     // Collision detection
     @IBOutlet weak var prfClxSprSpr: NSButton!
@@ -388,5 +401,28 @@ extension ConfigurationController: NSTabViewDelegate {
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
 
         refresh()
+    }
+}
+
+extension ConfigurationController: NSTextFieldDelegate {
+
+    func controlTextDidChange(_ obj: Notification) {
+
+        if let view = obj.object as? NSTextField {
+
+            let formatter = view.formatter as? NumberFormatter
+
+            switch view {
+
+            case perAutofireBullets:
+
+                if formatter?.number(from: view.stringValue) != nil {
+                    perAutofireBulletsAction(view)
+                }
+
+            default:
+                break
+            }
+        }
     }
 }

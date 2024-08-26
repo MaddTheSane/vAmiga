@@ -26,7 +26,7 @@ class Denise : public SubComponent, public Inspectable<DeniseInfo> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_DENISE,
+        .type           = DeniseClass,
         .name           = "Denise",
         .description    = "Graphics",
         .shell          = "denise"
@@ -48,9 +48,6 @@ class Denise : public SubComponent, public Inspectable<DeniseInfo> {
 
     // Current configuration
     DeniseConfig config = {};
-
-    // Result of the latest inspection
-    // mutable DeniseInfo info = {};
     
     
     //
@@ -334,18 +331,71 @@ public:
 
     Denise(Amiga& ref);
 
-    
+    Denise& operator= (const Denise& other) {
+
+        CLONE(config)
+
+        CLONE(pixelEngine)
+        CLONE(debugger)
+        CLONE(screenRecorder)
+
+        CLONE(clock)
+
+        CLONE(diwstrt)
+        CLONE(diwstop)
+        CLONE(diwhigh)
+        CLONE(hstrt)
+        CLONE(hstop)
+        CLONE(hflop)
+        CLONE(borderBufferIsDirty)
+        CLONE(bplcon0)
+        CLONE(bplcon1)
+        CLONE(bplcon2)
+        CLONE(bplcon3)
+        CLONE(initialBplcon0)
+        CLONE(initialBplcon1)
+        CLONE(initialBplcon2)
+        CLONE(res)
+        CLONE(pixelOffsetOdd)
+        CLONE(pixelOffsetEven)
+        CLONE(borderColor)
+        CLONE_ARRAY(bpldat)
+        CLONE_ARRAY(bpldatPipe)
+        CLONE(clxdat)
+        CLONE(clxcon)
+        CLONE_ARRAY(shiftReg)
+        CLONE(armedOdd)
+        CLONE(armedEven)
+        CLONE(conChanges)
+        // for (isize i = 0; i < 4; i++) CLONE(sprChanges[i])
+        CLONE_ARRAY(sprChanges)
+        CLONE(diwChanges)
+
+        CLONE_ARRAY(sprdata)
+        CLONE_ARRAY(sprdatb)
+        CLONE_ARRAY(sprpos)
+        CLONE_ARRAY(sprctl)
+        CLONE_ARRAY(sprhpos)
+        CLONE_ARRAY(sprhppos)
+        CLONE_ARRAY(ssra)
+        CLONE_ARRAY(ssrb)
+        CLONE(armed)
+        CLONE(wasArmed)
+        CLONE(spriteClipBegin)
+        CLONE(spriteClipEnd)
+
+        CLONE_ARRAY(dBuffer)
+        CLONE_ARRAY(bBuffer)
+        CLONE_ARRAY(iBuffer)
+        CLONE_ARRAY(mBuffer)
+        CLONE_ARRAY(zBuffer)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
     
 private:
@@ -413,10 +463,19 @@ private:
         << config.clxPlfPlf;
 
     } SERIALIZERS(serialize);
-    
+
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
     void _didReset(bool hard) override;
     
 
@@ -429,6 +488,7 @@ public:
     const DeniseConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
     
 

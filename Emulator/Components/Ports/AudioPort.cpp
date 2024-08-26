@@ -22,7 +22,8 @@ AudioPort::AudioPort(Amiga& ref, isize objid) : SubComponent(ref, objid)
 {
     subComponents = std::vector<CoreComponent *> {
 
-        &filter
+        &filter,
+        &detector
     };
 }
 
@@ -68,17 +69,15 @@ AudioPort::_dump(Category category, std::ostream& os) const
         os << flt(pan[2]) << std::endl;
         os << tab("Channel 3 pan");
         os << flt(pan[3]) << std::endl;
-        os << tab("Sample rate correction");
-        os << flt(sampleRateCorrection) << " Hz" << std::endl;
+        os << tab("Sample rate");
+        os << flt(sampleRate) << " Hz" << std::endl;
     }
 }
 
 void
 AudioPort::_initialize()
 {
-    CoreComponent::_initialize();
 
-    setSampleRate(44100);
 }
 
 void
@@ -92,7 +91,7 @@ AudioPort::_didReset(bool hard)
 void
 AudioPort::_powerOn()
 {
-    sampleRateCorrection = 0.0;
+
 }
 
 void
@@ -136,8 +135,8 @@ AudioPort::_unfocus()
 void
 AudioPort::clear()
 {
-    debug(AUDBUF_DEBUG, "clear()\n");
-    
+    debug(AUDBUF_DEBUG, "Clearing the audio sample buffer\n");
+
     // Wipe out the ringbuffer
     stream.wipeOut();
     stream.alignWritePtr();
@@ -152,21 +151,51 @@ AudioPort::getOption(Option option) const
     switch (option) {
             
         case OPT_AUD_SAMPLING_METHOD:   return config.samplingMethod;
-        case OPT_AUD_PAN0:           return config.pan[0];
-        case OPT_AUD_PAN1:           return config.pan[1];
-        case OPT_AUD_PAN2:           return config.pan[2];
-        case OPT_AUD_PAN3:           return config.pan[3];
-        case OPT_AUD_VOL0:           return config.vol[0];
-        case OPT_AUD_VOL1:           return config.vol[1];
-        case OPT_AUD_VOL2:           return config.vol[2];
-        case OPT_AUD_VOL3:           return config.vol[3];
-        case OPT_AUD_VOLL:           return config.volL;
-        case OPT_AUD_VOLR:           return config.volR;
-        case OPT_AUD_FASTPATH:      return config.idleFastPath;
-        case OPT_AUD_FILTER_TYPE:       return filter.getOption(option);
+        case OPT_AUD_PAN0:              return config.pan[0];
+        case OPT_AUD_PAN1:              return config.pan[1];
+        case OPT_AUD_PAN2:              return config.pan[2];
+        case OPT_AUD_PAN3:              return config.pan[3];
+        case OPT_AUD_VOL0:              return config.vol[0];
+        case OPT_AUD_VOL1:              return config.vol[1];
+        case OPT_AUD_VOL2:              return config.vol[2];
+        case OPT_AUD_VOL3:              return config.vol[3];
+        case OPT_AUD_VOLL:              return config.volL;
+        case OPT_AUD_VOLR:              return config.volR;
+        case OPT_AUD_FASTPATH:          return config.idleFastPath;
 
         default:
             fatalError;
+    }
+}
+
+void
+AudioPort::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_AUD_SAMPLING_METHOD:
+
+            if (!SamplingMethodEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, SamplingMethodEnum::keyList());
+            }
+            return;
+
+        case OPT_AUD_PAN0:
+        case OPT_AUD_PAN1:
+        case OPT_AUD_PAN2:
+        case OPT_AUD_PAN3:
+        case OPT_AUD_VOL0:
+        case OPT_AUD_VOL1:
+        case OPT_AUD_VOL2:
+        case OPT_AUD_VOL3:
+        case OPT_AUD_VOLL:
+        case OPT_AUD_VOLR:
+        case OPT_AUD_FASTPATH:
+
+            return;
+
+        default:
+            throw(ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -178,11 +207,7 @@ AudioPort::setOption(Option option, i64 value)
     switch (option) {
             
         case OPT_AUD_SAMPLING_METHOD:
-            
-            if (!SamplingMethodEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, SamplingMethodEnum::keyList());
-            }
-            
+                        
             config.samplingMethod = (SamplingMethod)value;
             return;
             
@@ -222,11 +247,6 @@ AudioPort::setOption(Option option, i64 value)
             config.idleFastPath = (bool)value;
             return;
 
-        case OPT_AUD_FILTER_TYPE:
-
-            filter.setOption(option, value);
-            return;
-
         default:
             fatalError;
     }
@@ -235,9 +255,20 @@ AudioPort::setOption(Option option, i64 value)
 void
 AudioPort::setSampleRate(double hz)
 {
-    trace(AUD_DEBUG, "setSampleRate(%f)\n", hz);
+    // Set the sample rate or get it from the detector if none is provided
+    if (hz != 0.0) {
 
-    filter.setup(hz);
+        sampleRate = hz;
+        trace(AUD_DEBUG, "setSampleRate(%.2f)\n", sampleRate);
+
+    } else {
+
+        sampleRate = detector.sampleRate();
+        trace(AUD_DEBUG, "setSampleRate(%.2f) (predicted)\n", sampleRate);
+    }
+
+    // Inform the audio filter about the new sample rate
+    filter.setup(sampleRate);
 }
 
 void
@@ -279,11 +310,11 @@ AudioPort::synthesize(Cycle clock, Cycle target)
 {
     assert(target > clock);
 
-    // Determine the current sample rate
-    double rate = double(emulator.host.getOption(OPT_HOST_SAMPLE_RATE)) + sampleRateCorrection;
+    // Do not synthesize anything if this is the run-ahead instance
+    if (amiga.objid != 0) return;
 
     // Determine the number of elapsed cycles per audio sample
-    double cps = double(amiga.masterClockFrequency()) / rate;
+    double cps = double(amiga.masterClockFrequency()) / sampleRate;
 
     // Determine how many samples we need to produce
     double exact = (double)(target - clock) / cps + fraction;
@@ -360,7 +391,6 @@ AudioPort::synthesize(Cycle clock, long count, double cyclesPerSample)
     bool loEnabled = filter.loFilterEnabled();
     bool ledEnabled = filter.ledFilterEnabled();
     bool hiEnabled = filter.hiFilterEnabled();
-    bool legacyEnabled = filter.legacyFilterEnabled();
 
     for (isize i = 0; i < count; i++) {
 
@@ -378,12 +408,6 @@ AudioPort::synthesize(Cycle clock, long count, double cyclesPerSample)
         if (ledEnabled) filter.ledFilter.applyLP(l, r);
         if (hiEnabled) filter.hiFilter.applyHP(l, r);
 
-        // Apply the legacy filter if applicable
-        if (legacyEnabled) {
-            l = filter.butterworthL.apply(float(l));
-            r = filter.butterworthR.apply(float(r));
-        }
-
         // Modulate the master volume
         if (fading) { volL.shift(); volR.shift(); }
 
@@ -392,8 +416,8 @@ AudioPort::synthesize(Cycle clock, long count, double cyclesPerSample)
         r *= volR;
 
         // Prevent hearing loss
-        assert(abs(l) < 1.0);
-        assert(abs(r) < 1.0);
+        assert(std::abs(l) < 1.0);
+        assert(std::abs(r) < 1.0);
 
         // Write sample into ringbuffer
         stream.write( SamplePair { float(l), float(r) } );
@@ -412,8 +436,8 @@ AudioPort::handleBufferUnderflow()
     // (1) The consumer runs slightly faster than the producer
     // (2) The producer is halted or not startet yet
     
-    debug(AUDBUF_DEBUG, "UNDERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
-    
+    // debug(AUDBUF_DEBUG, "UNDERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
+
     // Reset the write pointer
     stream.clear(SamplePair{0,0});
     stream.alignWritePtr();
@@ -423,14 +447,14 @@ AudioPort::handleBufferUnderflow()
     lastAlignment = util::Time::now();
     
     // Adjust the sample rate, if condition (1) holds
-    if (elapsedTime.asSeconds() > 10.0) {
-
-        // Increase the sample rate based on what we've measured
-        sampleRateCorrection += (stream.cap() / 2) / elapsedTime.asSeconds();
+    if (emulator.isRunning() && !emulator.isWarping()) {
 
         stats.bufferUnderflows++;
-        warn("Last underflow: %f seconds ago\n", elapsedTime.asSeconds());
-        warn("New sample rate correction: %f\n", sampleRateCorrection);
+        debug(AUDBUF_DEBUG, "Audio buffer underflow after %f seconds\n", elapsedTime.asSeconds());
+
+        // Adjust the sample rate
+        setSampleRate(host.getConfig().sampleRate);
+        debug(AUDBUF_DEBUG, "New sample rate = %.2f\n", sampleRate);
     }
 }
 
@@ -441,25 +465,25 @@ AudioPort::handleBufferOverflow()
     //
     // (1) The consumer runs slightly slower than the producer
     // (2) The consumer is halted or not startet yet
-    
-    debug(AUDBUF_DEBUG, "OVERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
-    
+
+    // debug(AUDBUF_DEBUG, "OVERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
+
     // Reset the write pointer
     stream.alignWritePtr();
 
     // Determine the number of elapsed seconds since the last adjustment
     auto elapsedTime = util::Time::now() - lastAlignment;
     lastAlignment = util::Time::now();
-    
+
     // Adjust the sample rate, if condition (1) holds
-    if (elapsedTime.asSeconds() > 10.0) {
-        
-        // Decrease the sample rate based on what we've measured
-        sampleRateCorrection -= (stream.cap() / 2) / elapsedTime.asSeconds();
+    if (emulator.isRunning() && !emulator.isWarping()) {
 
         stats.bufferOverflows++;
-        warn("Last overflow: %f seconds ago\n", elapsedTime.asSeconds());
-        warn("New sample rate correction: %f\n", sampleRateCorrection);
+        debug(AUDBUF_DEBUG, "Audio buffer overflow after %f seconds\n", elapsedTime.asSeconds());
+
+        // Adjust the sample rate
+        setSampleRate(host.getConfig().sampleRate);
+        debug(AUDBUF_DEBUG, "New sample rate = %.2f\n", sampleRate);
     }
 }
 
@@ -479,12 +503,15 @@ AudioPort::copyMono(float *buffer, isize n)
     // Check for a buffer underflow
     if (cnt < n) handleBufferUnderflow();
 
-    return n;
+    return cnt;
 }
 
 isize
 AudioPort::copyStereo(float *buffer1, float *buffer2, isize n)
 {
+    // Inform the sample rate detector about the number of requested samples
+    detector.feed(n);
+
     // Copy sound samples
     auto cnt = stream.copyStereo(buffer1, buffer2, n);
     stats.consumedSamples += cnt;
@@ -492,7 +519,7 @@ AudioPort::copyStereo(float *buffer1, float *buffer2, isize n)
     // Check for a buffer underflow
     if (cnt < n) handleBufferUnderflow();
 
-    return n;
+    return cnt;
 }
 
 isize
@@ -505,7 +532,7 @@ AudioPort::copyInterleaved(float *buffer, isize n)
     // Check for a buffer underflow
     if (cnt < n) handleBufferUnderflow();
 
-    return n;
+    return cnt;
 }
 
 }

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 /* Memory source identifiers. The identifiers are used in the mem source lookup
@@ -39,11 +39,10 @@ enum_long(MEM_SOURCE)
 typedef MEM_SOURCE MemorySource;
 
 #ifdef __cplusplus
-struct MemorySourceEnum : util::Reflection<MemorySourceEnum, MemorySource>
+struct MemorySourceEnum : vamiga::util::Reflection<MemorySourceEnum, MemorySource>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = MEM_EXT;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "MEM"; }
     static const char *_key(long value)
@@ -81,11 +80,10 @@ enum_long(ACCESSOR_TYPE)
 typedef ACCESSOR_TYPE Accessor;
 
 #ifdef __cplusplus
-struct AccessorEnum : util::Reflection<AccessorEnum, Accessor>
+struct AccessorEnum : vamiga::util::Reflection<AccessorEnum, Accessor>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = ACCESSOR_AGNUS;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "ACCESSOR"; }
     static const char *_key(long value)
@@ -110,11 +108,10 @@ enum_long(BANK_MAP)
 typedef BANK_MAP BankMap;
 
 #ifdef __cplusplus
-struct BankMapEnum : util::Reflection<BankMapEnum, BankMap>
+struct BankMapEnum : vamiga::util::Reflection<BankMapEnum, BankMap>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = BANK_MAP_A2000B;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "BANK_MAP"; }
     static const char *_key(long value)
@@ -140,11 +137,10 @@ enum_long(RAM_INIT_PATTERN)
 typedef RAM_INIT_PATTERN RamInitPattern;
 
 #ifdef __cplusplus
-struct RamInitPatternEnum : util::Reflection<RamInitPatternEnum, RamInitPattern>
+struct RamInitPatternEnum : vamiga::util::Reflection<RamInitPatternEnum, RamInitPattern>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = RAM_INIT_RANDOMIZED;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "RAM_INIT"; }
     static const char *_key(long value)
@@ -169,11 +165,10 @@ enum_long(UNMAPPED_MEMORY)
 typedef UNMAPPED_MEMORY UnmappedMemory;
 
 #ifdef __cplusplus
-struct UnmappedMemoryEnum : util::Reflection<UnmappedMemoryEnum, UnmappedMemory>
+struct UnmappedMemoryEnum : vamiga::util::Reflection<UnmappedMemoryEnum, UnmappedMemory>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = UNMAPPED_ALL_ONES;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "UNMAPPED"; }
     static const char *_key(long value)

@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(vAmigaCore)
 
 # Enable testing
+list(APPEND CMAKE_CTEST_ARGUMENTS "--verbose")
 enable_testing()
 
 # Specify the C++ standard
@@ -13,7 +14,7 @@ set(CMAKE_CXX_EXTENSIONS False)
 
 # Set the optimization level (if not specified on the command line)
 if(NOT CMAKE_BUILD_TYPE)
-#  set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release)
 endif()
 
 # Add the emulator library
@@ -34,11 +35,10 @@ if(MSVC)
   set_source_files_properties(CPU/Moira/Moira.cpp PROPERTIES COMPILE_FLAGS "/wd4127")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(vAmigaCore PUBLIC -Wall -Werror)
-  target_compile_options(vAmigaCore PUBLIC -Wno-unused-parameter)
-  target_compile_options(vAmigaCore PUBLIC -fconcepts)
   target_compile_options(vAmigaCore PUBLIC -Wno-restrict)
-  # target_compile_options(vAmigaCore PUBLIC -Wno-dangling-pointer)
-  target_compile_options(vAmigaCore PUBLIC -Wno-array-bounds)
+  target_compile_options(vAmigaCore PUBLIC -Wno-unused-parameter)
+# target_compile_options(vAmigaCore PUBLIC -Wno-array-bounds)
+  target_compile_options(vAmigaCore PUBLIC -fconcepts)
 else()
   target_compile_options(vAmigaCore PUBLIC -Wall -Werror)
   target_compile_options(vAmigaCore PUBLIC -Wno-unused-parameter)
@@ -65,5 +65,6 @@ find_package(Threads REQUIRED)
 target_link_libraries(vAmigaCore xdms Threads::Threads)
 
 # Add tests
-add_test(NAME SelfTest1 COMMAND vAmigaConsole --size)
-add_test(NAME SelfTest2 COMMAND vAmigaConsole --check)
+add_test(NAME SelfTest1 COMMAND vAmigaConsole --verbose --footprint)
+add_test(NAME SelfTest2 COMMAND vAmigaConsole --verbose --smoke)
+add_test(NAME SelfTest3 COMMAND vAmigaConsole --verbose --diagnose)

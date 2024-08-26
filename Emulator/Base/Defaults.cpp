@@ -10,22 +10,7 @@
 #include "config.h"
 #include "Defaults.h"
 #include "Amiga.h"
-#include "AudioPortTypes.h"
 #include "StringUtils.h"
-#include "AgnusTypes.h"
-#include "AmigaTypes.h"
-#include "AudioFilterTypes.h"
-#include "CIATypes.h"
-#include "DeniseTypes.h"
-#include "DmaDebuggerTypes.h"
-#include "FloppyDriveTypes.h"
-#include "HardDriveTypes.h"
-#include "MemoryTypes.h"
-#include "PixelEngineTypes.h"
-#include "RTCTypes.h"
-#include "SerialPortTypes.h"
-#include "RemoteManagerTypes.h"
-#include "RemoteServerTypes.h"
 #include "IOUtils.h"
 
 namespace vamiga {
@@ -33,7 +18,7 @@ namespace vamiga {
 Defaults::Defaults()
 {
     setFallback(OPT_HOST_REFRESH_RATE,          60);
-    setFallback(OPT_HOST_SAMPLE_RATE,           44100);
+    setFallback(OPT_HOST_SAMPLE_RATE,           0);
     setFallback(OPT_HOST_FRAMEBUF_WIDTH,        0);
     setFallback(OPT_HOST_FRAMEBUF_HEIGHT,       0);
     
@@ -44,6 +29,7 @@ Defaults::Defaults()
     setFallback(OPT_AMIGA_SPEED_BOOST,          100);
     setFallback(OPT_AMIGA_SNAPSHOTS,            false);
     setFallback(OPT_AMIGA_SNAPSHOT_DELAY,       10);
+    setFallback(OPT_AMIGA_RUN_AHEAD,            0);
 
     setFallback(OPT_AGNUS_REVISION,             AGNUS_ECS_1MB);
     setFallback(OPT_AGNUS_PTR_DROPS,            true);
@@ -117,6 +103,7 @@ Defaults::Defaults()
     setFallback(OPT_HDC_CONNECT,                true,                   { 0 });
     setFallback(OPT_HDC_CONNECT,                false,                  { 1, 2, 3 });
     setFallback(OPT_HDR_TYPE,                   HDR_GENERIC,            { 0, 1, 2, 3 });
+    setFallback(OPT_HDR_WRITE_THROUGH,          false,                  { 0, 1, 2, 3 });
     setFallback(OPT_HDR_PAN,                    300,                    { 0, 2 });
     setFallback(OPT_HDR_PAN,                    100,                    { 1, 3 });
     setFallback(OPT_HDR_STEP_VOLUME,            50,                     { 0, 1, 2, 3 });
@@ -146,8 +133,9 @@ Defaults::Defaults()
     setFallback(OPT_MOUSE_VELOCITY,             100,                    { 0, 1} );
 
     setFallback(OPT_JOY_AUTOFIRE,               false,                  { 0, 1} );
-    setFallback(OPT_JOY_AUTOFIRE_BULLETS,       -3,                     { 0, 1} );
-    setFallback(OPT_JOY_AUTOFIRE_DELAY,         125,                    { 0, 1} );
+    setFallback(OPT_JOY_AUTOFIRE_BURSTS,        false,                  { 0, 1} );
+    setFallback(OPT_JOY_AUTOFIRE_BULLETS,       3,                      { 0, 1} );
+    setFallback(OPT_JOY_AUTOFIRE_DELAY,         5,                      { 0, 1} );
     setFallback(OPT_AUD_SAMPLING_METHOD,        SMP_NONE);
     setFallback(OPT_AUD_FILTER_TYPE,            FILTER_A500);
     setFallback(OPT_AUD_PAN0,                   50);
@@ -396,11 +384,11 @@ Defaults::get(Option option, isize nr) const
 {
     try {
 
-        return get(string(OptionEnum::key(option)) + std::to_string(nr));
+        return get(string(OptionEnum::rawkey(option)) + std::to_string(nr));
 
     } catch (...) {
 
-        return get(string(OptionEnum::key(option)));
+        return get(string(OptionEnum::rawkey(option)));
     }
 }
 
@@ -433,11 +421,11 @@ Defaults::getFallback(Option option, isize nr) const
 {
     try {
 
-        return getFallback(string(OptionEnum::key(option)) + std::to_string(nr));
+        return getFallback(string(OptionEnum::rawkey(option)) + std::to_string(nr));
 
     } catch (...) {
 
-        return getFallback(string(OptionEnum::key(option)));
+        return getFallback(string(OptionEnum::rawkey(option)));
     }
 }
 
@@ -462,13 +450,13 @@ Defaults::set(const string &key, const string &value)
 void
 Defaults::set(Option option, const string &value)
 {
-    set(OptionEnum::key(option), value);
+    set(OptionEnum::rawkey(option), value);
 }
 
 void
 Defaults::set(Option option, const string &value, std::vector <isize> objids)
 {
-    auto key = string(OptionEnum::key(option));
+    auto key = string(OptionEnum::rawkey(option));
 
     for (auto &nr : objids) {
         set(key + std::to_string(nr), value);
@@ -500,13 +488,13 @@ Defaults::setFallback(const string &key, const string &value)
 void
 Defaults::setFallback(Option option, const string &value)
 {
-    setFallback(OptionEnum::key(option), value);
+    setFallback(OptionEnum::rawkey(option), value);
 }
 
 void
 Defaults::setFallback(Option option, const string &value, std::vector <isize> objids)
 {
-    auto key = string(OptionEnum::key(option));
+    auto key = string(OptionEnum::rawkey(option));
 
     for (auto &nr : objids) {
         setFallback(key + std::to_string(nr), value);
@@ -551,14 +539,14 @@ Defaults::remove(const string &key)
 void
 Defaults::remove(Option option)
 {
-    remove(string(OptionEnum::key(option)));
+    remove(string(OptionEnum::rawkey(option)));
 }
 
 void
 Defaults::remove(Option option, std::vector <isize> nrs)
 {
     for (auto &nr : nrs) {
-        remove(string(OptionEnum::key(option)) + std::to_string(nr));
+        remove(string(OptionEnum::rawkey(option)) + std::to_string(nr));
     }
 }
 

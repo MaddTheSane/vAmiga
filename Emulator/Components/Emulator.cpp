@@ -9,9 +9,9 @@
 
 #include "config.h"
 #include "Emulator.h"
-#include "Option.h"
+// #include "Option.h"
 #include "Amiga.h"
-#include "Aliases.h"
+#include "Types.h"
 #include "CmdQueue.h"
 #include <algorithm>
 
@@ -50,7 +50,7 @@ Emulator::launch(const void *listener, Callback *func)
     main.msgQueue.setListener(listener, func);
 
     // Disable the message queue of the run-ahead instance
-    // ahead.msgQueue.disable();
+    ahead.msgQueue.disable();
 
     // Launch the emulator thread
     Thread::launch();
@@ -64,13 +64,16 @@ Emulator::initialize()
 
     // Initialize all components
     main.initialize();
+    ahead.initialize();
 
     // Setup the default configuration
-    host.resetConfig();
     main.resetConfig();
 
     // Perform a hard reset
     main.hardReset();
+
+    // Get the runahead instance up-to-date
+    ahead = main;
 
     // Switch state
     state = newState = STATE_OFF;
@@ -87,7 +90,7 @@ Emulator::_dump(Category category, std::ostream& os) const
         for (isize i = DebugFlagEnum::minVal; i < DebugFlagEnum::maxVal; i++) {
 
             os << tab(DebugFlagEnum::key(i));
-            os << bol(getDebugVariable(DebugFlag(i))) << std::endl;
+            os << dec(getDebugVariable(DebugFlag(i))) << std::endl;
         }
     }
 
@@ -175,297 +178,71 @@ Emulator::put(const Cmd &cmd)
     cmdQueue.put(cmd);
 }
 
-void 
-Emulator::put(CmdType type, i64 payload)
-{
-    put (Cmd(type, payload));
-}
-
 i64
 Emulator::get(Option opt, isize objid) const
 {
-    debug(CNF_DEBUG, "get(%s, %ld)\n", OptionEnum::key(opt), objid);
-
-    auto target = routeOption(opt, objid);
-    if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
-    return target->getOption(opt);
+    return main.get(opt, objid);
 }
 
 void
 Emulator::check(Option opt, i64 value, const std::vector<isize> objids)
 {
-    value = overrideOption(opt, value);
-
-    if (objids.empty()) {
-
-        for (isize objid = 0;; objid++) {
-
-            auto target = routeOption(opt, objid);
-            if (target == nullptr) break;
-
-            debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
-            target->checkOption(opt, value);
-        }
-    }
-    for (auto &objid : objids) {
-
-        debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
-
-        auto target = routeOption(opt, objid);
-        if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
-
-        target->checkOption(opt, value);
-    }
+    return main.check(opt, value, objids);
 }
 
 void
 Emulator::set(Option opt, i64 value, const std::vector<isize> objids)
 {
-    value = overrideOption(opt, value);
-
-    if (objids.empty()) {
-
-        for (isize objid = 0;; objid++) {
-
-            auto target = routeOption(opt, objid);
-            if (target == nullptr) break;
-
-            debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
-            target->setOption(opt, value);
-        }
-    }
-    for (auto &objid : objids) {
-
-        debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
-
-        auto target = routeOption(opt, objid);
-        if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
-
-        target->setOption(opt, value);
-    }
+    return main.set(opt, value, objids);
 }
 
 void 
 Emulator::set(Option opt, const string &value, const std::vector<isize> objids)
 {
-    set(opt, OptionParser::parse(opt, value), objids);
+    return main.set(opt, value, objids);
 }
 
 void
 Emulator::set(const string &opt, const string &value, const std::vector<isize> objids)
 {
-    set(Option(util::parseEnum<OptionEnum>(opt)), value, objids);
+    return main.set(opt, value, objids);
 }
 
 void
 Emulator::set(ConfigScheme scheme)
 {
-    assert_enum(ConfigScheme, scheme);
-
-    {   SUSPENDED
-
-        switch(scheme) {
-
-            case CONFIG_A1000_OCS_1MB:
-
-                set(OPT_CPU_REVISION, CPU_68000);
-                set(OPT_AGNUS_REVISION, AGNUS_OCS_OLD);
-                set(OPT_DENISE_REVISION, DENISE_OCS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
-                set(OPT_MEM_CHIP_RAM, 512);
-                set(OPT_MEM_SLOW_RAM, 512);
-                break;
-
-            case CONFIG_A500_OCS_1MB:
-
-                set(OPT_CPU_REVISION, CPU_68000);
-                set(OPT_AGNUS_REVISION, AGNUS_OCS);
-                set(OPT_DENISE_REVISION, DENISE_OCS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
-                set(OPT_MEM_CHIP_RAM, 512);
-                set(OPT_MEM_SLOW_RAM, 512);
-                break;
-
-            case CONFIG_A500_ECS_1MB:
-
-                set(OPT_CPU_REVISION, CPU_68000);
-                set(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
-                set(OPT_DENISE_REVISION, DENISE_OCS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
-                set(OPT_MEM_CHIP_RAM, 512);
-                set(OPT_MEM_SLOW_RAM, 512);
-                break;
-
-            case CONFIG_A500_PLUS_1MB:
-
-                set(OPT_CPU_REVISION, CPU_68000);
-                set(OPT_AGNUS_REVISION, AGNUS_ECS_2MB);
-                set(OPT_DENISE_REVISION, DENISE_ECS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
-                set(OPT_MEM_CHIP_RAM, 512);
-                set(OPT_MEM_SLOW_RAM, 512);
-                break;
-
-            default:
-                fatalError;
-        }
-    }
+    main.set(scheme);
 }
 
 Configurable *
 Emulator::routeOption(Option opt, isize objid)
 {
-    // Check global components
-    if (host.isValidOption(opt) && objid == host.objid) return &host;
-
-    // Check components of the main instance
     return main.routeOption(opt, objid);
 }
 
 const Configurable *
 Emulator::routeOption(Option opt, isize objid) const
 {
-    auto result = const_cast<Emulator *>(this)->routeOption(opt, objid);
-    return const_cast<const Configurable *>(result);
+    return main.routeOption(opt, objid);
 }
-
-/*
-std::vector<Configurable *>
-Emulator::routeOption(Option opt)
-{
-    std::vector<Configurable *> result;
-
-    // Check global components
-    if (host.isValidOption(opt)) result.push_back(&host);
-
-    // Check components of the main instance
-    main.routeOption(opt, result);
-
-    assert(!result.empty());
-    return result;
-}
-
-std::vector<const Configurable *>
-Emulator::routeOption(Option opt) const
-{
-    std::vector<const Configurable *> result;
-
-    for (const auto &target : const_cast<Emulator *>(this)->routeOption(opt)) {
-        result.push_back(const_cast<const Configurable *>(target));
-    }
-    return result;
-}
-*/
 
 i64
 Emulator::overrideOption(Option opt, i64 value) const
 {
-    static std::map<Option,i64> overrides = OVERRIDES;
-
-    if (overrides.find(opt) != overrides.end()) {
-
-        msg("Overriding option: %s = %lld\n", OptionEnum::key(opt), value);
-        return overrides[opt];
-    }
-
-    return value;
+    return main.overrideOption(opt, value);
 }
 
 void
 Emulator::update()
 {
-    Cmd cmd;
-    bool cmdConfig = false;
-    
-    auto dfn = [&]() -> FloppyDrive& { return *main.df[cmd.value]; };
-    auto cp = [&]() -> ControlPort& { return cmd.value ? main.controlPort2 : main.controlPort1; };
-
+    // Switch warp mode on or off
     shouldWarp() ? warpOn() : warpOff();
 
-    while (cmdQueue.poll(cmd)) {
+    // Mark the run-ahead instance dirty when the command queue has entries
+    isDirty |= !cmdQueue.empty;
 
-        switch (cmd.type) {
-
-            case CMD_CONFIG:
-
-                cmdConfig = true;
-                set(cmd.config.option, cmd.config.value, { cmd.config.id });
-                break;
-
-            case CMD_CONFIG_ALL:
-
-                cmdConfig = true;
-                set(cmd.config.option, cmd.config.value, { });
-                break;
-
-            case CMD_ALARM_ABS:
-            case CMD_ALARM_REL:
-            case CMD_INSPECTION_TARGET:
-
-                main.processCommand(cmd);
-                break;
-
-            case CMD_GUARD_SET_AT:
-            case CMD_GUARD_MOVE_NR:
-            case CMD_GUARD_IGNORE_NR:
-            case CMD_GUARD_REMOVE_NR:
-            case CMD_GUARD_REMOVE_AT:
-            case CMD_GUARD_REMOVE_ALL:
-            case CMD_GUARD_ENABLE_NR:
-            case CMD_GUARD_ENABLE_AT:
-            case CMD_GUARD_ENABLE_ALL:
-            case CMD_GUARD_DISABLE_NR:
-            case CMD_GUARD_DISABLE_AT:
-            case CMD_GUARD_DISABLE_ALL:
-
-                main.cpu.processCommand(cmd);
-                break;
-
-            case CMD_KEY_PRESS:
-            case CMD_KEY_RELEASE:
-            case CMD_KEY_RELEASE_ALL:
-            case CMD_KEY_TOGGLE:
-
-                main.keyboard.processCommand(cmd);
-                break;
-
-            case CMD_DSK_TOGGLE_WP:
-            case CMD_DSK_MODIFIED:
-            case CMD_DSK_UNMODIFIED:
-
-                dfn().processCommand(cmd);
-                break;
-
-            case CMD_MOUSE_MOVE_ABS:
-            case CMD_MOUSE_MOVE_REL:
-
-                cp().processCommand(cmd); break;
-                break;
-
-            case CMD_MOUSE_EVENT:
-            case CMD_JOY_EVENT:
-
-                cp().processCommand(cmd); break;
-                break;
-
-            case CMD_RSH_EXECUTE:
-
-                main.retroShell.exec();
-                break;
-                
-            case CMD_FOCUS:
-
-                cmd.value ? main.focus() : main.unfocus();
-                break;
-
-            default:
-                fatal("Unhandled command: %s\n", CmdTypeEnum::key(cmd.type));
-        }
-    }
-
-    if (cmdConfig) {
-        main.msgQueue.put(MSG_CONFIG);
-    }
+    // Process all commands
+    main.update(cmdQueue);
 }
 
 bool
@@ -500,22 +277,27 @@ Emulator::missingFrames() const
     // Compute the elapsed time
     auto elapsed = util::Time::now() - baseTime;
 
-    // Compute which slice should be reached by now
-    auto target = elapsed.asNanoseconds() * i64(refreshRate()) / 1000000000;
+    // Compute which master-clock cycle should be reached by now
+    auto targetCycle = main.masterClockFrequency() * elapsed.asMilliseconds() / 1000;
 
-    // Compute the number of missing slices
-    return isize(target - frameCounter);
+    // Compute the nummer of missing cycles
+    auto diff = targetCycle - (main.agnus.clock - baseCycle);
+
+    // Compute the number of missing frames
+    return diff / (main.masterClockFrequency() / i64(refreshRate()));
+}
+
+const FrameBuffer &
+Emulator::getTexture() const
+{
+    auto &result = main.config.runAhead && isRunning() ?
+    ahead.videoPort.getTexture() :
+    main.videoPort.getTexture();
+
+    return result;
 }
 
 /*
-u32 *
-Emulator::getTexture() const
-{
-    return main.config.runAhead && isRunning() ?
-    ahead.videoPort.getTexture() :
-    main.videoPort.getTexture();
-}
-
 u32 *
 Emulator::getDmaTexture() const
 {
@@ -532,7 +314,7 @@ Emulator::refreshRate() const
 
     if (config.vsync) {
 
-        return double(host.getOption(OPT_HOST_REFRESH_RATE));
+        return double(main.host.getOption(OPT_HOST_REFRESH_RATE));
 
     } else {
 
@@ -540,7 +322,13 @@ Emulator::refreshRate() const
     }
 }
 
-void 
+Cycle 
+Emulator::currentCycle() const
+{
+    return main.agnus.clock;
+}
+
+void
 Emulator::hardReset()
 {
     {   SUSPENDED
@@ -562,47 +350,84 @@ void
 Emulator::stepInto()
 {
     if (isRunning()) return;
-    main.debugger.stepInto();
+    main.cpu.debugger.stepInto();
+    run();
 }
 
 void 
 Emulator::stepOver()
 {
     if (isRunning()) return;
-    main.debugger.stepOver();
+    main.cpu.debugger.stepOver();
+    run();
 }
 
 void
 Emulator::computeFrame()
 {
-    main.computeFrame();
+    auto &config = main.getConfig();
 
-    /*
     if (config.runAhead) {
 
         try {
 
             // Run the main instance
-            main.execute();
+            main.computeFrame();
 
             // Recreate the run-ahead instance if necessary
-            if (main.isDirty || RUA_ON_STEROIDS) recreateRunAheadInstance();
+            if (isDirty || RUA_ON_STEROIDS) recreateRunAheadInstance();
 
             // Run the runahead instance
-            ahead.execute();
+            ahead.computeFrame();
 
         } catch (StateChangeException &) {
 
-            main.markAsDirty();
+            isDirty = true;
             throw;
         }
 
     } else {
 
         // Only run the main instance
-        main.execute();
+        main.computeFrame();
     }
-    */
+}
+
+void 
+Emulator::cloneRunAheadInstance()
+{
+    // clones++;
+
+    // Recreate the runahead instance from scratch
+    ahead = main; isDirty = false;
+
+    if (RUA_CHECKSUM && ahead != main) {
+
+        main.diff(ahead);
+        fatal("Corrupted run-ahead clone detected");
+    }
+}
+
+void
+Emulator::recreateRunAheadInstance()
+{
+    auto &config = main.getConfig();
+
+    // Clone the main instance
+    if (RUA_DEBUG) {
+        util::StopWatch watch("Run-ahead: Clone");
+        cloneRunAheadInstance();
+    } else {
+        cloneRunAheadInstance();
+    }
+
+    // Advance to the proper frame
+    if (RUA_DEBUG) {
+        util::StopWatch watch("Run-ahead: Fast-forward");
+        ahead.fastForward(config.runAhead - 1);
+    } else {
+        ahead.fastForward(config.runAhead - 1);
+    }
 }
 
 void
@@ -611,7 +436,7 @@ Emulator::isReady()
     main.isReady();
 }
 
-bool
+int
 Emulator::getDebugVariable(DebugFlag flag)
 {
 #ifdef RELEASEBUILD
@@ -622,42 +447,41 @@ Emulator::getDebugVariable(DebugFlag flag)
 
     switch (flag) {
 
-            // General
         case FLAG_XFILES:           return XFILES;
         case FLAG_CNF_DEBUG:        return CNF_DEBUG;
         case FLAG_OBJ_DEBUG:        return OBJ_DEBUG;
         case FLAG_DEF_DEBUG:        return DEF_DEBUG;
         case FLAG_MIMIC_UAE:        return MIMIC_UAE;
 
-            // Runloop
         case FLAG_RUN_DEBUG:        return RUN_DEBUG;
         case FLAG_TIM_DEBUG:        return TIM_DEBUG;
         case FLAG_WARP_DEBUG:       return WARP_DEBUG;
+        case FLAG_CMD_DEBUG:        return CMD_DEBUG;
         case FLAG_QUEUE_DEBUG:      return QUEUE_DEBUG;
         case FLAG_SNP_DEBUG:        return SNP_DEBUG;
 
-            // CPU
+        case FLAG_RUA_DEBUG:        return RUA_DEBUG;
+        case FLAG_RUA_CHECKSUM:     return RUA_CHECKSUM;
+        case FLAG_RUA_ON_STEROIDS:  return RUA_ON_STEROIDS;
+
         case FLAG_CPU_DEBUG:        return CPU_DEBUG;
         case FLAG_CST_DEBUG:        return CST_DEBUG;
 
-            // Memory access
         case FLAG_OCSREG_DEBUG:     return OCSREG_DEBUG;
         case FLAG_ECSREG_DEBUG:     return ECSREG_DEBUG;
         case FLAG_INVREG_DEBUG:     return INVREG_DEBUG;
         case FLAG_MEM_DEBUG:        return MEM_DEBUG;
 
-            // Agnus
         case FLAG_DMA_DEBUG:        return DMA_DEBUG;
         case FLAG_DDF_DEBUG:        return DDF_DEBUG;
         case FLAG_SEQ_DEBUG:        return SEQ_DEBUG;
+        case FLAG_SEQ_ON_STEROIDS:  return SEQ_ON_STEROIDS;
         case FLAG_NTSC_DEBUG:       return NTSC_DEBUG;
 
-            // Copper
         case FLAG_COP_CHECKSUM:     return COP_CHECKSUM;
         case FLAG_COPREG_DEBUG:     return COPREG_DEBUG;
         case FLAG_COP_DEBUG:        return COP_DEBUG;
 
-            // Blitter
         case FLAG_BLT_CHECKSUM:     return BLT_CHECKSUM;
         case FLAG_BLTREG_DEBUG:     return BLTREG_DEBUG;
         case FLAG_BLT_REG_GUARD:    return BLT_REG_GUARD;
@@ -667,30 +491,27 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_SLOW_BLT_DEBUG:   return SLOW_BLT_DEBUG;
         case FLAG_OLD_LINE_BLIT:    return OLD_LINE_BLIT;
 
-            // Denise
         case FLAG_BPLREG_DEBUG:     return BPLREG_DEBUG;
         case FLAG_BPLDAT_DEBUG:     return BPLDAT_DEBUG;
         case FLAG_BPLMOD_DEBUG:     return BPLMOD_DEBUG;
         case FLAG_SPRREG_DEBUG:     return SPRREG_DEBUG;
         case FLAG_COLREG_DEBUG:     return COLREG_DEBUG;
         case FLAG_CLXREG_DEBUG:     return CLXREG_DEBUG;
-        case FLAG_BPL_DEBUG:        return BPL_DEBUG;
+        case FLAG_BPL_ON_STEROIDS:  return BPL_ON_STEROIDS;
         case FLAG_DIW_DEBUG:        return DIW_DEBUG;
         case FLAG_SPR_DEBUG:        return SPR_DEBUG;
         case FLAG_CLX_DEBUG:        return CLX_DEBUG;
         case FLAG_BORDER_DEBUG:     return BORDER_DEBUG;
+        case FLAG_LINE_DEBUG:       return LINE_DEBUG;
 
-            // Paula
         case FLAG_INTREG_DEBUG:     return INTREG_DEBUG;
         case FLAG_INT_DEBUG:        return INT_DEBUG;
 
-            // CIAs
         case FLAG_CIAREG_DEBUG:     return CIAREG_DEBUG;
         case FLAG_CIASER_DEBUG:     return CIASER_DEBUG;
         case FLAG_CIA_DEBUG:        return CIA_DEBUG;
         case FLAG_TOD_DEBUG:        return TOD_DEBUG;
 
-            // Floppy Drives
         case FLAG_ALIGN_HEAD:       return ALIGN_HEAD;
         case FLAG_DSK_CHECKSUM:     return DSK_CHECKSUM;
         case FLAG_DSKREG_DEBUG:     return DSKREG_DEBUG;
@@ -698,22 +519,20 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_MFM_DEBUG:        return MFM_DEBUG;
         case FLAG_FS_DEBUG:         return FS_DEBUG;
 
-            // Hard Drives
         case FLAG_HDR_ACCEPT_ALL:   return HDR_ACCEPT_ALL;
         case FLAG_HDR_FS_LOAD_ALL:  return HDR_FS_LOAD_ALL;
         case FLAG_WT_DEBUG:         return WT_DEBUG;
 
-            // Audio
         case FLAG_AUDREG_DEBUG:     return AUDREG_DEBUG;
         case FLAG_AUD_DEBUG:        return AUD_DEBUG;
         case FLAG_AUDBUF_DEBUG:     return AUDBUF_DEBUG;
         case FLAG_AUDVOL_DEBUG:     return AUDVOL_DEBUG;
         case FLAG_DISABLE_AUDIRQ:   return DISABLE_AUDIRQ;
 
-            // Ports
         case FLAG_POSREG_DEBUG:     return POSREG_DEBUG;
         case FLAG_JOYREG_DEBUG:     return JOYREG_DEBUG;
         case FLAG_POTREG_DEBUG:     return POTREG_DEBUG;
+        case FLAG_VID_DEBUG:        return VID_DEBUG;
         case FLAG_PRT_DEBUG:        return PRT_DEBUG;
         case FLAG_SER_DEBUG:        return SER_DEBUG;
         case FLAG_POT_DEBUG:        return POT_DEBUG;
@@ -721,23 +540,20 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_HOLD_MOUSE_M:     return HOLD_MOUSE_M;
         case FLAG_HOLD_MOUSE_R:     return HOLD_MOUSE_R;
 
-            // Expansion boards
         case FLAG_ZOR_DEBUG:        return ZOR_DEBUG;
         case FLAG_ACF_DEBUG:        return ACF_DEBUG;
         case FLAG_FAS_DEBUG:        return FAS_DEBUG;
         case FLAG_HDR_DEBUG:        return HDR_DEBUG;
         case FLAG_DBD_DEBUG:        return DBD_DEBUG;
 
-            // Media types
         case FLAG_ADF_DEBUG:        return ADF_DEBUG;
         case FLAG_DMS_DEBUG:        return DMS_DEBUG;
         case FLAG_IMG_DEBUG:        return IMG_DEBUG;
 
-            // Other components
         case FLAG_RTC_DEBUG:        return RTC_DEBUG;
         case FLAG_KBD_DEBUG:        return KBD_DEBUG;
+        case FLAG_KEY_DEBUG:        return KEY_DEBUG;
 
-            // Misc
         case FLAG_REC_DEBUG:        return REC_DEBUG;
         case FLAG_SCK_DEBUG:        return SCK_DEBUG;
         case FLAG_SRV_DEBUG:        return SRV_DEBUG;
@@ -773,6 +589,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_RUN_DEBUG:        RUN_DEBUG = val; break;
         case FLAG_TIM_DEBUG:        TIM_DEBUG = val; break;
         case FLAG_WARP_DEBUG:       WARP_DEBUG = val; break;
+        case FLAG_CMD_DEBUG:        CMD_DEBUG = val; break;
         case FLAG_QUEUE_DEBUG:      QUEUE_DEBUG = val; break;
         case FLAG_SNP_DEBUG:        SNP_DEBUG = val; break;
 
@@ -790,6 +607,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_DMA_DEBUG:        DMA_DEBUG = val; break;
         case FLAG_DDF_DEBUG:        DDF_DEBUG = val; break;
         case FLAG_SEQ_DEBUG:        SEQ_DEBUG = val; break;
+        case FLAG_SEQ_ON_STEROIDS:  SEQ_ON_STEROIDS = val; break;
         case FLAG_NTSC_DEBUG:       NTSC_DEBUG = val; break;
 
             // Copper
@@ -814,11 +632,12 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_SPRREG_DEBUG:     SPRREG_DEBUG = val; break;
         case FLAG_COLREG_DEBUG:     COLREG_DEBUG = val; break;
         case FLAG_CLXREG_DEBUG:     CLXREG_DEBUG = val; break;
-        case FLAG_BPL_DEBUG:        BPL_DEBUG = val; break;
+        case FLAG_BPL_ON_STEROIDS:  BPL_ON_STEROIDS = val; break;
         case FLAG_DIW_DEBUG:        DIW_DEBUG = val; break;
         case FLAG_SPR_DEBUG:        SPR_DEBUG = val; break;
         case FLAG_CLX_DEBUG:        CLX_DEBUG = val; break;
         case FLAG_BORDER_DEBUG:     BORDER_DEBUG = val; break;
+        case FLAG_LINE_DEBUG:       LINE_DEBUG = val; break;
 
             // Paula
         case FLAG_INTREG_DEBUG:     INTREG_DEBUG = val; break;
@@ -854,6 +673,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_POSREG_DEBUG:     POSREG_DEBUG = val; break;
         case FLAG_JOYREG_DEBUG:     JOYREG_DEBUG = val; break;
         case FLAG_POTREG_DEBUG:     POTREG_DEBUG = val; break;
+        case FLAG_VID_DEBUG:        VID_DEBUG = val; break;
         case FLAG_PRT_DEBUG:        PRT_DEBUG = val; break;
         case FLAG_SER_DEBUG:        SER_DEBUG = val; break;
         case FLAG_POT_DEBUG:        POT_DEBUG = val; break;
@@ -876,6 +696,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
             // Other components
         case FLAG_RTC_DEBUG:        RTC_DEBUG = val; break;
         case FLAG_KBD_DEBUG:        KBD_DEBUG = val; break;
+        case FLAG_KEY_DEBUG:        KEY_DEBUG = val; break;
 
             // Misc
         case FLAG_REC_DEBUG:        REC_DEBUG = val; break;

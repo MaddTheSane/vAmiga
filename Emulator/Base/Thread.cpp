@@ -38,8 +38,9 @@ Thread::assertLaunched()
 void
 Thread::resync()
 {
+    resyncs++;
     baseTime = util::Time::now();
-    frameCounter = 0;
+    baseCycle = currentCycle();
 }
 
 void
@@ -57,7 +58,7 @@ Thread::execute()
         try {
 
             // Execute all missing frames
-            for (isize i = 0; i < missing; i++, frameCounter++) computeFrame();
+            for (isize i = 0; i < missing; i++) computeFrame();
 
         } catch (StateChangeException &exc) {
 
@@ -70,9 +71,9 @@ Thread::execute()
 
         // The emulator got out of sync
         if (missing > 0) {
-            warn("Emulation is way too slow (%ld frames behind)\n", missing);
+            debug(VID_DEBUG, "Emulation is way too slow (%ld frames behind)\n", missing);
         } else {
-            warn("Emulation is way too fast (%ld time slices ahead)\n", -missing);
+            debug(VID_DEBUG, "Emulation is way too fast (%ld time slices ahead)\n", -missing);
         }
 
         resync();
@@ -278,7 +279,7 @@ Thread::pause()
 void
 Thread::halt()
 {
-    if (state != STATE_HALTED) {
+    if (state != STATE_UNINIT && state != STATE_HALTED) {
 
         debug(RUN_DEBUG, "Switching to HALT state...\n");
         changeStateTo(STATE_HALTED);

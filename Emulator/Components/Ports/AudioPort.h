@@ -11,11 +11,12 @@
 
 #include "AudioPortTypes.h"
 #include "SubComponent.h"
+#include "Animated.h"
 #include "AudioStream.h"
 #include "AudioFilter.h"
 #include "Chrono.h"
 #include "Sampler.h"
-#include "Animated.h"
+#include "SampleRateDetector.h"
 
 namespace vamiga {
 
@@ -43,16 +44,18 @@ namespace vamiga {
 
 class AudioPort : public SubComponent {
 
+    friend class AudioFilter;
+
     Descriptions descriptions = {
         {
-            .type           = COMP_AUDIO_PORT,
+            .type           = AudipPortClass,
             .name           = "AudioPort",
             .description    = "Audio Port",
             .shell          = "audio"
         },
         {
-            .type           = COMP_AUDIO_PORT,
-            .name           = "AudioPort",
+            .type           = AudipPortClass,
+            .name           = "RecAudioPort",
             .description    = "Audio Port (Recorder)",
             .shell          = ""
         },
@@ -71,8 +74,7 @@ class AudioPort : public SubComponent {
         OPT_AUD_VOL3,
         OPT_AUD_VOLL,
         OPT_AUD_VOLR,
-        OPT_AUD_FASTPATH,
-        OPT_AUD_FILTER_TYPE
+        OPT_AUD_FASTPATH
     };
 
     friend class Paula;
@@ -83,14 +85,14 @@ class AudioPort : public SubComponent {
     // Underflow and overflow counters
     AudioPortStats stats = {};
 
+    // Current sample rate
+    double sampleRate = 44100;
+
     // Fraction of a sample that hadn't been generated in synthesize
     double fraction = 0.0;
 
     // Time stamp of the last write pointer alignment
-    util::Time lastAlignment;
-
-    // Sample rate adjustment
-    double sampleRateCorrection = 0.0;
+    util::Time lastAlignment = util::Time::now();
     
     // Channel volumes
     float vol[4] = { };
@@ -125,9 +127,12 @@ public:
     AudioStream stream;
 
     // The audio filter pipeline
-    AudioFilter filter = AudioFilter(amiga);
+    AudioFilter filter = AudioFilter(amiga, *this);
 
-    
+    // Detector for measuring the sample rate
+    SampleRateDetector detector = SampleRateDetector(amiga);
+
+
     //
     // Methods
     //
@@ -135,6 +140,20 @@ public:
 public:
     
     AudioPort(Amiga& ref, isize objid = 0);
+
+    AudioPort& operator= (const AudioPort& other) {
+
+        CLONE(filter)
+        
+        CLONE(config)
+        CLONE_ARRAY(pan)
+        CLONE_ARRAY(vol)
+        CLONE(volL)
+        CLONE(volR)
+
+        return *this;
+    }
+
 
     // Resets the output buffer and the two audio filters
     void clear();
@@ -199,6 +218,7 @@ public:
     const AudioPortConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
     void setSampleRate(double hz);
@@ -230,7 +250,7 @@ public:
     void synthesize(Cycle clock, Cycle target);
 
     // Returns the sample rate adjustment
-    double getSampleRateCorrection() { return sampleRateCorrection; }
+    // double getSampleRateCorrection() { return sampleRateCorrection; }
 
 private:
 

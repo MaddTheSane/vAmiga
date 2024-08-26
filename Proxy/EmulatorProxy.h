@@ -9,7 +9,6 @@
 
 #pragma once
 
-#import "Constants.h"
 #import "config.h"
 #import "VAmigaTypes.h"
 #import <Cocoa/Cocoa.h>
@@ -21,7 +20,6 @@
 //
 
 @class AudioPortProxy;
-@class ADFFileProxy;
 @class AgnusProxy;
 @class AmigaProxy;
 @class AmigaFileProxy;
@@ -33,18 +31,11 @@
 @class DeniseProxy;
 @class DiskControllerProxy;
 @class DiskFileProxy;
-@class DMSFileProxy;
 @class DmaDebuggerProxy;
 @class FloppyDriveProxy;
-@class EXEFileProxy;
-@class ExtendedRomFileProxy;
-@class FloppyFileProxy;
-@class FolderProxy;
 @class GuardsProxy;
 @class HardDriveProxy;
 @class HdControllerProxy;
-@class HDFFileProxy;
-@class IMGFileProxy;
 @class JoystickProxy;
 @class KeyboardProxy;
 @class MediaFileProxy;
@@ -54,13 +45,9 @@
 @class DefaultsProxy;
 @class RemoteManagerProxy;
 @class RetroShellProxy;
-@class RomFileProxy;
 @class RtcProxy;
 @class RecorderProxy;
-@class ScriptProxy;
 @class SerialPortProxy;
-@class SnapshotProxy;
-@class STFileProxy;
 @class VideoPortProxy;
 
 
@@ -90,6 +77,8 @@
     @public void *obj;    
 }
 
+- (instancetype) initWith:(void *)ref;
+
 @end
 
 @interface CoreComponentProxy : Proxy { }
@@ -106,6 +95,17 @@
 @interface Constants : NSObject {
 
 }
+
+@property (class, readonly) NSInteger hpixels;
+@property (class, readonly) NSInteger vpixels;
+
+@property (class, readonly) NSInteger hblank_cnt;
+@property (class, readonly) NSInteger hblank_min;
+@property (class, readonly) NSInteger hblank_max;
+
+@property (class, readonly) NSInteger vblank_cnt;
+@property (class, readonly) NSInteger vblank_min;
+@property (class, readonly) NSInteger vblank_max;
 
 @property (class, readonly) NSInteger vpos_cnt_pal;
 @property (class, readonly) NSInteger vpos_max_pal;
@@ -156,12 +156,6 @@
     HardDriveProxy *hd1;
     HardDriveProxy *hd2;
     HardDriveProxy *hd3;
-    /*
-    HdControllerProxy *hd0con;
-    HdControllerProxy *hd1con;
-    HdControllerProxy *hd2con;
-    HdControllerProxy *hd3con;
-    */
     KeyboardProxy *keyboard;
     MemProxy *mem;
     PaulaProxy *paula;
@@ -219,8 +213,6 @@
 @property (readonly) EmulatorInfo cachedInfo;
 @property (readonly) EmulatorStats stats;
 
-@property NSInteger autoInspectionMask;
-
 @property (readonly) BOOL poweredOn;
 @property (readonly) BOOL poweredOff;
 @property (readonly) BOOL paused;
@@ -273,8 +265,6 @@
 - (void)put:(CmdType)type key:(KeyCmd)cmd;
 - (void)put:(CmdType)type action:(GamePadCmd)cmd;
 - (void)put:(CmdType)type coord:(CoordCmd)cmd;
-
- - (void) loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex;
 
 @end
 
@@ -346,8 +336,6 @@
     
 @property (readonly) CPUInfo info;
 @property (readonly) CPUInfo cachedInfo;
-@property (readonly) i64 clock;
-@property (readonly) BOOL halted;
 
 @property (readonly) NSInteger loggedInstructions;
 - (void)clearLog;
@@ -375,8 +363,10 @@
 
 @property (readonly) AmigaInfo info;
 @property (readonly) AmigaInfo cachedInfo;
+@property NSInteger autoInspectionMask;
 
-- (SnapshotProxy *) takeSnapshot;
+- (MediaFileProxy *) takeSnapshot;
+- (void) loadSnapshot:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 
 @end
 
@@ -389,6 +379,7 @@
  
 @property (readonly) CIAInfo info;
 @property (readonly) CIAInfo cachedInfo;
+@property (readonly) CIAStats stats;
 
 @end
 
@@ -409,13 +400,13 @@
 
 - (void)deleteRom;
 - (BOOL)isRom:(NSURL *)url;
-- (void)loadRom:(RomFileProxy *)proxy exception:(ExceptionWrapper *)ex;
+- (void)loadRom:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadRomFromBuffer:(NSData *)buffer exception:(ExceptionWrapper *)ex;
 - (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
 - (void)deleteExt;
 - (BOOL)isExt:(NSURL *)url;
-- (void)loadExt:(ExtendedRomFileProxy *)proxy exception:(ExceptionWrapper *)ex;
+- (void)loadExt:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadExtFromBuffer:(NSData *)buffer exception:(ExceptionWrapper *)ex;
 - (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
@@ -561,7 +552,7 @@
 @property (readonly) StateMachineInfo audioInfo3;
 @property (readonly) UARTInfo uartInfo;
 @property (readonly) UARTInfo cachedUartInfo;
-@property (readonly) AudioPortStats audioPortStats;
+// @property (readonly) AudioPortStats audioPortStats;
 
 @end
 
@@ -602,7 +593,7 @@
 
 @interface VideoPortProxy : CoreComponentProxy { }
 
-- (void)texture:(u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof;
+- (void)texture:(const u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof;
 
 @end
 
@@ -613,6 +604,7 @@
 
 @interface SerialPortProxy : CoreComponentProxy { }
 
+@property (readonly) SerialPortConfig config;
 @property (readonly) SerialPortInfo info;
 @property (readonly) SerialPortInfo cachedInfo;
 
@@ -656,7 +648,10 @@
 
 - (BOOL)isPressed:(NSInteger)keycode;
 - (void)press:(NSInteger)keycode;
+- (void)press:(NSInteger)keycode delay:(double)delay;
+- (void)press:(NSInteger)keycode delay:(double)delay duration:(double)duration;
 - (void)release:(NSInteger)keycode;
+- (void)release:(NSInteger)keycode delay:(double)delay;
 - (void)toggle:(NSInteger)keycode;
 - (void)releaseAll;
 
@@ -691,9 +686,9 @@
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density;
 - (void)insertBlankDisk:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex;
-- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp;
+- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp exception:(ExceptionWrapper *)ex;
 - (void)eject;
-- (void)swap:(FloppyFileProxy *)fileProxy exception:(ExceptionWrapper *)ex;
+- (MediaFileProxy *)exportDisk:(FileType)type exception:(ExceptionWrapper *)ex;
 
 - (NSString *)readTrackBits:(NSInteger)track;
 
@@ -723,6 +718,7 @@
 
 @property (readonly, strong) HdControllerProxy *controller;
 
+@property (readonly) HardDriveConfig config;
 @property (readonly) HardDriveInfo info;
 @property (readonly) HardDriveTraits traits;
 - (PartitionTraits) partitionTraits:(NSInteger)nr;
@@ -730,8 +726,9 @@
 - (BOOL)getFlag:(DiskFlags)mask;
 - (void)setFlag:(DiskFlags)mask value:(BOOL)value;
 
+- (void)attach:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
+
  - (void)attachFile:(NSURL *)path exception:(ExceptionWrapper *)ex;
-- (void)attach:(HDFFileProxy *)hdf exception:(ExceptionWrapper *)ex;
 - (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex;
 - (void)format:(FSVolumeType)fs name:(NSString *)name exception:(ExceptionWrapper *)ex;
 - (void)changeGeometry:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex;
@@ -748,8 +745,7 @@
 
 @interface FileSystemProxy : Proxy { }
 
-+ (instancetype)makeWithADF:(ADFFileProxy *)adf exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithHDF:(HDFFileProxy *)hdf partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithMedia:(MediaFileProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
 
 @property (readonly) NSString *name;
 @property (readonly) NSString *creationDate;
@@ -788,6 +784,17 @@
 
 
 //
+// RemoteManager
+//
+
+@interface RemoteManagerProxy : Proxy { }
+
+@property (readonly) RemoteManagerInfo info;
+
+@end
+
+
+//
 // RetroShell
 //
 
@@ -799,17 +806,7 @@
 - (void)pressKey:(char)c;
 - (void)pressSpecialKey:(RetroShellKey)key;
 - (void)pressSpecialKey:(RetroShellKey)key shift:(BOOL)shift;
-
-@end
-
-
-//
-// RemoteManager
-//
-
-@interface RemoteManagerProxy : Proxy
-
-@property (readonly) RemoteManagerInfo info;
+- (void)executeScript:(MediaFileProxy *)file;
 
 @end
 
@@ -850,21 +847,35 @@
 
 + (FileType) typeOfUrl:(NSURL *)url;
 
++ (instancetype)make:(void *)file;
 + (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithFile:(NSString *)path type:(FileType)t exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len type:(FileType)t exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithAmiga:(EmulatorProxy *)proxy;
 + (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
 
 @property (readonly) FileType type;
-// @property (readonly) NSString *name;
 @property (readonly) u64 fnv;
+@property (readonly) NSInteger size;
+@property (readonly) u8 *data;
 
 - (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex;
+- (void)writeToFile:(NSString *)path partition:(NSInteger)part exception:(ExceptionWrapper *)ex;
 
 @property (readonly, strong) NSImage *previewImage;
 @property (readonly) time_t timeStamp;
+@property (readonly) DiskInfo diskInfo;
+@property (readonly) FloppyDiskInfo floppyDiskInfo;
+@property (readonly) HDFInfo hdfInfo;
+@property (readonly) NSString *describeCapacity;
+
+- (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset;
+- (void)readSector:(NSInteger)b destination:(unsigned char *)buf;
+
+- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
+- (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
 
 @end
 
@@ -885,63 +896,6 @@
 - (void)setPath:(NSString *)path;
 - (NSInteger)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex;
 
-@end
-
-//
-// Snapshot
-//
-
-@interface SnapshotProxy : AmigaFileProxy <MakeWithFile, MakeWithBuffer> {
-    
-    NSImage *preview;
-}
-
-+ (instancetype)make:(void *)file;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithAmiga:(AmigaProxy *)proxy;
-
-@property (readonly, strong) NSImage *previewImage;
-@property (readonly) time_t timeStamp;
-
-@end
-
-
-//
-// Script
-//
-
-@interface ScriptProxy : AmigaFileProxy <MakeWithFile, MakeWithBuffer>
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
- 
-- (void)execute:(EmulatorProxy *)proxy;
-
-@end
-
-
-//
-// RomFile
-//
-
-@interface RomFileProxy : AmigaFileProxy <MakeWithFile, MakeWithBuffer>
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
- 
-@end
-
-
-//
-// ExtendedRomFile
-//
-
-@interface ExtendedRomFileProxy : AmigaFileProxy <MakeWithFile, MakeWithBuffer>
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
- 
 @end
 
 
@@ -965,138 +919,5 @@
 
 - (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
 - (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
-
-@end
-
-
-//
-// FloppyFileProxy
-//
-
-@interface FloppyFileProxy : DiskFileProxy
-
-@property (readonly) FSVolumeType dos;
-@property (readonly) Diameter diskType;
-@property (readonly) Density diskDensity;
-@property (readonly) BOOL isSD;
-@property (readonly) BOOL isDD;
-@property (readonly) BOOL isHD;
-
-@property (readonly) BootBlockType bootBlockType;
-@property (readonly) NSString *bootBlockName;
-@property (readonly) BOOL hasVirus;
-
-- (void)killVirus;
-
-@end
-
-
-//
-// ADFFileProxy
-//
-
-@interface ADFFileProxy : FloppyFileProxy <MakeWithFile, MakeWithBuffer, MakeWithDrive>
-
-+ (instancetype)makeWithDiameter:(Diameter)type density:(Density)density exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)drive exception:(ExceptionWrapper *)ex;
-
-- (void)format:(FSVolumeType)fs bootBlock:(NSInteger)bb name:(NSString *)name;
-
-@end
-
-
-//
-// HDFFile
-//
-
-@interface HDFFileProxy : DiskFileProxy <MakeWithFile, MakeWithBuffer, MakeWithHardDrive>
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithHardDrive:(HardDriveProxy *)drive exception:(ExceptionWrapper *)ex;
-
-@property (readonly) BOOL hasRDB;
-@property (readonly) NSInteger numPartitions;
-@property (readonly) NSInteger numDrivers;
-
-- (NSInteger)writeToFile:(NSString *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
-
-@end
-
-
-//
-// EADFFileProxy
-//
-
-@interface EADFFileProxy : FloppyFileProxy <MakeWithFile, MakeWithBuffer, MakeWithDrive>
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)drive exception:(ExceptionWrapper *)ex;
-
-@end
-
-
-//
-// IMGFileProxy
-//
-
-@interface IMGFileProxy : FloppyFileProxy <MakeWithFile, MakeWithBuffer, MakeWithDrive>
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex;
-
-@end
-
-
-//
-// STFileProxy
-//
-
-@interface STFileProxy : FloppyFileProxy <MakeWithFile, MakeWithBuffer> {
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-
-@end
-
-
-//
-// DMSFileProxy
-//
-
-@interface DMSFileProxy : FloppyFileProxy <MakeWithFile, MakeWithBuffer>
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-
-@end
-
-
-//
-// EXEFileProxy
-//
-
-@interface EXEFileProxy : FloppyFileProxy <MakeWithFile, MakeWithBuffer>
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-
-@end
-
-
-//
-// Folder
-//
-
-@interface FolderProxy : FloppyFileProxy <MakeWithFile>
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-
-@property (readonly) ADFFileProxy *adf;
 
 @end

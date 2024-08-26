@@ -21,13 +21,13 @@ class ControlPort : public SubComponent, public Inspectable<ControlPortInfo> {
 
     Descriptions descriptions = {
         {
-            .type           = COMP_CONTROL_PORT,
+            .type           = ControlPortClass,
             .name           = "ControlPort1",
             .description    = "Control Port 1",
             .shell          = "port1"
         },
         {
-            .type           = COMP_CONTROL_PORT,
+            .type           = ControlPortClass,
             .name           = "ControlPort2",
             .description    = "Control Port 2",
             .shell          = "port2"
@@ -38,11 +38,6 @@ class ControlPort : public SubComponent, public Inspectable<ControlPortInfo> {
     ConfigOptions options = {
 
     };
-
-public:
-
-    // [[deprecated]] static constexpr isize PORT1 = 0;
-    // [[deprecated]] static constexpr isize PORT2 = 1;
 
 private:
 
@@ -79,6 +74,22 @@ public:
 public:
 
     ControlPort(Amiga& ref, isize nr);
+
+    ControlPort& operator= (const ControlPort& other) {
+
+        CLONE(mouse)
+        CLONE(joystick)
+
+        CLONE(device)
+        CLONE(mouseCounterX)
+        CLONE(mouseCounterY)
+        CLONE(mouseX)
+        CLONE(mouseY)
+        CLONE(chargeDX)
+        CLONE(chargeDY)
+
+        return *this;
+    }
 
 
     //
@@ -123,7 +134,7 @@ public:
 
 
     //
-    // Analyzing
+    // Methods from Inspectable
     //
 
 public:

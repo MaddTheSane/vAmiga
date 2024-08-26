@@ -16,71 +16,19 @@
 
 namespace vamiga {
 
-constexpr u64 CIACountA0 =   (1ULL << 0); // Decrements timer A
-constexpr u64 CIACountA1 =   (1ULL << 1);
-constexpr u64 CIACountA2 =   (1ULL << 2);
-constexpr u64 CIACountA3 =   (1ULL << 3);
-constexpr u64 CIACountB0 =   (1ULL << 4); // Decrements timer B
-constexpr u64 CIACountB1 =   (1ULL << 5);
-constexpr u64 CIACountB2 =   (1ULL << 6);
-constexpr u64 CIACountB3 =   (1ULL << 7);
-constexpr u64 CIALoadA0 =    (1ULL << 8); // Loads timer A
-constexpr u64 CIALoadA1 =    (1ULL << 9);
-constexpr u64 CIALoadA2 =    (1ULL << 10);
-constexpr u64 CIALoadB0 =    (1ULL << 11); // Loads timer B
-constexpr u64 CIALoadB1 =    (1ULL << 12);
-constexpr u64 CIALoadB2 =    (1ULL << 13);
-constexpr u64 CIAPB6Low0 =   (1ULL << 14); // Sets pin PB6 low
-constexpr u64 CIAPB6Low1 =   (1ULL << 15);
-constexpr u64 CIAPB7Low0 =   (1ULL << 16); // Sets pin PB7 low
-constexpr u64 CIAPB7Low1 =   (1ULL << 17);
-constexpr u64 CIASetInt0 =   (1ULL << 18); // Triggers an interrupt
-constexpr u64 CIASetInt1 =   (1ULL << 19);
-constexpr u64 CIAClearInt0 = (1ULL << 20); // Releases the interrupt line
-constexpr u64 CIAOneShotA0 = (1ULL << 21);
-constexpr u64 CIAOneShotB0 = (1ULL << 22);
-constexpr u64 CIAReadIcr0 =  (1ULL << 23); // Indicates that ICR was read recently
-constexpr u64 CIAReadIcr1 =  (1ULL << 24);
-constexpr u64 CIAClearIcr0 = (1ULL << 25); // Clears bit 8 in ICR register
-constexpr u64 CIAClearIcr1 = (1ULL << 26);
-constexpr u64 CIAClearIcr2 = (1ULL << 27);
-constexpr u64 CIAAckIcr0 =   (1ULL << 28); // Clears bit 0 - 7 in ICR register
-constexpr u64 CIAAckIcr1 =   (1ULL << 29);
-constexpr u64 CIASetIcr0 =   (1ULL << 30); // Sets bit 8 in ICR register
-constexpr u64 CIASetIcr1 =   (1ULL << 31);
-constexpr u64 CIATODInt0 =   (1ULL << 32); // Triggers an IRQ with TOD as source
-constexpr u64 CIASerInt0 =   (1ULL << 33); // Triggers an IRQ with serial reg as source
-constexpr u64 CIASerInt1 =   (1ULL << 34);
-constexpr u64 CIASerInt2 =   (1ULL << 35);
-constexpr u64 CIASdrToSsr0 = (1ULL << 36); // Move serial data reg to serial shift reg
-constexpr u64 CIASdrToSsr1 = (1ULL << 37);
-constexpr u64 CIASsrToSdr0 = (1ULL << 38); // Move serial shift reg to serial data reg
-constexpr u64 CIASsrToSdr1 = (1ULL << 39);
-constexpr u64 CIASsrToSdr2 = (1ULL << 40);
-constexpr u64 CIASsrToSdr3 = (1ULL << 41);
-constexpr u64 CIASerClk0 =   (1ULL << 42); // Clock signal driving the serial register
-constexpr u64 CIASerClk1 =   (1ULL << 43);
-constexpr u64 CIASerClk2 =   (1ULL << 44);
-constexpr u64 CIASerClk3 =   (1ULL << 45);
-constexpr u64 CIALast =      (1ULL << 46);
+class CIA : public SubComponent, public Inspectable<CIAInfo, CIAStats> {
 
-constexpr u64 CIADelayMask = ~CIALast
-& ~CIACountA0 & ~CIACountB0 & ~CIALoadA0 & ~CIALoadB0 & ~CIAPB6Low0
-& ~CIAPB7Low0 & ~CIASetInt0 & ~CIAClearInt0 & ~CIAOneShotA0 & ~CIAOneShotB0
-& ~CIAReadIcr0 & ~CIAClearIcr0 & ~CIAAckIcr0 & ~CIASetIcr0 & ~CIATODInt0
-& ~CIASerInt0 & ~CIASdrToSsr0 & ~CIASsrToSdr0 & ~CIASerClk0;
+    friend class TOD;
 
-class CIA : public SubComponent, public Inspectable<CIAInfo> {
-    
     Descriptions descriptions = {
         {
-            .type           = COMP_CIA,
+            .type           = CIAClass,
             .name           = "CIAA",
             .description    = "Complex Interface Adapter A",
             .shell          = "ciaa"
         },
         {
-            .type           = COMP_CIA,
+            .type           = CIAClass,
             .name           = "CIAB",
             .description    = "Complex Interface Adapter B",
             .shell          = "ciab"
@@ -95,18 +43,105 @@ class CIA : public SubComponent, public Inspectable<CIAInfo> {
         OPT_CIA_IDLE_SLEEP
     };
 
-    friend class TOD;
-    
 protected:
-
-    // Identification number (0 = CIA A, 1 = CIA B)
-    // const int nr;
 
     // Current configuration
     CIAConfig config = {};
 
-    // Result of the latest inspection
-    mutable CIAInfo info = {};
+
+    //
+    // Action flags
+    //
+
+protected:
+
+    // Decrements timer A
+    static constexpr u64 CIACountA0 =   (1ULL << 0);
+    static constexpr u64 CIACountA1 =   (1ULL << 1);
+    static constexpr u64 CIACountA2 =   (1ULL << 2);
+    static constexpr u64 CIACountA3 =   (1ULL << 3);
+
+    // Decrements timer B
+    static constexpr u64 CIACountB0 =   (1ULL << 4);
+    static constexpr u64 CIACountB1 =   (1ULL << 5);
+    static constexpr u64 CIACountB2 =   (1ULL << 6);
+    static constexpr u64 CIACountB3 =   (1ULL << 7);
+
+    // Loads timer A
+    static constexpr u64 CIALoadA0 =    (1ULL << 8);
+    static constexpr u64 CIALoadA1 =    (1ULL << 9);
+    static constexpr u64 CIALoadA2 =    (1ULL << 10);
+
+    // Loads timer B
+    static constexpr u64 CIALoadB0 =    (1ULL << 11);
+    static constexpr u64 CIALoadB1 =    (1ULL << 12);
+    static constexpr u64 CIALoadB2 =    (1ULL << 13);
+
+    // Sets pin PB6 low
+    static constexpr u64 CIAPB6Low0 =   (1ULL << 14);
+    static constexpr u64 CIAPB6Low1 =   (1ULL << 15);
+
+    // Sets pin PB7 low
+    static constexpr u64 CIAPB7Low0 =   (1ULL << 16);
+    static constexpr u64 CIAPB7Low1 =   (1ULL << 17);
+
+    // Triggers an interrupt
+    static constexpr u64 CIASetInt0 =   (1ULL << 18);
+    static constexpr u64 CIASetInt1 =   (1ULL << 19);
+
+    // Releases the interrupt line
+    static constexpr u64 CIAClearInt0 = (1ULL << 20);
+    static constexpr u64 CIAOneShotA0 = (1ULL << 21);
+    static constexpr u64 CIAOneShotB0 = (1ULL << 22);
+
+    // Indicates that ICR was read recently
+    static constexpr u64 CIAReadIcr0 =  (1ULL << 23);
+    static constexpr u64 CIAReadIcr1 =  (1ULL << 24);
+
+    // Clears bit 8 in ICR register
+    static constexpr u64 CIAClearIcr0 = (1ULL << 25);
+    static constexpr u64 CIAClearIcr1 = (1ULL << 26);
+    static constexpr u64 CIAClearIcr2 = (1ULL << 27);
+
+    // Clears bit 0 - 7 in ICR register
+    static constexpr u64 CIAAckIcr0 =   (1ULL << 28);
+    static constexpr u64 CIAAckIcr1 =   (1ULL << 29);
+
+    // Sets bit 8 in ICR register
+    static constexpr u64 CIASetIcr0 =   (1ULL << 30);
+    static constexpr u64 CIASetIcr1 =   (1ULL << 31);
+
+    // Triggers an IRQ with TOD as source
+    static constexpr u64 CIATODInt0 =   (1ULL << 32);
+
+    // Triggers an IRQ with serial reg as source
+    static constexpr u64 CIASerInt0 =   (1ULL << 33);
+    static constexpr u64 CIASerInt1 =   (1ULL << 34);
+    static constexpr u64 CIASerInt2 =   (1ULL << 35);
+
+    // Move serial data reg to serial shift reg
+    static constexpr u64 CIASdrToSsr0 = (1ULL << 36);
+    static constexpr u64 CIASdrToSsr1 = (1ULL << 37);
+
+    // Move serial shift reg to serial data reg
+    static constexpr u64 CIASsrToSdr0 = (1ULL << 38);
+    static constexpr u64 CIASsrToSdr1 = (1ULL << 39);
+    static constexpr u64 CIASsrToSdr2 = (1ULL << 40);
+    static constexpr u64 CIASsrToSdr3 = (1ULL << 41);
+
+    // Clock signal driving the serial register
+    static constexpr u64 CIASerClk0 =   (1ULL << 42);
+    static constexpr u64 CIASerClk1 =   (1ULL << 43);
+    static constexpr u64 CIASerClk2 =   (1ULL << 44);
+    static constexpr u64 CIASerClk3 =   (1ULL << 45);
+
+    static constexpr u64 CIALast =      (1ULL << 46);
+
+    static constexpr u64 CIADelayMask = ~CIALast
+    & ~CIACountA0 & ~CIACountB0 & ~CIALoadA0 & ~CIALoadB0 & ~CIAPB6Low0
+    & ~CIAPB7Low0 & ~CIASetInt0 & ~CIAClearInt0 & ~CIAOneShotA0 & ~CIAOneShotB0
+    & ~CIAReadIcr0 & ~CIAClearIcr0 & ~CIAAckIcr0 & ~CIASetIcr0 & ~CIATODInt0
+    & ~CIASerInt0 & ~CIASdrToSsr0 & ~CIASsrToSdr0 & ~CIASerClk0;
 
 
     //
@@ -291,22 +326,56 @@ public:
     bool isCIAA() const { return objid == 0; }
     bool isCIAB() const { return objid == 1; }
 
-    
+    CIA& operator= (const CIA& other) {
+
+        CLONE(tod)
+
+        CLONE(delay)
+        CLONE(feed)
+        CLONE(counterA)
+        CLONE(counterB)
+        CLONE(latchA)
+        CLONE(latchB)
+        CLONE(cra)
+        CLONE(crb)
+        CLONE(imr)
+        CLONE(icr)
+        CLONE(icrAck)
+        CLONE(pra)
+        CLONE(prb)
+        CLONE(ddra)
+        CLONE(ddrb)
+        CLONE(pb67TimerMode)
+        CLONE(pb67TimerOut)
+        CLONE(pb67Toggle)
+        CLONE(pa)
+        CLONE(pb)
+        CLONE(sp)
+        CLONE(cnt)
+        CLONE(irq)
+        CLONE(sdr)
+        CLONE(ssr)
+        CLONE(serCounter)
+
+        CLONE(clock)
+        CLONE(idleCycles)
+        CLONE(tiredness)
+        CLONE(sleeping)
+        CLONE(sleepCycle)
+        CLONE(wakeUpCycle)
+
+        CLONE(config)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
 
-    void _initialize() override;
-    
+public:
+
     template <class T>
     void serialize(T& worker)
     {
@@ -339,9 +408,6 @@ private:
         << ssr
         << serCounter;
 
-        if (isResetter(worker)) {
-            updatePA();updatePB();
-        }
         if (isSoftResetter(worker)) return;
 
         worker
@@ -369,12 +435,32 @@ private:
     void operator << (SerReader &worker) override { serialize(worker); }
     void operator << (SerWriter &worker) override { serialize(worker); }
 
+    
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+    void _initialize() override;
     void _willReset(bool hard) override;
     void _didReset(bool hard) override;
 
-    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(CIAInfo &result) const override;
+    void cacheStats(CIAStats &result) const override;
 
 
     //
@@ -386,6 +472,7 @@ public:
     const CIAConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
     
@@ -395,8 +482,6 @@ public:
     
 public:
     
-    // CIAInfo getInfo() const { return CoreComponent::getInfo(info); }
-    void cacheInfo(CIAInfo &result) const override;
     Cycle getClock() const { return clock; }
 
     

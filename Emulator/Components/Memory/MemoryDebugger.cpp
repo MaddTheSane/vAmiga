@@ -216,6 +216,46 @@ MemoryDebugger::write(u32 addr, u32 val, isize sz, isize repeats)
     }
 }
 
+void 
+MemoryDebugger::load(std::istream& is, u32 addr)
+{
+    for (;; addr++) {
+
+        auto val = is.get();
+        if (val == EOF) return;
+
+        mem.patch(addr, u8(val));
+    }
+}
+
+void
+MemoryDebugger::load(fs::path& path, u32 addr)
+{
+    std::ifstream stream(path, std::ifstream::binary);
+    if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, path);
+
+    load(stream, addr);
+}
+
+void
+MemoryDebugger::save(std::ostream& os, u32 addr, isize count)
+{
+    for (isize i = 0; i < count; i++) {
+
+        auto val = mem.peek8 <ACCESSOR_CPU> (u32(addr + i));
+        os.put(val);
+    }
+}
+
+void
+MemoryDebugger::save(fs::path& path, u32 addr, isize count)
+{
+    std::ofstream stream(path, std::ifstream::binary);
+    if (!stream.is_open()) throw Error(ERROR_FILE_CANT_CREATE, path);
+
+    save(stream, addr, count);
+}
+
 bool
 MemoryDebugger::isReadable(ChipsetReg reg) const
 {
@@ -314,6 +354,12 @@ MemoryDebugger::isWritable(ChipsetReg reg) const
     }
 }
 
+const char *
+MemoryDebugger::regName(u32 addr)
+{
+    return ChipsetRegEnum::key((addr >> 1) & 0xFF);
+}
+
 bool
 MemoryDebugger::isUnused(ChipsetReg reg) const
 {
@@ -375,10 +421,10 @@ MemoryDebugger::convertNumeric(std::ostream& os, string s) const
 {
     u8 bytes[4];
 
-    bytes[0] = s.length() >= 4 ? (u8)s[s.length() - 1] : 0;
-    bytes[1] = s.length() >= 3 ? (u8)s[s.length() - 2] : 0;
-    bytes[2] = s.length() >= 2 ? (u8)s[s.length() - 3] : 0;
-    bytes[3] = s.length() >= 1 ? (u8)s[s.length() - 4] : 0;
+    bytes[0] = s.length() >= 4 ? (u8)s[s.length() - 4] : 0;
+    bytes[1] = s.length() >= 3 ? (u8)s[s.length() - 3] : 0;
+    bytes[2] = s.length() >= 2 ? (u8)s[s.length() - 2] : 0;
+    bytes[3] = s.length() >= 1 ? (u8)s[s.length() - 1] : 0;
 
     convertNumeric(os, u32(HI_HI_LO_LO(bytes[0], bytes[1], bytes[2], bytes[3])));
 }

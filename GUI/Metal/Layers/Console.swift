@@ -16,7 +16,6 @@ class Console: Layer {
     
     var window: NSWindow { return controller.window! }
     var contentView: NSView { return window.contentView! }
-    
     let scrollView = NSTextView.scrollableTextView()
     var textView: NSTextView
 
@@ -149,10 +148,11 @@ class Console: Layer {
         
     }
 
-    func runScript(script: ScriptProxy) {
-        
+    func runScript(script: MediaFileProxy) {
+
         open()
-        script.execute(amiga)
+
+        amiga.retroShell.executeScript(script)
         isDirty = true
     }
 }

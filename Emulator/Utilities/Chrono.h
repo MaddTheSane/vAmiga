@@ -9,10 +9,10 @@
 
 #pragma once
 
-#include "Types.h"
+#include "BasicTypes.h"
 #include <ctime>
 
-namespace util {
+namespace vamiga::util {
 
 class Time {
     
@@ -71,6 +71,7 @@ class Clock {
     bool paused = false;
 
     void updateElapsed();
+    void updateElapsed(Time now);
 
 public:
     
@@ -94,5 +95,4 @@ public:
     ~StopWatch();
 };
 
-#define MEASURE_TIME(x) util::StopWatch _watch(x);
 }

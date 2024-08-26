@@ -28,6 +28,12 @@ public:
     // The virtual Amiga
     Amiga main = Amiga(*this, 0);
 
+    // The run-ahead instance
+    Amiga ahead = Amiga(*this, 1);
+
+    // Indicates if the run-ahead instance needs to be updated
+    bool isDirty = true;
+
 public:
 
     // User default settings
@@ -35,9 +41,6 @@ public:
 
     // Incoming external events
     CmdQueue cmdQueue;
-
-    // Host system information
-    Host host = Host(*this);
 
 
     //
@@ -121,7 +124,6 @@ private:
     bool shouldWarp() const;
     isize missingFrames() const override;
     void computeFrame() override;
-    void recreateRunAheadInstance();
 
     void _powerOn() override { main.powerOn(); }
     void _powerOff() override { main.powerOff(); }
@@ -138,6 +140,20 @@ private:
 public:
 
     double refreshRate() const override;
+    Cycle currentCycle() const override;
+
+
+    //
+    // Managing the run-ahead instance
+    //
+
+private:
+    
+    // Clones the run-ahead instance
+    void cloneRunAheadInstance();
+
+    // Clones the run-ahead instance and fast forwards it to the proper frame
+    void recreateRunAheadInstance();
 
 
     //
@@ -154,6 +170,13 @@ public:
 
 
     //
+    // Audio and Video
+    //
+
+    const FrameBuffer &getTexture() const;
+    
+
+    //
     // Command queue
     //
 
@@ -161,7 +184,13 @@ public:
 
     // Feeds a command into the command queue
     void put(const Cmd &cmd);
-    void put(CmdType type, i64 payload);
+    void put(CmdType type, i64 payload = 0, i64 payload2 = 0) { put(Cmd(type, payload, payload2)); }
+    void put(CmdType type, ConfigCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, KeyCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, CoordCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, GamePadCmd payload)  { put(Cmd(type, payload)); }
+    void put(CmdType type, AlarmCmd payload)  { put(Cmd(type, payload)); }
+
 
 private:
 
@@ -176,7 +205,7 @@ private:
 public:
 
     // Gets or sets an internal debug variable (only available in debug builds)
-    static bool getDebugVariable(DebugFlag flag);
+    static int getDebugVariable(DebugFlag flag);
     static void setDebugVariable(DebugFlag flag, bool val);
 };
 

@@ -20,7 +20,7 @@ class DiskController : public SubComponent, public Inspectable<DiskControllerInf
 {
     Descriptions descriptions = {{
 
-        .type           = COMP_DISK_CONTROLLER,
+        .type           = DiskControllerClass,
         .name           = "DiskController",
         .description    = "Disk Controller",
         .shell          = "paula dc"
@@ -36,9 +36,6 @@ class DiskController : public SubComponent, public Inspectable<DiskControllerInf
     // Current configuration
     DiskControllerConfig config = {};
 
-    // Result of the latest inspection
-    mutable DiskControllerInfo info = {};
-    
     // The currently selected drive (-1 if no drive is selected)
     isize selected = -1;
 
@@ -115,15 +112,32 @@ public:
     
     using SubComponent::SubComponent;
 
-    
+    DiskController& operator= (const DiskController& other) {
+
+        CLONE(config)
+
+        CLONE(selected)
+        CLONE(state)
+        CLONE(syncCycle)
+        CLONE(syncCounter)
+        CLONE(dskEventDelay)
+        CLONE(incoming)
+        CLONE(dataReg)
+        CLONE(dataRegCount)
+        CLONE(fifo)
+        CLONE(fifoCount)
+        CLONE(dsklen)
+        CLONE(dsksync)
+        CLONE(prb)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreObject
+    // Methods from Serializable
     //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
-    
+
 private:
         
     template <class T>
@@ -161,9 +175,18 @@ private:
     void operator << (SerReader &worker) override { serialize(worker); }
     void operator << (SerWriter &worker) override { serialize(worker); }
 
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
 
 
     //
@@ -175,6 +198,7 @@ public:
     const DiskControllerConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
     bool turboMode() const { return config.speed == -1; }
@@ -186,7 +210,6 @@ public:
     
 public:
     
-    // DiskControllerInfo getInfo() const { return CoreComponent::getInfo(info); }
     void cacheInfo(DiskControllerInfo &result) const override;
 
     //

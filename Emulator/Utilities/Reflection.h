@@ -11,77 +11,94 @@
 
 #ifdef __cplusplus
 
-#include "Types.h"
+#include "BasicTypes.h"
 #include <functional>
 #include <map>
 
-/* The purpose of the Reflection interface is to make the internal names of
+/* The purpose of the Reflection interface is to make the symbolic names of
  * an enumeration type available inside the application. I.e., it provides
- * several functions for converting enum numbers to strings and vice versa.
+ * several functions for converting enum values to strings and vice versa.
  *
- * Two general types on enumerations are distinguished:
+ * The interface distinguishes two enumeration types:
  *
  * - Standard enumerations
  *
- *   The enumeration members are numbered 0, 1, 2, etc. Each member of the
+ *   The enumeration members must be numbered 0, 1, 2, etc. Each member of the
  *   enumeration is treated as a stand-alone option.
  *
  * - Bit field enumerations
  *
- *   The enumeration members are numbered 1, 2, 4, etc. Each member of the
+ *   The enumeration members must be numbered 1, 2, 4, etc. Each member of the
  *   enumeration is treated as flag of a combined bit field.
  */
-namespace util {
+
+namespace vamiga::util {
 
 #define assert_enum(e,v) assert(e##Enum::isValid(v))
 
 template <class T, typename E> struct Reflection {
 
-    // Determines if this enum represents a bit field
-    static constexpr bool bitField = T::minVal == 1;
+    // Checks whether this enum is a bit fiels rather than a standard enum
+    static constexpr bool isBitField() { return T::minVal == 1; }
 
-    // Returns the key as a C string
-    static const char *key(long value) {
+    // Checks if the provides value is inside the valid range
+    static constexpr bool isValid(auto value) { return long(value) >= T::minVal && long(value) <= T::maxVal; }
+
+    // Returns the key as a C string (including the section prefix)
+    static const char *rawkey(isize value) { return T::_key((E)value); }
+
+    // Returns the key as a C string (excluding the section prefix)
+    static const char *key(isize value) {
+
+        auto *p = rawkey(value);
+        for (isize i = 0; p[i]; i++) if (p[i] == '.') return p + i + 1;
+        return p;
+    }
+    
+    // Returns a textual representation for a bit mask
+    static const char *mask(isize mask) {
 
         static string result;
-
         result = "";
-        if constexpr (bitField) {
+
+        if (isBitField()) {
 
             for (isize i = T::minVal; i <= T::maxVal; i *= 2) {
-                if (value & i) result += (result.empty() ? "" : " | ") + string(T::_key((E)i));
+                if (mask & i) result += (result.empty() ? "" : " | ") + string(T::_key((E)i));
             }
 
         } else {
-            
-            result = string(T::_key((E)value));
+
+            for (isize i = T::minVal; i <= T::maxVal; i++) {
+                if (mask & (1 << i)) result += (result.empty() ? "" : " | ") + string(T::_key((E)i));
+            }
         }
 
         return result.c_str();
     }
 
-    // Returns the key without the section prefix (if any)
-    // TODO: Integrate into key()
-    static const char *plainkey(isize nr) {
-
-        auto *p = T::key((E)nr);
-        for (isize i = 0; p[i]; i++) if (p[i] == '.') return p + i + 1;
-        return p;
-    }
-    
     // Collects all key / value pairs
     static std::map <string,long> pairs(std::function<bool(E)> filter = [](E){ return true; }) {
 
         std::map <string,long> result;
 
-        for (isize i = T::minVal; i <= T::maxVal; i++) {
-            if (T::isValid(i) && filter(E(i))) result.insert(std::make_pair(key(i), i));
+        if (isBitField()) {
+
+            for (isize i = T::minVal; i <= T::maxVal; i *= 2) {
+                if (filter(E(i))) result.insert(std::make_pair(key(i), i));
+            }
+
+        } else {
+
+            for (isize i = T::minVal; i <= T::maxVal; i++) {
+                if (filter(E(i))) result.insert(std::make_pair(key(i), i));
+            }
         }
 
         return result;
     }
 
-    // Returns a list in form of a colon seperated string
+    // Returns all keys in form of a textual list representation
     static string keyList(std::function<bool(E)> filter = [](E){ return true; }, const string &delim = ", ") {
 
         string result;

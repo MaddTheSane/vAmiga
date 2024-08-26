@@ -25,21 +25,25 @@ class FloppyDrive : public Drive, public Inspectable<FloppyDriveInfo> {
 
     Descriptions descriptions = {
         {
+            .type           = FloppyDriveClass,
             .name           = "FloppyDrive0",
             .description    = "Floppy Drive 0",
             .shell          = "df0"
         },
         {
+            .type           = FloppyDriveClass,
             .name           = "FloppyDrive1",
             .description    = "Floppy Drive 1",
             .shell          = "df1"
         },
         {
+            .type           = FloppyDriveClass,
             .name           = "FloppyDrive2",
             .description    = "Floppy Drive 2",
             .shell          = "df2"
         },
         {
+            .type           = FloppyDriveClass,
             .name           = "FloppyDrive3",
             .description    = "Floppy Drive 3",
             .shell          = "df3"
@@ -64,9 +68,6 @@ class FloppyDrive : public Drive, public Inspectable<FloppyDriveInfo> {
 
     // Current configuration
     FloppyDriveConfig config = {};
-
-    // Result of the latest inspection
-    mutable FloppyDriveInfo info = {};
 
     // The current head location
     DriveHead head;
@@ -123,8 +124,8 @@ private:
     std::unique_ptr<FloppyDisk> diskToInsert;
     
     // Search path for disk files, one for each drive
-    string searchPath;
-    
+    std::filesystem::path searchPath;
+
     
     //
     // Initializing
@@ -132,9 +133,11 @@ private:
 
 public:
 
-    FloppyDrive(Amiga& ref, isize nr);
-    
-    
+    using Drive::Drive;
+
+    FloppyDrive& operator= (const FloppyDrive& other);
+
+
     //
     // Methods from CoreObject
     //
@@ -170,6 +173,7 @@ private:
         << latestStepUp
         << latestStepDown
         << latestStep
+        << latestStepCompleted
         << dskchange
         << dsklen
         << prb
@@ -230,10 +234,11 @@ public:
     const FloppyDriveConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
     
-    const string &getSearchPath() const { return searchPath; }
-    void setSearchPath(const string &path) { searchPath = path; }
+    const std::filesystem::path &getSearchPath() const { return searchPath; }
+    void setSearchPath(const std::filesystem::path &path) { searchPath = path; }
 
 
     //
@@ -351,7 +356,7 @@ public:
     // Returns true if the drive is in disk polling mode
     bool pollsForDisk() const;
 
-    
+
     //
     // Handling disks
     //
@@ -362,21 +367,23 @@ public:
     bool isInsertable(const FloppyFile &file) const;
     bool isInsertable(const FloppyDisk &disk) const;
 
-    // Ejects the current disk with an optional delay
-    void ejectDisk(Cycle delay = 0);
-    
     // Inserts a new disk with an optional delay
     void insertDisk(std::unique_ptr<FloppyDisk> disk, Cycle delay = 0) throws;
-    
+    void insertMediaFile(class MediaFile &file, bool wp);
+
+    // Ejects the current disk with an optional delay
+    void ejectDisk(Cycle delay = 0);
+
+    // Exports the current disk
+    MediaFile *exportDisk(FileType type);
+
     // Replaces the current disk (recommended way to insert disks)
     void swapDisk(std::unique_ptr<FloppyDisk> disk) throws;
     void swapDisk(class FloppyFile &file) throws;
-    void swapDisk(const string &name) throws;
+    void swapDisk(const std::filesystem::path &path) throws;
 
     // Replaces the current disk with a factory-fresh disk
     void insertNew(FSVolumeType fs, BootBlockId bb, string name) throws;
-
-    void insertMediaFile(class MediaFile &file, bool wp);
 
 private:
     
@@ -391,7 +398,7 @@ private:
 public:
     
     // Sets a catchpoint on the specified file
-    void catchFile(const string &path) throws;
+    void catchFile(const std::filesystem::path &path) throws;
     
     
     //
@@ -415,6 +422,13 @@ public:
     
     // Write handler for the PRB register of CIA B
     void PRBdidChange(u8 oldValue, u8 newValue);
+
+
+    //
+    // Debugging
+    //
+
+    string readTrackBits(isize track);
 };
 
 }

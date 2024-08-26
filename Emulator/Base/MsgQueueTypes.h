@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 #include "HdControllerTypes.h"
 
@@ -38,11 +38,12 @@ enum_long(MSG_TYPE)
     MSG_POWER_LED_OFF,
 
     // Retro shell
-    MSG_CONSOLE_CLOSE,      ///< RetroShell has been closed
-    MSG_CONSOLE_UPDATE,     ///< RetroShell has generated new output
-    MSG_CONSOLE_DEBUGGER,   ///< The RetroShell debugger has been opend or closed
-    MSG_SCRIPT_DONE,        ///< A RetroShell script has been successfully executed
-    MSG_SCRIPT_ABORT,       ///< The execution of a RetroShell ccript has been aborted
+    MSG_RSH_CLOSE,          ///< RetroShell has been closed
+    MSG_RSH_UPDATE,         ///< RetroShell has generated new output
+    MSG_RSH_DEBUGGER,       ///< The RetroShell debugger has been opend or closed
+    // MSG_RSH_EXEC,           ///< Commands have been executed
+    MSG_RSH_WAIT,           ///< Execution has peen postponed due to a wait command
+    MSG_RSH_ERROR,          ///< Command execution has been aborted due to an error
 
     // Amiga
     MSG_VIDEO_FORMAT,
@@ -56,6 +57,10 @@ enum_long(MSG_TYPE)
     MSG_SWTRAP_REACHED,
     MSG_CPU_HALT,
     
+    // Agnus
+    MSG_BEAMTRAP_REACHED,
+    MSG_BEAMTRAP_UPDATED,
+
     // Copper
     MSG_COPPERBP_REACHED,
     MSG_COPPERBP_UPDATED,
@@ -124,11 +129,10 @@ enum_long(MSG_TYPE)
 typedef MSG_TYPE MsgType;
 
 #ifdef __cplusplus
-struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType>
+struct MsgTypeEnum : vamiga::util::Reflection<MsgTypeEnum, MsgType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = MSG_ALARM;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "MSG"; }
     static const char *_key(long value)
@@ -152,11 +156,12 @@ struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType>
             case MSG_POWER_LED_DIM:         return "POWER_LED_DIM";
             case MSG_POWER_LED_OFF:         return "POWER_LED_OFF";
 
-            case MSG_CONSOLE_CLOSE:         return "CONSOLE_CLOSE";
-            case MSG_CONSOLE_UPDATE:        return "CONSOLE_UPDATE";
-            case MSG_CONSOLE_DEBUGGER:      return "CONSOLE_DEBUGGER";
-            case MSG_SCRIPT_DONE:           return "SCRIPT_DONE";
-            case MSG_SCRIPT_ABORT:          return "SCRIPT_ABORT";
+            case MSG_RSH_CLOSE:             return "RSH_CLOSE";
+            case MSG_RSH_UPDATE:            return "RSH_UPDATE";
+            case MSG_RSH_DEBUGGER:          return "RSH_DEBUGGER";
+            // case MSG_RSH_EXEC:              return "RSH_EXEC";
+            case MSG_RSH_WAIT:              return "RSH_WAIT";
+            case MSG_RSH_ERROR:             return "RSH_ERROR";
 
             case MSG_VIDEO_FORMAT:          return "VIDEO_FORMAT";
                 
@@ -167,6 +172,9 @@ struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType>
             case MSG_CATCHPOINT_REACHED:    return "CATCHPOINT_REACHED";
             case MSG_SWTRAP_REACHED:        return "SWTRAP_REACHED";
             case MSG_CPU_HALT:              return "CPU_HALT";
+
+            case MSG_BEAMTRAP_REACHED:      return "BEAMTRAP_REACHED";
+            case MSG_BEAMTRAP_UPDATED:      return "BEAMTRAP_UPDATED";
 
             case MSG_COPPERBP_REACHED:      return "COPPERBP_REACHED";
             case MSG_COPPERBP_UPDATED:      return "COPPERBP_UPDATED";

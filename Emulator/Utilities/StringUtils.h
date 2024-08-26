@@ -9,10 +9,10 @@
 
 #pragma once
 
-#include "Types.h"
+#include "BasicTypes.h"
 #include <vector>
 
-namespace util {
+namespace vamiga::util {
 
 //
 // Creating

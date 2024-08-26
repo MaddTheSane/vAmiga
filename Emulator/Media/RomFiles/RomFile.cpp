@@ -66,7 +66,7 @@ const u8 RomFile::encrRomHeaders[1][11] = {
 };
 
 bool
-RomFile::isCompatible(const string &path)
+RomFile::isCompatible(const std::filesystem::path &path)
 {
     return true;
 }
@@ -85,7 +85,7 @@ RomFile::isCompatible(std::istream &stream)
         for (isize i = 0; i < cnt; i++) {
             if (util::matchingStreamHeader(stream, bootRomHeaders[i], len)) return true;
         }
-        return false;
+        return ALLOW_ALL_ROMS;
     }
 
     // Kickstart Roms
@@ -97,7 +97,7 @@ RomFile::isCompatible(std::istream &stream)
         for (isize i = 0; i < cnt; i++) {
             if (util::matchingStreamHeader(stream, kickRomHeaders[i], len)) return true;
         }
-        return false;
+        return ALLOW_ALL_ROMS;
     }
 
     // Encrypted Kickstart Roms
@@ -111,7 +111,7 @@ RomFile::isCompatible(std::istream &stream)
         }
     }
 
-    return false;
+    return ALLOW_ALL_ROMS;
 }
 
 bool
@@ -124,7 +124,7 @@ RomFile::isRomBuffer(const u8 *buf, isize len)
 }
 
 bool
-RomFile::isRomFile(const string &path)
+RomFile::isRomFile(const std::filesystem::path &path)
 {
     std::ifstream stream(path, std::ifstream::binary);
     return stream.is_open() ? isCompatible(stream) : false;
@@ -148,7 +148,7 @@ RomFile::decrypt()
     if (!isEncrypted()) return;
 
     // Locate the rom.key file
-    romKeyPath = util::extractPath(path) + "rom.key";
+    romKeyPath = path.remove_filename() / "rom.key";
 
     // Load the rom.key file
     romKey.init(romKeyPath);

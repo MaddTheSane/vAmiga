@@ -18,6 +18,7 @@ class RTC : public SubComponent {
 
     Descriptions descriptions = {{
 
+        .type           = RTCClass,
         .name           = "RTC",
         .description    = "Real-time Clock",
         .shell          = "rtc"
@@ -73,7 +74,7 @@ public:
         CLONE(lastMeasure)
         CLONE(lastMeasuredValue)
 
-        CLONE(config.model)
+        CLONE(config)
 
         return *this;
     }
@@ -134,9 +135,8 @@ public:
     const RTCConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
-
-    bool isPresent() const { return config.model != RTC_NONE; }
 
     
     //

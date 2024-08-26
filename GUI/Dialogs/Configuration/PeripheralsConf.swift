@@ -11,6 +11,16 @@ extension ConfigurationController {
 
     func refreshPeripheralsTab() {
 
+        func update(_ component: NSTextField, enable: Bool = true, hidden: Bool = false) {
+            component.textColor = enable ? .controlTextColor : .disabledControlTextColor
+            component.isEnabled = enable
+            component.isHidden = hidden
+        }
+        func update(_ component: NSControl, enable: Bool = true, hidden: Bool = false) {
+            component.isEnabled = enable
+            component.isHidden = hidden
+        }
+        
         let poweredOff = emu.poweredOff
         
         // Floppy drives
@@ -43,6 +53,21 @@ extension ConfigurationController {
         perSerialPort.isHidden = config.serialDevice != nullmodem
         perSerialPortText.isHidden = config.serialDevice != nullmodem
         
+        // Joysticks
+        let autofire = config.autofire
+        let bursts = config.autofireBursts
+        perAutofire.state = autofire ? .on : .off
+        perAutofireCease.state = config.autofireBursts ? .on : .off
+        perAutofireBullets.integerValue = config.autofireBullets
+        perAutofireFrequency.integerValue = config.autofireDelay
+        update(perAutofireFrequency, hidden: !autofire)
+        update(perAutofireFrequencyText1, hidden: !autofire)
+        update(perAutofireFrequencyText2, hidden: !autofire)
+        update(perAutofireCease, hidden: !autofire)
+        update(perAutofireCeaseText, hidden: !autofire)
+        update(perAutofireBullets, hidden: !autofire || !bursts)
+        update(perAutofireBulletsText, hidden: !autofire || !bursts)
+
         // Lock controls if emulator is powered on
         perDf1Connect.isEnabled = poweredOff
         perDf2Connect.isEnabled = poweredOff && perDf1Connect.state == .on
@@ -83,8 +108,6 @@ extension ConfigurationController {
         // Disconnect df(n+1) if dfn is disconnected
         if !config.df1Connected { config.df2Connected = false }
         if !config.df2Connected { config.df3Connected = false }
-
-        refresh()
     }
     
     @IBAction func perDriveTypeAction(_ sender: NSPopUpButton!) {
@@ -96,7 +119,6 @@ extension ConfigurationController {
         case 3: config.df3Type = sender.selectedTag()
         default: fatalError()
         }
-        refresh()
     }
 
     @IBAction func perHdrConnectAction(_ sender: NSButton!) {
@@ -108,13 +130,10 @@ extension ConfigurationController {
         case 3: config.hd3Connected = sender.state == .on
         default: fatalError()
         }
-        
-        refresh()
     }
     
     @IBAction func perHdrTypeAction(_ sender: NSPopUpButton!) {
         
-        refresh()
     }
     
     @IBAction func perGameDeviceAction(_ sender: NSPopUpButton!) {
@@ -124,13 +143,31 @@ extension ConfigurationController {
         case 2: config.gameDevice2 = sender.selectedTag()
         default: fatalError()
         }
-        refresh()
+    }
+
+    @IBAction func perAutofireAction(_ sender: NSButton!) {
+
+        config.autofire = (sender.state == .on)
+    }
+
+    @IBAction func perAutofireCeaseAction(_ sender: NSButton!) {
+
+        config.autofireBursts = (sender.state == .on)
+    }
+
+    @IBAction func perAutofireBulletsAction(_ sender: NSTextField!) {
+
+        config.autofireBullets = sender.integerValue
+    }
+
+    @IBAction func perAutofireFrequencyAction(_ sender: NSSlider!) {
+
+        config.autofireDelay = sender.integerValue
     }
 
     @IBAction func perSerialDeviceAction(_ sender: NSPopUpButton!) {
 
         config.serialDevice = sender.selectedTag()
-        refresh()
     }
 
     @IBAction func perSerialDevicePortAction(_ sender: NSTextField!) {
@@ -138,7 +175,6 @@ extension ConfigurationController {
         if sender.integerValue > 0 && sender.integerValue < 65536 {
             config.serialDevicePort = sender.integerValue
         }
-        refresh()
     }
 
     @IBAction func perPresetAction(_ sender: NSPopUpButton!) {
@@ -152,7 +188,6 @@ extension ConfigurationController {
         config.applyPeripheralsUserDefaults()
 
         emu.resume()
-        refresh()
      }
 
      @IBAction func perDefaultsAction(_ sender: NSButton!) {

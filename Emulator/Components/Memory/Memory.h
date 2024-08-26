@@ -15,10 +15,10 @@
 #include "MemUtils.h"
 #include "Buffer.h"
 
+namespace vamiga {
+
 using util::Allocator;
 using util::Buffer;
-
-namespace vamiga {
 
 #define SLOW_RAM_STRT 0xC00000
 #define FAST_RAM_STRT ramExpansion.getBaseAddr()
@@ -106,7 +106,7 @@ class Memory : public SubComponent, public Inspectable<MemInfo, MemStats> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_MEM,
+        .type           = MemoryClass,
         .name           = "Memory",
         .description    = "Memory",
         .shell          = "mem"
@@ -215,6 +215,7 @@ public:
     u16 dataBus;
 
     // Static buffer for returning textual representations
+    // TODO: Replace by "static string str" and make it local
     char str[256];
     
 
@@ -228,9 +229,25 @@ public:
 
     Memory& operator= (const Memory& other) {
 
-        // TODO
-        assert(false);
+        CLONE(romAllocator)
+        CLONE(womAllocator)
+        CLONE(extAllocator)
+        CLONE(chipAllocator)
+        CLONE(slowAllocator)
+        CLONE(fastAllocator)
 
+        CLONE(womIsLocked)
+        CLONE_ARRAY(cpuMemSrc)
+        CLONE_ARRAY(agnusMemSrc)
+        CLONE(dataBus)
+
+        CLONE(romMask)
+        CLONE(womMask)
+        CLONE(extMask)
+        CLONE(chipMask)
+
+        CLONE(config)
+        
         return *this;
     }
 
@@ -256,6 +273,11 @@ public:
         if (isResetter(worker)) return;
 
         worker
+
+        << romMask
+        << womMask
+        << extMask
+        << chipMask
 
         << config.extStart
         << config.slowRamDelay
@@ -287,18 +309,6 @@ private:
 
 
     //
-    // Methods from Configurable
-    //
-
-public:
-    
-    const MemConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
-    i64 getOption(Option option) const override;
-    void setOption(Option option, i64 value) override;
-
-
-    //
     // Methods from Inspectable
     //
 
@@ -308,7 +318,17 @@ public:
     void cacheStats(MemStats &result) const override;
 
 
-    void updateStats();
+    //
+    // Methods from Configurable
+    //
+
+public:
+    
+    const MemConfig &getConfig() const { return config; }
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option option, i64 value) override;
 
     
     //
@@ -399,19 +419,19 @@ public:
     void eraseExt() { std::memset(ext, 0, config.extSize); }
     
     // Installs a Boot Rom or Kickstart Rom
-    void loadRom(class RomFile &rom) throws;
-    void loadRom(const string &path) throws;
+    void loadRom(class MediaFile &file) throws;
+    void loadRom(const std::filesystem::path &path) throws;
     void loadRom(const u8 *buf, isize len) throws;
     
     // Installs a Kickstart expansion Rom
-    void loadExt(class ExtendedRomFile &rom) throws;
-    void loadExt(const string &path) throws;
+    void loadExt(class MediaFile &file) throws;
+    void loadExt(const std::filesystem::path &path) throws;
     void loadExt(const u8 *buf, isize len) throws;
 
     // Saves a Rom to disk
-    void saveRom(const string &path) throws;
-    void saveWom(const string &path) throws;
-    void saveExt(const string &path) throws;
+    void saveRom(const std::filesystem::path &path) throws;
+    void saveWom(const std::filesystem::path &path) throws;
+    void saveExt(const std::filesystem::path &path) throws;
 
     // Fixes two bugs in Kickstart 1.2 expansion.library
     void patchExpansionLib();

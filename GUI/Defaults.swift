@@ -457,6 +457,7 @@ extension Keys {
         
         // Joysticks
         static let autofire              = "Controls.Autofire"
+        static let autofireBursts        = "Controls.AutofireBursts"
         static let autofireBullets       = "Controls.AutofireBullets"
         static let autofireFrequency     = "Controls.AutofireFrequency"
         
@@ -505,8 +506,9 @@ extension DefaultsProxy {
         
         // Joysticks
         register(Keys.Con.autofire, false)
-        register(Keys.Con.autofireBullets, -3)
-        register(Keys.Con.autofireFrequency, 2.5)
+        register(Keys.Con.autofireBursts, false)
+        register(Keys.Con.autofireBullets, 3)
+        register(Keys.Con.autofireFrequency, 25)
 
         // Mouse
         register(Keys.Con.retainMouseKeyComb, 0)
@@ -556,6 +558,7 @@ extension Preferences {
         defaults.set(Keys.Con.disconnectJoyKeys, disconnectJoyKeys)
 
         defaults.set(Keys.Con.autofire, autofire)
+        defaults.set(Keys.Con.autofireBursts, autofireBursts)
         defaults.set(Keys.Con.autofireBullets, autofireBullets)
         defaults.set(Keys.Con.autofireFrequency, autofireFrequency)
 
@@ -581,9 +584,10 @@ extension Preferences {
         disconnectJoyKeys = defaults.bool(Keys.Con.disconnectJoyKeys)
         
         autofire = defaults.bool(Keys.Con.autofire)
+        autofireBursts = defaults.bool(Keys.Con.autofireBursts)
         autofireBullets = defaults.int(Keys.Con.autofireBullets)
-        autofireFrequency = defaults.double(Keys.Con.autofireFrequency)
-        
+        autofireFrequency = defaults.int(Keys.Con.autofireFrequency)
+
         retainMouseKeyComb = defaults.int(Keys.Con.retainMouseKeyComb)
         retainMouseWithKeys = defaults.bool(Keys.Con.retainMouseWithKeys)
         retainMouseByClick = defaults.bool(Keys.Con.retainMouseByClick)
@@ -654,15 +658,20 @@ extension Configuration {
         
         do {
 
-            url = UserDefaults.romUrl
-            if url == nil { throw VAError(.FILE_CANT_WRITE) }
-            try? fm.removeItem(at: url!)
-            try amiga.mem.saveRom(url!)
+            if amiga.mem.info.hasRom {
 
-            url = UserDefaults.extUrl
-            if url == nil { throw VAError(.FILE_CANT_WRITE) }
-            try? fm.removeItem(at: url!)
-            try amiga.mem.saveExt(url!)
+                url = UserDefaults.romUrl
+                if url == nil { throw VAError(.FILE_CANT_WRITE) }
+                try? fm.removeItem(at: url!)
+                try amiga.mem.saveRom(url!)
+            }
+            if amiga.mem.info.hasExt {
+
+                url = UserDefaults.extUrl
+                if url == nil { throw VAError(.FILE_CANT_WRITE) }
+                try? fm.removeItem(at: url!)
+                try amiga.mem.saveExt(url!)
+            }
 
         } catch {
 
@@ -879,6 +888,10 @@ extension DefaultsProxy {
         remove(.HDR_TYPE, [0, 1, 2, 3])
         remove(.SER_DEVICE)
         remove(.SRV_PORT, nr: ServerType.SER.rawValue)
+        remove(.JOY_AUTOFIRE, [0, 1])
+        remove(.JOY_AUTOFIRE_BURSTS, [0, 1])
+        remove(.JOY_AUTOFIRE_BULLETS, [0, 1])
+        remove(.JOY_AUTOFIRE_DELAY, [0, 1])
         removeKey(Keys.Per.gameDevice1)
         removeKey(Keys.Per.gameDevice2)
     }
@@ -921,9 +934,14 @@ extension Configuration {
         defaults.set(.SER_DEVICE, serialDevice)
         defaults.set(.SRV_PORT, ServerType.SER.rawValue, serialDevicePort)
 
+        defaults.set(.JOY_AUTOFIRE, [0, 1], autofire)
+        defaults.set(.JOY_AUTOFIRE_BURSTS, [0, 1], autofireBursts)
+        defaults.set(.JOY_AUTOFIRE_BULLETS, [0, 1], autofireBullets)
+        defaults.set(.JOY_AUTOFIRE_DELAY, [0, 1], autofireDelay)
+
         defaults.set(Keys.Per.gameDevice1, gameDevice1)
         defaults.set(Keys.Per.gameDevice2, gameDevice2)
-        
+
         defaults.save()
         
         amiga.resume()
@@ -967,6 +985,11 @@ extension Configuration {
         gameDevice1 = defaults.int(Keys.Per.gameDevice1)
         gameDevice2 = defaults.int(Keys.Per.gameDevice2)
 
+        autofire = defaults.get(.JOY_AUTOFIRE, 0) != 0
+        autofireBursts = defaults.get(.JOY_AUTOFIRE_BURSTS, 0) != 0
+        autofireBullets = defaults.get(.JOY_AUTOFIRE_BULLETS, 0)
+        autofireDelay = defaults.get(.JOY_AUTOFIRE_DELAY, 0)
+
         amiga.resume()
     }
 }
@@ -991,6 +1014,7 @@ extension DefaultsProxy {
         remove(.AMIGA_WARP_BOOT)
         remove(.AMIGA_VSYNC)
         remove(.AMIGA_SPEED_BOOST)
+        remove(.AMIGA_RUN_AHEAD)
         remove(.DENISE_CLX_SPR_SPR)
         remove(.DENISE_CLX_SPR_PLF)
         remove(.DENISE_CLX_PLF_PLF)
@@ -1013,6 +1037,7 @@ extension Configuration {
         warpBoot = defaults.get(.AMIGA_WARP_BOOT)
         vsync = defaults.get(.AMIGA_VSYNC) != 0
         timeLapse = defaults.get(.AMIGA_SPEED_BOOST)
+        runAhead = defaults.get(.AMIGA_RUN_AHEAD)
         clxSprSpr = defaults.get(.DENISE_CLX_SPR_SPR) != 0
         clxSprPlf = defaults.get(.DENISE_CLX_SPR_PLF) != 0
         clxPlfPlf = defaults.get(.DENISE_CLX_PLF_PLF) != 0
@@ -1034,6 +1059,7 @@ extension Configuration {
         defaults.set(.AMIGA_WARP_BOOT, warpBoot)
         defaults.set(.AMIGA_VSYNC, vsync)
         defaults.set(.AMIGA_SPEED_BOOST, timeLapse)
+        defaults.set(.AMIGA_RUN_AHEAD, runAhead)
         defaults.set(.DENISE_CLX_SPR_SPR, clxSprSpr)
         defaults.set(.DENISE_CLX_SPR_PLF, clxSprPlf)
         defaults.set(.DENISE_CLX_PLF_PLF, clxPlfPlf)

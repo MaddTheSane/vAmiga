@@ -85,15 +85,6 @@ private:
 
     // Disk state
     DiskFlags flags = 0;
-
-    // Indicates if this disk is write protected
-    [[deprecated]] bool writeProtected = false;
-
-    // Indicates if the disk has been written to
-    [[deprecated]] bool modified = false;
-
-    // Checksum of this disk if it was created from an ADF file, 0 otherwise
-    u64 fnv = 0;
     
     
     //
@@ -116,6 +107,20 @@ private:
     void init(SerReader &reader, Diameter dia, Density den, bool wp) throws;
 
     
+public:
+
+    FloppyDisk& operator= (const FloppyDisk& other) {
+
+        CLONE(diameter)
+        CLONE(density)
+        CLONE_ARRAY(data.raw)
+        CLONE_ARRAY(length.track)
+        CLONE(flags)
+
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //
@@ -142,9 +147,8 @@ private:
         << diameter
         << density
         << data.raw
+        << length.track
         << flags;
-        // << writeProtected
-        // << modified;
     };
 
     //

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -32,6 +32,7 @@ enum_long(OPT)
     OPT_AMIGA_SPEED_BOOST,      ///< Speed adjustment in percent
     OPT_AMIGA_SNAPSHOTS,        ///< Automatically take a snapshots
     OPT_AMIGA_SNAPSHOT_DELAY,   ///< Delay between two snapshots in seconds
+    OPT_AMIGA_RUN_AHEAD,        ///< Number of run-ahead frames
 
     // Agnus
     OPT_AGNUS_REVISION,
@@ -124,6 +125,7 @@ enum_long(OPT)
 
     // Hard drives
     OPT_HDR_TYPE,
+    OPT_HDR_WRITE_THROUGH,
     OPT_HDR_PAN,
     OPT_HDR_STEP_VOLUME,
 
@@ -149,9 +151,10 @@ enum_long(OPT)
     OPT_MOUSE_VELOCITY,
 
     // Joystick
-    OPT_JOY_AUTOFIRE,
-    OPT_JOY_AUTOFIRE_BULLETS,
-    OPT_JOY_AUTOFIRE_DELAY,
+    OPT_JOY_AUTOFIRE,           ///< Autofire status [on/off]
+    OPT_JOY_AUTOFIRE_BURSTS,    ///< Burst mode [on/off]
+    OPT_JOY_AUTOFIRE_BULLETS,   ///< Number of bullets per burst
+    OPT_JOY_AUTOFIRE_DELAY,     ///< Delay between two button events [frames]
 
     // Paula audio
     OPT_AUD_SAMPLING_METHOD,
@@ -180,11 +183,10 @@ enum_long(OPT)
 typedef OPT Option;
 
 #ifdef __cplusplus
-struct OptionEnum : util::Reflection<OptionEnum, Option>
+struct OptionEnum : vamiga::util::Reflection<OptionEnum, Option>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = OPT_SRV_VERBOSE;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "OPT"; }
     static const char *_key(long value)
@@ -203,6 +205,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_AMIGA_SPEED_BOOST:         return "AMIGA.SPEED_BOOST";
             case OPT_AMIGA_SNAPSHOTS:           return "AMIGA.SNAPSHOTS";
             case OPT_AMIGA_SNAPSHOT_DELAY:      return "AMIGA.SNAPSHOT_DELAY";
+            case OPT_AMIGA_RUN_AHEAD:           return "AMIGA.RUN_AHEAD";
 
             case OPT_AGNUS_REVISION:            return "AGNUS.REVISION";
             case OPT_AGNUS_PTR_DROPS:           return "AGNUS.PTR_DROPS";
@@ -282,6 +285,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_HDC_CONNECT:               return "HDC.CONNECT";
 
             case OPT_HDR_TYPE:                  return "HDR.TYPE";
+            case OPT_HDR_WRITE_THROUGH:         return "HDR.WRITE_THROUGH";
             case OPT_HDR_PAN:                   return "HDR.PAN";
             case OPT_HDR_STEP_VOLUME:           return "HDR.STEP_VOLUME";
 
@@ -302,6 +306,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_MOUSE_VELOCITY:            return "MOUSE.VELOCITY";
 
             case OPT_JOY_AUTOFIRE:              return "JOY.AUTOFIRE";
+            case OPT_JOY_AUTOFIRE_BURSTS:       return "JOY.AUTOFIRE_BURSTS";
             case OPT_JOY_AUTOFIRE_BULLETS:      return "JOY.AUTOFIRE_BULLETS";
             case OPT_JOY_AUTOFIRE_DELAY:        return "JOY.AUTOFIRE_DELAY";
 
@@ -345,6 +350,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_AMIGA_SPEED_BOOST:         return "Speed adjustment";
             case OPT_AMIGA_SNAPSHOTS:           return "Automatically take snapshots";
             case OPT_AMIGA_SNAPSHOT_DELAY:      return "Time span between two snapshots";
+            case OPT_AMIGA_RUN_AHEAD:           return "Run-ahead frames";
 
             case OPT_AGNUS_REVISION:            return "Chip revision";
             case OPT_AGNUS_PTR_DROPS:           return "Ignore certain register writes";
@@ -424,6 +430,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_HDC_CONNECT:               return "Connected";
 
             case OPT_HDR_TYPE:                  return "Drive model";
+            case OPT_HDR_WRITE_THROUGH:         return "Keep data alive";
             case OPT_HDR_PAN:                   return "Pan";
             case OPT_HDR_STEP_VOLUME:           return "Head step volume";
 
@@ -444,6 +451,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option>
             case OPT_MOUSE_VELOCITY:            return "Mouse velocity";
 
             case OPT_JOY_AUTOFIRE:              return "Autofire";
+            case OPT_JOY_AUTOFIRE_BURSTS:       return "Burst mode";
             case OPT_JOY_AUTOFIRE_BULLETS:      return "Number of bullets per burst";
             case OPT_JOY_AUTOFIRE_DELAY:        return "Autofire delay in frames";
 

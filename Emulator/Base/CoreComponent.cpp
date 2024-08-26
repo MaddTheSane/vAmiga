@@ -19,7 +19,7 @@ namespace vamiga {
 bool
 CoreComponent::operator== (CoreComponent &other)
 {
-    return checksum() == other.checksum();
+    return checksum(true) == other.checksum(true);
 }
 
 const char *
@@ -139,22 +139,106 @@ CoreComponent::routeOption(Option opt, isize objid)
     return nullptr;
 }
 
-/*
-void
-CoreComponent::routeOption(Option opt, std::vector<Configurable *> &result)
+i64
+CoreComponent::getFallback(Option opt) const
 {
-    for (auto &o : getOptions()) {
-        if (o == opt) result.push_back(this);
-    }
-    for (auto &c : subComponents) {
-        c->routeOption(opt, result);
+    return emulator.defaults.get(opt);
+}
+
+void
+CoreComponent::initialize()
+{
+    postorderWalk([](CoreComponent *c) { c->_initialize(); });
+}
+
+void
+CoreComponent::reset(bool hard)
+{
+    SerResetter resetter(hard);
+
+    {   SUSPENDED
+
+        // Call the pre-reset delegate
+        postorderWalk([hard](CoreComponent *c) { c->_willReset(hard); });
+
+        // Revert to a clean state
+        postorderWalk([&resetter](CoreComponent *c) { *c << resetter; });
+
+        // Call the post-reset delegate
+        postorderWalk([hard](CoreComponent *c) { c->_didReset(hard); });
     }
 }
-*/
+
+void
+CoreComponent::powerOn()
+{
+    postorderWalk([](CoreComponent *c) { c->_powerOn(); });
+}
+
+void
+CoreComponent::powerOff()
+{
+    postorderWalk([](CoreComponent *c) { c->_powerOff(); });
+}
+
+void
+CoreComponent::run()
+{
+    postorderWalk([](CoreComponent *c) { c->_run(); });
+}
+
+void
+CoreComponent::pause()
+{
+    postorderWalk([](CoreComponent *c) { c->_pause(); });
+}
+
+void
+CoreComponent::halt()
+{
+    postorderWalk([](CoreComponent *c) { c->_halt(); });
+}
+
+void
+CoreComponent::warpOn()
+{
+    postorderWalk([](CoreComponent *c) { c->_warpOn(); });
+}
+
+void
+CoreComponent::warpOff()
+{
+    postorderWalk([](CoreComponent *c) { c->_warpOff(); });
+}
+
+void
+CoreComponent::trackOn()
+{
+    postorderWalk([](CoreComponent *c) { c->_trackOn(); });
+}
+
+void
+CoreComponent::trackOff()
+{
+    postorderWalk([](CoreComponent *c) { c->_trackOff(); });
+}
+
+void
+CoreComponent::focus()
+{
+    postorderWalk([](CoreComponent *c) { c->_focus(); });
+}
+
+void
+CoreComponent::unfocus()
+{
+    postorderWalk([](CoreComponent *c) { c->_unfocus(); });
+}
 
 isize
-CoreComponent::size()
+CoreComponent::size(bool recursive)
 {
+    // Count elements
     SerCounter counter = SerCounter();
     *this << counter;
     isize result = counter.count;
@@ -162,7 +246,9 @@ CoreComponent::size()
     // Add 8 bytes for the checksum
     result += 8;
     
-    for (CoreComponent *c : subComponents) { result += c->size(); }
+    // Add size of subcomponents if requested
+    if (recursive) for (CoreComponent *c : subComponents) { result += c->size(); }
+
     return result;
 }
 
@@ -170,53 +256,65 @@ isize
 CoreComponent::load(const u8 *buffer)
 {
     assert(!isRunning());
-    
-    const u8 *ptr = buffer;
 
-    // Load internal state of all subcomponents
-    for (CoreComponent *c : subComponents) {
-        ptr += c->load(ptr);
-    }
+    isize result = 0;
 
-    // Load the checksum for this component
-    auto hash = read64(ptr);
+    postorderWalk([this, buffer, &result](CoreComponent *c) {
 
-    // Load internal state of this component
-    SerReader reader(ptr);
-    *this << reader;
-    ptr = reader.ptr;
+        const u8 *ptr = buffer + result;
 
-    // Check integrity
-    if (hash != checksum() || FORCE_SNAP_CORRUPTED) {
-        throw Error(ERROR_SNAP_CORRUPTED);
-    }
+        // Load the checksum for this component
+        auto hash = read64(ptr);
 
-    isize result = (isize)(ptr - buffer);
-    debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", result, size());
+        // Load the internal state of this component
+        SerReader reader(ptr); *c << reader;
+
+        // Determine the number of loaded bytes
+        isize count = (isize)(reader.ptr - (buffer + result));
+
+        // Check integrity
+        if (hash != c->checksum(false) || FORCE_SNAP_CORRUPTED) {
+            if (SNP_DEBUG) { fatalError; } else { throw Error(ERROR_SNAP_CORRUPTED); }
+        }
+
+        debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", count, c->size(false));
+        result += count;
+    });
+
+    postorderWalk([](CoreComponent *c) { c->_didLoad(); });
+
     return result;
 }
 
 isize
 CoreComponent::save(u8 *buffer)
 {
-    u8 *ptr = buffer;
+    isize result = 0;
 
-    // Save internal state of all subcomponents
-    for (CoreComponent *c : subComponents) {
-        ptr += c->save(ptr);
-    }
+    postorderWalk([this, buffer, &result](CoreComponent *c) {
 
-    // Save the checksum for this component
-    write64(ptr, checksum());
-    
-    // Save the internal state of this component
-    SerWriter writer(ptr);
-    *this << writer;
-    ptr = writer.ptr;
+        u8 *ptr = buffer + result;
 
-    isize result = (isize)(ptr - buffer);
-    debug(SNP_DEBUG, "Saved %ld bytes (expected %ld)\n", result, size());
-    assert(result == size());
+        // Save the checksum for this component
+        write64(ptr, c->checksum(false));
+
+        // Save the internal state of this component
+        SerWriter writer(ptr); *c << writer;
+
+        // Determine the number of written bytes
+        isize count = (isize)(writer.ptr - (buffer + result));
+
+        // Check integrity
+        if (count != c->size(false) || FORCE_SNAP_CORRUPTED) {
+            if (SNP_DEBUG) { fatalError; } else { throw Error(ERROR_SNAP_CORRUPTED); }
+        }
+
+        debug(SNP_DEBUG, "Saved %ld bytes (expected %ld)\n", count, c->size(false));
+        result += count;
+    });
+
+    postorderWalk([](CoreComponent *c) { c->_didSave(); });
+
     return result;
 }
 
@@ -250,6 +348,23 @@ CoreComponent::postorderWalk(std::function<void(CoreComponent *)> func)
 }
 
 void
+CoreComponent::diff(CoreComponent &other)
+{
+    auto num = subComponents.size();
+    assert(num == other.subComponents.size());
+
+    // Compare all subcomponents
+    for (usize i = 0; i < num; i++) {
+        subComponents[i]->diff(*other.subComponents[i]);
+    }
+
+    // Compare this component
+    if (auto check1 = checksum(false), check2 = other.checksum(false); check1 != check2) {
+        debug(true, "Checksum mismatch: %llx != %llx\n", check1, check2);
+    }
+}
+
+void
 CoreComponent::exportConfig(std::ostream& ss, bool diff) const
 {
     bool first = true;
@@ -271,7 +386,7 @@ CoreComponent::exportConfig(std::ostream& ss, bool diff) const
             auto currentStr = OptionParser::asPlainString(opt, current);
             auto fallbackStr = OptionParser::asPlainString(opt, fallback);
 
-            string line = cmd + " set " + OptionEnum::plainkey(opt) + " " + currentStr;
+            string line = cmd + " set " + OptionEnum::key(opt) + " " + currentStr;
             string comment = diff ? fallbackStr : OptionEnum::help(opt);
 
             ss << std::setw(40) << std::left << line << " # " << comment << std::endl;

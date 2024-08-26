@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -27,11 +27,10 @@ enum_long(KB_STATE)
 typedef KB_STATE KeyboardState;
 
 #ifdef __cplusplus
-struct KeyboardStateEnum : util::Reflection<KeyboardStateEnum, KeyboardState>
+struct KeyboardStateEnum : vamiga::util::Reflection<KeyboardStateEnum, KeyboardState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = KB_SEND;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "KB"; }
     static const char *_key(long value)

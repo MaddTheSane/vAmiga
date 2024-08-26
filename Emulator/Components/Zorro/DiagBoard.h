@@ -41,6 +41,7 @@ class DiagBoard : public ZorroBoard {
 public:
     
     using ZorroBoard::ZorroBoard;
+    DiagBoard& operator= (const DiagBoard& other) { return *this; }
 
 
     //
@@ -76,6 +77,7 @@ public:
     const DiagBoardConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
     
     

@@ -37,6 +37,7 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_AMIGA_SPEED_BOOST:         return numParser("%");
         case OPT_AMIGA_SNAPSHOTS:           return boolParser();
         case OPT_AMIGA_SNAPSHOT_DELAY:      return numParser(" sec");
+        case OPT_AMIGA_RUN_AHEAD:           return numParser(" frames");
 
         case OPT_AGNUS_REVISION:            return enumParser.template operator()<AgnusRevisionEnum>();
         case OPT_AGNUS_PTR_DROPS:           return boolParser();
@@ -116,6 +117,7 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_HDC_CONNECT:               return boolParser();
 
         case OPT_HDR_TYPE:                  return enumParser.template operator()<HardDriveTypeEnum>();
+        case OPT_HDR_WRITE_THROUGH:         return boolParser();
         case OPT_HDR_PAN:                   return numParser();
         case OPT_HDR_STEP_VOLUME:           return numParser("%");
 
@@ -136,6 +138,7 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_MOUSE_VELOCITY:            return numParser();
 
         case OPT_JOY_AUTOFIRE:              return boolParser();
+        case OPT_JOY_AUTOFIRE_BURSTS:       return boolParser();
         case OPT_JOY_AUTOFIRE_BULLETS:      return numParser();
         case OPT_JOY_AUTOFIRE_DELAY:        return numParser();
 

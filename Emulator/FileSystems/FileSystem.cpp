@@ -24,6 +24,19 @@ FileSystem::~FileSystem()
     for (auto &b : blocks) delete b;
 }
 
+void 
+FileSystem::init(const MediaFile &file, isize part) throws
+{
+    switch (file.type()) {
+
+        case FILETYPE_ADF:  init(dynamic_cast<const ADFFile &>(file)); break;
+        case FILETYPE_HDF:  init(dynamic_cast<const HDFFile &>(file), part); break;
+
+        default:
+            throw Error(ERROR_FILE_TYPE_UNSUPPORTED);
+    }
+}
+
 void
 FileSystem::init(const ADFFile &adf)
 {
@@ -547,7 +560,7 @@ FileSystem::seekRef(FSName name)
 }
 
 void
-FileSystem::collect(Block nr, std::vector<Block> &result, bool recursive)
+FileSystem::collect(Block nr, std::vector<Block> &result, bool recursive) const
 {
     std::stack<Block> remainingItems;
     std::set<Block> visited;
@@ -571,7 +584,7 @@ FileSystem::collect(Block nr, std::vector<Block> &result, bool recursive)
 
 void
 FileSystem::collectHashedRefs(Block nr,
-                              std::stack<Block> &result, std::set<Block> &visited)
+                              std::stack<Block> &result, std::set<Block> &visited) const
 {
     if (FSBlock *b = blockPtr(nr)) {
         
@@ -584,7 +597,7 @@ FileSystem::collectHashedRefs(Block nr,
 
 void
 FileSystem::collectRefsWithSameHashValue(Block nr,
-                                         std::stack<Block> &result, std::set<Block> &visited)
+                                         std::stack<Block> &result, std::set<Block> &visited) const
 {
     std::stack<Block> refs;
     

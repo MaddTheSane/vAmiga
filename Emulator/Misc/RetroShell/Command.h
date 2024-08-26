@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "Aliases.h"
 #include "Types.h"
 #include <functional>
 #include <vector>
@@ -45,17 +44,10 @@ static const std::string string     = "<string>";
 
 struct Command {
 
-    // Textual descriptions of all command groups
-    static std::vector<string> groups;
-
-    // Group stack
-    static std::stack<isize> groupStack;
-
-    //
+    // Used during command registration
     static string currentGroup;
 
     // Group of this command
-    isize group; // DEPRECATED
     string groupName;
 
     // Name of this command (e.g., "eject")
@@ -89,12 +81,6 @@ struct Command {
     //
     // Methods
     //
-
-    // Begins a new command group
-    void pushGroup(const string &group, const string &postfix = ":");
-
-    // Returns to the previous command group
-    void popGroup();
 
     // Creates a new node in the command tree
     void add(const std::vector<string> &tokens,
@@ -155,14 +141,6 @@ struct Command {
 
     // Returns a syntax string for this command
     string usage() const;
-};
-
-struct CommandGroup {
-
-    Command &root;
-
-    CommandGroup(Command &root, const string &group) : root(root) { root.pushGroup(group); }
-    ~CommandGroup() { root.popGroup(); }
 };
 
 }

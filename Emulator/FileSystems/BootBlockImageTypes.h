@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -25,12 +25,11 @@ enum_long(BB_TYPE)
 typedef BB_TYPE BootBlockType;
 
 #ifdef __cplusplus
-struct BootBlockTypeEnum : util::Reflection<BootBlockTypeEnum, BootBlockType>
+struct BootBlockTypeEnum : vamiga::util::Reflection<BootBlockTypeEnum, BootBlockType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = BB_CUSTOM;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
-    
+
     static const char *prefix() { return "BB"; }
     static const char *_key(long value)
     {
@@ -56,11 +55,10 @@ enum_long(BB_ID)
 typedef BB_ID BootBlockId;
 
 #ifdef __cplusplus
-struct BootBlockIdEnum : util::Reflection<BootBlockIdEnum, BootBlockId>
+struct BootBlockIdEnum : vamiga::util::Reflection<BootBlockIdEnum, BootBlockId>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = BB_BYTE_BANDIT;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "BB"; }
     static const char *_key(long value)

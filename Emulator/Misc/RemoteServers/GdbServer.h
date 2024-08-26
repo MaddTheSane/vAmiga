@@ -34,13 +34,6 @@ enum class GdbCmd
 };
 
 class GdbServer : public RemoteServer {
-    
-    Descriptions descriptions = {{
-
-        .name           = "GdbServer",
-        .description    = "GDB Remote Server",
-        .shell          = "server gdb"
-    }};
 
     // The name of the process to be debugged
     string processName;
@@ -63,7 +56,13 @@ public:
     
     using RemoteServer::RemoteServer;
     
-    
+    GdbServer& operator= (const GdbServer& other) {
+
+        RemoteServer::operator = (other);
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //
@@ -72,10 +71,6 @@ private:
     
     void _dump(Category category, std::ostream& os) const override;
     
-public:
-
-    const Descriptions &getDescriptions() const override { return descriptions; }
-
     
     //
     // Methods from RemoteServer
@@ -84,9 +79,9 @@ public:
 public:
     
     bool shouldRun() override;
-    string doReceive() override throws;
-    void doSend(const string &payload) override throws;
-    void doProcess(const string &payload) override throws;
+    string doReceive() throws override;
+    void doSend(const string &payload) throws override;
+    void doProcess(const string &payload) throws override;
     void didStart() override;
     void didStop() override;
     void didConnect() override;

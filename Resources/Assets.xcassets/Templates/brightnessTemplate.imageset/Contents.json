@@ -1,15 +1,12 @@
 {
   "images" : [
     {
-      "filename" : "brightnessTemplate.pdf",
-      "idiom" : "universal"
+      "idiom" : "universal",
+      "filename" : "brightnessTemplate.pdf"
     }
   ],
   "info" : {
-    "author" : "xcode",
-    "version" : 1
-  },
-  "properties" : {
-    "template-rendering-intent" : "template"
+    "version" : 1,
+    "author" : "xcode"
   }
 }

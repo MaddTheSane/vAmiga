@@ -235,7 +235,7 @@ class Canvas: Layer {
         precondition(sfTexture != nil)
 
         // Get the emulator texture
-        var buffer: UnsafeMutablePointer<u32>!
+        var buffer: UnsafePointer<u32>!
         var nr = 0
         amiga.videoPort.texture(&buffer, nr: &nr, lof: &currLOF, prevlof: &prevLOF)
 
@@ -245,7 +245,7 @@ class Canvas: Layer {
             debug(.vsync, "Frame sync mismatch (\(prevNr) -> \(nr))")
 
             // Return immediately if we alredy have this texture
-            if nr == prevNr { return }
+            // if nr == prevNr { return }
         }
         prevNr = nr
 

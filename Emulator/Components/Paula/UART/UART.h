@@ -20,7 +20,7 @@ class UART : public SubComponent, public Inspectable<UARTInfo> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_UART,
+        .type           = UARTClass,
         .name           = "UART",
         .description    = "Universal Asynchronous Receiver Transmitter",
         .shell          = "uart"
@@ -32,9 +32,6 @@ class UART : public SubComponent, public Inspectable<UARTInfo> {
 
     friend class SerServer;
     
-    // Result of the latest inspection
-    mutable UARTInfo info = {};
-
     // Port period and control register
     u16 serper;
 
@@ -67,22 +64,27 @@ public:
     
     using SubComponent::SubComponent;
     
-    
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
+    UART& operator= (const UART& other) {
 
-    
+        CLONE(serper)
+        CLONE(receiveBuffer)
+        CLONE(receiveShiftReg)
+        CLONE(transmitBuffer)
+        CLONE(transmitShiftReg)
+        CLONE(outBit)
+        CLONE(ovrun)
+        CLONE(recCnt)
+
+        return *this;
+    }
+
+
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
-    
+
 private:
-        
+
     template <class T>
     void serialize(T& worker)
     {
@@ -98,12 +100,20 @@ private:
         << recCnt;
 
     } SERIALIZERS(serialize);
-    
+
+
+    //
+    // Methods from CoreComponent
+    //
+
 public:
 
-    void _didReset(bool hard) override;
-
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+    
+    void _dump(Category category, std::ostream& os) const override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -116,14 +126,14 @@ public:
 
 
     //
-    // Analyzing
+    // Methods from Inspectable
     //
 
 public:
 
-    // UARTInfo getInfo() const { return CoreComponent::getInfo(info); }
     void cacheInfo(UARTInfo &result) const override;
 
+    
     //
     // Accessing
     //

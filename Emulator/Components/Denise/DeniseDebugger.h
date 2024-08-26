@@ -21,7 +21,7 @@ class DeniseDebugger: public SubComponent {
     
     Descriptions descriptions = {{
 
-        .type           = COMP_DENISE_DEBUGGER,
+        .type           = DeniseDebuggerClass,
         .name           = "DeniseDebugger",
         .description    = "Denise Debugger",
         .shell          = ""
@@ -60,29 +60,33 @@ public:
     
     using SubComponent::SubComponent;
 
+    DeniseDebugger& operator= (const DeniseDebugger& other) {
 
+        return *this;
+    }
+
+    
     //
-    // Methods from CoreObject
+    // Methods from Serializable
     //
     
 private:
     
-    void _dump(Category category, std::ostream& os) const override { };
-    
-    
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
+
+
     //
     // Methods from CoreComponent
     //
 
-private:
-    
-    void _initialize() override;
-    
-    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
-    
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+    
+    void _dump(Category category, std::ostream& os) const override { };
+    void _initialize() override;
 
 
     //

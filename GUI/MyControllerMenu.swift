@@ -115,11 +115,11 @@ extension MyController: NSMenuItemValidation {
             return hdn.info.hasDisk
 
         case #selector(MyController.writeThroughHdrAction(_:)):
-            item.state = hdn.info.writeThrough ? .on : .off
+            item.state = hdn.config.writeThrough ? .on : .off
             return true
 
         case #selector(MyController.writeThroughFinderAction(_:)):
-            item.isHidden = !hdn.info.writeThrough
+            item.isHidden = !hdn.config.writeThrough
             return true
 
         default:
@@ -276,9 +276,11 @@ extension MyController: NSMenuItemValidation {
     
     @IBAction func takeSnapshotAction(_ sender: Any!) {
         
-        // amiga.requestUserSnapshot()
-        mydocument.snapshots.append(emu.amiga.takeSnapshot())
-        renderer.flash()
+        if let snapshot = emu.amiga.takeSnapshot() {
+
+            mydocument.snapshots.append(snapshot, size: snapshot.size)
+            renderer.flash()
+        }
     }
     
     @IBAction func restoreSnapshotAction(_ sender: Any!) {
@@ -373,7 +375,7 @@ extension MyController: NSMenuItemValidation {
             return
         }
         
-        keyboard.autoTypeAsync(text)
+        keyboard.autoType(text, max: 256)
     }
     
     @IBAction func stopAndGoAction(_ sender: Any!) {

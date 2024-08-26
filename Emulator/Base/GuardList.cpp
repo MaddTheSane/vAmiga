@@ -8,14 +8,13 @@
 // -----------------------------------------------------------------------------
 
 #include "config.h"
-#include "CPUDebugger.h"
+#include "GuardList.h"
 #include "Emulator.h"
-#include "Moira.h"
 
 namespace vamiga {
 
 std::optional<GuardInfo>
-GuardsWrapper::guardNr(long nr) const
+GuardList::guardNr(long nr) const
 {
     if (auto *g = guards.guardNr(nr); g) {
         return GuardInfo {.addr = g->addr, .enabled = g->enabled, .ignore = g->ignore };
@@ -25,7 +24,7 @@ GuardsWrapper::guardNr(long nr) const
 }
 
 std::optional<GuardInfo>
-GuardsWrapper::guardAt(u32 addr) const
+GuardList::guardAt(u32 addr) const
 {
     if (auto *g = guards.guardAt(addr); g) {
         return GuardInfo {.addr = g->addr, .enabled = g->enabled, .ignore = g->ignore };
@@ -34,103 +33,141 @@ GuardsWrapper::guardAt(u32 addr) const
     return { };
 }
 
+std::optional<GuardInfo> 
+GuardList::hit() const
+{
+    if (auto g = guards.hit; g) {
+        return GuardInfo {.addr = g->addr, .enabled = g->enabled, .ignore = g->ignore };
+    }
+
+    return { };
+}
+
 void
-GuardsWrapper::setAt(u32 target, isize ignores)
+GuardList::setAt(u32 target, isize ignores)
 {
     if (guards.isSetAt(target)) throw Error(ERROR_GUARD_ALREADY_SET, target);
     guards.setAt(target, ignores);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::moveTo(isize nr, u32 newTarget)
+GuardList::moveTo(isize nr, u32 newTarget)
 {
     if (!guards.guardNr(nr)) throw Error(ERROR_GUARD_NOT_FOUND, nr);
     guards.replace(nr, newTarget);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::ignore(long nr, long count)
+GuardList::ignore(long nr, long count)
 {
     if (!guards.guardNr(nr)) throw Error(ERROR_GUARD_NOT_FOUND, nr);
     guards.ignore(nr, count);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::remove(isize nr)
+GuardList::remove(isize nr)
 {
     if (!guards.isSet(nr)) throw Error(ERROR_GUARD_NOT_FOUND, nr);
     guards.remove(nr);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::removeAt(u32 target)
+GuardList::removeAt(u32 target)
 {
     if (!guards.isSetAt(target)) throw Error(ERROR_GUARD_NOT_FOUND, target);
     guards.removeAt(target);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::removeAll()
+GuardList::removeAll()
 {
     guards.removeAll();
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::enable(isize nr)
+GuardList::enable(isize nr)
 {
     if (!guards.isSet(nr)) throw Error(ERROR_GUARD_NOT_FOUND, nr);
     guards.enable(nr);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::enableAt(u32 target)
+GuardList::enableAt(u32 target)
 {
     if (!guards.isSetAt(target)) throw Error(ERROR_GUARD_NOT_FOUND, target);
     guards.enableAt(target);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::enableAll()
+GuardList::enableAll()
 {
     guards.enableAll();
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::disable(isize nr)
+GuardList::disable(isize nr)
 {
     if (!guards.isSet(nr)) throw Error(ERROR_GUARD_NOT_FOUND, nr);
     guards.disable(nr);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::disableAt(u32 target)
+GuardList::disableAt(u32 target)
 {
     if (!guards.isSetAt(target)) throw Error(ERROR_GUARD_NOT_FOUND, target);
     guards.disableAt(target);
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::disableAll()
+GuardList::disableAll()
 {
     guards.disableAll();
+    update();
     emu.main.msgQueue.put(MSG_GUARD_UPDATED);
 }
 
 void
-GuardsWrapper::toggle(isize nr)
+GuardList::toggle(isize nr)
 {
     guards.isEnabled(nr) ? disable(nr) : enable(nr);
+}
+
+void 
+GuardList::update() {
+
+    needsCheck = false;
+    for (isize i = 0; i < guards.elements(); i++) {
+
+        if (guards.isEnabled(i)) {
+
+            needsCheck = true;
+            break;
+        }
+    }
+
+    setNeedsCheck(needsCheck);
 }
 
 }

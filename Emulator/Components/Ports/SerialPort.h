@@ -27,7 +27,7 @@ class SerialPort : public SubComponent, public Inspectable<SerialPortInfo> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_SERIAL_PORT,
+        .type           = SerialPortClass,
         .name           = "SerialPort",
         .description    = "Serial Port",
         .shell          = "serial"
@@ -44,9 +44,6 @@ class SerialPort : public SubComponent, public Inspectable<SerialPortInfo> {
     // Current configuration
     SerialPortConfig config = {};
 
-    // Result of the latest inspection
-    mutable SerialPortInfo info = {};
-
     // The current values of the port pins
     u32 port = 0;
 
@@ -56,14 +53,22 @@ class SerialPort : public SubComponent, public Inspectable<SerialPortInfo> {
 
 
     //
-    // Initializing
+    // Methods
     //
 
 public:
 
     using SubComponent::SubComponent;
 
-    
+    SerialPort& operator= (const SerialPort& other) {
+
+        CLONE(port)
+        CLONE(config)
+
+        return *this;
+    }
+
+
     //
     // Methods from CoreObject
     //
@@ -110,18 +115,19 @@ public:
     const SerialPortConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
     
 
     //
-    // Analyzing
+    // Methods from Inspectable
     //
-    
+
 public:
 
-    // SerialPortInfo getInfo() const { return CoreComponent::getInfo(info); }
     void cacheInfo(SerialPortInfo &info) const override;
 
+    
     //
     // Accessing port pins
     //

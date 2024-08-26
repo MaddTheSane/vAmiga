@@ -37,11 +37,11 @@ namespace vamiga {
 class RetroShell : public SubComponent {
 
     friend class RshServer;
-    friend class Interpreter;
+    // friend class Interpreter;
 
     Descriptions descriptions = {{
 
-        .type           = COMP_RETRO_SHELL,
+        .type           = RetroShellClass,
         .name           = "RetroShell",
         .description    = "Retro Shell",
         .shell          = ""
@@ -51,9 +51,19 @@ class RetroShell : public SubComponent {
 
     };
 
+public:
+
     // Consoles
-    CommandConsole commander = CommandConsole(amiga);
-    DebugConsole debugger = DebugConsole(amiga);
+    CommandConsole commander = CommandConsole(amiga, 0);
+    DebugConsole debugger = DebugConsole(amiga, 1);
+
+    // Indicates if one of the consoles has new contents
+    bool isDirty = false;
+
+private:
+    
+    // Command queue (stores all pending commands)
+    std::vector<QueuedCmd> commands;
 
     // The currently active console
     Console *current = &commander;
@@ -109,12 +119,43 @@ public:
     //
 
     void switchConsole();
+    void enterDebugger();
+    void enterCommander();
 
+
+    //
+    // Executing commands
+    //
+
+public:
+
+    // Adds a command to the list of pending commands
+    void asyncExec(const string &command, bool append = true);
+
+    // Adds the commands of a shell script to the list of pending commands
+    void asyncExecScript(std::stringstream &ss);
+    void asyncExecScript(const std::ifstream &fs);
+    void asyncExecScript(const string &contents);
+    void asyncExecScript(const class MediaFile &script) throws;
+
+    // Aborts the execution of a script
+    void abortScript();
+    
+    // Executes all pending commands
+    void exec() throws;
+
+private:
+
+    // Executes a single pending command
+    void exec(QueuedCmd cmd) throws;
+    
 
     //
     // Bridge functions
     //
 
+public:
+    
     RetroShell &operator<<(char value);
     RetroShell &operator<<(const string &value);
     RetroShell &operator<<(int value);
@@ -131,12 +172,7 @@ public:
     void press(char c);
     void press(const string &s);
     void setStream(std::ostream &os);
-    void exec();
-    void exec(const string &command);
-    void execScript(std::stringstream &ss);
-    void execScript(const std::ifstream &fs);
-    void execScript(const string &contents);
-
+ 
     void serviceEvent();
 };
 

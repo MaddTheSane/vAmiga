@@ -22,23 +22,23 @@ struct CopperList {
     u32 end;
 };
 
-class CopperBreakpoints : public moira::Guards {
+class CopperBreakpoints : public GuardList {
 
     class Copper &copper;
 
 public:
     
-    CopperBreakpoints(Copper& ref) : copper(ref) { }
+    CopperBreakpoints(Copper& ref);
     void setNeedsCheck(bool value) override;
 };
 
-class CopperWatchpoints : public moira::Guards {
+class CopperWatchpoints : public GuardList {
 
     class Copper &copper;
 
 public:
     
-    CopperWatchpoints(Copper& ref) : copper(ref) { }
+    CopperWatchpoints(Copper& ref);
     void setNeedsCheck(bool value) override;
 };
 
@@ -46,7 +46,7 @@ class CopperDebugger: public SubComponent {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_COPPER_DEBUGGER,
+        .type           = CopperDebuggerClass,
         .name           = "cdebugger",
         .description    = "Copper Debugger",
         .shell          = ""
@@ -71,13 +71,8 @@ class CopperDebugger: public SubComponent {
 public:
     
     // Breakpoint and watchpoints
-    CopperBreakpoints cbreakpoints = CopperBreakpoints(copper);
-    CopperWatchpoints cwatchpoints = CopperWatchpoints(copper);
-
-public:
-
-    GuardsWrapper breakpoints = GuardsWrapper(emulator, cbreakpoints);
-    GuardsWrapper watchpoints = GuardsWrapper(emulator, cwatchpoints);
+    CopperBreakpoints breakpoints = CopperBreakpoints(copper);
+    CopperWatchpoints watchpoints = CopperWatchpoints(copper);
 
     
     //
@@ -88,28 +83,28 @@ public:
     
     using SubComponent::SubComponent;
 
-
-    //
-    // Methods from CoreObject
-    //
-    
-private:
-    
-    void _dump(Category category, std::ostream& os) const override;
-    
     
     //
-    // Methods from CoreComponent
+    // Methods from Serializable
     //
 
 private:
         
     template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
-    void _didReset(bool hard) override;
+
+
+    //
+    // Methods from CoreComponent
+    //
 
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+    void _didReset(bool hard) override;
 
 
     //

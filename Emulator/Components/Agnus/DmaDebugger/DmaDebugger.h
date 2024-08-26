@@ -12,6 +12,7 @@
 #include "DmaDebuggerTypes.h"
 #include "FrameBufferTypes.h"
 #include "SubComponent.h"
+#include "Beamtraps.h"
 #include "Colors.h"
 #include "Constants.h"
 
@@ -21,7 +22,7 @@ class DmaDebugger : public SubComponent, public Inspectable<DmaDebuggerInfo> {
 
     Descriptions descriptions = {{
 
-        .type           = COMP_DMA_DEBUGGER,
+        .type           = DmaDebuggerClass,
         .name           = "DmaDebugger",
         .description    = "DMA Debugger",
         .shell          = "dmadebugger"
@@ -68,6 +69,11 @@ class DmaDebugger : public SubComponent, public Inspectable<DmaDebuggerInfo> {
     // HSYNC handler information (recorded in the EOL handler)
     isize pixel0 = 0;
 
+public:
+
+    // Beamtraps
+    Beamtraps beamtraps = Beamtraps(agnus);
+    // GuardsWrapper beamtraps = GuardsWrapper(emulator, _beamtraps);
 
     //
     // Initializing
@@ -76,11 +82,6 @@ class DmaDebugger : public SubComponent, public Inspectable<DmaDebuggerInfo> {
 public:
 
     DmaDebugger(Amiga &ref);
-
-public:
-
-    // Returns the result of the most recent call to inspect()
-    // DmaDebuggerInfo getInfo();
 
     
     //
@@ -102,7 +103,7 @@ public:
 
 private:
 
-    void _dump(Category category, std::ostream& os) const override { }
+    void _dump(Category category, std::ostream& os) const override;
 
 
     //
@@ -123,6 +124,7 @@ public:
     const DmaDebuggerConfig &getConfig() const { return config; }
     const ConfigOptions &getOptions() const override { return options; }
     i64 getOption(Option option) const override;
+    void checkOption(Option opt, i64 value) override;
     void setOption(Option option, i64 value) override;
 
 private:

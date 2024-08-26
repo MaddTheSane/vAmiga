@@ -10,6 +10,7 @@
 #pragma once
 
 #include "MediaFileTypes.h"
+#include "FloppyDiskTypes.h"
 #include <sstream>
 #include <fstream>
 #include <filesystem>
@@ -37,7 +38,8 @@ public:
     static MediaFile *make(const fs::path &path, FileType type);
     static MediaFile *make(const u8 *buf, isize len, FileType type);
     static MediaFile *make(class MutableFileSystem &fs, FileType type);
-    static MediaFile *make(const struct FloppyDriveAPI &drive, FileType type);
+    static MediaFile *make(struct FloppyDriveAPI &drive, FileType type);
+    static MediaFile *make(struct HardDriveAPI &drive, FileType type);
 
 
     //
@@ -49,6 +51,9 @@ public:
 
     // Returns the size of this file
     virtual isize getSize() const = 0;
+
+    // Returns a textual representation of the file size
+    virtual string getSizeAsString() const;
 
     // Returns a pointer to the file data
     virtual u8 *getData() const = 0;
@@ -69,10 +74,35 @@ public:
     // Return a preview image (only available for snapshot files)
     virtual const u32 *previewImageData() const { return nullptr; }
 
+    DiskInfo getDiskInfo() const;
+    FloppyDiskInfo getFloppyDiskInfo() const;
+    HDFInfo getHDFInfo() const;
+
     //
     virtual void flash(u8 *buf, isize offset, isize len) const = 0;
     virtual void flash(u8 *buf, isize offset = 0) const = 0;
 
+
+    //
+    // Accessing raw data
+    //
+
+public:
+
+    virtual u8 readByte(isize b, isize offset) const { return 0; }
+    virtual u8 readByte(isize t, isize s, isize offset) const { return 0; }
+    virtual void readSector(u8 *dst, isize b) const { }
+    virtual void readSector(u8 *dst, isize t, isize s) const { }
+
+    // Generates a hex dump for some sector data
+    virtual string hexdump(isize b, isize offset, isize len) const { return ""; }
+    virtual string hexdump(isize t, isize s, isize offset, isize len) const { return ""; }
+    virtual string hexdump(isize c, isize h, isize s, isize offset, isize len) const { return ""; }
+
+    // Generates an ASCII dump for some sector data
+    virtual string asciidump(isize b, isize offset, isize len) const { return ""; }
+    virtual string asciidump(isize t, isize s, isize offset, isize len) const { return ""; }
+    virtual string asciidump(isize c, isize h, isize s, isize offset, isize len) const { return ""; }
 
     //
     // Serializing
@@ -81,11 +111,12 @@ public:
 public:
 
     virtual isize readFromStream(std::istream &stream) = 0;
-    virtual isize readFromFile(const string &path) = 0;
+    virtual isize readFromFile(const std::filesystem::path &path) = 0;
     virtual isize readFromBuffer(const u8 *buf, isize len) = 0;
 
     virtual isize writeToStream(std::ostream &stream) = 0;
-    virtual isize writeToFile(const string &path) = 0;
+    virtual isize writeToFile(const std::filesystem::path &path) = 0;
+    virtual isize writePartitionToFile(const std::filesystem::path &path, isize partition) = 0;
     virtual isize writeToBuffer(u8 *buf) = 0;
 };
 

@@ -13,13 +13,13 @@
 
 namespace vamiga {
 
-std::vector<string> FFmpeg::paths;
-string FFmpeg::exec;
+std::vector<std::filesystem::path> FFmpeg::paths;
+std::filesystem::path FFmpeg::exec;
 
 void
 FFmpeg::init()
 {
-    auto add = [&](const string &path) {
+    auto add = [&](const std::filesystem::path &path) {
         if (util::getSizeOfFile(path) > 0 && !FORCE_NO_FFMPEG) {
             paths.push_back(path);
         }
@@ -38,14 +38,14 @@ FFmpeg::init()
     }
 }
 
-const string
+const std::filesystem::path
 FFmpeg::getExecPath()
 {
     return exec;
 }
 
 void
-FFmpeg::setExecPath(const string &path)
+FFmpeg::setExecPath(const std::filesystem::path &path)
 {
     // If an empty string is passed, assign the first default location
     if (path == "" && !paths.empty()) {
@@ -80,7 +80,7 @@ FFmpeg::launch(const string &args)
     
 #else
     
-    auto cmd = getExecPath() + " " + args;
+    auto cmd = getExecPath().string() + " " + args;
     handle = popen(cmd.c_str(), "w");
     return handle != nullptr;
     

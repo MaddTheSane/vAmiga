@@ -11,6 +11,7 @@
 #import "EmulatorProxy.h"
 #import "VAmiga.h"
 #import "Emulator.h"
+#import "MutableFileSystem.h"
 #import "vAmiga-Swift.h"
 
 using namespace vamiga;
@@ -65,6 +66,17 @@ using namespace vamiga::moira;
 
 @implementation Constants
 
++ (NSInteger)hpixels { return HPIXELS; }
++ (NSInteger)vpixels { return VPIXELS; }
+
++ (NSInteger)hblank_cnt { return HBLANK_CNT; }
++ (NSInteger)hblank_min { return HBLANK_MIN; }
++ (NSInteger)hblank_max { return HBLANK_MAX; }
+
++ (NSInteger)vblank_cnt { return VBLANK_CNT; }
++ (NSInteger)vblank_min { return VBLANK_MIN; }
++ (NSInteger)vblank_max { return VBLANK_MAX; }
+
 + (NSInteger)vpos_cnt_pal { return VPOS_CNT_PAL; }
 + (NSInteger)vpos_max_pal { return VPOS_MAX_PAL; }
 
@@ -100,9 +112,9 @@ using namespace vamiga::moira;
 
 @implementation DefaultsProxy
 
-- (Defaults *)props
+- (DefaultsAPI *)props
 {
-    return (Defaults *)obj;
+    return (DefaultsAPI *)obj;
 }
 
 - (void)load:(NSURL *)url exception:(ExceptionWrapper *)ex
@@ -176,36 +188,6 @@ using namespace vamiga::moira;
 - (void)remove:(Option) option nr:(NSInteger)nr
 {
     [self props]->remove(option, { nr });
-}
-
-@end
-
-
-//
-// Amiga proxy
-//
-
-@implementation AmigaProxy
-
-- (AmigaAPI *)amiga
-{
-    return (AmigaAPI *)obj;
-}
-
-- (AmigaInfo)info
-{
-    return [self amiga]->getInfo();
-}
-
-- (AmigaInfo)cachedInfo
-{
-    return [self amiga]->getCachedInfo();
-}
-
-- (SnapshotProxy *)takeSnapshot
-{
-    Snapshot *snapshot = [self amiga]->takeSnapshot();
-    return [SnapshotProxy make:snapshot];
 }
 
 @end
@@ -329,38 +311,28 @@ using namespace vamiga::moira;
 
 - (CPUInfo)info
 {
-    return [self cpu]->cpu->getInfo();
+    return [self cpu]->getInfo();
 }
 
 - (CPUInfo)cachedInfo
 {
-    return [self cpu]->cpu->getCachedInfo();
-}
-
-- (i64)clock
-{
-    return [self cpu]->cpu->getCpuClock();
-}
-
-- (BOOL)halted
-{
-    return [self cpu]->cpu->isHalted();
+    return [self cpu]->getCachedInfo();
 }
 
 - (NSInteger)loggedInstructions
 {
-    return [self cpu]->cpu->debugger.loggedInstructions();
+    return [self cpu]->debugger.loggedInstructions();
 }
 
 - (void)clearLog
 {
-    return [self cpu]->cpu->debugger.clearLog();
+    return [self cpu]->debugger.clearLog();
 }
 
 - (NSString *)disassembleRecordedInstr:(NSInteger)i length:(NSInteger *)len
 {
     isize result;
-    const char *str = [self cpu]->cpu->disassembleRecordedInstr((int)i, &result);
+    const char *str = [self cpu]->debugger.disassembleRecordedInstr((int)i, &result);
     *len = (NSInteger)result;
     
     return str ? @(str) : nullptr;
@@ -368,38 +340,38 @@ using namespace vamiga::moira;
 
 - (NSString *)disassembleRecordedBytes:(NSInteger)i length:(NSInteger)len
 {
-    const char *str = [self cpu]->cpu->disassembleRecordedWords(i, len);
+    const char *str = [self cpu]->debugger.disassembleRecordedWords(i, len);
     return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleRecordedFlags:(NSInteger)i
 {
-    const char *str = [self cpu]->cpu->disassembleRecordedFlags((int)i);
+    const char *str = [self cpu]->debugger.disassembleRecordedFlags((int)i);
     return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleRecordedPC:(NSInteger)i
 {
-    const char *str = [self cpu]->cpu->disassembleRecordedPC((int)i);
+    const char *str = [self cpu]->debugger.disassembleRecordedPC((int)i);
     return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleWord:(NSInteger)value
 {
-    const char *str = [self cpu]->cpu->disassembleWord((u16)value);
+    const char *str = [self cpu]->debugger.disassembleWord((u16)value);
     return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleAddr:(NSInteger)addr
 {
-    const char *str = [self cpu]->cpu->disassembleAddr((u32)addr);
+    const char *str = [self cpu]->debugger.disassembleAddr((u32)addr);
     return str ? @(str) : nullptr;
 }
 
 - (NSString *)disassembleInstr:(NSInteger)addr length:(NSInteger *)len
 {
     isize result;
-    const char *str = [self cpu]->cpu->disassembleInstr((u32)addr, &result);
+    const char *str = [self cpu]->debugger.disassembleInstr((u32)addr, &result);
     *len = result;
     
     return str ? @(str) : nullptr;
@@ -407,13 +379,13 @@ using namespace vamiga::moira;
 
 - (NSString *)disassembleWords:(NSInteger)addr length:(NSInteger)len
 {
-    const char *str = [self cpu]->cpu->disassembleWords((u32)addr, len);
+    const char *str = [self cpu]->debugger.disassembleWords((u32)addr, len);
     return str ? @(str) : nullptr;
 }
 
 - (NSString *)vectorName:(NSInteger)nr
 {
-    auto name = [self cpu]->cpu->debugger.vectorName(u8(nr));
+    auto name = [self cpu]->debugger.vectorName(u8(nr));
     return @(name.c_str());
 }
 
@@ -439,6 +411,11 @@ using namespace vamiga::moira;
 - (CIAInfo)cachedInfo
 {
     return [self cia]->getCachedInfo();
+}
+
+- (CIAStats)stats
+{
+    return [self cia]->getStats();
 }
 
 @end
@@ -497,12 +474,12 @@ using namespace vamiga::moira;
 
 - (BOOL)isRom:(NSURL *)url
 {
-    return RomFile::isRomFile([url fileSystemRepresentation]);
+    return MediaFile::type([url fileSystemRepresentation]) == FILETYPE_ROM;
 }
 
-- (void)loadRom:(RomFileProxy *)proxy exception:(ExceptionWrapper *)ex
+- (void)loadRom:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->mem->loadRom(*(RomFile *)proxy->obj); }
+    try { return [self mem]->loadRom(*(MediaFile *)proxy->obj); }
     catch (Error &error) { [ex save:error]; }
 }
 
@@ -511,34 +488,29 @@ using namespace vamiga::moira;
     assert(data);
     const u8 *bytes = (const u8 *)[data bytes];
     
-    try { return [self mem]->mem->loadRom(bytes, [data length]); }
+    try { return [self mem]->loadRom(bytes, [data length]); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->mem->loadRom([url fileSystemRepresentation]); }
+    try { return [self mem]->loadRom([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)deleteExt
 {
-    [self mem]->mem->deleteExt();
+    [self mem]->deleteExt();
 }
 
 - (BOOL)isExt:(NSURL *)url
 {
-    return ExtendedRomFile::isExtendedRomFile([url fileSystemRepresentation]);
+    return MediaFile::type([url fileSystemRepresentation]) == FILETYPE_EXTENDED_ROM;
 }
 
-- (void)loadExt:(ExtendedRomFileProxy *)proxy
+- (void)loadExt:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    [self mem]->mem->loadExt(*(ExtendedRomFile *)proxy->obj);
-}
-
-- (void)loadExt:(ExtendedRomFileProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self mem]->mem->loadExt(*(ExtendedRomFile *)proxy->obj); }
+    try { return [self mem]->loadExt(*(MediaFile *)proxy->obj); }
     catch (Error &error) { [ex save:error]; }
 }
 
@@ -547,31 +519,31 @@ using namespace vamiga::moira;
     assert(data);
     const u8 *bytes = (const u8 *)[data bytes];
     
-    try { return [self mem]->mem->loadExt(bytes, [data length]); }
+    try { return [self mem]->loadExt(bytes, [data length]); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->mem->loadExt([url fileSystemRepresentation]); }
+    try { return [self mem]->loadExt([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->mem->saveRom([url fileSystemRepresentation]); }
+    try { return [self mem]->saveRom([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)saveWom:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->mem->saveWom([url fileSystemRepresentation]); }
+    try { return [self mem]->saveWom([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)saveExt:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    try { return [self mem]->mem->saveExt([url fileSystemRepresentation]); }
+    try { return [self mem]->saveExt([url fileSystemRepresentation]); }
     catch (Error &error) { [ex save:error]; }
 }
 
@@ -580,9 +552,9 @@ using namespace vamiga::moira;
     assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
     
     if (accessor == ACCESSOR_CPU) {
-        return [self mem]->mem->getMemSrc <ACCESSOR_CPU> ((u32)addr);
+        return [self mem]->debugger.getMemSrc(ACCESSOR_CPU, (u32)addr);
     } else {
-        return [self mem]->mem->getMemSrc <ACCESSOR_AGNUS> ((u32)addr);
+        return [self mem]->debugger.getMemSrc(ACCESSOR_AGNUS, (u32)addr);
     }
 }
 
@@ -591,9 +563,9 @@ using namespace vamiga::moira;
     assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
     
     if (accessor == ACCESSOR_CPU) {
-        return [self mem]->mem->spypeek16 <ACCESSOR_CPU> ((u32)addr);
+        return [self mem]->debugger.spypeek16(ACCESSOR_CPU, (u32)addr);
     } else {
-        return [self mem]->mem->spypeek16 <ACCESSOR_AGNUS> ((u32)addr);
+        return [self mem]->debugger.spypeek16(ACCESSOR_AGNUS, (u32)addr);
     }
 }
 
@@ -617,7 +589,7 @@ using namespace vamiga::moira;
 
 
 //
-// Audio port
+// AudioPort
 //
 
 @implementation AudioPortProxy
@@ -846,23 +818,25 @@ using namespace vamiga::moira;
 
 - (NSString *)path
 {
-    auto path = FFmpeg::getExecPath();
+    auto path = [self recorder]->getExecPath(); // FFmpeg::getExecPath();
     return @(path.c_str());
 }
 
 - (void)setPath:(NSString *)path
 {
     if ([path length] == 0) {
-        FFmpeg::setExecPath("");
+        [self recorder]->setExecPath("");
     } else {
-        FFmpeg::setExecPath(string([path fileSystemRepresentation]));
+        [self recorder]->setExecPath([path fileSystemRepresentation]);
     }
 }
 
 - (NSString *)findFFmpeg:(NSInteger)nr
 {
-    if (nr < (NSInteger)FFmpeg::paths.size()) {
-        return @(FFmpeg::paths[nr].c_str());
+    auto &paths = [self recorder]->paths();
+
+    if (nr < (NSInteger)paths.size()) {
+        return @(paths[nr].c_str());
     } else {
         return nil;
     }
@@ -870,32 +844,32 @@ using namespace vamiga::moira;
 
 - (BOOL)hasFFmpeg
 {
-    return FFmpeg::available();
+    return [self recorder]->hasFFmpeg();
 }
 
 - (BOOL)recording
 {
-    return [self recorder]->recorder->isRecording();
+    return [self recorder]->isRecording();
 }
 
 - (double)duration
 {
-    return [self recorder]->recorder->getDuration().asSeconds();
+    return [self recorder]->getDuration();
 }
 
 - (NSInteger)frameRate
 {
-    return [self recorder]->recorder->getFrameRate();
+    return [self recorder]->getFrameRate();
 }
 
 - (NSInteger)bitRate
 {
-    return [self recorder]->recorder->getBitRate();
+    return [self recorder]->getBitRate();
 }
 
 - (NSInteger)sampleRate
 {
-    return [self recorder]->recorder->getSampleRate();
+    return [self recorder]->getSampleRate();
 }
 
 - (void)startRecording:(NSRect)rect
@@ -909,18 +883,18 @@ using namespace vamiga::moira;
     auto x2 = isize(x1 + (int)rect.size.width);
     auto y2 = isize(y1 + (int)rect.size.height);
     
-    try { return [self recorder]->recorder->startRecording(x1, y1, x2, y2, rate, aspectX, aspectY); }
+    try { return [self recorder]->startRecording(x1, y1, x2, y2, rate, aspectX, aspectY); }
     catch (Error &error) { [ex save:error]; }
 }
 
 - (void)stopRecording
 {
-    [self recorder]->recorder->stopRecording();
+    [self recorder]->stopRecording();
 }
 
 - (BOOL)exportAs:(NSString *)path
 {
-    return [self recorder]->recorder->exportAs(string([path fileSystemRepresentation]));
+    return [self recorder]->exportAs(string([path fileSystemRepresentation]));
 }
 
 @end
@@ -969,17 +943,12 @@ using namespace vamiga::moira;
 
 - (UARTInfo)uartInfo
 {
-    return [self paula]->paula->uart.getInfo();
+    return [self paula]->uart.getInfo();
 }
 
 - (UARTInfo)cachedUartInfo
 {
-    return [self paula]->paula->uart.getCachedInfo();
-}
-
-- (AudioPortStats)audioPortStats
-{
-    return [self paula]->paula->emulator.main.audioPort.getStats();
+    return [self paula]->uart.getCachedInfo();
 }
 
 @end
@@ -1056,7 +1025,7 @@ using namespace vamiga::moira;
 
 - (void)trigger:(GamePadAction)event
 {
-    [self joystick]->joystick->trigger(event);
+    [self joystick]->trigger(event);
 }
 
 @end
@@ -1112,13 +1081,12 @@ using namespace vamiga::moira;
     return (VideoPortAPI *)obj;
 }
 
-- (void)texture:(u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof
+- (void)texture:(const u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof
 {
-    auto &frameBuffer = [self port]->getTexture();
-    *ptr = frameBuffer.pixels.ptr;
-    *nr = NSInteger(frameBuffer.nr);
-    *lof = frameBuffer.lof;
-    *prevlof = frameBuffer.prevlof;
+    isize inr;
+
+    *ptr = [self port]->getTexture(&inr, lof, prevlof);
+    *nr = inr;
 }
 
 @end
@@ -1135,24 +1103,29 @@ using namespace vamiga::moira;
     return (SerialPortAPI *)obj;
 }
 
+- (SerialPortConfig)config
+{
+    return [self serial]->getConfig();
+}
+
 - (SerialPortInfo)info
 {
-    return [self serial]->serialPort->getInfo();
+    return [self serial]->getInfo();
 }
 
 - (SerialPortInfo)cachedInfo
 {
-    return [self serial]->serialPort->getCachedInfo();
+    return [self serial]->getCachedInfo();
 }
 
 - (NSInteger)readIncomingPrintableByte
 {
-    return [self serial]->serialPort->readIncomingPrintableByte();
+    return [self serial]->readIncomingPrintableByte();
 }
 
 - (NSInteger)readOutgoingPrintableByte
 {
-    return [self serial]->serialPort->readOutgoingPrintableByte();
+    return [self serial]->readOutgoingPrintableByte();
 }
 
 @end
@@ -1176,12 +1149,27 @@ using namespace vamiga::moira;
 
 - (void)press:(NSInteger)keycode
 {
-    [self kb]->press((KeyCode)keycode);
+    [self press:keycode delay: 0.0];
+}
+
+- (void)press:(NSInteger)keycode delay:(double)delay
+{
+    [self kb]->press((KeyCode)keycode, delay);
+}
+
+- (void)press:(NSInteger)keycode delay:(double)delay duration:(double)duration
+{
+    [self kb]->press((KeyCode)keycode, delay, duration);
 }
 
 - (void)release:(NSInteger)keycode
 {
-    [self kb]->release((KeyCode)keycode);
+    [self release:keycode delay: 0.0];
+}
+
+- (void)release:(NSInteger)keycode delay:(double)delay
+{
+    [self kb]->release((KeyCode)keycode, delay);
 }
 
 - (void)toggle:(NSInteger)keycode
@@ -1264,209 +1252,40 @@ using namespace vamiga::moira;
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density
 {
-    return [self drive]->drive->isInsertable(type, density);
+    return [self drive]->isInsertable(type, density);
 }
 
 - (void)insertBlankDisk:(FSVolumeType)fs bootBlock:(BootBlockId)bb name:(NSString *)name exception:(ExceptionWrapper *)ex
 {
-    try { return [self drive]->drive->insertNew(fs, bb, [name UTF8String]); }
+    try { return [self drive]->insertBlankDisk(fs, bb, [name UTF8String]); }
     catch (Error &error) { [ex save:error]; }
 }
 
-- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp
+- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp exception:(ExceptionWrapper *)ex
 {
-    [self drive]->insertMedia(*(MediaFile *)proxy->obj, wp);
+    try { [self drive]->insertMedia(*(MediaFile *)proxy->obj, wp); }
+    catch (Error &error) { [ex save:error]; }
 }
 
 - (void)eject
 {
-    [self drive]->drive->ejectDisk();
+    [self drive]->ejectDisk();
 }
 
-- (void)swap:(FloppyFileProxy *)fileProxy exception:(ExceptionWrapper *)ex
+- (MediaFileProxy *)exportDisk:(FileType)type exception:(ExceptionWrapper *)ex
 {
-    try { return [self drive]->drive->swapDisk(*(FloppyFile *)fileProxy->obj); }
+    try { return [MediaFileProxy make:[self drive]->exportDisk(type)]; }
     catch (Error &error) { [ex save:error]; }
+    return nil;
 }
 
 - (NSString *)readTrackBits:(NSInteger)track
 {
-    if (![self drive]->drive->hasDisk()) return @("");
-    return @([self drive]->drive->disk->readTrackBits(track).c_str());
+    return @([self drive]->readTrackBits(track).c_str());
 }
 
 @end
 
-//
-// HardDrive proxy
-//
-
-@implementation HardDriveProxy
-
-@synthesize controller;
-
-- (instancetype)initWith:(void *)ref
-{
-    if (self = [super init]) {
-
-        HardDriveAPI *hd = (HardDriveAPI *)ref;
-        obj = ref;
-        controller = [[HdControllerProxy alloc] initWith:&hd->controller];
-    }
-    return self;
-}
-
-- (HardDriveAPI *)drive
-{
-    return (HardDriveAPI *)obj;
-}
-
-- (HardDriveTraits)traits
-{
-    return [self drive]->getTraits();
-}
-
-- (PartitionTraits) partitionTraits:(NSInteger)nr
-{
-    return [self drive]->getPartitionTraits(nr);
-}
-
-- (HardDriveInfo)info
-{
-    return [self drive]->getInfo();
-}
-
-- (BOOL)getFlag:(DiskFlags)mask
-{
-    return [self drive]->getFlag(mask);
-}
-
-- (void)setFlag:(DiskFlags)mask value:(BOOL)value
-{
-    [self drive]->setFlag(mask, value);
-}
-
-- (NSInteger)capacity
-{
-    return [self drive]->drive->getGeometry().numBytes();
-}
-
-- (NSInteger)partitions
-{
-    return [self drive]->drive->numPartitions();
-}
-
-- (NSInteger)cylinders
-{
-    return [self drive]->drive->getGeometry().cylinders;
-}
-
-- (NSInteger)heads
-{
-    return [self drive]->drive->getGeometry().heads;
-}
-
-- (NSInteger)sectors
-{
-    return [self drive]->drive->getGeometry().sectors;
-}
-
-- (NSInteger)bsize
-{
-    return [self drive]->drive->getGeometry().bsize;
-}
-
-- (void)attachFile:(NSURL *)url exception:(ExceptionWrapper *)ex
-{
-    try {
-        [self drive]->drive->init([url fileSystemRepresentation]);
-    }  catch (Error &error) {
-        [ex save:error];
-    }
-}
-
-- (void)attach:(HDFFileProxy *)hdf exception:(ExceptionWrapper *)ex
-{
-    try {
-        [self drive]->drive->init(*(HDFFile *)hdf->obj);
-    }  catch (Error &error) {
-        [ex save:error];
-    }
-}
-
-- (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b
-        exception:(ExceptionWrapper *)ex
-{
-    GeometryDescriptor geometry;
-    geometry.cylinders = c;
-    geometry.heads = h;
-    geometry.sectors = s;
-    geometry.bsize = b;
-    
-    try {
-        [self drive]->drive->init(geometry);
-    }  catch (Error &error) {
-        [ex save:error];
-    }
-}
-
-- (void)format:(FSVolumeType)fs name:(NSString *)name exception:(ExceptionWrapper *)ex
-{
-    auto str = string([name UTF8String]);
-    
-    try {
-        [self drive]->drive->format(fs, str);
-    }  catch (Error &error) {
-        [ex save:error];
-    }
-}
-
-- (void)changeGeometry:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex
-{
-    try {
-        [self drive]->changeGeometry(c, h, s, b);
-    }  catch (Error &error) {
-        [ex save:error];
-    }
-}
-
-- (NSMutableArray *)geometries
-{
-    NSMutableArray *data = [[NSMutableArray alloc] init];
-
-    auto geometries = [self drive]->geometries([self traits].blocks);
-
-    for (auto &g : geometries) {
-
-        auto c = std::get<0>(g);
-        auto h = std::get<1>(g);
-        auto s = std::get<2>(g);
-
-        NSInteger encoded = c << 32 | h << 16 | s;
-        [data addObject: [NSNumber numberWithInteger:encoded]];
-    }
-    
-    return data;
-}
-
-- (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex
-{
-    try { return [self drive]->drive->writeToFile([url fileSystemRepresentation]); }
-    catch (Error &error) { [ex save:error]; }
-}
-
-- (void)enableWriteThrough:(ExceptionWrapper *)ex
-{
-    try { return [self drive]->drive->enableWriteThrough(); }
-    catch (Error &error) { [ex save:error]; }
-}
-
-- (void)disableWriteThrough
-{
-    [self drive]->drive->disableWriteThrough();
-}
-
-@end
 
 //
 // HdController proxy
@@ -1510,31 +1329,31 @@ using namespace vamiga::moira;
     return proxy;
 }
 
-+ (instancetype)makeWithADF:(ADFFileProxy *)proxy exception:(ExceptionWrapper *)ex
++ (instancetype)makeWithMedia:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
     try {
-        
-        auto adf = (ADFFile *)(proxy->obj);
-        auto dev = new MutableFileSystem(*adf);
+
+        auto file = (MediaFile *)(proxy->obj);
+        auto dev = new MutableFileSystem(*file);
         return [self make:dev];
-        
+
     }  catch (Error &error) {
-        
+
         [ex save:error];
         return nil;
     }
 }
 
-+ (instancetype)makeWithHDF:(HDFFileProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
++ (instancetype)makeWithMedia:(MediaFileProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
 {
     try {
-        
-        auto hdf = (HDFFile *)(proxy->obj);
-        auto dev = new MutableFileSystem(*hdf, nr);
+
+        auto file = (MediaFile *)(proxy->obj);
+        auto dev = new MutableFileSystem(*file, nr);
         return [self make:dev];
-                
+
     }  catch (Error &error) {
-        
+
         [ex save:error];
         return nil;
     }
@@ -1714,6 +1533,33 @@ using namespace vamiga::moira;
 
 
 //
+// RemoteManager proxy
+//
+
+@implementation RemoteManagerProxy
+
+- (RemoteManagerAPI *)manager
+{
+    return (RemoteManagerAPI *)obj;
+}
+
++ (instancetype)make:(RemoteManagerAPI *)manager
+{
+    if (manager == nullptr) { return nil; }
+
+    RemoteManagerProxy *proxy = [[self alloc] initWith: manager];
+    return proxy;
+}
+
+- (RemoteManagerInfo)info
+{
+    return [self manager]->getInfo();
+}
+
+@end
+
+
+//
 // RetroShell proxy
 //
 
@@ -1758,37 +1604,9 @@ using namespace vamiga::moira;
     [self shell]->press(key, shift);
 }
 
-/*
 - (void)executeScript:(MediaFileProxy *)file
 {
     [self shell]->execScript(*(MediaFile *)file->obj);
-}
-*/
-
-@end
-
-//
-// RemoteManager proxy
-//
-
-@implementation RemoteManagerProxy
-
-- (RemoteManagerAPI *)manager
-{
-    return (RemoteManagerAPI *)obj;
-}
-
-+ (instancetype)make:(RemoteManagerAPI *)manager
-{
-    if (manager == nullptr) { return nil; }
-    
-    RemoteManagerProxy *proxy = [[self alloc] initWith: manager];
-    return proxy;
-}
-
-- (RemoteManagerInfo)info
-{
-    return [self manager]->getInfo();
 }
 
 @end
@@ -1805,7 +1623,7 @@ using namespace vamiga::moira;
     return (MediaFile *)obj;
 }
 
-+ (instancetype)make:(MediaFile *)file
++ (instancetype)make:(void *)file
 {
     return file ? [[self alloc] initWith:file] : nil;
 }
@@ -1853,6 +1671,15 @@ using namespace vamiga::moira;
     catch (Error &error) { [ex save:error]; return nil; }
 }
 
++ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy
+                             type:(FileType)type
+                        exception:(ExceptionWrapper *)ex
+{
+    auto drive = (HardDriveAPI *)proxy->obj;
+    try { return [self make: MediaFile::make(*drive, type)]; }
+    catch (Error &error) { [ex save:error]; return nil; }
+}
+
 + (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy
                               type:(FileType)type
                          exception:(ExceptionWrapper *)ex
@@ -1879,9 +1706,25 @@ using namespace vamiga::moira;
     return [self file]->fnv64();
 }
 
+- (NSInteger)size
+{
+    return [self file]->getSize();
+}
+
+- (u8 *)data
+{
+    return [self file]->getData();
+}
+
 - (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
     try { [self file]->writeToFile(string([path fileSystemRepresentation])); }
+    catch (Error &err) { [ex save:err]; }
+}
+
+- (void)writeToFile:(NSString *)path partition:(NSInteger)part exception:(ExceptionWrapper *)ex
+{
+    try { [self file]->writePartitionToFile(string([path fileSystemRepresentation]), part); }
     catch (Error &err) { [ex save:err]; }
 }
 
@@ -1920,6 +1763,184 @@ using namespace vamiga::moira;
 - (time_t)timeStamp
 {
     return [self file]->timestamp();
+}
+
+- (DiskInfo)diskInfo
+{
+    return [self file]->getDiskInfo();
+}
+
+- (FloppyDiskInfo)floppyDiskInfo
+{
+    return [self file]->getFloppyDiskInfo();
+}
+
+-(HDFInfo)hdfInfo
+{
+    return [self file]->getHDFInfo();
+}
+
+- (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset
+{
+    return [self file]->readByte(b, offset);
+}
+
+- (void)readSector:(NSInteger)b destination:(unsigned char *)buf
+{
+    [self file]->readSector(buf, b);
+}
+
+- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
+{
+    return @([self file]->hexdump(b, offset, len).c_str());
+}
+
+- (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
+{
+    return @([self file]->asciidump(b, offset, len).c_str());
+}
+
+@end
+
+
+//
+// HardDrive proxy
+//
+
+@implementation HardDriveProxy
+
+@synthesize controller;
+
+- (instancetype)initWith:(void *)ref
+{
+    if (self = [super init]) {
+
+        HardDriveAPI *hd = (HardDriveAPI *)ref;
+        obj = ref;
+        controller = [[HdControllerProxy alloc] initWith:&hd->controller];
+    }
+    return self;
+}
+
+- (HardDriveAPI *)drive
+{
+    return (HardDriveAPI *)obj;
+}
+
+- (HardDriveConfig)config
+{
+    return [self drive]->getConfig();
+}
+
+- (HardDriveInfo)info
+{
+    return [self drive]->getInfo();
+}
+
+- (HardDriveTraits)traits
+{
+    return [self drive]->getTraits();
+}
+
+- (PartitionTraits) partitionTraits:(NSInteger)nr
+{
+    return [self drive]->getPartitionTraits(nr);
+}
+
+- (BOOL)getFlag:(DiskFlags)mask
+{
+    return [self drive]->getFlag(mask);
+}
+
+- (void)setFlag:(DiskFlags)mask value:(BOOL)value
+{
+    [self drive]->setFlag(mask, value);
+}
+
+- (void)attachFile:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->attach([url fileSystemRepresentation]);
+    }  catch (Error &error) {
+        [ex save:error];
+    }
+}
+
+- (void)attach:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->attach(*(MediaFile *)proxy->obj);
+    }  catch (Error &error) {
+        [ex save:error];
+    }
+}
+
+- (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b
+     exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->attach(c, h, s, b);
+    }  catch (Error &error) {
+        [ex save:error];
+    }
+}
+
+- (void)format:(FSVolumeType)fs name:(NSString *)name exception:(ExceptionWrapper *)ex
+{
+    auto str = string([name UTF8String]);
+
+    try {
+        [self drive]->format(fs, str);
+    }  catch (Error &error) {
+        [ex save:error];
+    }
+}
+
+- (void)changeGeometry:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex
+{
+    try {
+        [self drive]->changeGeometry(c, h, s, b);
+    }  catch (Error &error) {
+        [ex save:error];
+    }
+}
+
+- (NSMutableArray *)geometries
+{
+    NSMutableArray *data = [[NSMutableArray alloc] init];
+
+    auto geometries = [self drive]->geometries([self traits].blocks);
+
+    for (auto &g : geometries) {
+
+        auto c = std::get<0>(g);
+        auto h = std::get<1>(g);
+        auto s = std::get<2>(g);
+
+        NSInteger encoded = c << 32 | h << 16 | s;
+        [data addObject: [NSNumber numberWithInteger:encoded]];
+    }
+
+    return data;
+}
+
+- (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex
+{
+    try { return [self drive]->writeToFile([url fileSystemRepresentation]); }
+    catch (Error &error) { [ex save:error]; }
+}
+
+- (void)enableWriteThrough:(ExceptionWrapper *)ex
+{
+    auto id = [self drive]->getInfo().nr;
+    try { return [self drive]->emu->set(OPT_HDR_WRITE_THROUGH, true, { id }); }
+    catch (Error &error) { [ex save:error]; }
+}
+
+- (void)disableWriteThrough
+{
+    auto id = [self drive]->getInfo().nr;
+    [self drive]->emu->set(OPT_HDR_WRITE_THROUGH, false, { id });
 }
 
 @end
@@ -1981,170 +2002,6 @@ using namespace vamiga::moira;
 - (void)dealloc
 {
     delete (AmigaFile *)obj;
-}
-
-@end
-
-
-//
-// Snapshot proxy
-//
-
-@implementation SnapshotProxy
-
-- (Snapshot *)snapshot
-{
-    return (Snapshot *)obj;
-}
-
-+ (instancetype)make:(void *)snapshot
-{
-    SnapshotProxy *proxy = [[self alloc] initWith:snapshot];
-    if (proxy) { proxy->preview = nullptr; }
-    return proxy;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new Snapshot([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new Snapshot((u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithAmiga:(AmigaProxy *)proxy
-{
-    Snapshot *snapshot = ((AmigaAPI *)proxy->obj)->takeSnapshot();
-    return [self make:snapshot];
-}
-
-- (NSImage *)previewImage
-{
-    // Return cached image (if any)
-    if (preview) { return preview; }
-
-    // Create preview image
-    const Thumbnail &thumbnail = [self snapshot]->getThumbnail();
-    unsigned char *data = (unsigned char *)thumbnail.screen;
-    
-    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
-                             initWithBitmapDataPlanes:&data
-                             pixelsWide:thumbnail.width
-                             pixelsHigh:thumbnail.height
-                             bitsPerSample:8
-                             samplesPerPixel:4
-                             hasAlpha:true
-                             isPlanar:false
-                             colorSpaceName:NSCalibratedRGBColorSpace
-                             bytesPerRow:4*thumbnail.width
-                             bitsPerPixel:32];
-    
-    preview = [[NSImage alloc] initWithSize:[rep size]];
-    [preview addRepresentation:rep];
-    
-    // image.makeGlossy()
-
-    return preview;
-}
-
-- (time_t)timeStamp
-{
-    return [self snapshot]->getThumbnail().timestamp;
-}
-
-@end
-
-
-//
-// Script proxy
-//
-
-@implementation ScriptProxy
-
-- (Script *)script
-{
-    return (Script *)obj;
-}
-
-+ (instancetype)make:(Script *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new Script([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new Script((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-- (void)execute:(EmulatorProxy *)proxy
-{
-    auto *am = [proxy amiga];
-    auto *amiga = (AmigaAPI *)am->obj;
-
-    [self script]->execute(*(amiga->amiga));
-}
-
-@end
-
-
-//
-// RomFile proxy
-//
-
-@implementation RomFileProxy
-
-+ (instancetype)make:(RomFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new RomFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new RomFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-@end
-
-
-//
-// ExtendedRomFile proxy
-//
-
-@implementation ExtendedRomFileProxy
-
-+ (instancetype)make:(ExtendedRomFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new ExtendedRomFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new ExtendedRomFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
 }
 
 @end
@@ -2225,380 +2082,46 @@ using namespace vamiga::moira;
 
 
 //
-// FloppyFileProxy
+// Amiga proxy
 //
 
-@implementation FloppyFileProxy
+@implementation AmigaProxy
 
-- (FloppyFile *)file
+- (AmigaAPI *)amiga
 {
-    return (FloppyFile *)obj;
+    return (AmigaAPI *)obj;
 }
 
-+ (instancetype)make:(FloppyFile *)file
+- (AmigaInfo)info
 {
-    return file ? [[self alloc] initWith:file] : nil;
+    return [self amiga]->getInfo();
 }
 
-- (FSVolumeType)dos
+- (AmigaInfo)cachedInfo
 {
-    return [self file]->getDos();
+    return [self amiga]->getCachedInfo();
 }
 
-- (Diameter)diskType
+- (NSInteger)autoInspectionMask
 {
-    return [self file]->getDiameter();
+    return (NSInteger)[self amiga]->getAutoInspectionMask();
 }
 
-- (Density)diskDensity
+- (void)setAutoInspectionMask:(NSInteger)mask
 {
-    return [self file]->getDensity();
+    return [self amiga]->setAutoInspectionMask(u64(mask));
 }
 
-- (BOOL)isSD
+- (MediaFileProxy *)takeSnapshot
 {
-    return [self file]->isSD();
+    MediaFile *file = [self amiga]->takeSnapshot();
+    return [MediaFileProxy make:file];
 }
 
-- (BOOL)isDD
+- (void)loadSnapshot:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
 {
-    return [self file]->isDD();
-}
-
-- (BOOL)isHD
-{
-    return [self file]->isHD();
-}
-
-- (BootBlockType)bootBlockType
-{
-    return [self file]->bootBlockType();
-}
-
-- (NSString *)bootBlockName
-{
-    const char *str = [self file]->bootBlockName();
-    return str ? @(str) : nullptr;
-}
-
-- (BOOL)hasVirus
-{
-    return [self file]->hasVirus();
-}
-
-- (void)killVirus
-{
-    [self file]->killVirus();
-}
-
-@end
-
-
-//
-// ADFFile proxy
-//
-
-@implementation ADFFileProxy
-
-- (ADFFile *)adf
-{
-    return (ADFFile *)obj;
-}
-
-+ (instancetype)make:(ADFFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new ADFFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new ADFFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new ADFFile(*[proxy drive]->drive)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithDiameter:(Diameter)dia density:(Density)den exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new ADFFile(dia, den)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-- (void)format:(FSVolumeType)fs bootBlock:(NSInteger)bb name:(NSString *)name
-{
-    auto str = string([name UTF8String]);
-    [self adf]->formatDisk(fs, bb, str);
-}
-
-@end
-
-
-//
-// HDFFileProxy
-//
-
-@implementation HDFFileProxy
-
-- (HDFFile *)hdf
-{
-    return (HDFFile *)obj;
-}
-
-+ (instancetype)make:(HDFFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new HDFFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new HDFFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new HDFFile(*[proxy drive]->drive)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-- (BOOL)hasRDB
-{
-    return [self hdf]->hasRDB();
-}
-
-- (NSInteger)numPartitions
-{
-    return [self hdf]->numPartitions();
-}
-
-- (NSInteger)numDrivers
-{
-    return [self hdf]->numDrivers();
-}
-
-- (NSInteger)writeToFile:(NSString *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
-{
-    try { return [self hdf]->writePartitionToFile([path fileSystemRepresentation], nr); }
-    catch (Error &error) { [ex save:error]; return 0; }
-}
-
-@end
-
-
-//
-// EADFFileProxy
-//
-
-@implementation EADFFileProxy
-
-- (EADFFile *)ext
-{
-    return (EADFFile *)obj;
-}
-
-+ (instancetype)make:(EADFFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new EADFFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new EADFFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new EADFFile(*[proxy drive]->drive)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-@end
-
-
-//
-// IMGFileProxy
-//
-
-@implementation IMGFileProxy
-
-- (IMGFile *)img
-{
-    return (IMGFile *)obj;
-}
-
-+ (instancetype)make:(IMGFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new IMGFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new IMGFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new IMGFile(*[proxy drive]->drive->disk)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-@end
-
-
-//
-// STFileProxy
-//
-
-@implementation STFileProxy
-
-- (STFile *)img
-{
-    return (STFile *)obj;
-}
-
-+ (instancetype)make:(STFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new STFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new STFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new STFile(*[proxy drive]->drive->disk)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-@end
-
-
-//
-// DMSFileProxy
-//
-
-@implementation DMSFileProxy
-
-- (DMSFile *)dms
-{
-    return (DMSFile *)obj;
-}
-
-+ (instancetype)make:(DMSFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new DMSFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new DMSFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-@end
-
-
-//
-// EXEFileProxy
-//
-
-@implementation EXEFileProxy
-
-- (EXEFile *)exe
-{
-    return (EXEFile *)obj;
-}
-
-+ (instancetype)make:(EXEFile *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new EXEFile([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new EXEFile((const u8 *)buf, len)]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-@end
-
-
-//
-// Folder Proxy
-//
-
-@implementation FolderProxy
-
-- (Folder *)dir
-{
-    return (Folder *)obj;
-}
-
-+ (instancetype)make:(Folder *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: new Folder([path fileSystemRepresentation])]; }
-    catch (Error &error) { [ex save:error]; return nil; }
-}
-
-- (ADFFileProxy *)adf
-{
-    return [ADFFileProxy make:[self dir]->adf];
+    try { [self amiga]->loadSnapshot(*[proxy file]); }
+    catch (Error &error) { [ex save:error]; }
 }
 
 @end
@@ -2698,7 +2221,7 @@ using namespace vamiga::moira;
 
 + (DefaultsProxy *) defaults
 {
-    return [[DefaultsProxy alloc] initWith:&Emulator::defaults];
+    return [[DefaultsProxy alloc] initWith:&VAmiga::defaults];
 }
 
 + (NSString *)build
@@ -2738,16 +2261,6 @@ using namespace vamiga::moira;
 - (EmulatorStats)stats
 {
     return [self emu]->getStats();
-}
-
-- (NSInteger)autoInspectionMask
-{
-    return [self emu]->emu->main.getAutoInspectionMask();
-}
-
-- (void)setAutoInspectionMask:(NSInteger)mask
-{
-    [self emu]->emu->main.setAutoInspectionMask(mask);
 }
 
 - (BOOL)poweredOn
@@ -2803,19 +2316,12 @@ using namespace vamiga::moira;
 
 - (void)stepInto
 {
-    [self emu]->emu->stepInto();
+    [self emu]->stepInto();
 }
 
 - (void)stepOver
 {
-    [self emu]->emu->stepOver();
-}
-
-- (SnapshotProxy *)takeSnapshot
-{
-    Amiga *amiga = (Amiga *)[self amiga]->obj;
-    auto *snapshot = amiga->takeSnapshot();
-    return [SnapshotProxy make:snapshot];
+    [self emu]->stepOver();
 }
 
 - (void)launch:(const void *)listener function:(Callback *)func
@@ -2993,12 +2499,6 @@ using namespace vamiga::moira;
 - (void)wakeUp
 {
     [self emu]->wakeUp();
-}
-
-- (void)loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { [self emu]->emu->main.loadSnapshot(*[proxy snapshot]); }
-    catch (Error &error) { [ex save:error]; }
 }
 
 - (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex

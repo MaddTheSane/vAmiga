@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Types.h"
+#include "BasicTypes.h"
 
 // namespace vamiga {
 
@@ -26,8 +26,14 @@ VideoPortConfig;
 
 typedef struct
 {
-
+    i64 latestGrabbedFrame;
 }
 VideoPortInfo;
+
+typedef struct
+{
+    isize droppedFrames;
+}
+VideoPortStats;
 
 // }

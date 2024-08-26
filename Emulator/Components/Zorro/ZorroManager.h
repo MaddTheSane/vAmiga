@@ -20,7 +20,7 @@ class ZorroManager : public SubComponent {
     
     Descriptions descriptions = {{
 
-        .type           = COMP_ZORRO_MANAGER,
+        .type           = ZorroManagerClass,
         .name           = "ZorroManager",
         .description    = "Zorro Manager",
         .shell          = "zorro"
@@ -56,8 +56,8 @@ private:
 public:
     
     using SubComponent::SubComponent;
-    
-    
+    ZorroManager& operator= (const ZorroManager& other) { return *this; }
+
     //
     // Methods from CoreObject
     //

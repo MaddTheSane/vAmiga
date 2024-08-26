@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include "Reflection.h"
 
 //
@@ -27,11 +27,10 @@ enum_long(SPD)
 typedef SPD SerialPortDevice;
 
 #ifdef __cplusplus
-struct SerialPortDeviceEnum : util::Reflection<SerialPortDeviceEnum, SerialPortDevice>
+struct SerialPortDeviceEnum : vamiga::util::Reflection<SerialPortDeviceEnum, SerialPortDevice>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SPD_COMMANDER;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
     
     static const char *prefix() { return "SPD"; }
     static const char *_key(long value)
