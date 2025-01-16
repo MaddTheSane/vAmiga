@@ -126,7 +126,7 @@ RetroShell::asyncExecScript(const MediaFile &file)
 
         default:
 
-            throw Error(ERROR_FILE_TYPE_MISMATCH);
+            throw Error(VAERROR_FILE_TYPE_MISMATCH);
     }
 }
 
@@ -161,7 +161,6 @@ RetroShell::exec()
             commands.erase(commands.begin());
             exec(cmd);
         }
-        // msgQueue.put(MSG_RSH_EXEC);
 
     } catch (ScriptInterruption &) {
 

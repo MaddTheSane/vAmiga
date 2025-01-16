@@ -44,7 +44,7 @@ class HardDiskCreator: DialogController {
         
         if newValue != cylinders {
 
-            cylinders = clamp(newValue, minimum: HDR_C_MIN, maximum: HDR_C_MAX)
+            cylinders = clamp(newValue, minimum: VAMIGA.HDR.C_MIN, maximum: VAMIGA.HDR.C_MAX)
             update()
         }
     }
@@ -53,7 +53,7 @@ class HardDiskCreator: DialogController {
         
         if newValue != heads {
 
-            heads = clamp(newValue, minimum: HDR_H_MIN, maximum: HDR_H_MAX)
+            heads = clamp(newValue, minimum: VAMIGA.HDR.H_MIN, maximum: VAMIGA.HDR.H_MAX)
             update()
         }
     }
@@ -62,7 +62,7 @@ class HardDiskCreator: DialogController {
         
         if newValue != sectors {
               
-            sectors = clamp(newValue, minimum: HDR_S_MIN, maximum: HDR_S_MAX)
+            sectors = clamp(newValue, minimum: VAMIGA.HDR.S_MIN, maximum: VAMIGA.HDR.S_MAX)
             update()
         }
     }

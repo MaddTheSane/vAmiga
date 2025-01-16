@@ -13,6 +13,7 @@
 #include "Colors.h"
 #include "Denise.h"
 #include "DmaDebugger.h"
+#include "Emulator.h"
 
 #include <fstream>
 
@@ -66,6 +67,7 @@ PixelEngine::_didReset(bool hard)
 void
 PixelEngine::_didLoad()
 {
+    clearAll();
     updateRGBA();
 }
 
@@ -98,33 +100,33 @@ PixelEngine::checkOption(Option opt, i64 value)
         case OPT_MON_PALETTE:
 
             if (!PaletteEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, PaletteEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, PaletteEnum::keyList());
             }
             return;
 
         case OPT_MON_BRIGHTNESS:
 
             if (value < 0 || value > 100) {
-                throw Error(ERROR_OPT_INV_ARG, "0...100");
+                throw Error(VAERROR_OPT_INV_ARG, "0...100");
             }
             return;
 
         case OPT_MON_CONTRAST:
 
             if (value < 0 || value > 100) {
-                throw Error(ERROR_OPT_INV_ARG, "0...100");
+                throw Error(VAERROR_OPT_INV_ARG, "0...100");
             }
             return;
 
         case OPT_MON_SATURATION:
 
             if (value < 0 || value > 100) {
-                throw Error(ERROR_OPT_INV_ARG, "0...100");
+                throw Error(VAERROR_OPT_INV_ARG, "0...100");
             }
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -309,6 +311,8 @@ PixelEngine::stablePtr(isize row, isize col)
 void
 PixelEngine::swapBuffers()
 {
+    emulator.lockTexture();
+
     videoPort.buffersWillSwap();
 
     isize oldActiveBuffer = activeBuffer;
@@ -319,12 +323,13 @@ PixelEngine::swapBuffers()
     emuTexture[newActiveBuffer].prevlof = emuTexture[oldActiveBuffer].lof;
 
     activeBuffer = newActiveBuffer;
+
+    emulator.unlockTexture();
 }
 
 void
 PixelEngine::vsyncHandler()
 {
-    // swapBuffers();
     dmaDebugger.vSyncHandler();
 }
 

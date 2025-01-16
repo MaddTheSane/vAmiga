@@ -20,6 +20,8 @@ namespace vamiga {
 
 class CPU : public moira::Moira, public Inspectable<CPUInfo>
 {
+    friend class Moira;
+
     Descriptions descriptions = {{
 
         .type           = CPUClass,
@@ -33,11 +35,10 @@ class CPU : public moira::Moira, public Inspectable<CPUInfo>
         OPT_CPU_REVISION,
         OPT_CPU_DASM_REVISION,
         OPT_CPU_DASM_SYNTAX,
+        OPT_CPU_DASM_NUMBERS,
         OPT_CPU_OVERCLOCKING,
         OPT_CPU_RESET_VAL
     };
-
-    friend class Moira;
 
     // The current configuration
     CPUConfig config = {};
@@ -253,29 +254,29 @@ public:
     //
     
     // Disassembles a recorded instruction from the log buffer
-    const char *disassembleRecordedInstr(isize i, isize *len);
-    const char *disassembleRecordedWords(isize i, isize len);
-    const char *disassembleRecordedFlags(isize i);
-    const char *disassembleRecordedPC(isize i);
+    const char *disassembleRecordedInstr(isize i, isize *len) const;
+    const char *disassembleRecordedWords(isize i, isize len) const;
+    const char *disassembleRecordedFlags(isize i) const;
+    const char *disassembleRecordedPC(isize i) const;
 
     // Disassembles the instruction at the specified address
-    const char *disassembleWord(u16 value);
-    const char *disassembleAddr(u32 addr);
-    const char *disassembleInstr(u32 addr, isize *len);
-    const char *disassembleWords(u32 addr, isize len);
+    const char *disassembleWord(u16 value) const;
+    const char *disassembleAddr(u32 addr) const;
+    const char *disassembleInstr(u32 addr, isize *len) const;
+    const char *disassembleWords(u32 addr, isize len) const;
 
     // Disassembles the currently executed instruction
-    const char *disassembleInstr(isize *len);
-    const char *disassembleWords(isize len);
-    const char *disassemblePC();
+    const char *disassembleInstr(isize *len) const;
+    const char *disassembleWords(isize len) const;
+    const char *disassemblePC() const;
 
     // Dumps a portion of the log buffer
-    void dumpLogBuffer(std::ostream& os, isize count);
-    void dumpLogBuffer(std::ostream& os);
+    void dumpLogBuffer(std::ostream& os, isize count) const;
+    void dumpLogBuffer(std::ostream& os) const;
 
     // Disassembles a memory range
-    void disassembleRange(std::ostream& os, u32 addr, isize count);
-    void disassembleRange(std::ostream& os, std::pair<u32, u32> range, isize max = 255);
+    void disassembleRange(std::ostream& os, u32 addr, isize count) const;
+    void disassembleRange(std::ostream& os, std::pair<u32, u32> range, isize max = 255) const;
 
 
     //

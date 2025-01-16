@@ -28,18 +28,22 @@ ADFFile::isCompatible(const std::filesystem::path &path)
 }
 
 bool
-ADFFile::isCompatible(std::istream &stream)
+ADFFile::isCompatible(const u8 *buf, isize len)
 {
-    isize length = util::streamLength(stream);
-
     // Some ADFs contain an additional byte at the end. Ignore it.
-    length &= ~1;
+    len &= ~1;
 
     // The size must be a multiple of the cylinder size
-    if (length % 11264) return false;
+    if (len % 11264) return false;
 
     // Check some more limits
-    return length <= ADFSIZE_35_DD_84 || length == ADFSIZE_35_HD;
+    return len <= ADFSIZE_35_DD_84 || len == ADFSIZE_35_HD;
+}
+
+bool
+ADFFile::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 isize
@@ -48,12 +52,12 @@ ADFFile::fileSize(Diameter diameter, Density density)
     assert_enum(Diameter, diameter);
     assert_enum(Density, density);
 
-    if (diameter != INCH_35) throw Error(ERROR_DISK_INVALID_DIAMETER);
+    if (diameter != INCH_35) throw Error(VAERROR_DISK_INVALID_DIAMETER);
     
     if (density == DENSITY_DD) return ADFSIZE_35_DD;
     if (density == DENSITY_HD) return ADFSIZE_35_HD;
 
-    throw Error(ERROR_DISK_INVALID_DENSITY);
+    throw Error(VAERROR_DISK_INVALID_DENSITY);
 }
 
 void
@@ -68,7 +72,7 @@ ADFFile::init(Diameter diameter, Density density)
 void
 ADFFile::init(const FloppyDiskDescriptor &descr)
 {
-    if (descr.diameter != INCH_35) throw Error(ERROR_DISK_INVALID_DIAMETER);
+    if (descr.diameter != INCH_35) throw Error(VAERROR_DISK_INVALID_DIAMETER);
 
     switch (descr.density) {
 
@@ -83,7 +87,7 @@ ADFFile::init(const FloppyDiskDescriptor &descr)
                 case 84: init(ADFSIZE_35_DD_84); break;
 
                 default:
-                    throw Error(ERROR_DISK_INVALID_LAYOUT);
+                    throw Error(VAERROR_DISK_INVALID_LAYOUT);
             }
             break;
 
@@ -93,7 +97,7 @@ ADFFile::init(const FloppyDiskDescriptor &descr)
             break;
 
         default:
-            throw Error(ERROR_DISK_INVALID_DENSITY);
+            throw Error(VAERROR_DISK_INVALID_DENSITY);
     }
 }
 
@@ -111,7 +115,7 @@ ADFFile::init(FloppyDisk &disk)
 void
 ADFFile::init(FloppyDrive &drive)
 {
-    if (drive.disk == nullptr) throw Error(ERROR_DISK_MISSING);
+    if (drive.disk == nullptr) throw Error(VAERROR_DISK_MISSING);
     init(*drive.disk);
 }
 
@@ -129,7 +133,7 @@ ADFFile::init(MutableFileSystem &volume)
             break;
             
         default:
-            throw Error(ERROR_FS_WRONG_CAPACITY);
+            throw Error(VAERROR_FS_WRONG_CAPACITY);
     }
 
     volume.exportVolume(data.ptr, data.size);
@@ -296,17 +300,17 @@ ADFFile::formatDisk(FSVolumeType fs, BootBlockId id, string name)
     volume.makeBootable(id);
     
     // Export the file system to the ADF
-    if (!volume.exportVolume(data.ptr, data.size)) throw Error(ERROR_FS_UNKNOWN);
+    if (!volume.exportVolume(data.ptr, data.size)) throw Error(VAERROR_FS_UNKNOWN);
 }
 
 void
 ADFFile::encodeDisk(FloppyDisk &disk) const
 {
     if (disk.getDiameter() != getDiameter()) {
-        throw Error(ERROR_DISK_INVALID_DIAMETER);
+        throw Error(VAERROR_DISK_INVALID_DIAMETER);
     }
     if (disk.getDensity() != getDensity()) {
-        throw Error(ERROR_DISK_INVALID_DENSITY);
+        throw Error(VAERROR_DISK_INVALID_DENSITY);
     }
 
     isize tracks = numTracks();
@@ -445,10 +449,10 @@ ADFFile::decodeDisk(FloppyDisk &disk)
     debug(ADF_DEBUG, "Decoding Amiga disk with %ld tracks\n", tracks);
     
     if (disk.getDiameter() != getDiameter()) {
-        throw Error(ERROR_DISK_INVALID_DIAMETER);
+        throw Error(VAERROR_DISK_INVALID_DIAMETER);
     }
     if (disk.getDensity() != getDensity()) {
-        throw Error(ERROR_DISK_INVALID_DENSITY);
+        throw Error(VAERROR_DISK_INVALID_DENSITY);
     }
 
     // Make the MFM stream scannable beyond the track end
@@ -491,7 +495,7 @@ ADFFile::decodeTrack(FloppyDisk &disk, Track t)
     if (nr != sectors) {
         
         warn("Found %ld sectors, expected %ld. Aborting.\n", nr, sectors);
-        throw Error(ERROR_DISK_WRONG_SECTOR_COUNT);
+        throw Error(VAERROR_DISK_WRONG_SECTOR_COUNT);
     }
     
     // Decode all sectors
@@ -514,7 +518,7 @@ ADFFile::decodeSector(u8 *dst, u8 *src)
     u8 sector = info[2];
     if (sector >= numSectors()) {
         warn("Invalid sector number %d. Aborting.\n", sector);
-        throw Error(ERROR_DISK_INVALID_SECTOR_NUMBER);
+        throw Error(VAERROR_DISK_INVALID_SECTOR_NUMBER);
     }
     
     // Skip sector header

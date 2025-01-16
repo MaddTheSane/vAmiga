@@ -14,20 +14,20 @@
 
 namespace vamiga {
 
-class Joystick : public SubComponent, public Inspectable<JoystickInfo> {
+class Joystick final : public SubComponent, public Inspectable<JoystickInfo> {
 
     Descriptions descriptions = {
         {
             .type           = JoystickClass,
             .name           = "Joystick1",
             .description    = "Joystick in Port 1",
-            .shell          = "joystick 1"
+            .shell          = "joystick1"
         },
         {
             .type           = JoystickClass,
             .name           = "Joystick2",
             .description    = "Joystick in Port 2",
-            .shell          = "joystick 2"
+            .shell          = "joystick2"
         }
     };
 
@@ -110,6 +110,15 @@ private:
             << bulletCounter
             << nextAutofireFrame
             << nextAutofireReleaseFrame;
+
+        } else {
+
+            worker
+
+            << config.autofire
+            << config.autofireBursts
+            << config.autofireBullets
+            << config.autofireDelay;
         }
 
     } SERIALIZERS(serialize);
@@ -189,7 +198,6 @@ private:
     void stopAutofire();
 
     // Reloads the autofire magazine
-    void reload();
     void reload(isize bullets);
 };
 

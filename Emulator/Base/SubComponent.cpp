@@ -43,6 +43,7 @@ hd2con(ref.hd2con),
 hd3con(ref.hd3con),
 host(ref.host),
 keyboard(ref.keyboard),
+logicAnalyzer(ref.logicAnalyzer),
 mem(ref.mem),
 msgQueue(ref.msgQueue),
 osDebugger(ref.osDebugger),
@@ -60,6 +61,12 @@ zorro(ref.zorro)
 };
 
 SubComponent::SubComponent(Amiga& ref, isize id) : CoreComponent(ref.emulator, id), References(ref) { };
+
+bool
+SubComponent::isRunAheadInstance() const
+{
+    return amiga.isRunAheadInstance();
+}
 
 void
 SubComponent::prefix(isize level, const char *component, isize line) const

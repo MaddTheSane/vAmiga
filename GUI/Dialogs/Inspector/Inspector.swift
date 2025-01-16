@@ -7,22 +7,56 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-let fmt4  = MyFormatter(radix: 16, min: 0, max: 0xF)
-let fmt8  = MyFormatter(radix: 16, min: 0, max: 0xFF)
-let fmt16 = MyFormatter(radix: 16, min: 0, max: 0xFFFF)
-let fmt24 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFF)
-let fmt32 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFFFF)
-let fmt8b = MyFormatter(radix: 2, min: 0, max: 0xFF)
-let fmt16b = MyFormatter(radix: 2, min: 0, max: 0xFFFF)
-
 class Inspector: DialogController {
 
+    let fmt4  = MyFormatter(radix: 16, min: 0, max: 0xF)
+    let fmt8  = MyFormatter(radix: 16, min: 0, max: 0xFF)
+    let fmt9  = MyFormatter(radix: 16, min: 0, max: 0x1FF)
+    let fmt16 = MyFormatter(radix: 16, min: 0, max: 0xFFFF)
+    let fmt24 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFF)
+    let fmt32 = MyFormatter(radix: 16, min: 0, max: 0xFFFFFFFF)
+    let fmt8b = MyFormatter(radix: 2, min: 0, max: 0xFF)
+    let fmt16b = MyFormatter(radix: 2, min: 0, max: 0xFFFF)
+    
+    var format = 0 {
+        didSet {
+            switch format {
+            case 0: hex = true; padding = false
+            case 1: hex = true; padding = true
+            case 2: hex = false; padding = false
+            case 3: hex = false; padding = true
+            default:
+                fatalError()
+            }
+        }
+    }
+    var hex = true {
+        didSet {
+            fmt4.radix = hex ? 16 : 10
+            fmt8.radix = hex ? 16 : 10
+            fmt9.radix = hex ? 16 : 10
+            fmt16.radix = hex ? 16 : 10
+            fmt24.radix = hex ? 16 : 10
+            fmt32.radix = hex ? 16 : 10
+            emu.set(.CPU_DASM_NUMBERS,
+                    value: (hex ? DasmNumbers.HEX : DasmNumbers.DEC).rawValue)
+            fullRefresh()
+        }
+    }
+    var padding = false {
+        didSet {
+            fmt4.padding = padding
+            fmt9.padding = padding
+            fmt8.padding = padding
+            fmt16.padding = padding
+            fmt24.padding = padding
+            fmt32.padding = padding
+            fullRefresh()
+        }
+    }
+    
     // Commons
     @IBOutlet weak var panel: NSTabView!
-    @IBOutlet weak var stopAndGoButton: NSButton!
-    @IBOutlet weak var stepIntoButton: NSButton!
-    @IBOutlet weak var stepOverButton: NSButton!
-    @IBOutlet weak var message: NSTextField!
 
     // CPU panel
     @IBOutlet weak var cpuInstrView: InstrTableView!
@@ -92,6 +126,38 @@ class Inspector: DialogController {
 
     @IBOutlet weak var cpuTraceClearButton: NSButton!
 
+    // Bus panel
+    @IBOutlet weak var busScrollView: NSScrollView!
+    @IBOutlet weak var busLogicView: LogicView!
+    @IBOutlet weak var busZoomSlider: NSSlider!
+    @IBOutlet weak var busProbe0: NSComboButton!
+    @IBOutlet weak var busProbe1: NSComboButton!
+    @IBOutlet weak var busProbe2: NSComboButton!
+    @IBOutlet weak var busProbe3: NSComboButton!
+
+    @IBOutlet weak var busSymbolic: NSButton!
+
+    @IBOutlet weak var busEnable: NSButton!
+    @IBOutlet weak var busCopper: NSButton!
+    @IBOutlet weak var busBlitter: NSButton!
+    @IBOutlet weak var busDisk: NSButton!
+    @IBOutlet weak var busAudio: NSButton!
+    @IBOutlet weak var busSprites: NSButton!
+    @IBOutlet weak var busBitplanes: NSButton!
+    @IBOutlet weak var busCPU: NSButton!
+    @IBOutlet weak var busRefresh: NSButton!
+    @IBOutlet weak var busOpacity: NSSlider!
+    @IBOutlet weak var busDisplayMode: NSPopUpButton!
+    
+    @IBOutlet weak var colCopper: NSColorWell!
+    @IBOutlet weak var colBlitter: NSColorWell!
+    @IBOutlet weak var colDisk: NSColorWell!
+    @IBOutlet weak var colAudio: NSColorWell!
+    @IBOutlet weak var colSprites: NSColorWell!
+    @IBOutlet weak var colBitplanes: NSColorWell!
+    @IBOutlet weak var colCPU: NSColorWell!
+    @IBOutlet weak var colRefresh: NSColorWell!
+    
     // Memory panel
     @IBOutlet weak var memBankMap: NSPopUpButton!
     @IBOutlet weak var memSearchField: NSSearchField!
@@ -119,7 +185,7 @@ class Inspector: DialogController {
     var displayedBank = 0
     var displayedBankType = MemorySource.CHIP
     var searchAddress = -1
-
+    
     // CIA panel
     @IBOutlet weak var ciaSelector: NSSegmentedControl!
     
@@ -179,10 +245,6 @@ class Inspector: DialogController {
 
     @IBOutlet weak var ciaSDR: NSTextField!
     @IBOutlet weak var ciaSSR: NSTextField!
-    
-    @IBOutlet weak var ciaIdleCycles: NSTextField!
-    @IBOutlet weak var ciaIdleLevelText: NSTextField!
-    @IBOutlet weak var ciaIdleLevel: NSLevelIndicator!
     
     // Agnus panel
     @IBOutlet weak var dmaVPOS: NSTextField!
@@ -598,6 +660,8 @@ class Inspector: DialogController {
     var uartInfo: UARTInfo!
     var isRunning = true
 
+    var toolbar: InspectorToolbar? { return window?.toolbar as? InspectorToolbar }
+    
     // Returns the number of the currently inspected sprite
     var selectedSprite: Int { return sprSelector.indexOfSelectedItem }
 
@@ -607,14 +671,32 @@ class Inspector: DialogController {
     override func showWindow(_ sender: Any?) {
 
         super.showWindow(self)
+        
+        // Enter debug mode
         emu.trackOn()
-        updateInspectionTarget()
+        amiga.autoInspectionMask = 0xFF
+        
+        // Adjust window height to match what we see in interface builder
+        if let window = self.window {
+            
+            let contentHeight: CGFloat = 440
+            let toolbarHeight = window.frame.height - window.contentView!.frame.height
+            let totalHeight = contentHeight + toolbarHeight
+            
+            var frame = window.frame
+            frame.size.height = totalHeight
+            window.setFrame(frame, display: true)
+        }
+        
+        refresh(full: true)
     }
 
     override func awakeFromNib() {
 
         super.awakeFromNib()
-        message.stringValue = ""
+        
+        // Hide the panel selector
+        panel.tabPosition = .none
     }
     
     deinit {
@@ -626,6 +708,7 @@ class Inspector: DialogController {
         
         control.abortEditing()
         control.formatter = formatter
+        control.alignment = .right
         control.needsDisplay = true
     }
     
@@ -645,27 +728,19 @@ class Inspector: DialogController {
         
         if window?.isVisible == false { return }
 
-        if full {
+        let info = emu.amiga.info
         
-            if parent!.emu.running {
-                stopAndGoButton.image = NSImage(named: "pauseTemplate")
-                stepIntoButton.isEnabled = false
-                stepOverButton.isEnabled = false
-            } else {
-                stopAndGoButton.image = NSImage(named: "runTemplate")
-                stepIntoButton.isEnabled = true
-                stepOverButton.isEnabled = true
-            }
-        }
+        refreshAgnus(count: count, full: full)
         
         if let id = panel.selectedTabViewItem?.label {
 
             switch id {
 
             case "CPU": refreshCPU(count: count, full: full)
+            case "Bus": refreshBus(count: count, full: full)
             case "CIA": refreshCIA(count: count, full: full)
             case "Memory": refreshMemory(count: count, full: full)
-            case "Agnus": refreshAgnus(count: count, full: full)
+            case "Agnus": break
             case "Copper": refreshCopper(count: count, full: full)
             case "Blitter": refreshBlitter(count: count, full: full)
             case "Denise": refreshDenise(count: count, full: full)
@@ -675,8 +750,89 @@ class Inspector: DialogController {
             default: break
             }
         }
+        
+        toolbar?.updateToolbar(info: info, full: full)
     }
     
+    func selectPanel(_ nr: Int) {
+        
+        if nr <  panel.numberOfTabViewItems {
+
+            panel.selectTabViewItem(at: nr)
+            fullRefresh()
+        }
+    }
+    
+    func processMessage(_ msg: Message) {
+    
+        var pc: Int { return Int(msg.cpu.pc) }
+        var vector: Int { return Int(msg.cpu.vector) }
+        
+        switch msg.type {
+                        
+        case .CONFIG:
+            
+            fullRefresh()
+            
+        case .POWER:
+            
+            fullRefresh()
+            
+        case .RUN:
+            
+            cpuInstrView.alertAddr = nil
+            fullRefresh()
+
+        case .PAUSE:
+            
+            fullRefresh()
+            scrollToHPos()
+            
+        case .STEP:
+            
+            cpuInstrView.alertAddr = nil
+            fullRefresh()
+            scrollToPC()
+            
+        case .RESET:
+            
+            cpuInstrView.alertAddr = nil
+            fullRefresh()
+
+        case .COPPERBP_UPDATED, .COPPERWP_UPDATED, .GUARD_UPDATED:
+            
+            fullRefresh()
+
+        case .BREAKPOINT_REACHED:
+            
+            cpuInstrView.alertAddr = nil
+            scrollToPC(pc: pc)
+            
+        case .WATCHPOINT_REACHED:
+            
+            cpuInstrView.alertAddr = pc
+            scrollToPC(pc: pc)
+
+        case .CATCHPOINT_REACHED:
+            
+            cpuInstrView.alertAddr = pc
+            scrollToPC(pc: pc)
+
+        case .SWTRAP_REACHED:
+            
+            cpuInstrView.alertAddr = pc
+            scrollToPC(pc: pc)
+
+        case .COPPERBP_REACHED, .COPPERWP_REACHED, .BEAMTRAP_REACHED,
+                .EOF_REACHED, .EOL_REACHED, .MEM_LAYOUT:
+            
+            fullRefresh()
+            
+        default:
+            break
+        }
+    }
+        
     func scrollToPC() {
 
         if cpuInfo != nil {
@@ -687,89 +843,6 @@ class Inspector: DialogController {
     func scrollToPC(pc: Int) {
 
         cpuInstrView.jumpTo(addr: pc)
-    }
-
-    func powerOn() {
-    
-        message.stringValue = ""
-        fullRefresh()
-    }
-
-    func powerOff() {
-    
-        message.stringValue = ""
-        fullRefresh()
-    }
-
-    func run() {
-        
-        message.stringValue = ""
-        cpuInstrView.alertAddr = nil
-        fullRefresh()
-    }
-    
-    func pause() {
-        
-        fullRefresh()
-    }
-
-    func step() {
-                
-        message.stringValue = ""
-        cpuInstrView.alertAddr = nil
-        fullRefresh()
-        scrollToPC()
-    }
-    
-    func reset() {
-        
-        message.stringValue = ""
-        cpuInstrView.alertAddr = nil
-        fullRefresh()
-    }
-    
-    func signalBreakPoint(pc: Int) {
-            
-        message.stringValue = "Breakpoint reached"
-        cpuInstrView.alertAddr = nil
-        scrollToPC(pc: pc)
-    }
-
-    func signalWatchPoint(pc: Int) {
-    
-        message.stringValue = "Watchpoint reached"
-        cpuInstrView.alertAddr = pc
-        scrollToPC(pc: pc)
-    }
-
-    func signalCatchPoint(pc: Int, vector: Int) {
-    
-        let name = emu.cpu.vectorName(vector)!
-        message.stringValue = "Catched exception vector \(vector) (\(name))"
-        cpuInstrView.alertAddr = pc
-        scrollToPC(pc: pc)
-    }
-
-    func signalSoftwareTrap(pc: Int) {
-    
-        message.stringValue = "Software trap reached"
-        cpuInstrView.alertAddr = pc
-        scrollToPC(pc: pc)
-    }
-
-    func signalCopperBreakpoint() {
-    
-        message.stringValue = "Copper breakpoint reached"
-    }
-
-    func signalCopperWatchpoint() {
-    
-        message.stringValue = "Copper watchpoint reached"
-    }
-
-    func signalBeamtrap() {
-
-        message.stringValue = "Beamtrap reached"
     }
 
     @IBAction func refreshAction(_ sender: Any!) {
@@ -793,6 +866,16 @@ class Inspector: DialogController {
 
         emu.stepOver()
     }
+    
+    @IBAction func finishLineAction(_ sender: NSButton!) {
+
+        emu.finishLine()
+    }
+    
+    @IBAction func finishFrameAction(_ sender: NSButton!) {
+
+        emu.finishFrame()
+    }
 }
 
 extension Inspector {
@@ -801,50 +884,27 @@ extension Inspector {
 
         super.windowWillClose(notification)
 
-        // Leave debug mode
-        emu?.trackOff()
-        emu?.amiga.autoInspectionMask = 0
+        // Unregister the inspector
+        if let index = parent.inspectors.firstIndex(where: { $0 === self }) {
+            
+            // print("Removing inspector at index \(index)")
+            parent.inspectors.remove(at: index)
+        }
+
+        // Leave debug mode if no more inspectors are open
+        if parent.inspectors.isEmpty {
+            
+            // print("Leaving debug mode")
+            emu?.trackOff()
+            amiga.autoInspectionMask = 0
+        }
     }
 }
 
 extension Inspector: NSTabViewDelegate {
 
-    func updateInspectionTarget() {
-
-        func mask(_ types: [CType]) -> Int {
-
-            var result = 0
-            for type in types { result = result | 1 << type.rawValue }
-            return result
-        }
-        func mask(_ type: CType) -> Int { return mask([type]) }
-
-
-        if let id = panel.selectedTabViewItem?.label {
-
-            switch id {
-
-            case "CPU":     amiga.autoInspectionMask = mask([.CPUClass])
-            case "CIA":     amiga.autoInspectionMask = mask([.CIAClass])
-            case "Memory":  amiga.autoInspectionMask = mask([.MemoryClass])
-            case "Agnus":   amiga.autoInspectionMask = mask([.AgnusClass])
-            case "Copper":  amiga.autoInspectionMask = mask([.CopperClass])
-            case "Blitter": amiga.autoInspectionMask = mask([.BlitterClass])
-            case "Denise":  amiga.autoInspectionMask = mask([.DeniseClass])
-            case "Paula":   amiga.autoInspectionMask = mask([.PaulaClass])
-            case "Ports":   amiga.autoInspectionMask = mask([.PaulaClass, .ControlPortClass, .SerialPortClass])
-            case "Events":  amiga.autoInspectionMask =  mask([.AgnusClass])
-            default:        break
-            }
-            
-            fullRefresh()
-        }
-    }
-    
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         
-        if tabView === panel {
-            updateInspectionTarget()
-        }
+        fullRefresh()
     }
 }

@@ -13,35 +13,44 @@
 #include "Reflection.h"
 #include "ThreadTypes.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
 
 enum_long(VIDEO_FORMAT)
 {
-    PAL,
-    NTSC
+    FORMAT_PAL,
+    FORMAT_NTSC
 };
 typedef VIDEO_FORMAT VideoFormat;
 
-#ifdef __cplusplus
-struct VideoFormatEnum : vamiga::util::Reflection<VideoFormatEnum, VideoFormat>
+struct VideoFormatEnum : util::Reflection<VideoFormatEnum, VideoFormat>
 {
     static constexpr long minVal = 0;
-    static constexpr long maxVal = NTSC;
-
-    static const char *prefix() { return ""; }
+    static constexpr long maxVal = FORMAT_NTSC;
+    
+    static const char *prefix() { return "FORMAT"; }
     static const char *_key(long value)
     {
         switch (value) {
-
-            case PAL:   return "PAL";
-            case NTSC:  return "NTSC";
+                
+            case FORMAT_PAL:   return "PAL";
+            case FORMAT_NTSC:  return "NTSC";
+        }
+        return "???";
+    }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case FORMAT_PAL:   return "PAL Video Format";
+            case FORMAT_NTSC:  return "NTSC Video Format";
         }
         return "???";
     }
 };
-#endif
 
 enum_long(RESOLUTION)
 {
@@ -51,25 +60,33 @@ enum_long(RESOLUTION)
 };
 typedef RESOLUTION Resolution;
 
-#ifdef __cplusplus
-struct ResolutionEnum : vamiga::util::Reflection<ResolutionEnum, Resolution>
+struct ResolutionEnum : util::Reflection<ResolutionEnum, Resolution>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SHRES;
-
+    
     static const char *prefix() { return ""; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case LORES:          return "LORES";
             case HIRES:          return "HIRES";
             case SHRES:          return "SHRES";
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case LORES:          return "Lores Graphics";
+            case HIRES:          return "Hires Graphics";
+            case SHRES:          return "Super-Hires Graphics";
+        }
+        return "???";
+    }
 };
-#endif
 
 enum_long(WARP_MODE)
 {
@@ -79,25 +96,27 @@ enum_long(WARP_MODE)
 };
 typedef WARP_MODE WarpMode;
 
-#ifdef __cplusplus
-struct WarpModeEnum : vamiga::util::Reflection<WarpModeEnum, WarpMode>
+struct WarpModeEnum : util::Reflection<WarpModeEnum, WarpMode>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = WARP_ALWAYS;
-
+    
     static const char *prefix() { return "WARP"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case WARP_AUTO:     return "WARP_AUTO";
             case WARP_NEVER:    return "WARP_NEVER";
             case WARP_ALWAYS:   return "WARP_ALWAYS";
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 enum_long(CONFIG_SCHEME)
 {
@@ -108,12 +127,11 @@ enum_long(CONFIG_SCHEME)
 };
 typedef CONFIG_SCHEME ConfigScheme;
 
-#ifdef __cplusplus
-struct ConfigSchemeEnum : vamiga::util::Reflection<ConfigSchemeEnum, ConfigScheme>
+struct ConfigSchemeEnum : util::Reflection<ConfigSchemeEnum, ConfigScheme>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = CONFIG_A500_PLUS_1MB;
-
+    
     static const char *prefix() { return "CONFIG"; }
     static const char *_key(long value)
     {
@@ -126,8 +144,18 @@ struct ConfigSchemeEnum : vamiga::util::Reflection<ConfigSchemeEnum, ConfigSchem
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case CONFIG_A1000_OCS_1MB:  return "Amiga 1000, OCS Chipset, 1MB RAM";
+            case CONFIG_A500_OCS_1MB:   return "Amiga 500, OCS Chipset, 1MB RAM";
+            case CONFIG_A500_ECS_1MB:   return "Amiga 500, ECS Chipset, 1MB RAM";
+            case CONFIG_A500_PLUS_1MB:  return "Amiga 500+, ECS Chipset, 1MB RAM";
+        }
+        return "???";
+    }
 };
-#endif
 
 enum_long(REG_CHIPSET)
 {
@@ -186,18 +214,17 @@ enum_long(REG_CHIPSET)
 };
 typedef REG_CHIPSET ChipsetReg;
 
-#ifdef __cplusplus
 static_assert(REG_NO_OP == (0x1FE >> 1));
-struct ChipsetRegEnum : vamiga::util::Reflection<ChipsetRegEnum, ChipsetReg>
+struct ChipsetRegEnum : util::Reflection<ChipsetRegEnum, ChipsetReg>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = REG_NO_OP;
-
+    
     static const char *prefix() { return "REG"; }
     static const char *_key(long value)
     {
         static const char *name[] = {
-
+            
             "BLTDDAT",        "DMACONR",        "VPOSR",
             "VHPOSR",         "DSKDATR",        "JOY0DAT",
             "JOY1DAT",        "CLXDAT",         "ADKCONR",
@@ -285,11 +312,14 @@ struct ChipsetRegEnum : vamiga::util::Reflection<ChipsetRegEnum, ChipsetReg>
             "unused",         "unused",         "FMODE (AGA)",
             "NO-OP"
         };
-
+        
         return isValid(value) ? name[value] : "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 
 //
@@ -300,30 +330,30 @@ typedef struct
 {
     //! Machine type (PAL or NTSC)
     VideoFormat type;
-
+    
     //! After a reset, the emulator runs in warp mode for this amout of seconds
     isize warpBoot;
-
+    
     //! Warp mode
     WarpMode warpMode;
-
+    
     //! Emulator speed in percent (100 is native speed)
-    isize speedAdjust;
-
+    isize speedBoost;
+    
     //! Vertical Synchronization
     bool vsync;
-
-    //! Emulator speed in percent (100 is native speed)
-    isize timeLapse;
-
-    //! Enable auto-snapshots
-    bool snapshots;
-
-    //! Delay between two auto-snapshots in seconds
-    isize snapshotDelay;
-
+    
     //! Number of run-ahead frames (0 = run-ahead is disabled)
     isize runAhead;
+    
+    //! Enable auto-snapshots
+    bool snapshots;
+    
+    //! Delay between two auto-snapshots in seconds
+    isize snapshotDelay;
+    
+    //! Indicates whether snapshots should be stored in compressed form
+    bool compressSnapshots;
 }
 AmigaConfig;
 
@@ -344,24 +374,24 @@ AmigaInfo;
 // Private data types
 //
 
-#ifdef __cplusplus
-
 typedef u32 RunLoopFlags;
 
 namespace RL
 {
 constexpr u32 STOP               = (1 << 0);
 constexpr u32 SOFTSTOP_REACHED   = (1 << 1);
-constexpr u32 BREAKPOINT_REACHED = (1 << 2);
-constexpr u32 WATCHPOINT_REACHED = (1 << 3);
-constexpr u32 CATCHPOINT_REACHED = (1 << 4);
-constexpr u32 SWTRAP_REACHED     = (1 << 5);
-constexpr u32 BEAMTRAP_REACHED   = (1 << 6);
-constexpr u32 COPPERBP_REACHED   = (1 << 7);
-constexpr u32 COPPERWP_REACHED   = (1 << 8);
-constexpr u32 AUTO_SNAPSHOT      = (1 << 9);
-constexpr u32 USER_SNAPSHOT      = (1 << 10);
-constexpr u32 SYNC_THREAD        = (1 << 11);
+constexpr u32 EOL_REACHED        = (1 << 2);
+constexpr u32 EOF_REACHED        = (1 << 3);
+constexpr u32 BREAKPOINT_REACHED = (1 << 4);
+constexpr u32 WATCHPOINT_REACHED = (1 << 5);
+constexpr u32 CATCHPOINT_REACHED = (1 << 6);
+constexpr u32 SWTRAP_REACHED     = (1 << 7);
+constexpr u32 BEAMTRAP_REACHED   = (1 << 8);
+constexpr u32 COPPERBP_REACHED   = (1 << 9);
+constexpr u32 COPPERWP_REACHED   = (1 << 10);
+constexpr u32 AUTO_SNAPSHOT      = (1 << 11);
+constexpr u32 USER_SNAPSHOT      = (1 << 12);
+constexpr u32 SYNC_THREAD        = (1 << 13);
 };
 
-#endif
+}

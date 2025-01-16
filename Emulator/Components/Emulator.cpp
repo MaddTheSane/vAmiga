@@ -9,7 +9,6 @@
 
 #include "config.h"
 #include "Emulator.h"
-// #include "Option.h"
 #include "Amiga.h"
 #include "Types.h"
 #include "CmdQueue.h"
@@ -60,7 +59,7 @@ void
 Emulator::initialize()
 {
     // Make sure this function is only called once
-    if (isInitialized()) throw Error(ERROR_LAUNCH, "The emulator is already initialized.");
+    if (isInitialized()) throw Error(VAERROR_LAUNCH, "The emulator is already initialized.");
 
     // Initialize all components
     main.initialize();
@@ -139,8 +138,6 @@ Emulator::_dump(Category category, std::ostream& os) const
         os << tab("Tracking");
         os << bol(isTracking()) << std::endl;
         os << std::endl;
-        os << tab("Refresh rate");
-        os << dec(isize(refreshRate())) << " Fps" << std::endl;
     }
 }
 
@@ -150,7 +147,6 @@ Emulator::cacheInfo(EmulatorInfo &result) const
     {   SYNCHRONIZED
 
         result.state = state;
-        result.refreshRate = isize(refreshRate());
         result.powered = isPoweredOn();
         result.paused = isPaused();
         result.running = isRunning();
@@ -214,24 +210,6 @@ Emulator::set(ConfigScheme scheme)
     main.set(scheme);
 }
 
-Configurable *
-Emulator::routeOption(Option opt, isize objid)
-{
-    return main.routeOption(opt, objid);
-}
-
-const Configurable *
-Emulator::routeOption(Option opt, isize objid) const
-{
-    return main.routeOption(opt, objid);
-}
-
-i64
-Emulator::overrideOption(Option opt, i64 value) const
-{
-    return main.overrideOption(opt, value);
-}
-
 void
 Emulator::update()
 {
@@ -276,15 +254,12 @@ Emulator::missingFrames() const
 
     // Compute the elapsed time
     auto elapsed = util::Time::now() - baseTime;
-
-    // Compute which master-clock cycle should be reached by now
-    auto targetCycle = main.masterClockFrequency() * elapsed.asMilliseconds() / 1000;
-
-    // Compute the nummer of missing cycles
-    auto diff = targetCycle - (main.agnus.clock - baseCycle);
+    
+    // Compute which frame should be reached by now
+    auto target = elapsed.asNanoseconds() * i64(main.refreshRate()) / 1000000000;
 
     // Compute the number of missing frames
-    return diff / (main.masterClockFrequency() / i64(refreshRate()));
+    return isize(target - frameCounter);
 }
 
 const FrameBuffer &
@@ -295,37 +270,6 @@ Emulator::getTexture() const
     main.videoPort.getTexture();
 
     return result;
-}
-
-/*
-u32 *
-Emulator::getDmaTexture() const
-{
-    return main.config.runAhead && isRunning() ?
-    ahead.videoPort.getDmaTexture() :
-    main.videoPort.getDmaTexture();
-}
-*/
-
-double
-Emulator::refreshRate() const
-{
-    auto config = main.getConfig();
-
-    if (config.vsync) {
-
-        return double(main.host.getOption(OPT_HOST_REFRESH_RATE));
-
-    } else {
-
-        return main.agnus.isPAL() ? 50.0 : 60.0; 
-    }
-}
-
-Cycle 
-Emulator::currentCycle() const
-{
-    return main.agnus.clock;
 }
 
 void
@@ -359,6 +303,20 @@ Emulator::stepOver()
 {
     if (isRunning()) return;
     main.cpu.debugger.stepOver();
+    run();
+}
+
+void
+Emulator::finishLine()
+{
+    main.agnus.dmaDebugger.eolTrap = true;
+    run();
+}
+
+void
+Emulator::finishFrame()
+{
+    main.agnus.dmaDebugger.eofTrap = true;
     run();
 }
 
@@ -441,7 +399,7 @@ Emulator::getDebugVariable(DebugFlag flag)
 {
 #ifdef RELEASEBUILD
 
-    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
+    throw Error(VAERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
 
 #else
 
@@ -457,7 +415,7 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_TIM_DEBUG:        return TIM_DEBUG;
         case FLAG_WARP_DEBUG:       return WARP_DEBUG;
         case FLAG_CMD_DEBUG:        return CMD_DEBUG;
-        case FLAG_QUEUE_DEBUG:      return QUEUE_DEBUG;
+        case FLAG_MSG_DEBUG:        return MSG_DEBUG;
         case FLAG_SNP_DEBUG:        return SNP_DEBUG;
 
         case FLAG_RUA_DEBUG:        return RUA_DEBUG;
@@ -465,7 +423,6 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_RUA_ON_STEROIDS:  return RUA_ON_STEROIDS;
 
         case FLAG_CPU_DEBUG:        return CPU_DEBUG;
-        case FLAG_CST_DEBUG:        return CST_DEBUG;
 
         case FLAG_OCSREG_DEBUG:     return OCSREG_DEBUG;
         case FLAG_ECSREG_DEBUG:     return ECSREG_DEBUG;
@@ -489,7 +446,6 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_BLT_DEBUG:        return BLT_DEBUG;
         case FLAG_BLTTIM_DEBUG:     return BLTTIM_DEBUG;
         case FLAG_SLOW_BLT_DEBUG:   return SLOW_BLT_DEBUG;
-        case FLAG_OLD_LINE_BLIT:    return OLD_LINE_BLIT;
 
         case FLAG_BPLREG_DEBUG:     return BPLREG_DEBUG;
         case FLAG_BPLDAT_DEBUG:     return BPLDAT_DEBUG;
@@ -560,7 +516,7 @@ Emulator::getDebugVariable(DebugFlag flag)
         case FLAG_GDB_DEBUG:        return GDB_DEBUG;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED,
+            throw Error(VAERROR_OPT_UNSUPPORTED,
                         "Unhandled debug variable: " + string(DebugFlagEnum::key(flag)));
     }
 
@@ -572,7 +528,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
 {
 #ifdef RELEASEBUILD
 
-    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
+    throw Error(VAERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
 
 #else
 
@@ -590,12 +546,16 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_TIM_DEBUG:        TIM_DEBUG = val; break;
         case FLAG_WARP_DEBUG:       WARP_DEBUG = val; break;
         case FLAG_CMD_DEBUG:        CMD_DEBUG = val; break;
-        case FLAG_QUEUE_DEBUG:      QUEUE_DEBUG = val; break;
+        case FLAG_MSG_DEBUG:        MSG_DEBUG = val; break;
         case FLAG_SNP_DEBUG:        SNP_DEBUG = val; break;
+
+            // Run-ahead
+        case FLAG_RUA_DEBUG:        RUA_DEBUG = val; break;
+        case FLAG_RUA_CHECKSUM:     RUA_CHECKSUM = val; break;
+        case FLAG_RUA_ON_STEROIDS:  RUA_ON_STEROIDS = val; break;
 
             // CPU
         case FLAG_CPU_DEBUG:        CPU_DEBUG = val; break;
-        case FLAG_CST_DEBUG:        CST_DEBUG = val; break;
 
             // Memory access
         case FLAG_OCSREG_DEBUG:     OCSREG_DEBUG = val; break;
@@ -623,7 +583,6 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_BLT_DEBUG:        BLT_DEBUG = val; break;
         case FLAG_BLTTIM_DEBUG:     BLTTIM_DEBUG = val; break;
         case FLAG_SLOW_BLT_DEBUG:   SLOW_BLT_DEBUG = val; break;
-        case FLAG_OLD_LINE_BLIT:    OLD_LINE_BLIT = val; break;
 
             // Denise
         case FLAG_BPLREG_DEBUG:     BPLREG_DEBUG = val; break;
@@ -705,7 +664,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_GDB_DEBUG:        GDB_DEBUG = val; break;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED,
+            throw Error(VAERROR_OPT_UNSUPPORTED,
                         "Unhandled debug variable: " + string(DebugFlagEnum::key(flag)));
     }
 #endif

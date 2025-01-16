@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "RemoteServer.h"
+#include "SocketServer.h"
 #include "OSDebugger.h"
 
 namespace vamiga {
@@ -33,7 +33,7 @@ enum class GdbCmd
     fThreadInfo,
 };
 
-class GdbServer : public RemoteServer {
+class GdbServer final : public SocketServer {
 
     // The name of the process to be debugged
     string processName;
@@ -54,11 +54,11 @@ class GdbServer : public RemoteServer {
     
 public:
     
-    using RemoteServer::RemoteServer;
-    
+    using SocketServer::SocketServer;
+
     GdbServer& operator= (const GdbServer& other) {
 
-        RemoteServer::operator = (other);
+        SocketServer::operator = (other);
         return *this;
     }
 

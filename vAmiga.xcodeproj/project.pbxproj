@@ -26,8 +26,6 @@
 		501429D92445F12B00FBDC90 /* TextureToolbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501429D82445F12B00FBDC90 /* TextureToolbox.swift */; };
 		5014DD1521F3625200BC14BA /* Keyboard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5014DD1321F3625200BC14BA /* Keyboard.cpp */; };
 		50157EED28257B7C000E9DDD /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50157EEC28257B7C000E9DDD /* Config.swift */; };
-		5019605B231257270051B669 /* Monitor.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5019605A231257270051B669 /* Monitor.xib */; };
-		5019605D23125E680051B669 /* Monitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5019605C23125E680051B669 /* Monitor.swift */; };
 		5019B1F0254B292D00A7AB95 /* EXEFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5019B1EE254B292D00A7AB95 /* EXEFile.cpp */; };
 		501A9937243A07A100D269B2 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501A9936243A07A100D269B2 /* Storage.swift */; };
 		501B00152C629A0500749664 /* Beamtraps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 501B00132C629A0500749664 /* Beamtraps.cpp */; };
@@ -79,10 +77,16 @@
 		5039924325B2164E0084B808 /* MyDocumentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5039924225B2164E0084B808 /* MyDocumentController.swift */; };
 		5041C6282791AF0800D3C494 /* SequencerRegs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5041C6272791AF0800D3C494 /* SequencerRegs.cpp */; };
 		5042F2DD26BE57E600126C05 /* Thread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5042F2DB26BE57E600126C05 /* Thread.cpp */; };
+		5043154D2D2ACF47006C14FF /* WaveformPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5043154C2D2ACF3E006C14FF /* WaveformPanel.swift */; };
 		5043F6C5221972F90047CC30 /* MyToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5043F6C4221972F90047CC30 /* MyToolbar.swift */; };
+		5045D55D2D33C73000596D1E /* DashboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5045D55C2D33C72C00596D1E /* DashboardViewController.swift */; };
 		504C48B424143AB4008ADAB3 /* AgnusDma.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 504C48B324143AB4008ADAB3 /* AgnusDma.cpp */; };
+		504E57C82D12ACFC002233D1 /* gamecontrollerdb.txt in Resources */ = {isa = PBXBuildFile; fileRef = 504E57C72D12ACFC002233D1 /* gamecontrollerdb.txt */; };
 		504F4D64252624BD00CF8815 /* TextureRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504F4D63252624BD00CF8815 /* TextureRect.swift */; };
 		504F9658220B2CEE005F8AB7 /* GuardTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504F9657220B2CEE005F8AB7 /* GuardTableView.swift */; };
+		504FC7C92D31292200F0B733 /* Dashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504FC7C82D31291C00F0B733 /* Dashboard.swift */; };
+		504FC7D52D314F2E00F0B733 /* Dashboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504FC7D42D314F2E00F0B733 /* Dashboard.storyboard */; };
+		504FC7D72D31887900F0B733 /* DashboardToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504FC7D62D31887300F0B733 /* DashboardToolbar.swift */; };
 		5050EC3F27BE876F00394F4F /* HardDiskCreator.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5050EC3E27BE876F00394F4F /* HardDiskCreator.xib */; };
 		5050EC4127BE97E000394F4F /* HardDiskCreator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5050EC4027BE97E000394F4F /* HardDiskCreator.swift */; };
 		5054DB6827FE98B100DAF784 /* MyControllerMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5054DB6727FE98B100DAF784 /* MyControllerMedia.swift */; };
@@ -106,6 +110,12 @@
 		50627FD3286EBA7300F2A835 /* FrameBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50627FD1286EBA7300F2A835 /* FrameBuffer.cpp */; };
 		50627FD5286EBACA00F2A835 /* FrameBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50627FD1286EBA7300F2A835 /* FrameBuffer.cpp */; };
 		5062DB1224370FE400ACEEE2 /* MyControllerSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5062DB1124370FE400ACEEE2 /* MyControllerSnapshots.swift */; };
+		5064051B2D19CA0D002FBC57 /* PromServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5064051A2D19CA0C002FBC57 /* PromServer.cpp */; };
+		5064051C2D19CA0D002FBC57 /* PromServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5064051A2D19CA0C002FBC57 /* PromServer.cpp */; };
+		506407CB2D1AC45A002FBC57 /* SocketServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506407CA2D1AC455002FBC57 /* SocketServer.cpp */; };
+		506407CC2D1AC45A002FBC57 /* SocketServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506407CA2D1AC455002FBC57 /* SocketServer.cpp */; };
+		506407CF2D1AD87E002FBC57 /* HttpServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506407CE2D1AD87C002FBC57 /* HttpServer.cpp */; };
+		506407D02D1AD87E002FBC57 /* HttpServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506407CE2D1AD87C002FBC57 /* HttpServer.cpp */; };
 		5064851121EC7A1700FC4AC3 /* Memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5064850F21EC7A1700FC4AC3 /* Memory.cpp */; };
 		50672CC02946100F004113F5 /* DebugConsole.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50672CBF2946100F004113F5 /* DebugConsole.cpp */; };
 		50672CC12946100F004113F5 /* DebugConsole.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50672CBF2946100F004113F5 /* DebugConsole.cpp */; };
@@ -113,6 +123,7 @@
 		506ACE46279AC76700BA7877 /* SequencerBpl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506ACE45279AC76700BA7877 /* SequencerBpl.cpp */; };
 		506B47182562E06A009FEFC3 /* VolumeInspector.xib in Resources */ = {isa = PBXBuildFile; fileRef = 506B47172562E06A009FEFC3 /* VolumeInspector.xib */; };
 		506B471D256396BC009FEFC3 /* VolumeInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506B471C256396BC009FEFC3 /* VolumeInspector.swift */; };
+		506C71E22D2A0C3F007CBD93 /* DashboardPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506C71E12D2A0C04007CBD93 /* DashboardPanel.swift */; };
 		506D6AB2276C7B2D002C9711 /* StringUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506D6AB0276C7B2D002C9711 /* StringUtils.cpp */; };
 		5071B7872621F88800D6FB54 /* CopperDebugger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5071B7852621F88800D6FB54 /* CopperDebugger.cpp */; };
 		507215A925EAB4AC00787591 /* Chrono.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5072159F25EA9AE600787591 /* Chrono.cpp */; };
@@ -122,6 +133,12 @@
 		507727EE242F2CE4009D01DA /* iCarousel.m in Sources */ = {isa = PBXBuildFile; fileRef = 507727ED242F2CE3009D01DA /* iCarousel.m */; };
 		5078A5D52529E7FA00FCE384 /* Sampler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5078A5D32529E7FA00FCE384 /* Sampler.cpp */; };
 		507957AC244AD25B007B8B8D /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507957AB244AD25B007B8B8D /* Configuration.swift */; };
+		507C01AC2D24269000E29933 /* InspectorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507C01AB2D24268600E29933 /* InspectorToolbar.swift */; };
+		507C01AE2D25681400E29933 /* LogicView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507C01AD2D25681000E29933 /* LogicView.swift */; };
+		507C01B02D25683600E29933 /* LogicViewFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507C01AF2D25683200E29933 /* LogicViewFormatter.swift */; };
+		507C01B22D256B9400E29933 /* BusPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507C01B12D256B9200E29933 /* BusPanel.swift */; };
+		507C01BA2D25C36000E29933 /* LogicAnalyzer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 507C01B32D25C04100E29933 /* LogicAnalyzer.cpp */; };
+		507C01BB2D25C36000E29933 /* LogicAnalyzer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 507C01B32D25C04100E29933 /* LogicAnalyzer.cpp */; };
 		507C9C4626076EF7006779B5 /* RessourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507C9C4526076EF7006779B5 /* RessourceManager.swift */; };
 		507D7769228BE3EF001E97A9 /* StateMachine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 507D7767228BE3EF001E97A9 /* StateMachine.cpp */; };
 		50826F7827F0B2AD005FBF3B /* DiagBoard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50826F7627F0B2AD005FBF3B /* DiagBoard.cpp */; };
@@ -245,7 +262,6 @@
 		50C8C44A2607396200F4E012 /* Layer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C8C4492607396200F4E012 /* Layer.swift */; };
 		50C8C44F260740AC00F4E012 /* SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C8C44E260740AC00F4E012 /* SplashScreen.swift */; };
 		50C8C452260747EA00F4E012 /* Canvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C8C451260747EA00F4E012 /* Canvas.swift */; };
-		50C8C4552607524400F4E012 /* Monitors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C8C4542607524400F4E012 /* Monitors.swift */; };
 		50C9A6352C6A747F00007A12 /* SampleRateDetector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50C9A6332C6A747F00007A12 /* SampleRateDetector.cpp */; };
 		50C9A6362C6A747F00007A12 /* SampleRateDetector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50C9A6332C6A747F00007A12 /* SampleRateDetector.cpp */; };
 		50CC209727ECCD6D00AEA010 /* OSDescriptors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50CC209527ECCD6D00AEA010 /* OSDescriptors.cpp */; };
@@ -263,6 +279,7 @@
 		50DA83E22C160DCA001209AA /* Emulator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50DA83DF2C160DCA001209AA /* Emulator.cpp */; };
 		50DA83E52C161961001209AA /* VAmiga.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50DA83E32C161961001209AA /* VAmiga.cpp */; };
 		50DA83E62C161961001209AA /* VAmiga.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50DA83E32C161961001209AA /* VAmiga.cpp */; };
+		50DAED232D2D17660044B922 /* DashboardDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50DAED222D2D175E0044B922 /* DashboardDataProvider.swift */; };
 		50DD1EE22525E3E1000180F6 /* Preferences.xib in Resources */ = {isa = PBXBuildFile; fileRef = 50DD1EE12525E3E1000180F6 /* Preferences.xib */; };
 		50DD33CC2756113300AE18B4 /* pfile.c in Sources */ = {isa = PBXBuildFile; fileRef = 50DD33CB27560EE600AE18B4 /* pfile.c */; };
 		50DED6AF2202EBA200B8195F /* Inspector.xib in Resources */ = {isa = PBXBuildFile; fileRef = 50DED6AE2202EBA200B8195F /* Inspector.xib */; };
@@ -465,7 +482,6 @@
 		50FC08B127819E4100F0C567 /* BlitterInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50FC08B027819E4100F0C567 /* BlitterInfo.cpp */; };
 		50FCCA7C262AAAEA00398342 /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50FCCA7A262AAAEA00398342 /* Script.cpp */; };
 		50FF747327D3BBFE00B6EA01 /* hdr_click.aiff in Resources */ = {isa = PBXBuildFile; fileRef = 50FF747227D3BBFE00B6EA01 /* hdr_click.aiff */; };
-		50FFA7D02440CB0300BEBA6B /* ActivityMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50FFA7CF2440CB0300BEBA6B /* ActivityMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -511,8 +527,6 @@
 		5014DD1321F3625200BC14BA /* Keyboard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Keyboard.cpp; sourceTree = "<group>"; };
 		5014DD1421F3625200BC14BA /* Keyboard.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Keyboard.h; sourceTree = "<group>"; };
 		50157EEC28257B7C000E9DDD /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
-		5019605A231257270051B669 /* Monitor.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Monitor.xib; sourceTree = "<group>"; };
-		5019605C23125E680051B669 /* Monitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Monitor.swift; sourceTree = "<group>"; };
 		5019B1EE254B292D00A7AB95 /* EXEFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = EXEFile.cpp; sourceTree = "<group>"; };
 		5019B1EF254B292D00A7AB95 /* EXEFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = EXEFile.h; sourceTree = "<group>"; };
 		501A9936243A07A100D269B2 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
@@ -593,13 +607,18 @@
 		5042F2DE26BE57F700126C05 /* ThreadTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ThreadTypes.h; sourceTree = "<group>"; };
 		5042FD7D23FFF08500B315B2 /* DiskControllerTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DiskControllerTypes.h; sourceTree = "<group>"; };
 		5042FD7E23FFF0D200B315B2 /* StateMachineTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StateMachineTypes.h; sourceTree = "<group>"; };
+		5043154C2D2ACF3E006C14FF /* WaveformPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformPanel.swift; sourceTree = "<group>"; };
 		5043F6C4221972F90047CC30 /* MyToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyToolbar.swift; sourceTree = "<group>"; };
+		5045D55C2D33C72C00596D1E /* DashboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewController.swift; sourceTree = "<group>"; };
 		504C48B324143AB4008ADAB3 /* AgnusDma.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AgnusDma.cpp; sourceTree = "<group>"; };
+		504E57C72D12ACFC002233D1 /* gamecontrollerdb.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = gamecontrollerdb.txt; sourceTree = "<group>"; };
 		504F4D63252624BD00CF8815 /* TextureRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextureRect.swift; sourceTree = "<group>"; };
 		504F9657220B2CEE005F8AB7 /* GuardTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardTableView.swift; sourceTree = "<group>"; };
+		504FC7C82D31291C00F0B733 /* Dashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dashboard.swift; sourceTree = "<group>"; };
+		504FC7D42D314F2E00F0B733 /* Dashboard.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Dashboard.storyboard; sourceTree = "<group>"; };
+		504FC7D62D31887300F0B733 /* DashboardToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardToolbar.swift; sourceTree = "<group>"; };
 		5050EC3E27BE876F00394F4F /* HardDiskCreator.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = HardDiskCreator.xib; sourceTree = "<group>"; };
 		5050EC4027BE97E000394F4F /* HardDiskCreator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardDiskCreator.swift; sourceTree = "<group>"; };
-		5051922722B61C1B0012C4BB /* AmigaFileTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AmigaFileTypes.h; sourceTree = "<group>"; };
 		5051922822B61C8A0012C4BB /* CPUTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CPUTypes.h; sourceTree = "<group>"; };
 		5051922922B61CEC0012C4BB /* CIATypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CIATypes.h; sourceTree = "<group>"; };
 		5051922A22B61DAA0012C4BB /* MemoryTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MemoryTypes.h; sourceTree = "<group>"; };
@@ -639,6 +658,13 @@
 		50627FD2286EBA7300F2A835 /* FrameBuffer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FrameBuffer.h; sourceTree = "<group>"; };
 		50627FD4286EBAC000F2A835 /* FrameBufferTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FrameBufferTypes.h; sourceTree = "<group>"; };
 		5062DB1124370FE400ACEEE2 /* MyControllerSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyControllerSnapshots.swift; sourceTree = "<group>"; };
+		506405192D19CA05002FBC57 /* PromServer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PromServer.h; sourceTree = "<group>"; };
+		5064051A2D19CA0C002FBC57 /* PromServer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PromServer.cpp; sourceTree = "<group>"; };
+		506407C82D19D0A7002FBC57 /* httplib.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = httplib.h; sourceTree = "<group>"; };
+		506407C92D1AC44D002FBC57 /* SocketServer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SocketServer.h; sourceTree = "<group>"; };
+		506407CA2D1AC455002FBC57 /* SocketServer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SocketServer.cpp; sourceTree = "<group>"; };
+		506407CD2D1AD86D002FBC57 /* HttpServer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HttpServer.h; sourceTree = "<group>"; };
+		506407CE2D1AD87C002FBC57 /* HttpServer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = HttpServer.cpp; sourceTree = "<group>"; };
 		506436E229C1D84D00768528 /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		506436E429C1D92D00768528 /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		5064850F21EC7A1700FC4AC3 /* Memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Memory.cpp; sourceTree = "<group>"; };
@@ -648,6 +674,7 @@
 		506ACE45279AC76700BA7877 /* SequencerBpl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SequencerBpl.cpp; sourceTree = "<group>"; };
 		506B47172562E06A009FEFC3 /* VolumeInspector.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = VolumeInspector.xib; sourceTree = "<group>"; };
 		506B471C256396BC009FEFC3 /* VolumeInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeInspector.swift; sourceTree = "<group>"; };
+		506C71E12D2A0C04007CBD93 /* DashboardPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPanel.swift; sourceTree = "<group>"; };
 		506D6AB0276C7B2D002C9711 /* StringUtils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StringUtils.cpp; sourceTree = "<group>"; };
 		506D6AB1276C7B2D002C9711 /* StringUtils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StringUtils.h; sourceTree = "<group>"; };
 		5071B7852621F88800D6FB54 /* CopperDebugger.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CopperDebugger.cpp; sourceTree = "<group>"; };
@@ -668,6 +695,14 @@
 		5078A5D42529E7FA00FCE384 /* Sampler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sampler.h; sourceTree = "<group>"; };
 		5078BEA6264D6F8200EDA161 /* CMakeLists.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		507957AB244AD25B007B8B8D /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
+		507C01AB2D24268600E29933 /* InspectorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorToolbar.swift; sourceTree = "<group>"; };
+		507C01AD2D25681000E29933 /* LogicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicView.swift; sourceTree = "<group>"; };
+		507C01AF2D25683200E29933 /* LogicViewFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicViewFormatter.swift; sourceTree = "<group>"; };
+		507C01B12D256B9200E29933 /* BusPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusPanel.swift; sourceTree = "<group>"; };
+		507C01B32D25C04100E29933 /* LogicAnalyzer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LogicAnalyzer.cpp; sourceTree = "<group>"; };
+		507C01B42D25C05700E29933 /* LogicAnalyzer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LogicAnalyzer.h; sourceTree = "<group>"; };
+		507C01B52D25C05A00E29933 /* LogicAnalyzerTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LogicAnalyzerTypes.h; sourceTree = "<group>"; };
+		507C01B92D25C0B800E29933 /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		507C9C4526076EF7006779B5 /* RessourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RessourceManager.swift; sourceTree = "<group>"; };
 		507D7767228BE3EF001E97A9 /* StateMachine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StateMachine.cpp; sourceTree = "<group>"; };
 		507D7768228BE3EF001E97A9 /* StateMachine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StateMachine.h; sourceTree = "<group>"; };
@@ -866,7 +901,6 @@
 		50C8C4492607396200F4E012 /* Layer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Layer.swift; sourceTree = "<group>"; };
 		50C8C44E260740AC00F4E012 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		50C8C451260747EA00F4E012 /* Canvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Canvas.swift; sourceTree = "<group>"; };
-		50C8C4542607524400F4E012 /* Monitors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Monitors.swift; sourceTree = "<group>"; };
 		50C9A6332C6A747F00007A12 /* SampleRateDetector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SampleRateDetector.cpp; sourceTree = "<group>"; };
 		50C9A6342C6A747F00007A12 /* SampleRateDetector.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SampleRateDetector.h; sourceTree = "<group>"; };
 		50CA602E260E02B700C4A22C /* Reflection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Reflection.h; sourceTree = "<group>"; };
@@ -913,6 +947,7 @@
 		50DA83E02C160DCA001209AA /* Emulator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Emulator.h; sourceTree = "<group>"; };
 		50DA83E32C161961001209AA /* VAmiga.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VAmiga.cpp; sourceTree = "<group>"; };
 		50DA83E72C1619E0001209AA /* VAmigaTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VAmigaTypes.h; sourceTree = "<group>"; };
+		50DAED222D2D175E0044B922 /* DashboardDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardDataProvider.swift; sourceTree = "<group>"; };
 		50DD1EE12525E3E1000180F6 /* Preferences.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Preferences.xib; sourceTree = "<group>"; };
 		50DD33CB27560EE600AE18B4 /* pfile.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pfile.c; sourceTree = "<group>"; };
 		50DED6AE2202EBA200B8195F /* Inspector.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Inspector.xib; sourceTree = "<group>"; };
@@ -1044,7 +1079,6 @@
 		50FCCA7A262AAAEA00398342 /* Script.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Script.cpp; sourceTree = "<group>"; };
 		50FCCA7B262AAAEA00398342 /* Script.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Script.h; sourceTree = "<group>"; };
 		50FF747227D3BBFE00B6EA01 /* hdr_click.aiff */ = {isa = PBXFileReference; lastKnownFileType = audio.aiff; path = hdr_click.aiff; sourceTree = "<group>"; };
-		50FFA7CF2440CB0300BEBA6B /* ActivityMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1215,6 +1249,19 @@
 			path = Agnus;
 			sourceTree = "<group>";
 		};
+		5043154E2D2AE311006C14FF /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				504FC7C82D31291C00F0B733 /* Dashboard.swift */,
+				504FC7D62D31887300F0B733 /* DashboardToolbar.swift */,
+				5045D55C2D33C72C00596D1E /* DashboardViewController.swift */,
+				50DAED222D2D175E0044B922 /* DashboardDataProvider.swift */,
+				5043154C2D2ACF3E006C14FF /* WaveformPanel.swift */,
+				506C71E12D2A0C04007CBD93 /* DashboardPanel.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
 		5056506925440FDE00A79D27 /* FileSystems */ = {
 			isa = PBXGroup;
 			children = (
@@ -1299,6 +1346,7 @@
 		506436E129C1D82500768528 /* ThirdParty */ = {
 			isa = PBXGroup;
 			children = (
+				506407C82D19D0A7002FBC57 /* httplib.h */,
 				506436E229C1D84D00768528 /* CMakeLists.txt */,
 				50F54B0B24B5D31D0078FDC9 /* xdms */,
 			);
@@ -1326,6 +1374,17 @@
 				505B801D23FE628F002407FE /* Ports */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		507C01B82D25C0AE00E29933 /* LogicAnalyzer */ = {
+			isa = PBXGroup;
+			children = (
+				507C01B92D25C0B800E29933 /* CMakeLists.txt */,
+				507C01B52D25C05A00E29933 /* LogicAnalyzerTypes.h */,
+				507C01B42D25C05700E29933 /* LogicAnalyzer.h */,
+				507C01B32D25C04100E29933 /* LogicAnalyzer.cpp */,
+			);
+			path = LogicAnalyzer;
 			sourceTree = "<group>";
 		};
 		508AC36527B7F634006AD2E7 /* Zorro */ = {
@@ -1389,6 +1448,7 @@
 			isa = PBXGroup;
 			children = (
 				50B14C2521EB9059002E32A6 /* Credits.rtf */,
+				504E57C72D12ACFC002233D1 /* gamecontrollerdb.txt */,
 				50B14C1321EB8445002E32A6 /* sounds */,
 				508FDE6D21EA1FA50043D0E9 /* Assets.xcassets */,
 				508FDE7221EA1FA50043D0E9 /* Info.plist */,
@@ -1421,7 +1481,7 @@
 				50DD1EE12525E3E1000180F6 /* Preferences.xib */,
 				500217B72449CF7000E1A096 /* Configuration.xib */,
 				50DED6AE2202EBA200B8195F /* Inspector.xib */,
-				5019605A231257270051B669 /* Monitor.xib */,
+				504FC7D42D314F2E00F0B733 /* Dashboard.storyboard */,
 				50B9354824347EF9000C78B8 /* SnapshotDialog.xib */,
 				509F41E7243B078200AD0FE4 /* ScreenshotDialog.xib */,
 				501C514527C2AA4A00DF1DD5 /* DiskExporter.xib */,
@@ -1502,23 +1562,15 @@
 			isa = PBXGroup;
 			children = (
 				508FE04721EA22CC0043D0E9 /* DialogController.swift */,
-				5019605C23125E680051B669 /* Monitor.swift */,
-				509F7F1521ED141F00A530E4 /* Inspector */,
-				5099123C24BA46E10007CAB6 /* Preferences */,
-				5099123D24BA46EB0007CAB6 /* Configuration */,
-				509F41E9243B0FF700AD0FE4 /* ScreenshotDialog.swift */,
-				50B9354A243481AB000C78B8 /* SnapshotDialog.swift */,
-				501C514727C2AD8C00DF1DD5 /* DiskExporter.swift */,
-				5029C6E227CA2F66002F6CCC /* DiskInspector.swift */,
-				506B471C256396BC009FEFC3 /* VolumeInspector.swift */,
-				501C514D27C4259F00DF1DD5 /* FloppyCreator.swift */,
-				5050EC4027BE97E000394F4F /* HardDiskCreator.swift */,
-				501C513E27C0C63A00DF1DD5 /* HardDiskConfigurator.swift */,
-				50D715A227CCA84F0085C1AA /* PartitionSelector.swift */,
-				50EB8CCD2530710E0053988A /* VideoExporter.swift */,
 				501C514927C38FE500DF1DD5 /* DragImageView.swift */,
 				507727EC242F2CE3009D01DA /* iCarousel.h */,
 				507727ED242F2CE3009D01DA /* iCarousel.m */,
+				5043154E2D2AE311006C14FF /* Dashboard */,
+				509F7F1521ED141F00A530E4 /* Inspector */,
+				5099123C24BA46E10007CAB6 /* Preferences */,
+				5099123D24BA46EB0007CAB6 /* Configuration */,
+				509731472C932F1B008D5634 /* Captures */,
+				509731482C932F71008D5634 /* Media */,
 			);
 			path = Dialogs;
 			sourceTree = "<group>";
@@ -1555,7 +1607,6 @@
 				50985ABD2C418D370079CFC5 /* MediaFileTypes.h */,
 				50985ABA2C418D190079CFC5 /* MediaFile.h */,
 				50985AB92C418D190079CFC5 /* MediaFile.cpp */,
-				5051922722B61C1B0012C4BB /* AmigaFileTypes.h */,
 				508FE06421EA318D0043D0E9 /* AmigaFile.h */,
 				508FE06321EA318D0043D0E9 /* AmigaFile.cpp */,
 				50384C8521FC6B66006E7748 /* Snapshot.h */,
@@ -1564,6 +1615,30 @@
 				50FCCA7A262AAAEA00398342 /* Script.cpp */,
 				5009B7F5255702C00037288E /* RomFiles */,
 				5009B7F7255702D40037288E /* DiskFiles */,
+			);
+			path = Media;
+			sourceTree = "<group>";
+		};
+		509731472C932F1B008D5634 /* Captures */ = {
+			isa = PBXGroup;
+			children = (
+				509F41E9243B0FF700AD0FE4 /* ScreenshotDialog.swift */,
+				50B9354A243481AB000C78B8 /* SnapshotDialog.swift */,
+				50EB8CCD2530710E0053988A /* VideoExporter.swift */,
+			);
+			path = Captures;
+			sourceTree = "<group>";
+		};
+		509731482C932F71008D5634 /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				501C514727C2AD8C00DF1DD5 /* DiskExporter.swift */,
+				5029C6E227CA2F66002F6CCC /* DiskInspector.swift */,
+				506B471C256396BC009FEFC3 /* VolumeInspector.swift */,
+				501C514D27C4259F00DF1DD5 /* FloppyCreator.swift */,
+				5050EC4027BE97E000394F4F /* HardDiskCreator.swift */,
+				501C513E27C0C63A00DF1DD5 /* HardDiskConfigurator.swift */,
+				50D715A227CCA84F0085C1AA /* PartitionSelector.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -1603,7 +1678,9 @@
 			isa = PBXGroup;
 			children = (
 				50DED6B02202EC3100B8195F /* Inspector.swift */,
+				507C01AB2D24268600E29933 /* InspectorToolbar.swift */,
 				509CF4CC22083F9800C500F0 /* CPUPanel.swift */,
+				507C01B12D256B9200E29933 /* BusPanel.swift */,
 				508FDFEE21EA22780043D0E9 /* CIAPanel.swift */,
 				508FE00221EA227A0043D0E9 /* MemoryPanel.swift */,
 				507653CA2216F91E001D26E9 /* AgnusPanel.swift */,
@@ -1621,6 +1698,8 @@
 				50B0AF92222531C500EE3689 /* CopperTableView.swift */,
 				50DF2C9F2269135800795256 /* SpriteTableView.swift */,
 				502EFD0B2248ECAA00F0E118 /* EventTableView.swift */,
+				507C01AD2D25681000E29933 /* LogicView.swift */,
+				507C01AF2D25683200E29933 /* LogicViewFormatter.swift */,
 				508FDFF621EA22790043D0E9 /* MyFormatter.swift */,
 			);
 			path = Inspector;
@@ -1893,6 +1972,10 @@
 				500DFFD32775A3AD00600744 /* RemoteServerTypes.h */,
 				50E98B54275A127F00AA0CB9 /* RemoteServer.h */,
 				50E98B53275A127F00AA0CB9 /* RemoteServer.cpp */,
+				506407C92D1AC44D002FBC57 /* SocketServer.h */,
+				506407CA2D1AC455002FBC57 /* SocketServer.cpp */,
+				506407CD2D1AD86D002FBC57 /* HttpServer.h */,
+				506407CE2D1AD87C002FBC57 /* HttpServer.cpp */,
 				505C83FC2773C9BA001F8159 /* SerServer.h */,
 				505C83FB2773C9BA001F8159 /* SerServer.cpp */,
 				50AD90592771B2770011ECCB /* RshServer.h */,
@@ -1900,6 +1983,8 @@
 				50BF1CC7276D174200386540 /* GdbServer.h */,
 				50BF1CC6276D174200386540 /* GdbServer.cpp */,
 				50BF1CCD276DC7BB00386540 /* GdbServerCmds.cpp */,
+				506405192D19CA05002FBC57 /* PromServer.h */,
+				5064051A2D19CA0C002FBC57 /* PromServer.cpp */,
 				50E98B50275A124900AA0CB9 /* Socket.h */,
 				50E98B4F275A124900AA0CB9 /* Socket.cpp */,
 			);
@@ -1914,8 +1999,6 @@
 				50C8C451260747EA00F4E012 /* Canvas.swift */,
 				5026EDBE2608DC8E00D90CE1 /* Console.swift */,
 				505CEF5D26BD12430078FF52 /* DropZone.swift */,
-				50C8C4542607524400F4E012 /* Monitors.swift */,
-				50FFA7CF2440CB0300BEBA6B /* ActivityMonitor.swift */,
 			);
 			path = Layers;
 			sourceTree = "<group>";
@@ -1970,6 +2053,7 @@
 			isa = PBXGroup;
 			children = (
 				501FB314275E46EC00D0A57B /* CMakeLists.txt */,
+				507C01B82D25C0AE00E29933 /* LogicAnalyzer */,
 				50AD904F2770CECD0011ECCB /* OSDebugger */,
 				50AD90502770CEDA0011ECCB /* RegressionTester */,
 				50BF1CCA276DBF2E00386540 /* RemoteServers */,
@@ -2163,8 +2247,8 @@
 				5050EC3F27BE876F00394F4F /* HardDiskCreator.xib in Resources */,
 				50DED6AF2202EBA200B8195F /* Inspector.xib in Resources */,
 				50D715A127CCA5AA0085C1AA /* PartitionSelector.xib in Resources */,
+				504FC7D52D314F2E00F0B733 /* Dashboard.storyboard in Resources */,
 				50B14C1F21EB8445002E32A6 /* drive_click.aiff in Resources */,
-				5019605B231257270051B669 /* Monitor.xib in Resources */,
 				500A4EA824472B4F002A4DE1 /* door_open.aiff in Resources */,
 				50FF747327D3BBFE00B6EA01 /* hdr_click.aiff in Resources */,
 				506B47182562E06A009FEFC3 /* VolumeInspector.xib in Resources */,
@@ -2191,6 +2275,7 @@
 				50EA98F929D4883500FE99B0 /* A1000ANSI.xib in Resources */,
 				500A4EAE2447364E002A4DE1 /* insert.aiff in Resources */,
 				50DD1EE22525E3E1000180F6 /* Preferences.xib in Resources */,
+				504E57C82D12ACFC002233D1 /* gamecontrollerdb.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2203,6 +2288,7 @@
 			files = (
 				508FDFD821EA20510043D0E9 /* Shaders.metal in Sources */,
 				50D7CDC42286E968002689F0 /* Joystick.cpp in Sources */,
+				506C71E22D2A0C3F007CBD93 /* DashboardPanel.swift in Sources */,
 				50CC209727ECCD6D00AEA010 /* OSDescriptors.cpp in Sources */,
 				506ACE44279AC75100BA7877 /* SequencerDas.cpp in Sources */,
 				501C514A27C38FE500DF1DD5 /* DragImageView.swift in Sources */,
@@ -2212,7 +2298,6 @@
 				508FE01021EA227B0043D0E9 /* Speedometer.swift in Sources */,
 				502023ED27B6BE7200820DB6 /* RamExpansion.cpp in Sources */,
 				507215A925EAB4AC00787591 /* Chrono.cpp in Sources */,
-				50FFA7D02440CB0300BEBA6B /* ActivityMonitor.swift in Sources */,
 				50EFB0BA2C1811C90013B73C /* Configurable.cpp in Sources */,
 				50BF1CCE276DC7BB00386540 /* GdbServerCmds.cpp in Sources */,
 				509047B6230575E6009CEC1C /* SlowBlitter.cpp in Sources */,
@@ -2250,7 +2335,6 @@
 				500C7170255EE2AC00DDEEB2 /* Concurrency.cpp in Sources */,
 				50A61463260DB7F900A01428 /* Parser.cpp in Sources */,
 				502B303828469CF600673377 /* Beam.cpp in Sources */,
-				50C8C4552607524400F4E012 /* Monitors.swift in Sources */,
 				501A9937243A07A100D269B2 /* Storage.swift in Sources */,
 				509CF4D12208487900C500F0 /* TraceTableView.swift in Sources */,
 				5023519024485BBF00F6C088 /* Preferences.swift in Sources */,
@@ -2287,6 +2371,7 @@
 				50D715A327CCA84F0085C1AA /* PartitionSelector.swift in Sources */,
 				509CF4CD22083F9800C500F0 /* CPUPanel.swift in Sources */,
 				508FDFD921EA20510043D0E9 /* MetalViewEvents.swift in Sources */,
+				5045D55D2D33C73000596D1E /* DashboardViewController.swift in Sources */,
 				50E1D2C626CCF942001FE199 /* FontExtensions.swift in Sources */,
 				50E1D2C426CCF8C9001FE199 /* FileExtensions.swift in Sources */,
 				50D375DF222C7C6B0040987C /* Blitter.cpp in Sources */,
@@ -2297,6 +2382,7 @@
 				50AEBED324D3D6D10037082D /* StateMachineEvents.cpp in Sources */,
 				508FDFAC21EA1FBC0043D0E9 /* TOD.cpp in Sources */,
 				50F31C292409322F008A54D8 /* CopperPanel.swift in Sources */,
+				5064051C2D19CA0D002FBC57 /* PromServer.cpp in Sources */,
 				50B14C0D21EB3708002E32A6 /* CoreComponent.cpp in Sources */,
 				50894D822593CF4400C0499D /* HIDExtensions.swift in Sources */,
 				5043F6C5221972F90047CC30 /* MyToolbar.swift in Sources */,
@@ -2311,14 +2397,15 @@
 				508FE05221EA22CC0043D0E9 /* RomDropView.swift in Sources */,
 				508FDFD621EA20510043D0E9 /* DragAndDrop.swift in Sources */,
 				508FE01821EA227B0043D0E9 /* MyController.swift in Sources */,
+				507C01AE2D25681400E29933 /* LogicView.swift in Sources */,
 				50AE8B1C27833D2500991F89 /* DeniseInfo.cpp in Sources */,
-				5019605D23125E680051B669 /* Monitor.swift in Sources */,
 				5014DD1521F3625200BC14BA /* Keyboard.cpp in Sources */,
 				50C9A6352C6A747F00007A12 /* SampleRateDetector.cpp in Sources */,
 				50AEBEDA24D3D78F0037082D /* DiskControllerEvents.cpp in Sources */,
 				50E98B51275A124900AA0CB9 /* Socket.cpp in Sources */,
 				50A2953F21FF12EF0046BAA0 /* ControlPort.cpp in Sources */,
 				50AE6EE124D9407F000AA367 /* BlitterRegs.cpp in Sources */,
+				504FC7D72D31887900F0B733 /* DashboardToolbar.swift in Sources */,
 				501B821D2262FFB200042871 /* RTC.cpp in Sources */,
 				50EFB0C82C18D72C0013B73C /* Dumpable.cpp in Sources */,
 				50E2BE39240D41EE00155AE4 /* Moira.cpp in Sources */,
@@ -2327,6 +2414,8 @@
 				501FB312275E460100D0A57B /* OSDebugger.cpp in Sources */,
 				50FC08AF27819E2400F0C567 /* CopperInfo.cpp in Sources */,
 				50E1905C277F69B300B8DBE2 /* FFmpeg.cpp in Sources */,
+				504FC7C92D31292200F0B733 /* Dashboard.swift in Sources */,
+				507C01BA2D25C36000E29933 /* LogicAnalyzer.cpp in Sources */,
 				506ACE46279AC76700BA7877 /* SequencerBpl.cpp in Sources */,
 				505A133F2C3BA8A000FF8D2C /* MemoryDebugger.cpp in Sources */,
 				50300AF0258CF1F700D261E3 /* TypeExtensions.swift in Sources */,
@@ -2339,6 +2428,7 @@
 				50927DAB24865F11008DF3B8 /* MoiraExceptions_cpp.h in Sources */,
 				50F54B2624B5D31D0078FDC9 /* tables.c in Sources */,
 				50DED6B12202EC3100B8195F /* Inspector.swift in Sources */,
+				507C01B02D25683600E29933 /* LogicViewFormatter.swift in Sources */,
 				508FE05121EA22CC0043D0E9 /* HardwareConf.swift in Sources */,
 				50E2BE33240D418600155AE4 /* MoiraDebugger.cpp in Sources */,
 				509F41EA243B0FF700AD0FE4 /* ScreenshotDialog.swift in Sources */,
@@ -2357,12 +2447,15 @@
 				501C36322C1C17B1000FA274 /* CmdQueue.cpp in Sources */,
 				50357BB6239123B2007E7563 /* Renderer.swift in Sources */,
 				505A13212C2FE27B00FF8D2C /* VideoPort.cpp in Sources */,
+				507C01AC2D24269000E29933 /* InspectorToolbar.swift in Sources */,
 				5078A5D52529E7FA00FCE384 /* Sampler.cpp in Sources */,
 				508FE02F21EA227B0043D0E9 /* MacAudio.swift in Sources */,
 				5029C6E327CA2F66002F6CCC /* DiskInspector.swift in Sources */,
 				505C83F927739ED0001F8159 /* RemoteManager.cpp in Sources */,
+				506407CC2D1AC45A002FBC57 /* SocketServer.cpp in Sources */,
 				50E79BE9232D123000D296FB /* SubComponent.cpp in Sources */,
 				505B331F2B46D25700D3736F /* config.cpp in Sources */,
+				507C01B22D256B9400E29933 /* BusPanel.swift in Sources */,
 				50E204EA2295A3F20082B63D /* DmaDebugger.cpp in Sources */,
 				507D7769228BE3EF001E97A9 /* StateMachine.cpp in Sources */,
 				5085FE5921FB6856009753EF /* ProxyExtensions.swift in Sources */,
@@ -2374,6 +2467,8 @@
 				50826F7827F0B2AD005FBF3B /* DiagBoard.cpp in Sources */,
 				507957AC244AD25B007B8B8D /* Configuration.swift in Sources */,
 				50F54B3024B5D31D0078FDC9 /* u_quick.c in Sources */,
+				50DAED232D2D17660044B922 /* DashboardDataProvider.swift in Sources */,
+				5043154D2D2ACF47006C14FF /* WaveformPanel.swift in Sources */,
 				50DD33CC2756113300AE18B4 /* pfile.c in Sources */,
 				50950ED822881B7A0073F755 /* ZorroManager.cpp in Sources */,
 				50B70CAD252CE0BF006B5191 /* AudioPort.cpp in Sources */,
@@ -2460,6 +2555,7 @@
 				5010A78222B50B690041388B /* PortPanel.swift in Sources */,
 				509F7F1D21EDEA0200A530E4 /* RomFile.cpp in Sources */,
 				50F580662431D1A000E7D84D /* Screenshot.swift in Sources */,
+				506407CF2D1AD87E002FBC57 /* HttpServer.cpp in Sources */,
 				50AEBEC724D3D39D0037082D /* BlitterEvents.cpp in Sources */,
 				501C513F27C0C63A00DF1DD5 /* HardDiskConfigurator.swift in Sources */,
 				50B0AF93222531C500EE3689 /* CopperTableView.swift in Sources */,
@@ -2476,6 +2572,7 @@
 				50FC04BB27DA19B200C3E566 /* HardDrive.cpp in Sources */,
 				50FC049B27DA197500C3E566 /* AgnusInfo.cpp in Sources */,
 				50FC04DC27DA1A1400C3E566 /* getbits.c in Sources */,
+				506407CB2D1AC45A002FBC57 /* SocketServer.cpp in Sources */,
 				50FC048327DA190400C3E566 /* CoreObject.cpp in Sources */,
 				50FC04C027DA19CE00C3E566 /* Keyboard.cpp in Sources */,
 				50FC048A27DA195600C3E566 /* CIARegs.cpp in Sources */,
@@ -2579,6 +2676,7 @@
 				50EFB0D12C18E01E0013B73C /* Wakeable.cpp in Sources */,
 				50FC047627DA10AD00C3E566 /* Headless.cpp in Sources */,
 				50FC049227DA196500C3E566 /* DeniseRegs.cpp in Sources */,
+				506407D02D1AD87E002FBC57 /* HttpServer.cpp in Sources */,
 				50FC04F727DA1A8F00C3E566 /* StateMachine.cpp in Sources */,
 				50FC04F527DA1A8F00C3E566 /* Sampler.cpp in Sources */,
 				50FC04AE27DA198E00C3E566 /* BlitterRegs.cpp in Sources */,
@@ -2588,6 +2686,7 @@
 				50DA83E62C161961001209AA /* VAmiga.cpp in Sources */,
 				50FC04D027DA19F600C3E566 /* FileSystem.cpp in Sources */,
 				50EFB0CD2C18D95B0013B73C /* Inspectable.cpp in Sources */,
+				507C01BB2D25C36000E29933 /* LogicAnalyzer.cpp in Sources */,
 				50FC047727DA129800C3E566 /* Buffer.cpp in Sources */,
 				50FC049727DA196C00C3E566 /* NamedPipe.cpp in Sources */,
 				50FC04D827DA1A0000C3E566 /* RetroShell.cpp in Sources */,
@@ -2618,6 +2717,7 @@
 				50FC047C27DA12AB00C3E566 /* Checksum.cpp in Sources */,
 				50FC04B127DA199C00C3E566 /* RTC.cpp in Sources */,
 				50FC048227DA190400C3E566 /* MsgQueue.cpp in Sources */,
+				5064051B2D19CA0D002FBC57 /* PromServer.cpp in Sources */,
 				505A13222C2FE27B00FF8D2C /* VideoPort.cpp in Sources */,
 				50FC04F027DA1A4500C3E566 /* RemoteServer.cpp in Sources */,
 				50FC04D427DA19F600C3E566 /* FSBlock.cpp in Sources */,
@@ -2745,6 +2845,16 @@
 				SWIFT_COMPILATION_MODE = singlefile;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_CONCISE_MAGIC_FILE = YES;
+				SWIFT_UPCOMING_FEATURE_DEPRECATE_APPLICATION_MAIN = YES;
+				SWIFT_UPCOMING_FEATURE_DISABLE_OUTWARD_ACTOR_ISOLATION = YES;
+				SWIFT_UPCOMING_FEATURE_FORWARD_TRAILING_CLOSURES = YES;
+				SWIFT_UPCOMING_FEATURE_GLOBAL_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_IMPLICIT_OPEN_EXISTENTIALS = YES;
+				SWIFT_UPCOMING_FEATURE_IMPORT_OBJC_FORWARD_DECLS = YES;
+				SWIFT_UPCOMING_FEATURE_INFER_SENDABLE_FROM_CAPTURES = YES;
+				SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES = YES;
+				SWIFT_UPCOMING_FEATURE_REGION_BASED_ISOLATION = YES;
 			};
 			name = Debug;
 		};
@@ -2831,6 +2941,16 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_UPCOMING_FEATURE_CONCISE_MAGIC_FILE = YES;
+				SWIFT_UPCOMING_FEATURE_DEPRECATE_APPLICATION_MAIN = YES;
+				SWIFT_UPCOMING_FEATURE_DISABLE_OUTWARD_ACTOR_ISOLATION = YES;
+				SWIFT_UPCOMING_FEATURE_FORWARD_TRAILING_CLOSURES = YES;
+				SWIFT_UPCOMING_FEATURE_GLOBAL_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_IMPLICIT_OPEN_EXISTENTIALS = YES;
+				SWIFT_UPCOMING_FEATURE_IMPORT_OBJC_FORWARD_DECLS = YES;
+				SWIFT_UPCOMING_FEATURE_INFER_SENDABLE_FROM_CAPTURES = YES;
+				SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES = YES;
+				SWIFT_UPCOMING_FEATURE_REGION_BASED_ISOLATION = YES;
 			};
 			name = Release;
 		};
@@ -2848,7 +2968,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 240701;
+				CURRENT_PROJECT_VERSION = 250108;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
@@ -2863,19 +2983,20 @@
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
 				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
+				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 2.6.2;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
+				MARKETING_VERSION = 3.1.1;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 c++20";
 				PRODUCT_BUNDLE_IDENTIFIER = dirkwhoffmann.vAmiga;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Proxy/Bridging-Header.h";
-				SWIFT_OBJC_INTEROP_MODE = objc;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				SWIFT_VERSION = 5.0;
 				WARNING_CFLAGS = (
 					"-Wno-gnu-anonymous-struct",
@@ -2899,7 +3020,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 240701;
+				CURRENT_PROJECT_VERSION = 250108;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
@@ -2911,20 +3032,21 @@
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
 				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
+				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				LLVM_LTO = YES_THIN;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 2.6.2;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
+				MARKETING_VERSION = 3.1.1;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 c++20";
 				PRODUCT_BUNDLE_IDENTIFIER = dirkwhoffmann.vAmiga;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Proxy/Bridging-Header.h";
-				SWIFT_OBJC_INTEROP_MODE = objc;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				SWIFT_VERSION = 5.0;
 				WARNING_CFLAGS = (
 					"-Wno-gnu-anonymous-struct",

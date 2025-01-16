@@ -12,9 +12,23 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
+
+enum_long(HID_EVENT)
+{
+    HID_AXIS,
+    HID_BUTTON,
+    HID_DPAD_UP,
+    HID_DPAD_DOWN,
+    HID_DPAD_RIGHT,
+    HID_DPAD_LEFT,
+    HID_HATSWITCH,
+};
+typedef HID_EVENT HIDEvent;
 
 enum_long(GAME_PAD_ACTION)
 {
@@ -40,8 +54,7 @@ enum_long(GAME_PAD_ACTION)
 };
 typedef GAME_PAD_ACTION GamePadAction;
 
-#ifdef __cplusplus
-struct GamePadActionEnum : vamiga::util::Reflection<GamePadActionEnum, GamePadAction>
+struct GamePadActionEnum : util::Reflection<GamePadActionEnum, GamePadAction>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = RELEASE_RIGHT;
@@ -71,8 +84,11 @@ struct GamePadActionEnum : vamiga::util::Reflection<GamePadActionEnum, GamePadAc
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 
 //
@@ -95,3 +111,5 @@ typedef struct
     isize axisY;
 }
 JoystickInfo;
+
+}

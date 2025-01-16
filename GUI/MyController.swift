@@ -9,15 +9,6 @@
 
 import AVFoundation
 
-/*
-enum WarpMode: Int {
-    
-    case auto
-    case off
-    case on
-}
-*/
-
 protocol MessageReceiver {
     func processMessage(_ msg: Message)
 }
@@ -32,12 +23,10 @@ class MyController: NSWindowController, MessageReceiver {
     // Amiga proxy (bridge between the Swift frontend and the C++ backend)
     var emu: EmulatorProxy!
     
-    // Inspector panel of this emulator instance
-    var inspector: Inspector?
+    // Auxiliary windows of this emulator instance
+    var inspectors: [Inspector] = []
+    var dashboards: [Dashboard] = []
     
-    // Monitor panel of this emulator instance
-    var monitor: Monitor?
-
     // Configuration panel of this emulator instance
     var configurator: ConfigurationController?
     
@@ -70,6 +59,10 @@ class MyController: NSWindowController, MessageReceiver {
     
     // Indicates if a status bar is shown
     var statusBar = true
+    
+    // Information message shown in the status bar
+    var info: String? = nil
+    var info2: String? = nil
     
     // Pictograms for being used in NSMenuItems
     var smallDisk = NSImage(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
@@ -117,7 +110,8 @@ class MyController: NSWindowController, MessageReceiver {
     @IBOutlet weak var activityType: NSPopUpButton!
     @IBOutlet weak var activityInfo: NSTextField!
     @IBOutlet weak var activityBar: NSLevelIndicator!
-    
+    @IBOutlet weak var speedStepper: NSStepper!
+
     // Toolbar
     @IBOutlet weak var toolbar: MyToolbar!
     
@@ -131,6 +125,8 @@ class MyController: NSWindowController, MessageReceiver {
     var drvLED: [NSButton?] = Array(repeating: nil, count: 8)
     var drvCyl: [NSTextField?] = Array(repeating: nil, count: 8)
     var drvIcon: [NSButton?] = Array(repeating: nil, count: 8)
+    
+    var initialized = false
 }
 
 extension MyController {
@@ -164,7 +160,6 @@ extension MyController {
         
         config = Configuration(with: self)
         macAudio = MacAudio(with: self)
-        inspector = Inspector(with: self, nibName: "Inspector")
         
         ledSlot = [ ledSlot0, ledSlot1, letSlot2, ledSlot3 ]
         cylSlot = [ cylSlot0, cylSlot1, cylSlot2, cylSlot3 ]
@@ -174,6 +169,12 @@ extension MyController {
     override open func windowDidLoad() {
         
         debug(.lifetime)
+        initialize()
+    }
+    
+    func initialize() {
+        
+        if initialized { return }
         
         // Create keyboard controller
         keyboard = KeyboardController(parent: self)
@@ -229,6 +230,8 @@ extension MyController {
         
         // Update status bar
         refreshStatusBar()
+        
+        initialized = true
     }
     
     func configureWindow() {
@@ -250,6 +253,13 @@ extension MyController {
 
     func launch() {
 
+        // Pass in command line arguments as a RetroShell script
+        var script = ""
+        for arg in myAppDelegate.argv where arg.hasPrefix("-") {
+            script = script + arg.dropFirst() + "\n"
+        }
+        emu?.retroShell.execute(script)
+        
         // Convert 'self' to a void pointer
         let myself = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
 
@@ -273,15 +283,17 @@ extension MyController {
 
         if frames % 5 == 0 {
 
-            // Animate the inspector
-            if inspector?.window?.isVisible == true { inspector!.continuousRefresh() }
+            // Animate the inspectors
+            for inspector in inspectors { inspector.continuousRefresh() }
+
+            // Animate the dashboards
+            for dashboard in dashboards { dashboard.continuousRefresh() }
         }
         
         // Do less times...
         if frames % 16 == 0 {
-            
+
             updateSpeedometer()
-            updateMonitoringPanels()
         }
         
         // Do lesser times...
@@ -296,113 +308,72 @@ extension MyController {
         }
     }
 
-    func addValue(_ nr: Int, _ v: Float) {
-        if let monitor = renderer.monitors.monitors[nr] as? BarChart {
-            monitor.addValue(v)
-        }
-    }
-    
-    func addValues(_ nr: Int, _ v1: Float, _ v2: Float) {
-        if let monitor = renderer.monitors.monitors[nr] as? BarChart {
-            monitor.addValues(v1, v2)
-        }
-    }
-    
-    func updateMonitoringPanels() {
-        
-        if !renderer.monitors.isVisible { return }
-        
-        // DMA monitors
-        let dma = emu.agnus.stats
-        let copDMA = Float(dma.copperActivity) / (313 * 120)
-        let bltDMA = Float(dma.blitterActivity) / (313 * 120)
-        let dskDMA = Float(dma.diskActivity) / (313 * 3)
-        let audDMA = Float(dma.audioActivity) / (313 * 4)
-        let sprDMA = Float(dma.spriteActivity) / (313 * 16)
-        let bplDMA = Float(dma.bitplaneActivity) / 39330
-        
-        addValue(Monitors.Monitor.copper, copDMA)
-        addValue(Monitors.Monitor.blitter, bltDMA)
-        addValue(Monitors.Monitor.disk, dskDMA)
-        addValue(Monitors.Monitor.audio, audDMA)
-        addValue(Monitors.Monitor.sprite, sprDMA)
-        addValue(Monitors.Monitor.bitplane, bplDMA)
-        
-        // Memory monitors
-        let mem = emu.mem.stats
-
-        // let max = Float((HPOS_CNT_PAL * VPOS_CNT) / 2)
-        let max = Float((Constants.hpos_cnt_pal * Constants.vpos_cnt) / 2)
-        let chipR = Float(mem.chipReads.accumulated) / max
-        let chipW = Float(mem.chipWrites.accumulated) / max
-        let slowR = Float(mem.slowReads.accumulated) / max
-        let slowW = Float(mem.slowWrites.accumulated) / max
-        let fastR = Float(mem.fastReads.accumulated) / max
-        let fastW = Float(mem.fastWrites.accumulated) / max
-        let kickR = Float(mem.kickReads.accumulated) / max
-        let kickW = Float(mem.kickWrites.accumulated) / max
-        
-        addValues(Monitors.Monitor.chipRam, chipR, chipW)
-        addValues(Monitors.Monitor.slowRam, slowR, slowW)
-        addValues(Monitors.Monitor.fastRam, fastR, fastW)
-        addValues(Monitors.Monitor.kickRom, kickR, kickW)
-    }
-    
     func processMessage(_ msg: Message) {
 
         var value: Int { return Int(msg.value) }
         var nr: Int { return Int(msg.drive.nr) }
         var cyl: Int { return Int(msg.drive.value) }
         var pc: Int { return Int(msg.cpu.pc) }
+        var pcHex: String { return String(format: "%X", pc) }
         var vector: Int { return Int(msg.cpu.vector) }
         var volume: Int { return Int(msg.drive.volume) }
         var pan: Int { return Int(msg.drive.pan) }
         var acceleration: Double { return Double(msg.value == 0 ? 1 : msg.value) }
-
+        var pos: String { return "(\(emu.amiga.info.vpos),\(emu.amiga.info.hpos))" }
+        
+        func passToInspector() {
+            for inspector in inspectors { inspector.processMessage(msg) }
+        }
+        func passToDashboard() {
+            for dashboard in dashboards { dashboard.processMessage(msg) }
+        }
+        
         // Only proceed if the proxy object is still alive
         guard let emu else { return }
         
         switch msg.type {
                         
         case .CONFIG:
-            inspector?.fullRefresh()
-            monitor?.refresh()
+
             configurator?.refresh()
             refreshStatusBar()
+            passToInspector()
+            passToDashboard()
 
         case .POWER:
-
+            
             if value != 0 {
 
                 renderer.canvas.open(delay: 1.5)
                 serialIn = ""
                 serialOut = ""
-                toolbar.updateToolbar()
-                inspector?.powerOn()
-
-            } else {
-
-                toolbar.updateToolbar()
-                inspector?.powerOff()
             }
 
+            clearInfo()
+            passToInspector()
+
         case .RUN:
+            
             needsSaving = true
             toolbar.updateToolbar()
-            inspector?.run()
             refreshStatusBar()
+            clearInfo()
+            passToInspector()
             
         case .PAUSE:
             toolbar.updateToolbar()
-            inspector?.pause()
             refreshStatusBar()
+            passToInspector()
             
         case .STEP:
+            
             needsSaving = true
-            inspector?.step()
+            clearInfo()
+            passToInspector()
             
         case .RESET:
-            inspector?.reset()
+            clearInfo()
+            passToInspector()
 
         case .RSH_CLOSE:
             renderer.console.close(delay: 0.25)
@@ -444,7 +415,6 @@ extension MyController {
             powerLED.image = NSImage(named: "ledGrey")
                         
         case .DMA_DEBUG:
-
             msg.value != 0 ? renderer.zoomTextureOut() : renderer.zoomTextureIn()
 
         case .VIDEO_FORMAT:
@@ -455,38 +425,41 @@ extension MyController {
             activityBar.maxValue = 140.0 * acceleration // TODO: REMOVE??
             activityBar.warningValue = 77.0 * acceleration 
             activityBar.criticalValue = 105.0 * acceleration
-
-        case .COPPERBP_UPDATED, .COPPERWP_UPDATED:
-            inspector?.fullRefresh()
-
-        case .GUARD_UPDATED:
-            inspector?.fullRefresh()
-
+            
+        case .COPPERBP_UPDATED, .COPPERWP_UPDATED, .GUARD_UPDATED:
+            passToInspector()
+            
         case .BREAKPOINT_REACHED:
-            inspector?.signalBreakPoint(pc: pc)
+            setInfo("Breakpoint reached", "Interrupted at address \(pcHex)")
             
         case .WATCHPOINT_REACHED:
-            inspector?.signalWatchPoint(pc: pc)
+            setInfo("Watchpoint reached", "Interrupted at address \(pcHex)")
 
         case .CATCHPOINT_REACHED:
-            inspector?.signalCatchPoint(pc: pc, vector: vector)
-
-        case .SWTRAP_REACHED:
-            inspector?.signalSoftwareTrap(pc: pc)
+            let name = emu.cpu.vectorName(vector)!
+            setInfo("Exception vector catched", "Caught vector \(vector) (\(name))")
 
         case .COPPERBP_REACHED:
-            inspector?.signalCopperBreakpoint()
+            setInfo("Copper breakpoint reached", "Interrupted at address \(pcHex)")
 
         case .COPPERWP_REACHED:
-            inspector?.signalCopperWatchpoint()
+            setInfo("Copper watchpoint reached", "Interrupted at address \(pcHex)")
+
+        case .SWTRAP_REACHED:
+            setInfo("Software trap reached at address \(pc)", "Interrupted at address \(pcHex)")
+
+        case .BEAMTRAP_REACHED:
+            setInfo("Beamtrap reached", "Interrupted at location \(pos)")
+
+        case .EOF_REACHED:
+            setInfo("End of frame reached", "Interrupted at location \(pos)")
+
+        case .EOL_REACHED:
+            setInfo("End of line reached", "Interrupted at location \(pos)")
 
         case .CPU_HALT:
             refreshStatusBar()
-            
-        case .BEAMTRAP_REACHED:
-
-            inspector?.signalBeamtrap()
-
+                        
         case .VIEWPORT:
             renderer.canvas.updateTextureRect(hstrt: Int(msg.viewport.hstrt),
                                               vstrt: Int(msg.viewport.vstrt),
@@ -494,7 +467,7 @@ extension MyController {
                                               vstop: Int(msg.viewport.vstop))
 
         case .MEM_LAYOUT:
-            inspector?.fullRefresh()
+            passToInspector()
             
         case .DRIVE_CONNECT:
 
@@ -632,5 +605,18 @@ extension MyController {
             warn("Unknown message: \(msg)")
             fatalError()
         }
+    }
+    
+    func setInfo(_ text: String?, _ text2: String? = nil) {
+        
+        info = text
+        info2 = text2
+        refreshStatusBar()
+    }
+    
+    func clearInfo() {
+        
+        info = nil
+        info2 = nil
     }
 }

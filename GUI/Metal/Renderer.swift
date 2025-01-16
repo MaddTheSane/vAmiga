@@ -11,10 +11,11 @@ import Metal
 
 enum ScreenshotSource: Int {
         
-    case visible = 0
-    case visibleUpscaled = 1
-    case entire = 2
-    case entireUpscaled = 3
+    case emulatorVisible = 0
+    case emulatorEntire = 1
+    case upscaledVisible = 2
+    case upscaledEntire = 3
+    case framebuffer = 4
 }
 
 class Renderer: NSObject, MTKViewDelegate {
@@ -57,7 +58,6 @@ class Renderer: NSObject, MTKViewDelegate {
     var canvas: Canvas! = nil
     var console: Console! = nil
     var dropZone: DropZone! = nil
-    var monitors: Monitors! = nil
 
     //
     // Ressources
@@ -78,15 +78,6 @@ class Renderer: NSObject, MTKViewDelegate {
     // Indicates if an animation is in progress
     var animates = 0
         
-    // Geometry animation parameters
-    var angleX = AnimatedFloat(0.0)
-    var angleY = AnimatedFloat(0.0)
-    var angleZ = AnimatedFloat(0.0)
-    
-    var shiftX = AnimatedFloat(0.0)
-    var shiftY = AnimatedFloat(0.0)
-    var shiftZ = AnimatedFloat(0.0)
-     
     // Color animation parameters
     var white = AnimatedFloat(0.0)
     
@@ -162,7 +153,6 @@ class Renderer: NSObject, MTKViewDelegate {
 
         // Rebuild matrices
         buildMatrices2D()
-        buildMatrices3D()
 
         // Rebuild depth buffer
         ressourceManager.buildDepthBuffer()
@@ -223,7 +213,6 @@ class Renderer: NSObject, MTKViewDelegate {
         dropZone.update(frames: frames)
         console.update(frames: frames)
         canvas.update(frames: frames)
-        monitors.update(frames: frames)
         parent.update(frames: frames)
 
         measureFps(frames: frames)
@@ -287,7 +276,6 @@ class Renderer: NSObject, MTKViewDelegate {
             // Render the scene
             if canvas.isTransparent { splashScreen.render(encoder) }
             if canvas.isVisible { canvas.render(encoder) }
-            if monitors.isVisible { monitors.render(encoder) }
             encoder.endEncoding()
 
             // Commit the command buffer

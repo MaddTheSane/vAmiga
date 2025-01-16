@@ -11,10 +11,9 @@
 
 #include "Types.h"
 #include "Reflection.h"
-
-#ifdef __cplusplus
 #include "RingBuffer.h"
-#endif
+
+namespace vamiga {
 
 #define CPUINFO_INSTR_COUNT 256
 
@@ -31,25 +30,33 @@ enum_long(CPU_REVISION)
 };
 typedef CPU_REVISION CPURevision;
 
-#ifdef __cplusplus
-struct CPURevisionEnum : vamiga::util::Reflection<CPURevisionEnum, CPURevision>
+struct CPURevisionEnum : util::Reflection<CPURevisionEnum, CPURevision>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = CPU_68EC020;
-
+    
     static const char *prefix() { return "CPU"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case CPU_68000:     return "68000";
             case CPU_68010:     return "68010";
             case CPU_68EC020:   return "68EC020";
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case CPU_68000:     return "Motorola 68000 CPU";
+            case CPU_68010:     return "Motorola 68010 CPU";
+            case CPU_68EC020:   return "Motorola 68EC020 CPU";
+        }
+        return "???";
+    }
 };
-#endif
 
 enum_long(DASM_REVISION)
 {
@@ -65,17 +72,16 @@ enum_long(DASM_REVISION)
 };
 typedef DASM_REVISION DasmRevision;
 
-#ifdef __cplusplus
-struct DasmRevisionEnum : vamiga::util::Reflection<DasmRevisionEnum, DasmRevision>
+struct DasmRevisionEnum : util::Reflection<DasmRevisionEnum, DasmRevision>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = DASM_68040;
-
+    
     static const char *prefix() { return "DASM"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case DASM_68000:    return "68000";
             case DASM_68010:    return "68010";
             case DASM_68EC020:  return "68EC020";
@@ -88,8 +94,23 @@ struct DasmRevisionEnum : vamiga::util::Reflection<DasmRevisionEnum, DasmRevisio
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case DASM_68000:    return "Motorola 68000 instruction set";
+            case DASM_68010:    return "Motorola 68010 instruction set";
+            case DASM_68EC020:  return "Motorola 68EC020 instruction set";
+            case DASM_68020:    return "Motorola 68020 instruction set";
+            case DASM_68EC030:  return "Motorola 68EC030 instruction set";
+            case DASM_68030:    return "Motorola 68030 instruction set";
+            case DASM_68EC040:  return "Motorola 68EC040 instruction set";
+            case DASM_68LC040:  return "Motorola 68LC040 instruction set";
+            case DASM_68040:    return "Motorola 68040 instruction set";
+        }
+        return "???";
+    }
 };
-#endif
 
 enum_long(DASM_SYNTAX)
 {
@@ -101,17 +122,16 @@ enum_long(DASM_SYNTAX)
 };
 typedef DASM_SYNTAX DasmSyntax;
 
-#ifdef __cplusplus
-struct DasmSyntaxEnum : vamiga::util::Reflection<DasmSyntaxEnum, DasmSyntax>
+struct DasmSyntaxEnum : util::Reflection<DasmSyntaxEnum, DasmSyntax>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = DASM_SYNTAX_MUSASHI;
-
+    
     static const char *prefix() { return "DASM_SYNTAX"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case DASM_SYNTAX_MOIRA:      return "MOIRA";
             case DASM_SYNTAX_MOIRA_MIT:  return "MOIRA_MIT";
             case DASM_SYNTAX_GNU:        return "GNU";
@@ -120,8 +140,52 @@ struct DasmSyntaxEnum : vamiga::util::Reflection<DasmSyntaxEnum, DasmSyntax>
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case DASM_SYNTAX_MOIRA:      return "Default style";
+            case DASM_SYNTAX_MOIRA_MIT:  return "Moira MIT style";
+            case DASM_SYNTAX_GNU:        return "GNU style";
+            case DASM_SYNTAX_GNU_MIT:    return "GNU MIT style";
+            case DASM_SYNTAX_MUSASHI:    return "Musashi style";
+        }
+        return "???";
+    }
 };
-#endif
+
+enum_long(DASM_NUMBERS)
+{
+    DASM_NUMBERS_HEX,
+    DASM_NUMBERS_DEC
+};
+typedef DASM_NUMBERS DasmNumbers;
+
+struct DasmNumbersEnum : util::Reflection<DasmNumbersEnum, DasmNumbers>
+{
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = DASM_NUMBERS_DEC;
+    
+    static const char *prefix() { return "DASM_NUMBERS"; }
+    static const char *_key(long value)
+    {
+        switch (value) {
+                
+            case DASM_NUMBERS_HEX:      return "HEX";
+            case DASM_NUMBERS_DEC:      return "DEC";
+        }
+        return "???";
+    }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case DASM_NUMBERS_HEX:      return "Hexadecimal numbers";
+            case DASM_NUMBERS_DEC:      return "Decimal numbers";
+        }
+        return "???";
+    }
+};
 
 enum_long(GUARD_TYPE)
 {
@@ -131,25 +195,33 @@ enum_long(GUARD_TYPE)
 };
 typedef GUARD_TYPE GuardType;
 
-#ifdef __cplusplus
-struct GuardTypeEnum : vamiga::util::Reflection<GuardTypeEnum, GuardType>
+struct GuardTypeEnum : util::Reflection<GuardTypeEnum, GuardType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = GUARD_CATCHPOINT;
-
+    
     static const char *prefix() { return "GUARD"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case GUARD_BREAKPOINT:  return "BREAKPOINT";
             case GUARD_WATCHPOINT:  return "WATCHPOINT";
             case GUARD_CATCHPOINT:  return "CATCHPOINT";
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case GUARD_BREAKPOINT:  return "Breakpoint";
+            case GUARD_WATCHPOINT:  return "Watchpoint";
+            case GUARD_CATCHPOINT:  return "Catchpoint";
+        }
+        return "???";
+    }
 };
-#endif
 
 
 //
@@ -161,6 +233,7 @@ typedef struct
     CPURevision revision;
     DasmRevision dasmRevision;
     DasmSyntax dasmSyntax;
+    DasmNumbers dasmNumbers;
     isize overclocking;
     u32 regResetVal;
 }
@@ -169,7 +242,7 @@ CPUConfig;
 typedef struct
 {
     Cycle clock;
-
+    
     u32 pc0;
     u16 ird;
     u16 irc;
@@ -186,7 +259,9 @@ typedef struct
     u8 caar;
     u8 ipl;
     u8 fc;
-
+    
     bool halt;
 }
 CPUInfo;
+
+}

@@ -173,17 +173,7 @@ Console::lastLineIsEmpty()
 void
 Console::printState()
 {
-    std::stringstream ss;
-
-    ss << "\n";
-    cpu.dumpLogBuffer(ss, 8);
-    ss << "\n";
-    amiga.dump(Category::Current, ss);
-    ss << "\n";
-    cpu.disassembleRange(ss, cpu.getPC0(), 8);
-    ss << "\n";
-
-    *this << ss;
+    dump(amiga, Category::Trace);
 }
 
 void
@@ -425,8 +415,14 @@ Console::autoComplete(const string& userInput)
     // Recreate the command string
     for (const auto &it : tokens) { result += (result == "" ? "" : " ") + it; }
 
-    // Add a space if the command has been fully completed
-    if (!tokens.empty() && getRoot().seek(tokens)) result += " ";
+    // Add a space if the command has been fully completed ...
+    if (auto cmd = getRoot().seek(tokens); cmd != nullptr && !tokens.empty()) {
+        
+        // ... and there are additional subcommands or arguments
+        if (cmd->subCommands.size() > 0 ||
+            cmd->requiredArgs.size() > 0 ||
+            cmd->optionalArgs.size()) { result += " "; }
+    }
 
     return result;
 }
@@ -830,7 +826,7 @@ Console::initCommands(Command &root)
                  [this](Arguments& argv, long value) {
 
             auto stream = std::ifstream(argv.front());
-            if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, argv.front());
+            if (!stream.is_open()) throw Error(VAERROR_FILE_NOT_FOUND, argv.front());
             retroShell.asyncExecScript(stream);
         });
 
@@ -850,6 +846,80 @@ Console::initCommands(Command &root)
             msgQueue.put(MSG_ABORT, 0);
         });
     }
+}
+
+const char *
+Console::registerComponent(CoreComponent &c)
+{
+    return registerComponent(c, root);
+}
+
+const char *
+Console::registerComponent(CoreComponent &c, Command &root)
+{
+    // Get the shell name for this component
+    auto cmd = c.shellName();
+    assert(cmd != nullptr);
+
+    // Register a command with the proper name
+    root.add({cmd}, c.description());
+
+    // CHeck if this component has options
+    if (auto &options = c.getOptions(); !options.empty()) {
+
+        // Register a command for querying the current configuration
+        root.add({cmd, ""},
+                 "Display the current configuration",
+                 [this, &c](Arguments& argv, long value) {
+
+            retroShell.commander.dump(c, Category::Config);
+        });
+
+        // Register a setter for every option
+        root.add({cmd, "set"}, "Configure the component");
+        for (auto &opt : options) {
+
+            // Get the key value pairs
+            auto pairs = OptionParser::pairs(opt);
+            
+            if (pairs.empty()) {
+                
+                // The argument is not an enum. Register a single setter
+                root.add({cmd, "set", OptionEnum::key(opt)},
+                         {OptionParser::argList(opt)},
+                         OptionEnum::help(opt),
+                         [this](Arguments& argv, long value) {
+                    
+                    emulator.set(Option(HI_WORD(value)), argv[0], { LO_WORD(value) });
+                    msgQueue.put(MSG_CONFIG);
+                    
+                }, HI_W_LO_W(opt, c.objid));
+
+            } else {
+                
+                // Register a setter for every enum
+                root.add({cmd, "set", OptionEnum::key(opt)},
+                         {OptionParser::argList(opt)},
+                         OptionEnum::help(opt));
+                
+                for (const auto& [first, second] : pairs) {
+                    
+                    auto help = OptionParser::help(opt, second);
+                    root.add({cmd, "set", OptionEnum::key(opt), first },
+                             {},
+                             help.empty() ? "Set to " + first : help,
+                             [this](Arguments& argv, long value) {
+                        
+                        emulator.set(Option(HI_WORD(value)), BYTE1(value), { BYTE0(value) });
+                        msgQueue.put(MSG_CONFIG);
+                        
+                    }, opt << 16 | second << 8 | c.objid);
+                }
+            }
+        }
+    }
+
+    return cmd;
 }
 
 void

@@ -20,7 +20,8 @@ public:
     static constexpr isize STSIZE_35_DD = 737280;  // 720 KB Atari ST disk
 
     static bool isCompatible(const std::filesystem::path &path);
-    static bool isCompatible(std::istream &stream);
+    static bool isCompatible(const u8 *buf, isize len);
+    static bool isCompatible(const Buffer<u8> &buffer);
 
 
     //
@@ -32,7 +33,7 @@ public:
     using AmigaFile::init;
 
     STFile(const std::filesystem::path &path) throws { init(path); }
-    STFile(const std::filesystem::path &path, std::istream &stream) throws { init(path, stream); }
+    // STFile(const std::filesystem::path &path, std::istream &stream) throws { init(path, stream); }
     STFile(const u8 *buf, isize len) throws { init(buf, len); }
     STFile(Diameter dia, Density den) throws { init(dia, den); }
     STFile(class FloppyDisk &disk) throws { init(disk); }
@@ -57,7 +58,7 @@ public:
     //
 
     bool isCompatiblePath(const std::filesystem::path &path) const override { return isCompatible(path); }
-    bool isCompatibleStream(std::istream &stream) const override { return isCompatible(stream); }
+    bool isCompatibleBuffer(const u8 *buf, isize len) override { return isCompatible(buf, len); }
     FileType type() const override { return FILETYPE_IMG; }
 
 

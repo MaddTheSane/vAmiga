@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+    <dependencies>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Window Controller-->
+        <scene sceneID="fch-Jy-1N7">
+            <objects>
+                <windowController storyboardIdentifier="MyWindowController" id="oKP-AG-CVR" customClass="Dashboard" customModule="vAmiga" customModuleProvider="target" sceneMemberID="viewController">
+                    <window key="window" title="Dashboard" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" restorable="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" frameAutosaveName="" animationBehavior="default" id="cOb-Qz-LX3">
+                        <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
+                        <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
+                        <rect key="contentRect" x="255" y="323" width="480" height="270"/>
+                        <rect key="screenRect" x="0.0" y="0.0" width="1728" height="1079"/>
+                        <view key="contentView" id="7AO-b0-d0q">
+                            <rect key="frame" x="0.0" y="0.0" width="480" height="270"/>
+                            <autoresizingMask key="autoresizingMask"/>
+                        </view>
+                        <toolbar key="toolbar" implicitIdentifier="495832AF-A306-4967-8931-3A98736F7B7C" autosavesConfiguration="NO" allowsUserCustomization="NO" showsBaselineSeparator="NO" displayMode="iconOnly" sizeMode="regular" id="xpG-72-std" customClass="DashboardToolbar" customModule="vAmiga" customModuleProvider="target">
+                            <allowedToolbarItems>
+                                <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="bEy-Sz-ypm"/>
+                                <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="RU3-iw-7IT"/>
+                                <toolbarItem implicitItemIdentifier="72413866-AEA7-4785-8EA3-35C7D6E5EAD4" label="Inspection Target" paletteLabel="Inspection Target" image="waveform.badge.magnifyingglass" catalog="system" title="Overview" sizingBehavior="auto" id="XDt-Ik-EN3">
+                                    <nil key="toolTip"/>
+                                    <popUpButton key="view" verticalHuggingPriority="750" id="mdW-B3-74Y">
+                                        <rect key="frame" x="19" y="14" width="61" height="40"/>
+                                        <autoresizingMask key="autoresizingMask"/>
+                                        <popUpButtonCell key="cell" type="roundTextured" title="Overview" bezelStyle="texturedRounded" imagePosition="only" alignment="left" controlSize="large" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" selectedItem="iPR-ER-viP" id="J7u-d6-nR4">
+                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                            <font key="font" metaFont="message"/>
+                                            <menu key="menu" id="vF9-8N-bYE">
+                                                <items>
+                                                    <menuItem title="Overview" state="on" image="waveform.badge.magnifyingglass" catalog="system" id="iPR-ER-viP"/>
+                                                    <menuItem isSeparatorItem="YES" id="pTC-f1-Qan"/>
+                                                    <menuItem title="Chip RAM" image="waveform.badge.magnifyingglass" catalog="system" tag="1" id="R0W-I6-a4K"/>
+                                                    <menuItem title="Slow RAM" image="waveform.badge.magnifyingglass" catalog="system" tag="2" id="UNY-ET-Gpc"/>
+                                                    <menuItem title="Fast RAM" image="waveform.badge.magnifyingglass" catalog="system" tag="3" id="KCn-E2-s6x"/>
+                                                    <menuItem title="Kickstart ROM" image="waveform.badge.magnifyingglass" catalog="system" tag="4" id="74f-gN-6kb"/>
+                                                    <menuItem isSeparatorItem="YES" id="0Z5-7T-MfH"/>
+                                                    <menuItem title="Copper DMA" image="waveform.badge.magnifyingglass" catalog="system" tag="5" id="C7X-pd-eb3"/>
+                                                    <menuItem title="Blitter DMA" image="waveform.badge.magnifyingglass" catalog="system" tag="6" id="Jmc-5r-YAa"/>
+                                                    <menuItem title="Disk DMA" image="waveform.badge.magnifyingglass" catalog="system" tag="7" id="SlE-3Z-Ccg"/>
+                                                    <menuItem title="Audio DMA" image="waveform.badge.magnifyingglass" catalog="system" tag="8" id="wO9-Ul-jMy"/>
+                                                    <menuItem title="Sprite DMA" image="waveform.badge.magnifyingglass" catalog="system" tag="9" id="Tbr-bg-Hq0"/>
+                                                    <menuItem title="Bitplane DMA" image="waveform.badge.magnifyingglass" catalog="system" tag="10" id="uaZ-c3-Rur"/>
+                                                    <menuItem isSeparatorItem="YES" id="n4I-Eq-4Uv"/>
+                                                    <menuItem title="CIA1 Activity" image="waveform.badge.magnifyingglass" catalog="system" tag="11" id="YfX-1r-n4Z"/>
+                                                    <menuItem title="CIA2 Activity" image="waveform.badge.magnifyingglass" catalog="system" tag="12" id="dpO-rI-u3r"/>
+                                                    <menuItem title="Amiga Clock Frequency" image="waveform.badge.magnifyingglass" catalog="system" tag="13" id="Xw7-eO-be4"/>
+                                                    <menuItem title="Amiga Refresh Rate" image="waveform.badge.magnifyingglass" catalog="system" tag="14" id="D4G-Mb-JpR"/>
+                                                    <menuItem isSeparatorItem="YES" id="1el-8n-Khg"/>
+                                                    <menuItem title="Host CPU Load" image="waveform.badge.magnifyingglass" catalog="system" tag="15" id="Gnc-BM-DEP"/>
+                                                    <menuItem title="Host Refresh Rate" image="waveform.badge.magnifyingglass" catalog="system" tag="16" id="7yL-Zl-2OC"/>
+                                                    <menuItem isSeparatorItem="YES" id="hEA-8q-ZqT"/>
+                                                    <menuItem title="Audio Buffer Fill Level" image="waveform.badge.magnifyingglass" catalog="system" tag="17" id="bhU-AF-leY"/>
+                                                    <menuItem title="Left Waveform" image="waveform.badge.magnifyingglass" catalog="system" tag="18" id="woa-11-tQE"/>
+                                                    <menuItem title="Right Waveform" image="waveform.badge.magnifyingglass" catalog="system" tag="19" id="Wma-J3-2Sz"/>
+                                                </items>
+                                            </menu>
+                                        </popUpButtonCell>
+                                        <connections>
+                                            <action selector="panelAction:" target="xpG-72-std" id="AaG-vl-P52"/>
+                                        </connections>
+                                    </popUpButton>
+                                </toolbarItem>
+                                <toolbarItem implicitItemIdentifier="B16D04D1-67DC-41D7-B957-2F21759322A3" label="New" paletteLabel="New" image="plus" catalog="system" sizingBehavior="auto" id="NcX-8E-iVw">
+                                    <nil key="toolTip"/>
+                                    <button key="view" id="MDv-68-vO5">
+                                        <rect key="frame" x="8" y="14" width="14.5" height="13"/>
+                                        <autoresizingMask key="autoresizingMask"/>
+                                        <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="plus" catalog="system" imagePosition="overlaps" alignment="center" inset="2" id="zVF-fc-kFE">
+                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                            <font key="font" metaFont="system"/>
+                                        </buttonCell>
+                                        <connections>
+                                            <action selector="plusAction:" target="xpG-72-std" id="LaN-t0-JNE"/>
+                                        </connections>
+                                    </button>
+                                </toolbarItem>
+                            </allowedToolbarItems>
+                            <defaultToolbarItems>
+                                <toolbarItem reference="RU3-iw-7IT"/>
+                                <toolbarItem reference="XDt-Ik-EN3"/>
+                                <toolbarItem reference="NcX-8E-iVw"/>
+                            </defaultToolbarItems>
+                            <connections>
+                                <outlet property="selectorPopup" destination="mdW-B3-74Y" id="iz0-Nj-BSs"/>
+                                <outlet property="selectorPopupItem" destination="XDt-Ik-EN3" id="8hf-W7-pug"/>
+                            </connections>
+                        </toolbar>
+                        <connections>
+                            <outlet property="delegate" destination="oKP-AG-CVR" id="TzC-Rt-DV7"/>
+                        </connections>
+                    </window>
+                    <connections>
+                        <segue destination="AbY-Wc-TCn" kind="relationship" relationship="window.shadowedContentViewController" id="57K-uM-i25"/>
+                    </connections>
+                </windowController>
+                <customObject id="ocs-j0-iWy" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="586" y="-100"/>
+        </scene>
+        <!--Dashboard View Controller-->
+        <scene sceneID="LZb-0N-aNo">
+            <objects>
+                <viewController id="AbY-Wc-TCn" customClass="DashboardViewController" customModule="vAmiga" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" id="naj-L4-BtD">
+                        <rect key="frame" x="0.0" y="0.0" width="480" height="270"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                        <subviews>
+                            <containerView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="CSo-tk-DA5">
+                                <rect key="frame" x="0.0" y="0.0" width="480" height="270"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <connections>
+                                    <segue destination="pT1-JZ-eaD" kind="embed" id="GJz-KX-OYF"/>
+                                </connections>
+                            </containerView>
+                        </subviews>
+                    </view>
+                    <connections>
+                        <outlet property="containerView" destination="CSo-tk-DA5" id="PPm-74-Zhc"/>
+                    </connections>
+                </viewController>
+                <customObject id="Vlg-aC-bif" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1293" y="-131"/>
+        </scene>
+        <!--Overview Controller-->
+        <scene sceneID="i3Q-21-dKV">
+            <objects>
+                <viewController storyboardIdentifier="ViewController1" id="pT1-JZ-eaD" customClass="OverviewController" customModule="vAmiga" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" id="wOB-CA-ofV">
+                        <rect key="frame" x="0.0" y="0.0" width="612" height="722"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                        <subviews>
+                            <box title="Chip Ram" titlePosition="noTitle" id="lJo-nH-xc1">
+                                <rect key="frame" x="17" y="574" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="pNg-zG-TmF">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Copper DMA" titlePosition="noTitle" id="bqD-Fs-mwE">
+                                <rect key="frame" x="17" y="432" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="XBp-I0-bj0">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Sprite DMA" titlePosition="noTitle" id="526-d3-EYm">
+                                <rect key="frame" x="163" y="290" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="ccZ-3O-IPg">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Left Audio" titlePosition="noTitle" id="tE2-sv-uv5">
+                                <rect key="frame" x="17" y="6" width="210" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="JXP-Fl-uqL">
+                                    <rect key="frame" x="4" y="5" width="202" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="CPU Load" titlePosition="noTitle" id="1zg-D2-euo">
+                                <rect key="frame" x="17" y="148" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="1AM-LT-rZC">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="GPU Refresh Rate" titlePosition="noTitle" id="JCG-SR-d1D">
+                                <rect key="frame" x="163" y="148" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="fdd-01-KgB">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Amiga Fps" titlePosition="noTitle" id="0EH-8Q-7Xx">
+                                <rect key="frame" x="309" y="148" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="J36-Sy-5in">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Amiga Frequency" titlePosition="noTitle" id="WA7-t2-0E0">
+                                <rect key="frame" x="453" y="148" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="V3n-ET-52I">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="CIA A" titlePosition="noTitle" id="X1c-GL-keF">
+                                <rect key="frame" x="453" y="432" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="QQK-gk-U2g">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="CIA B" titlePosition="noTitle" id="8HM-XP-PFO">
+                                <rect key="frame" x="453" y="290" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="2dC-kP-E6m">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Disk DMA" titlePosition="noTitle" id="oWu-zc-NTo">
+                                <rect key="frame" x="309" y="432" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="JMy-b6-zou">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Blitter DMA" titlePosition="noTitle" id="heh-zs-HK4">
+                                <rect key="frame" x="163" y="432" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="4i3-3f-NdW">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Bitplane DMA" titlePosition="noTitle" id="4pe-Uu-9D7">
+                                <rect key="frame" x="309" y="290" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="S10-GP-8jA">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Audio DMA" titlePosition="noTitle" id="0dx-dX-1pT">
+                                <rect key="frame" x="17" y="290" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="YU5-7E-vH6">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Rom" titlePosition="noTitle" id="sQi-ap-NM5">
+                                <rect key="frame" x="453" y="574" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="cSD-zt-GTN">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Fast Ram" titlePosition="noTitle" id="fQ6-Xx-F1s">
+                                <rect key="frame" x="309" y="574" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="MqN-CI-2pg">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Slow Ram" titlePosition="noTitle" id="0Sb-gU-Omc">
+                                <rect key="frame" x="163" y="574" width="140" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="sfq-Gw-rPH">
+                                    <rect key="frame" x="4" y="5" width="132" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Audio Fill Level" titlePosition="noTitle" id="Mnj-c8-l0d">
+                                <rect key="frame" x="235" y="6" width="139" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="Gr3-n1-6rE">
+                                    <rect key="frame" x="4" y="5" width="131" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                            <box title="Right Audio" titlePosition="noTitle" id="gBm-bS-Onh">
+                                <rect key="frame" x="381" y="6" width="213" height="140"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
+                                <view key="contentView" id="ZHh-2I-X61">
+                                    <rect key="frame" x="4" y="5" width="205" height="132"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                </view>
+                            </box>
+                        </subviews>
+                    </view>
+                    <connections>
+                        <outlet property="amigaFpsBox" destination="0EH-8Q-7Xx" id="vJi-Jo-rhc"/>
+                        <outlet property="amigaMhzBox" destination="WA7-t2-0E0" id="aQr-lI-JAd"/>
+                        <outlet property="audioDmaBox" destination="0dx-dX-1pT" id="JEc-ht-tDM"/>
+                        <outlet property="bitplaneDmaBox" destination="4pe-Uu-9D7" id="xVR-Sm-QGF"/>
+                        <outlet property="blitterDmaBox" destination="heh-zs-HK4" id="D5U-ia-XMy"/>
+                        <outlet property="chipRamBox" destination="lJo-nH-xc1" id="ZxV-Qd-Jsv"/>
+                        <outlet property="ciaABox" destination="X1c-GL-keF" id="rOK-UM-1rm"/>
+                        <outlet property="ciaBBox" destination="8HM-XP-PFO" id="fTQ-t8-FU7"/>
+                        <outlet property="copperDmaBox" destination="bqD-Fs-mwE" id="HnA-yr-juj"/>
+                        <outlet property="diskDmaBox" destination="oWu-zc-NTo" id="HIA-JJ-ST1"/>
+                        <outlet property="fastRamBox" destination="fQ6-Xx-F1s" id="OeG-zn-3gz"/>
+                        <outlet property="fillLevelBox" destination="Mnj-c8-l0d" id="cBl-zW-kEI"/>
+                        <outlet property="hostFpsBox" destination="JCG-SR-d1D" id="slN-hK-6Df"/>
+                        <outlet property="hostLoadBox" destination="1zg-D2-euo" id="9je-Yt-rNu"/>
+                        <outlet property="romBox" destination="sQi-ap-NM5" id="zQr-nD-VfZ"/>
+                        <outlet property="slowRamBox" destination="0Sb-gU-Omc" id="zvF-ql-fvS"/>
+                        <outlet property="spriteDmaBox" destination="526-d3-EYm" id="sOe-Zi-xSJ"/>
+                        <outlet property="waveformLBox" destination="tE2-sv-uv5" id="vDd-wo-YK4"/>
+                        <outlet property="waveformRBox" destination="gBm-bS-Onh" id="OaF-Ue-FY4"/>
+                    </connections>
+                </viewController>
+                <customObject id="8hC-Qu-u4C" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="976" y="556"/>
+        </scene>
+        <!--View Controller-->
+        <scene sceneID="OtT-1L-4wC">
+            <objects>
+                <viewController storyboardIdentifier="ViewController2" id="icn-N1-upp" sceneMemberID="viewController">
+                    <view key="view" id="v7i-p7-K1I">
+                        <rect key="frame" x="0.0" y="0.0" width="200" height="130"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                    </view>
+                </viewController>
+                <customObject id="hLd-LT-esQ" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1572" y="228"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="plus" catalog="system" width="14" height="13"/>
+        <image name="waveform.badge.magnifyingglass" catalog="system" width="18" height="17"/>
+    </resources>
+</document>

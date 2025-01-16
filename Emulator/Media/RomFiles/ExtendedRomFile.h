@@ -24,13 +24,14 @@ private:
 public:
 
     static bool isCompatible(const std::filesystem::path &path);
-    static bool isCompatible(std::istream &stream);
+    static bool isCompatible(const u8 *buf, isize len);
+    static bool isCompatible(const Buffer<u8> &buffer);
 
     bool isCompatiblePath(const std::filesystem::path &path) const override { return isCompatible(path); }
-    bool isCompatibleStream(std::istream &stream) const override { return isCompatible(stream); }
+    bool isCompatibleBuffer(const u8 *buf, isize len) override { return isCompatible(buf, len); }
 
 
-    static bool isExtendedRomFile(const std::filesystem::path &path);
+    // static bool isExtendedRomFile(const std::filesystem::path &path);
 
     
     //

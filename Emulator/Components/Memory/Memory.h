@@ -102,7 +102,7 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 #define WRITE_EXT_16(x,y)   W16BE(ext + ((x) & extMask), (y))
 
 
-class Memory : public SubComponent, public Inspectable<MemInfo, MemStats> {
+class Memory final : public SubComponent, public Inspectable<MemInfo, MemStats> {
 
     Descriptions descriptions = {{
 
@@ -280,6 +280,7 @@ public:
         << chipMask
 
         << config.extStart
+        << config.saveRoms
         << config.slowRamDelay
         << config.slowRamMirror
         << config.bankMap
@@ -315,8 +316,12 @@ private:
 public:
 
     void cacheInfo(MemInfo &result) const override;
-    void cacheStats(MemStats &result) const override;
+    // void cacheStats(MemStats &result) const override;
 
+private:
+    
+    void updateStats();
+    
 
     //
     // Methods from Configurable

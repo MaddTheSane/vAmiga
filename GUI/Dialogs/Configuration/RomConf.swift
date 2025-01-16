@@ -17,9 +17,9 @@ extension ConfigurationController {
 
         let poweredOff      = emu.poweredOff
 
-        // let romCrc          = amiga.mem.romFingerprint
         let hasRom          = romTraits.crc != 0
         let hasArosRom      = romTraits.vendor == .AROS
+        let hasDemoRom      = romTraits.vendor == .DEMO
         let hasDiagRom      = romTraits.vendor == .DIAG
         let hasCommodoreRom = romTraits.vendor == .COMMODORE
         let hasHyperionRom  = romTraits.vendor == .HYPERION
@@ -27,7 +27,6 @@ extension ConfigurationController {
         let hasPatchedRom   = romTraits.patched
         let isRelocatedRom  = romTraits.relocated
 
-        // let extCrc          = amiga.mem.extFingerprint
         let hasExt          = extTraits.crc != 0
         let hasArosExt      = extTraits.vendor == .AROS
         let hasDiagExt      = extTraits.vendor == .DIAG
@@ -40,6 +39,7 @@ extension ConfigurationController {
         let romHyperion     = NSImage(named: "rom_hyp")
         let romEmutos       = NSImage(named: "rom_emutos")
         let romAros         = NSImage(named: "rom_aros")
+        let romDemo         = NSImage(named: "rom_demo")
         let romDiag         = NSImage(named: "rom_diag")
         let romPatched      = NSImage(named: "rom_patched")
         let romUnknown      = NSImage(named: "rom_unknown")
@@ -59,6 +59,7 @@ extension ConfigurationController {
         hasEmutosRom    ? romEmutos :
         hasArosRom      ? romAros :
         hasDiagRom      ? romDiag :
+        hasDemoRom      ? romDemo :
         hasCommodoreRom ? romOrig :
         hasPatchedRom   ? romPatched :
         hasRom          ? romUnknown : romMissing
@@ -82,6 +83,11 @@ extension ConfigurationController {
         extSubsubtitle.stringValue = String(cString: extTraits.released)
         extModel.stringValue = String(cString: extTraits.model)
         extMapAddr.selectItem(withTag: Int(config.extStart))
+
+        if romDropView.image == romUnknown {
+
+            romSubtitle.stringValue = String(format:"CRC32: 0x%08X", romTraits.crc)
+        }
 
         // Hide some controls
         romDeleteButton.isHidden = !hasRom
@@ -125,7 +131,10 @@ extension ConfigurationController {
 
             switch UInt32(item.tag) {
 
-            case CRC32_AROS_54705, CRC32_AROS_55696, CRC32_DIAG121, CRC32_DIAG13, CRC32_EMUTOS13:
+            case vamiga.CRC32_AROS_54705, vamiga.CRC32_AROS_55696,
+                vamiga.CRC32_DIAG121, vamiga.CRC32_DIAG13,
+                vamiga.CRC32_EMUTOS13:
+                
                 item.isEnabled = true
 
             default:
@@ -170,19 +179,19 @@ extension ConfigurationController {
         let crc32 = sender.selectedTag()
 
         switch UInt32(crc32) {
-        case CRC32_AROS_54705: // Taken from UAE
+        case vamiga.CRC32_AROS_54705: // Taken from UAE
             installAros(rom: "aros-svn54705-rom", ext: "aros-svn54705-ext")
 
-        case CRC32_AROS_55696: // Taken from SAE
+        case vamiga.CRC32_AROS_55696: // Taken from SAE
             installAros(rom: "aros-svn55696-rom", ext: "aros-svn55696-ext")
 
-        case CRC32_EMUTOS13:
+        case vamiga.CRC32_EMUTOS13:
             install(rom: "emutos-13")
 
-        case CRC32_DIAG121:
+        case vamiga.CRC32_DIAG121:
             install(rom: "diagrom-121")
 
-        case CRC32_DIAG13:
+        case vamiga.CRC32_DIAG13:
             install(rom: "diagrom-13")
 
         default:
@@ -208,17 +217,17 @@ extension ConfigurationController {
 
     func installAros() {
 
-        installAros(crc32: CRC32_AROS_55696)
+        installAros(crc32: vamiga.CRC32_AROS_55696)
     }
 
     func installAros(crc32: UInt32) {
 
         switch crc32 {
 
-        case CRC32_AROS_54705: // Taken from UAE
+        case vamiga.CRC32_AROS_54705: // Taken from UAE
             installAros(rom: "aros-svn54705-rom", ext: "aros-svn54705-ext")
 
-        case CRC32_AROS_55696: // Taken from SAE
+        case vamiga.CRC32_AROS_55696: // Taken from SAE
             installAros(rom: "aros-svn55696-rom", ext: "aros-svn55696-ext")
 
         default:

@@ -15,7 +15,7 @@
 
 namespace vamiga {
 
-class RegressionTester : public SubComponent {
+class RegressionTester final : public SubComponent {
 
     Descriptions descriptions = {{
 
@@ -30,7 +30,7 @@ class RegressionTester : public SubComponent {
     };
 
     static constexpr isize X1 = 4 * 0x31;
-    static constexpr isize Y1 = VBLANK_MAX + 1;
+    static constexpr isize Y1 = PAL::VBLANK_MAX + 1;
     static constexpr isize X2 = HPIXELS;
     static constexpr isize Y2 = VPIXELS - 2;
 

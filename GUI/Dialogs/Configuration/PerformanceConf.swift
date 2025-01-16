@@ -21,17 +21,12 @@ extension ConfigurationController {
         let vsync = config.vsync
         let runAhead = config.runAhead
         prfVSync.state = config.vsync ? .on : .off
-        prfTimeLapse.integerValue = config.timeLapse
-        prfTimeLapseInfo.stringValue = "\(config.timeLapse) %"
-        prfTimeLapse.isEnabled = !vsync
-        prfTimeLapseInfo.textColor = vsync ? .tertiaryLabelColor : .labelColor
-        prfRunAheadSlider.integerValue = runAhead
+        prfSpeedBoost.integerValue = config.speedBoost
+        prfSpeedBoostInfo.stringValue = "\(config.speedBoost) %"
+        prfSpeedBoost.isEnabled = !vsync
+        prfSpeedBoostInfo.textColor = vsync ? .tertiaryLabelColor : .labelColor
+        prfRunAhead.integerValue = runAhead
         prfRunAheadInfo.stringValue = "\(runAhead) frame" + (runAhead == 1 ? "" : "s")
-
-        // Collision detection
-        prfClxSprSpr.state = config.clxSprSpr ? .on : .off
-        prfClxSprPlf.state = config.clxSprPlf ? .on : .off
-        prfClxPlfPlf.state = config.clxPlfPlf ? .on : .off
 
         // Boosters
         prfCiaIdleSleep.state = config.ciaIdleSleep ? .on : .off
@@ -70,9 +65,9 @@ extension ConfigurationController {
         config.vsync = sender.state == .on
     }
 
-    @IBAction func prfTimeLapseAction(_ sender: NSSlider!) {
+    @IBAction func prfspeedBoostAction(_ sender: NSSlider!) {
 
-        config.timeLapse = sender.integerValue
+        config.speedBoost = sender.integerValue
     }
 
     @IBAction func prfRunAheadAction(_ sender: NSSlider!) {
@@ -80,24 +75,6 @@ extension ConfigurationController {
         config.runAhead = sender.integerValue
     }
 
-    //
-    // Action methods (collision detection)
-    //
-
-    @IBAction func prfClxSprSprAction(_ sender: NSButton!) {
-
-        config.clxSprSpr = sender.state == .on
-    }
-
-    @IBAction func prfClxSprPlfAction(_ sender: NSButton!) {
-
-        config.clxSprPlf = sender.state == .on
-    }
-
-    @IBAction func prfClxPlfPlfAction(_ sender: NSButton!) {
-
-        config.clxPlfPlf = sender.state == .on
-    }
 
     //
     // Action methods (performance boosters)

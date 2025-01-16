@@ -47,8 +47,9 @@
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
-      debugDocumentVersioning = "YES"
+      debugDocumentVersioning = "NO"
       debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
       allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
@@ -63,6 +64,14 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "/tmp/line7.ini"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-&quot;agnus set PTR_DROPS false&quot;"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-&quot;joshua&quot;"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>

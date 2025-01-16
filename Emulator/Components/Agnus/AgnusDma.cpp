@@ -85,12 +85,13 @@ u16
 Agnus::doDiskDmaRead()
 {
     u16 result = mem.peek16 <ACCESSOR_AGNUS> (dskpt);
-    dskpt += 2;
 
     busOwner[pos.h] = BUS_DISK;
-    busValue[pos.h] = result;
+    busAddr[pos.h] = dskpt;
+    busData[pos.h] = result;
     stats.usage[BUS_DISK]++;
 
+    dskpt += 2;
     return result;
 }
 
@@ -100,12 +101,13 @@ Agnus::doAudioDmaRead()
     constexpr BusOwner owner = BusOwner(BUS_AUD0 + channel);
     
     u16 result = mem.peek16 <ACCESSOR_AGNUS> (audpt[channel]);
-    audpt[channel] += 2;
-
+    
     busOwner[pos.h] = owner;
-    busValue[pos.h] = result;
+    busAddr[pos.h] = audpt[channel];
+    busData[pos.h] = result;
     stats.usage[owner]++;
 
+    audpt[channel] += 2;
     return result;
 }
 
@@ -116,12 +118,13 @@ Agnus::doBitplaneDmaRead()
     constexpr BusOwner owner = BusOwner(BUS_BPL1 + bitplane);
     
     u16 result = mem.peek16 <ACCESSOR_AGNUS> (bplpt[bitplane]);
-    bplpt[bitplane] += 2;
 
     busOwner[pos.h] = owner;
-    busValue[pos.h] = result;
+    busAddr[pos.h] = bplpt[bitplane];
+    busData[pos.h] = result;
     stats.usage[owner]++;
 
+    bplpt[bitplane] += 2;
     return result;
 }
 
@@ -132,12 +135,13 @@ Agnus::doSpriteDmaRead()
     constexpr BusOwner owner = BusOwner(BUS_SPRITE0 + channel);
 
     u16 result = mem.peek16 <ACCESSOR_AGNUS> (sprpt[channel]);
-    sprpt[channel] += 2;
 
     busOwner[pos.h] = owner;
-    busValue[pos.h] = result;
+    busAddr[pos.h] = sprpt[channel];
+    busData[pos.h] = result;
     stats.usage[owner]++;
 
+    sprpt[channel] += 2;
     return result;
 }
 
@@ -147,7 +151,8 @@ Agnus::doCopperDmaRead(u32 addr)
     u16 result = mem.peek16 <ACCESSOR_AGNUS> (addr);
 
     busOwner[pos.h] = BUS_COPPER;
-    busValue[pos.h] = result;
+    busAddr[pos.h] = addr;
+    busData[pos.h] = result;
     stats.usage[BUS_COPPER]++;
 
     return result;
@@ -162,7 +167,8 @@ Agnus::doBlitterDmaRead(u32 addr)
     u16 result = mem.peek16 <ACCESSOR_AGNUS> (addr);
 
     busOwner[pos.h] = BUS_BLITTER;
-    busValue[pos.h] = result;
+    busAddr[pos.h] = addr;
+    busData[pos.h] = result;
     stats.usage[BUS_BLITTER]++;
 
     return result;
@@ -172,11 +178,13 @@ void
 Agnus::doDiskDmaWrite(u16 value)
 {
     mem.poke16 <ACCESSOR_AGNUS> (dskpt, value);
-    dskpt += 2;
-
+    
     busOwner[pos.h] = BUS_DISK;
-    busValue[pos.h] = value;
+    busAddr[pos.h] = dskpt;
+    busData[pos.h] = value;
     stats.usage[BUS_DISK]++;
+
+    dskpt += 2;
 }
 
 void
@@ -185,7 +193,8 @@ Agnus::doCopperDmaWrite(u32 addr, u16 value)
     mem.pokeCustom16<ACCESSOR_AGNUS>(addr, value);
 
     busOwner[pos.h] = BUS_COPPER;
-    busValue[pos.h] = value;
+    busAddr[pos.h] = addr;
+    busData[pos.h] = value;
     stats.usage[BUS_COPPER]++;
 }
 
@@ -195,7 +204,8 @@ Agnus::doBlitterDmaWrite(u32 addr, u16 value)
     mem.poke16 <ACCESSOR_AGNUS> (addr, value);
 
     assert(busOwner[pos.h] == BUS_BLITTER); // Bus is already allocated
-    busValue[pos.h] = value;
+    busAddr[pos.h] = addr;
+    busData[pos.h] = value;
     stats.usage[BUS_BLITTER]++;
 }
 

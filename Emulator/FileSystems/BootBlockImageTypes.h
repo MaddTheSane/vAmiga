@@ -12,6 +12,8 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
@@ -24,12 +26,11 @@ enum_long(BB_TYPE)
 };
 typedef BB_TYPE BootBlockType;
 
-#ifdef __cplusplus
-struct BootBlockTypeEnum : vamiga::util::Reflection<BootBlockTypeEnum, BootBlockType>
+struct BootBlockTypeEnum : util::Reflection<BootBlockTypeEnum, BootBlockType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = BB_CUSTOM;
-
+    
     static const char *prefix() { return "BB"; }
     static const char *_key(long value)
     {
@@ -41,8 +42,11 @@ struct BootBlockTypeEnum : vamiga::util::Reflection<BootBlockTypeEnum, BootBlock
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 enum_long(BB_ID)
 {
@@ -54,8 +58,7 @@ enum_long(BB_ID)
 };
 typedef BB_ID BootBlockId;
 
-#ifdef __cplusplus
-struct BootBlockIdEnum : vamiga::util::Reflection<BootBlockIdEnum, BootBlockId>
+struct BootBlockIdEnum : util::Reflection<BootBlockIdEnum, BootBlockId>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = BB_BYTE_BANDIT;
@@ -73,5 +76,10 @@ struct BootBlockIdEnum : vamiga::util::Reflection<BootBlockIdEnum, BootBlockId>
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
+
+}

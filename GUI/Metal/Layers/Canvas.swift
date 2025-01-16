@@ -86,7 +86,7 @@ class Canvas: Layer {
     var finalTexture: MTLTexture! = nil
 
     // Part of the texture that is currently visible
-    var textureRect = CGRect() { didSet { buildVertexBuffers() } }
+    var textureRect = CGRect.zero { didSet { buildVertexBuffers() } }
 
     //
     // Buffers and Uniforms
@@ -182,17 +182,20 @@ class Canvas: Layer {
 
         switch source {
             
-        case .entire:
-            return screenshot(texture: mergeTexture, rect: largestVisibleNormalized)
-            
-        case .entireUpscaled:
-            return screenshot(texture: upscaledTexture, rect: largestVisibleNormalized)
-            
-        case .visible:
+        case .emulatorVisible:
             return screenshot(texture: mergeTexture, rect: visibleNormalized)
             
-        case .visibleUpscaled:
+        case .emulatorEntire:
+            return screenshot(texture: mergeTexture, rect: largestVisibleNormalized)
+
+        case .upscaledVisible:
             return screenshot(texture: upscaledTexture, rect: visibleNormalized)
+            
+        case .upscaledEntire:
+            return screenshot(texture: upscaledTexture, rect: largestVisibleNormalized)
+
+        case .framebuffer:
+            return framebuffer
         }
     }
 
@@ -209,6 +212,48 @@ class Canvas: Layer {
         let commandBuffer = queue.makeCommandBuffer()!
         let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
         blitEncoder.synchronize(texture: texture, slice: 0, level: 0)
+        blitEncoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+    }
+
+    var framebuffer: NSImage? {
+        
+        guard let drawable = renderer.metalLayer.nextDrawable() else { return nil }
+        
+        // Create target texture
+        let texture = device.makeTexture(size: drawable.texture.size, usage: [.shaderRead, .shaderWrite])!
+        
+        // Copy the framebuffer into the texture
+        blitFramebuffer(texture: texture)
+        
+        // Convert the texture into an NSImage
+        let alpha = CGImageAlphaInfo.premultipliedFirst.rawValue
+        let leEn32 = CGBitmapInfo.byteOrder32Little.rawValue
+        let bitmapInfo =  CGBitmapInfo(rawValue: alpha | leEn32)
+        
+        return NSImage.make(texture: texture, bitmapInfo: bitmapInfo)
+    }
+
+    func blitFramebuffer(texture: MTLTexture) {
+
+        guard let drawable = renderer.metalLayer.nextDrawable() else { return }
+        
+        // Use the blitter to copy the framebuffer back from the GPU
+        let queue = renderer.device.makeCommandQueue()!
+        let commandBuffer = queue.makeCommandBuffer()!
+        let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
+        blitEncoder.copy(from: drawable.texture,
+                         sourceSlice: 0,
+                         sourceLevel: 0,
+                         sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                         sourceSize: MTLSize(width: texture.width,
+                                             height: texture.height,
+                                             depth: 1),
+                         to: texture,
+                         destinationSlice: 0,
+                         destinationLevel: 0,
+                         destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
         blitEncoder.endEncoding()
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
@@ -235,26 +280,31 @@ class Canvas: Layer {
         precondition(sfTexture != nil)
 
         // Get the emulator texture
-        var buffer: UnsafePointer<u32>!
+        var buffer: UnsafePointer<UInt32>!
         var nr = 0
+
+        // Prevent the stable texture from changing
+        amiga.videoPort.lockTexture()
+
+        // Grab the stable texture
         amiga.videoPort.texture(&buffer, nr: &nr, lof: &currLOF, prevlof: &prevLOF)
 
         // Check for duplicated or dropped frames
         if nr != prevNr + 1 {
 
             debug(.vsync, "Frame sync mismatch (\(prevNr) -> \(nr))")
-
-            // Return immediately if we alredy have this texture
-            // if nr == prevNr { return }
         }
         prevNr = nr
 
         // Update the GPU texture
         if currLOF {
-            lfTexture.replace(w: Int(TPP) * HPIXELS, h: VPIXELS, buffer: buffer)
+            lfTexture.replace(w: Int(TPP) * VAMIGA.HPIXELS, h: VAMIGA.VPIXELS, buffer: buffer)
         } else {
-            sfTexture.replace(w: Int(TPP) * HPIXELS, h: VPIXELS, buffer: buffer)
+            sfTexture.replace(w: Int(TPP) * VAMIGA.HPIXELS, h: VAMIGA.VPIXELS, buffer: buffer)
         }
+
+        // Release the texture lock
+        amiga.videoPort.unlockTexture()
     }
 
     //
@@ -341,6 +391,8 @@ class Canvas: Layer {
                            source: finalTexture,
                            target: upscaledTexture)
             finalTexture = upscaledTexture
+        } else {
+            upscaledTexture = finalTexture
         }
 
         // Blur the upscaled texture

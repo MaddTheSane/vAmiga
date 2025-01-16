@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -42,21 +42,18 @@
                 <outlet property="conUp1button" destination="diW-dw-7Yh" id="dtJ-WE-6Yi"/>
                 <outlet property="conUp2" destination="sPP-Ll-WyN" id="Lzp-Nb-rec"/>
                 <outlet property="conUp2button" destination="wFF-Aw-MG2" id="LME-22-Ebz"/>
-                <outlet property="devActivity" destination="nWG-QZ-bo4" id="Zgf-zu-X8d"/>
-                <outlet property="devActivity2" destination="VZ1-e1-hp3" id="Egv-Y2-NKP"/>
-                <outlet property="devHatScheme" destination="Cx8-Ww-EiR" id="4wT-VR-Dra"/>
-                <outlet property="devHatText" destination="G3e-Ea-Xvj" id="CeN-Vl-h9L"/>
+                <outlet property="devAction" destination="nWG-QZ-bo4" id="Zgf-zu-X8d"/>
+                <outlet property="devAction2" destination="VZ1-e1-hp3" id="Egv-Y2-NKP"/>
+                <outlet property="devHidEvent" destination="5Wj-hw-28o" id="TDN-bg-AVB"/>
+                <outlet property="devHidMapping" destination="lue-lV-Oit" id="b9I-AI-HIO"/>
+                <outlet property="devHidMappingScrollView" destination="H8h-C1-gQm" id="ugS-p0-FN7"/>
                 <outlet property="devImage" destination="Ljn-nh-euA" id="Wnb-BN-uD3"/>
                 <outlet property="devInfoBox" destination="Dto-Ac-z5q" id="jr1-T2-yMV"/>
                 <outlet property="devInfoBoxTitle" destination="v81-ep-HXC" id="8cl-mS-uY1"/>
-                <outlet property="devLeftScheme" destination="8B9-QV-Z6T" id="B3x-YN-ecN"/>
-                <outlet property="devLeftText" destination="Rc7-zK-Xze" id="coL-kp-7nG"/>
                 <outlet property="devLocationID" destination="89G-Zo-zi4" id="OA7-NJ-ins"/>
                 <outlet property="devManufacturer" destination="11v-Tj-lGr" id="sx2-LM-UBn"/>
                 <outlet property="devProduct" destination="ydf-e9-8Kf" id="yy7-9n-1i4"/>
                 <outlet property="devProductID" destination="BtT-aK-Ch9" id="f6C-Mt-ANy"/>
-                <outlet property="devRightScheme" destination="0sa-cN-ImA" id="oAZ-UN-ffs"/>
-                <outlet property="devRightText" destination="1ek-cA-Oma" id="sbJ-je-ulo"/>
                 <outlet property="devSelector" destination="V9X-FA-6vA" id="67f-of-2Hk"/>
                 <outlet property="devTransport" destination="86Q-HP-rT8" id="V0T-yB-P6i"/>
                 <outlet property="devUniqueID" destination="VBn-jK-C6j" id="OxX-e9-tEh"/>
@@ -90,7 +87,7 @@
             <windowStyleMask key="styleMask" titled="YES" closable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="196" y="240" width="646" height="495"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="1496" height="933"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="3440" height="1415"/>
             <value key="minSize" type="size" width="646" height="495"/>
             <value key="maxSize" type="size" width="646" height="495"/>
             <view key="contentView" wantsLayer="YES" id="EiT-Mj-1SZ">
@@ -158,7 +155,7 @@
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                             <popUpButtonCell key="cell" type="push" title="Revert to..." bezelStyle="rounded" imagePosition="right" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" selectedItem="PrW-em-2oa" id="rs2-uh-Lb7" userLabel="System">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" title="Restore" id="Bxm-Ri-1xs">
                                                     <items>
                                                         <menuItem title="Revert to..." hidden="YES" id="PrW-em-2oa">
@@ -228,21 +225,24 @@
                                         <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="hst-Cn-3YK">
                                             <rect key="frame" x="88" y="368" width="198" height="26"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                                            <popUpButtonCell key="cell" type="push" title="Visible Texture" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" autoenablesItems="NO" selectedItem="Izq-aZ-EjX" id="oFh-wS-8JF">
+                                            <popUpButtonCell key="cell" type="push" title="Emulator Texture (Visible)" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" autoenablesItems="NO" selectedItem="Izq-aZ-EjX" id="oFh-wS-8JF">
                                                 <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" title="OtherViews" autoenablesItems="NO" id="4lg-86-m8h">
                                                     <items>
-                                                        <menuItem title="Visible Texture" state="on" id="Izq-aZ-EjX">
+                                                        <menuItem title="Emulator Texture (Visible)" state="on" id="Izq-aZ-EjX">
                                                             <modifierMask key="keyEquivalentModifierMask"/>
                                                         </menuItem>
-                                                        <menuItem title="Visible Texture (Upscaled)" tag="1" id="uIQ-Vh-4OI">
+                                                        <menuItem title="Emulator Texture (Entire)" tag="1" id="uIQ-Vh-4OI">
                                                             <modifierMask key="keyEquivalentModifierMask"/>
                                                         </menuItem>
-                                                        <menuItem title="Entire Texture" tag="2" id="sfC-eT-3oc">
+                                                        <menuItem title="Upscaled Texture (Visible)" tag="2" id="sfC-eT-3oc">
                                                             <modifierMask key="keyEquivalentModifierMask"/>
                                                         </menuItem>
-                                                        <menuItem title="Entire Texture (Upscaled)" tag="3" id="liY-R1-e1q">
+                                                        <menuItem title="Upscaled Texture (Entire)" tag="3" id="liY-R1-e1q">
+                                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                                        </menuItem>
+                                                        <menuItem title="Framebuffer" tag="4" id="LjM-aU-onP">
                                                             <modifierMask key="keyEquivalentModifierMask"/>
                                                         </menuItem>
                                                     </items>
@@ -266,7 +266,7 @@
                                             <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
                                             <popUpButtonCell key="cell" type="push" title="TIFF image" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" autoenablesItems="NO" selectedItem="1yz-yK-0RR" id="YMC-wt-brN">
                                                 <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" title="OtherViews" autoenablesItems="NO" id="Wwh-RJ-y07">
                                                     <items>
                                                         <menuItem title="TIFF image" state="on" id="1yz-yK-0RR">
@@ -332,7 +332,7 @@
                                             <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
                                             <popUpButtonCell key="cell" type="push" title="Visible Texture" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" autoenablesItems="NO" selectedItem="dd1-rv-WCT" id="MOQ-mo-kbo">
                                                 <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" title="OtherViews" autoenablesItems="NO" id="S3E-fV-Bay">
                                                     <items>
                                                         <menuItem title="Visible Texture" state="on" id="dd1-rv-WCT">
@@ -954,7 +954,7 @@
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                             <popUpButtonCell key="cell" type="push" title="Revert to..." bezelStyle="rounded" imagePosition="right" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" selectedItem="u2l-25-Lhv" id="tK5-9p-g2H" userLabel="System">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" title="Restore" id="KGz-GH-U3J">
                                                     <items>
                                                         <menuItem title="Revert to..." hidden="YES" id="u2l-25-Lhv">
@@ -1108,105 +1108,19 @@
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <box verticalHuggingPriority="750" boxType="separator" id="vQF-Af-cYM">
-                                            <rect key="frame" x="17" y="55" width="561" height="5"/>
+                                            <rect key="frame" x="20" y="55" width="563" height="5"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMaxY="YES"/>
                                         </box>
-                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1ek-cA-Oma">
-                                            <rect key="frame" x="459" y="146" width="121" height="14"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" alignment="left" title="Right Stick" id="Aa9-T9-IFg">
-                                                <font key="font" metaFont="smallSystem"/>
-                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
-                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="G3e-Ea-Xvj">
-                                            <rect key="frame" x="21" y="208" width="121" height="14"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" alignment="left" title="Hat Switch" id="3f7-fr-3yk">
-                                                <font key="font" metaFont="smallSystem"/>
-                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
-                                        <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="0sa-cN-ImA">
-                                            <rect key="frame" x="455" y="116" width="128" height="25"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <popUpButtonCell key="cell" type="push" title="A2 + A5" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" selectedItem="icV-cr-TYz" id="Q46-Ka-huZ">
-                                                <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
-                                                <menu key="menu" id="7Ea-we-l9b">
-                                                    <items>
-                                                        <menuItem title="A2 + A5" state="on" id="icV-cr-TYz"/>
-                                                        <menuItem title="A2 + A3" tag="1" id="05k-FN-6ln"/>
-                                                        <menuItem title="A3 + A4" tag="2" id="2dY-yD-rmk"/>
-                                                        <menuItem title="A3 + A4 rev" tag="3" id="z43-Ya-mae"/>
-                                                    </items>
-                                                </menu>
-                                            </popUpButtonCell>
-                                            <connections>
-                                                <action selector="devRightAction:" target="-2" id="UKl-gN-DW5"/>
-                                            </connections>
-                                        </popUpButton>
-                                        <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8B9-QV-Z6T">
-                                            <rect key="frame" x="16" y="116" width="128" height="25"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <popUpButtonCell key="cell" type="push" title="A0 + A1" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" selectedItem="Vpv-pS-lNG" id="lyf-uv-dBl">
-                                                <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
-                                                <menu key="menu" id="loR-Rr-9hA">
-                                                    <items>
-                                                        <menuItem title="A0 + A1" state="on" id="Vpv-pS-lNG"/>
-                                                        <menuItem title="A0 + A1 rev" tag="1" id="di1-ad-2rm"/>
-                                                    </items>
-                                                </menu>
-                                            </popUpButtonCell>
-                                            <connections>
-                                                <action selector="devLeftAction:" target="-2" id="vvj-ZT-GEF"/>
-                                            </connections>
-                                        </popUpButton>
-                                        <popUpButton verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Cx8-Ww-EiR">
-                                            <rect key="frame" x="17" y="179" width="128" height="25"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <popUpButtonCell key="cell" type="push" title="H0 - H7" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" selectedItem="sv4-dI-KQh" id="nGl-Eu-Cwo">
-                                                <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
-                                                <menu key="menu" id="Ban-7g-8gH">
-                                                    <items>
-                                                        <menuItem title="H0 - H7" state="on" id="sv4-dI-KQh"/>
-                                                        <menuItem title="H1 - H8" tag="1" id="8bD-wh-ttJ"/>
-                                                        <menuItem title="B4 - B7" tag="2" id="UmZ-s8-aUK"/>
-                                                        <menuItem title="B11 - B14" tag="3" id="Xhr-hl-pWS"/>
-                                                        <menuItem title="U90 - U93" tag="4" id="QdQ-ft-tD7"/>
-                                                    </items>
-                                                </menu>
-                                            </popUpButtonCell>
-                                            <connections>
-                                                <action selector="devHatSwitchAction:" target="-2" id="IKm-nC-tKu"/>
-                                            </connections>
-                                        </popUpButton>
-                                        <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Ljn-nh-euA">
-                                            <rect key="frame" x="152" y="80" width="292" height="163"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" image="gamepad" id="pzJ-iH-NVU"/>
-                                        </imageView>
-                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Rc7-zK-Xze">
-                                            <rect key="frame" x="20" y="145" width="121" height="14"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" alignment="left" title="Left Stick" id="BjR-dj-z7S">
-                                                <font key="font" metaFont="smallSystem"/>
-                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
                                         <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="V9X-FA-6vA">
-                                            <rect key="frame" x="179" y="391" width="239" height="24"/>
+                                            <rect key="frame" x="168" y="391" width="266" height="24"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="W3f-XA-JgR">
                                                 <font key="font" metaFont="system"/>
                                                 <segments>
-                                                    <segment label="External Device 1" selected="YES"/>
-                                                    <segment label="External Device 2" tag="1"/>
+                                                    <segment label="Device 1" selected="YES" tag="3"/>
+                                                    <segment label="Device 2" tag="4"/>
+                                                    <segment label="Device 3" tag="5"/>
+                                                    <segment label="Device 4" tag="6"/>
                                                 </segments>
                                             </segmentedCell>
                                             <connections>
@@ -1214,10 +1128,10 @@
                                             </connections>
                                         </segmentedControl>
                                         <box fixedFrame="YES" title="Box" titlePosition="noTitle" translatesAutoresizingMaskIntoConstraints="NO" id="Dto-Ac-z5q">
-                                            <rect key="frame" x="17" y="244" width="565" height="123"/>
+                                            <rect key="frame" x="17" y="244" width="569" height="123"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <view key="contentView" id="Sf3-3T-kwN">
-                                                <rect key="frame" x="4" y="5" width="557" height="115"/>
+                                                <rect key="frame" x="4" y="5" width="561" height="115"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
                                                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Q7W-l5-jgx">
@@ -1403,24 +1317,6 @@
                                                 </subviews>
                                             </view>
                                         </box>
-                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="nWG-QZ-bo4">
-                                            <rect key="frame" x="241" y="99" width="116" height="16"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Label" id="Zzh-hG-xh6">
-                                                <font key="font" usesAppearanceFont="YES"/>
-                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
-                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="VZ1-e1-hp3">
-                                            <rect key="frame" x="229" y="80" width="141" height="16"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                            <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Label" id="A62-Fs-myd">
-                                                <font key="font" usesAppearanceFont="YES"/>
-                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                            </textFieldCell>
-                                        </textField>
                                         <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="v81-ep-HXC">
                                             <rect key="frame" x="17" y="372" width="564" height="14"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
@@ -1435,7 +1331,7 @@
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                             <popUpButtonCell key="cell" type="push" title="Revert to..." bezelStyle="rounded" imagePosition="right" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" selectedItem="peY-Oq-nfP" id="6J4-6V-T2c" userLabel="System">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" title="Restore" id="dV1-7v-hgP">
                                                     <items>
                                                         <menuItem title="Revert to..." hidden="YES" id="peY-Oq-nfP">
@@ -1451,8 +1347,69 @@
                                                 <action selector="devPresetAction:" target="-2" id="dZ4-Ae-iBN"/>
                                             </connections>
                                         </popUpButton>
+                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="nWG-QZ-bo4">
+                                            <rect key="frame" x="99" y="91" width="116" height="16"/>
+                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                            <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Label" id="Zzh-hG-xh6">
+                                                <font key="font" usesAppearanceFont="YES"/>
+                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                            </textFieldCell>
+                                        </textField>
+                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="VZ1-e1-hp3">
+                                            <rect key="frame" x="87" y="72" width="141" height="16"/>
+                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                            <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Label" id="A62-Fs-myd">
+                                                <font key="font" usesAppearanceFont="YES"/>
+                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                            </textFieldCell>
+                                        </textField>
+                                        <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="5Wj-hw-28o">
+                                            <rect key="frame" x="111" y="212" width="94" height="16"/>
+                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                            <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Label" id="d4f-nQ-UO9">
+                                                <font key="font" usesAppearanceFont="YES"/>
+                                                <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                            </textFieldCell>
+                                        </textField>
+                                        <scrollView fixedFrame="YES" borderType="none" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasHorizontalScroller="NO" translatesAutoresizingMaskIntoConstraints="NO" id="H8h-C1-gQm">
+                                            <rect key="frame" x="305" y="79" width="278" height="149"/>
+                                            <autoresizingMask key="autoresizingMask"/>
+                                            <clipView key="contentView" drawsBackground="NO" id="ZbA-Ci-i6F">
+                                                <rect key="frame" x="0.0" y="0.0" width="278" height="149"/>
+                                                <autoresizingMask key="autoresizingMask"/>
+                                                <subviews>
+                                                    <textView wantsLayer="YES" importsGraphics="NO" richText="NO" verticallyResizable="YES" spellingCorrection="YES" smartInsertDelete="YES" id="lue-lV-Oit">
+                                                        <rect key="frame" x="0.0" y="0.0" width="278" height="149"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                        <size key="minSize" width="278" height="149"/>
+                                                        <size key="maxSize" width="278" height="10000000"/>
+                                                        <connections>
+                                                            <outlet property="delegate" destination="-2" id="sDV-l9-oMY"/>
+                                                        </connections>
+                                                    </textView>
+                                                </subviews>
+                                            </clipView>
+                                            <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="Byk-18-gFQ">
+                                                <rect key="frame" x="-100" y="-100" width="225" height="15"/>
+                                                <autoresizingMask key="autoresizingMask"/>
+                                            </scroller>
+                                            <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="8Eo-NY-Mg1">
+                                                <rect key="frame" x="263" y="0.0" width="15" height="149"/>
+                                                <autoresizingMask key="autoresizingMask"/>
+                                            </scroller>
+                                        </scrollView>
+                                        <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Ljn-nh-euA">
+                                            <rect key="frame" x="20" y="79" width="277" height="149"/>
+                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                            <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" image="gamepad" id="pzJ-iH-NVU"/>
+                                        </imageView>
                                         <button verticalHuggingPriority="750" id="Wmt-KA-dLs">
-                                            <rect key="frame" x="527" y="10" width="59" height="32"/>
+                                            <rect key="frame" x="531" y="10" width="59" height="32"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                             <buttonCell key="cell" type="push" title="OK" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="fiW-x3-79i">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -1479,7 +1436,7 @@
         </window>
     </objects>
     <resources>
-        <image name="gamepad" width="316" height="151"/>
+        <image name="gamepad" width="244" height="151"/>
         <image name="joystick2" width="261" height="300"/>
         <image name="mouse" width="128" height="128"/>
         <image name="recordKey" width="36" height="36"/>

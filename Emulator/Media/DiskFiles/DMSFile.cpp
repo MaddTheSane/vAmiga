@@ -26,9 +26,15 @@ DMSFile::isCompatible(const std::filesystem::path &path)
 }
 
 bool
-DMSFile::isCompatible(std::istream &stream)
-{                                                                                            
-    return util::matchingStreamHeader(stream, "DMS!");
+DMSFile::isCompatible(const u8 *buf, isize len)
+{
+    return util::matchingBufferHeader(buf, "DMS!");
+}
+
+bool
+DMSFile::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 void
@@ -45,7 +51,7 @@ DMSFile::finalizeRead()
     }
     
     if (adfData) free(adfData);
-    if (!adf) throw Error(ERROR_DMS_CANT_CREATE);
+    if (!adf) throw Error(VAERROR_DMS_CANT_CREATE);
 }
 
 }

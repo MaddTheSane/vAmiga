@@ -14,10 +14,11 @@
 #include "SerServer.h"
 #include "RshServer.h"
 #include "GdbServer.h"
+#include "PromServer.h"
 
 namespace vamiga {
 
-class RemoteManager : public SubComponent, public Inspectable<RemoteManagerInfo> {
+class RemoteManager final : public SubComponent, public Inspectable<RemoteManagerInfo> {
 
     Descriptions descriptions = {{
 
@@ -35,11 +36,12 @@ public:
     // The remote servers
     SerServer serServer = SerServer(amiga, SERVER_SER);
     RshServer rshServer = RshServer(amiga, SERVER_RSH);
+    PromServer promServer = PromServer(amiga, SERVER_PROM);
     GdbServer gdbServer = GdbServer(amiga, SERVER_GDB);
-    
-    // Convenience wrapper
+
+    // Convenience access
     std::vector <RemoteServer *> servers = {
-        &serServer, &rshServer, &gdbServer
+        &serServer, &rshServer, &gdbServer, &promServer
     };
 
     

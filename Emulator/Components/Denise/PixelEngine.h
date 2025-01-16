@@ -17,13 +17,13 @@
 
 namespace vamiga {
 
-class PixelEngine : public SubComponent {
+class PixelEngine final : public SubComponent {
 
     Descriptions descriptions = {{
 
         .type           = PixelEngineClass,
         .name           = "PixelEngine",
-        .description    = "Pixel Engine",
+        .description    = "Amiga Monitor",
         .shell          = "monitor"
     }};
 

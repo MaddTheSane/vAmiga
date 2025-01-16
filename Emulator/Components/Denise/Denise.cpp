@@ -64,7 +64,7 @@ Denise::checkOption(Option opt, i64 value)
         case OPT_DENISE_REVISION:
 
             if (!DeniseRevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DeniseRevisionEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, DeniseRevisionEnum::keyList());
             }
             return;
 
@@ -81,7 +81,7 @@ Denise::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -1240,6 +1240,17 @@ Denise::checkP2PCollisions()
 void
 Denise::vsyncHandler()
 {
+    // Run the frame skip logic
+    if (frameSkips == 0) {
+
+        pixelEngine.swapBuffers();
+        frameSkips = emulator.isWarping() ? config.frameSkipping : 0;
+
+    } else {
+
+        frameSkips--;
+    }
+    
     hflop = true; // ???
     markBorderBufferAsDirty();
     pixelEngine.vsyncHandler();
@@ -1260,7 +1271,7 @@ Denise::hsyncHandler(isize vpos)
     updateBorderBuffer();
 
     // Check if we are below the VBLANK area
-    if (vpos >= 26 && !frameSkips) {
+    if (!agnus.inVBlankArea(vpos) && !frameSkips) {
 
         // Translate bitplane data to color register indices
         translate();
@@ -1295,7 +1306,7 @@ Denise::hsyncHandler(isize vpos)
     assert(diwChanges.isEmpty());
     
     // Clear the last pixel if this line was a short line
-    if (agnus.pos.hLatched == HPOS_CNT_PAL) pixelEngine.getWorkingBuffer().clear(vpos, HPOS_MAX);
+    if (agnus.pos.hLatched == PAL::HPOS_CNT) pixelEngine.getWorkingBuffer().clear(vpos, HPOS_MAX);
 
     // Clear the dBuffer
     std::memset(dBuffer, 0, sizeof(dBuffer));
@@ -1331,17 +1342,6 @@ Denise::eofHandler()
 
     pixelEngine.eofHandler();
     debugger.eofHandler();
-
-    // Run the frame skip logic
-    if (frameSkips == 0) {
-
-        pixelEngine.swapBuffers();
-        frameSkips = emulator.isWarping() ? config.frameSkipping : 0;
-
-    } else {
-
-        frameSkips--;
-    }
 }
 
 template void Denise::drawOdd<false>(Pixel offset);

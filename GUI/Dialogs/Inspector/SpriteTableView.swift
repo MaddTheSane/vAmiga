@@ -15,7 +15,7 @@ class SpriteTableView: NSTableView {
 
     var amiga: EmulatorProxy!
 
-    var spriteDat = [UInt64](repeating: 0, count: Int(Constants.vpos_cnt))
+    var spriteDat = [UInt64](repeating: 0, count: VAMIGA.VPOS.CNT)
     var spriteCol = [NSColor](repeating: NSColor.white, count: 16)
     var spriteLines = 0
 
@@ -57,7 +57,7 @@ class SpriteTableView: NSTableView {
         cache()
 
         if full {
-            for (c, f) in ["addr": fmt24] {
+            for (c, f) in ["addr": inspector.fmt24] {
                 let columnId = NSUserInterfaceItemIdentifier(rawValue: c)
                 if let column = tableColumn(withIdentifier: columnId) {
                     if let cell = column.dataCell as? NSCell {

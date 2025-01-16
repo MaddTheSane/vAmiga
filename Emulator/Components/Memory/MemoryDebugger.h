@@ -116,7 +116,9 @@ public:
     //
     // Handling registers
     //
-
+    
+public:
+    
     // Returns the name of a chipset register
     static const char *regName(u32 addr);
 
@@ -129,10 +131,13 @@ public:
 
 
     //
-    // Displaying expressions (TODO: REPLACE BY GENERIC FORMAT STRING FORMATTER)
+    // Displaying expressions
     //
 
+public:
+        
     // Displays a value in different number formats (hex, dec, bin, alpha)
+    // TODO: REPLACE BY GENERIC FORMAT STRING FORMATTER
     void convertNumeric(std::ostream& os, u8 value) const;
     void convertNumeric(std::ostream& os, u16 value) const;
     void convertNumeric(std::ostream& os, u32 value) const;

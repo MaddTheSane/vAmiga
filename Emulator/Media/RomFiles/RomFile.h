@@ -18,7 +18,7 @@ class RomFile : public AmigaFile {
 
     // Accepted header signatures
     static const u8 bootRomHeaders[1][8];
-    static const u8 kickRomHeaders[8][7];
+    static const u8 kickRomHeaders[10][7];
     static const u8 encrRomHeaders[1][11];
 
     // Path to the rom.key file (if needed)
@@ -27,10 +27,8 @@ class RomFile : public AmigaFile {
 public:
 
     static bool isCompatible(const std::filesystem::path &path);
-    static bool isCompatible(std::istream &stream);
-
-    static bool isRomBuffer(const u8 *buf, isize len);
-    static bool isRomFile(const std::filesystem::path &path);
+    static bool isCompatible(const u8 *buf, isize len);
+    static bool isCompatible(const Buffer<u8> &buffer);
 
 
     //
@@ -38,7 +36,6 @@ public:
     //
 
     RomFile(const std::filesystem::path &path) throws { init(path); }
-    RomFile(const std::filesystem::path &path, std::istream &stream) throws { init(path, stream); }
     RomFile(const u8 *buf, isize len) throws { init(buf, len); }
 
     const char *objectName() const override { return "ROM"; }
@@ -50,7 +47,7 @@ public:
 
     FileType type() const override { return FILETYPE_ROM; }
     bool isCompatiblePath(const std::filesystem::path &path) const override { return isCompatible(path); }
-    bool isCompatibleStream(std::istream &stream) const override { return isCompatible(stream); }
+    bool isCompatibleBuffer(const u8 *buf, isize len) override { return isCompatible(buf, len); }
 
 
     //

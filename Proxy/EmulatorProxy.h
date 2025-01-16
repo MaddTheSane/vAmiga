@@ -14,6 +14,7 @@
 #import <Cocoa/Cocoa.h>
 #import <MetalKit/MetalKit.h>
 
+using namespace vamiga;
 
 //
 // Forward declarations
@@ -38,6 +39,7 @@
 @class HdControllerProxy;
 @class JoystickProxy;
 @class KeyboardProxy;
+@class LogicAnalyzerProxy;
 @class MediaFileProxy;
 @class MemProxy;
 @class MouseProxy;
@@ -50,6 +52,79 @@
 @class SerialPortProxy;
 @class VideoPortProxy;
 
+//
+// Constants
+//
+
+typedef struct {
+    
+    struct {
+        
+        struct {
+            NSInteger CLK;
+            NSInteger DMA;
+            NSInteger CPU;
+        } FREQUENCY;
+        
+        struct {
+            NSInteger CNT_LF;
+            NSInteger CNT_SF;
+            NSInteger CNT;
+            NSInteger MAX_LF;
+            NSInteger MAX_SF;
+            NSInteger MAX;
+        } VPOS;
+        
+        struct {
+            NSInteger CNT_LL;
+            NSInteger CNT_SL;
+            NSInteger CNT;
+            NSInteger MAX_LL;
+            NSInteger MAX_SL;
+            NSInteger MAX;
+        } HPOS;
+        
+        struct {
+            NSInteger MIN;
+            NSInteger MAX;
+            NSInteger CNT;
+        } VBLANK;
+    } PAL, NTSC;
+    
+    struct {
+        NSInteger CNT;
+        NSInteger MAX;
+    } VPOS;
+    
+    struct {
+        NSInteger CNT;
+        NSInteger MAX;
+    } HPOS;
+    
+    struct {
+        NSInteger MIN;
+        NSInteger MAX;
+        NSInteger CNT;
+    } HBLANK;
+    
+    NSInteger VPIXELS;
+    NSInteger HPIXELS;
+    NSInteger PIXELS;
+    
+    struct {
+        NSInteger C_MIN;
+        NSInteger C_MAX;
+        NSInteger H_MIN;
+        NSInteger H_MAX;
+        NSInteger S_MIN;
+        NSInteger S_MAX;
+    } HDR;
+    
+} VAmigaConstants;
+
+extern const VAmigaConstants VAMIGA;
+
+NSString *EventSlotName(NSInteger slot);
 
 //
 // Exception wrapper
@@ -89,46 +164,6 @@
 
 
 //
-// Constants
-//
-
-@interface Constants : NSObject {
-
-}
-
-@property (class, readonly) NSInteger hpixels;
-@property (class, readonly) NSInteger vpixels;
-
-@property (class, readonly) NSInteger hblank_cnt;
-@property (class, readonly) NSInteger hblank_min;
-@property (class, readonly) NSInteger hblank_max;
-
-@property (class, readonly) NSInteger vblank_cnt;
-@property (class, readonly) NSInteger vblank_min;
-@property (class, readonly) NSInteger vblank_max;
-
-@property (class, readonly) NSInteger vpos_cnt_pal;
-@property (class, readonly) NSInteger vpos_max_pal;
-
-@property (class, readonly) NSInteger vpos_cnt_ntsc;
-@property (class, readonly) NSInteger vpos_max_ntsc;
-
-@property (class, readonly) NSInteger vpos_cnt;
-@property (class, readonly) NSInteger vpos_max;
-
-@property (class, readonly) NSInteger hpos_cnt_pal;
-@property (class, readonly) NSInteger hpos_max_pal;
-
-@property (class, readonly) NSInteger hpos_cnt_ntsc;
-@property (class, readonly) NSInteger hpos_max_ntsc;
-
-@property (class, readonly) NSInteger hpos_max;
-@property (class, readonly) NSInteger hpos_cnt;
-
-@end
-
-
-//
 // Emulator
 //
 
@@ -157,6 +192,7 @@
     HardDriveProxy *hd2;
     HardDriveProxy *hd3;
     KeyboardProxy *keyboard;
+    LogicAnalyzerProxy *logicAnalyzer;
     MemProxy *mem;
     PaulaProxy *paula;
     DefaultsProxy *properties;
@@ -193,6 +229,7 @@
 @property (readonly, strong) HardDriveProxy *hd2;
 @property (readonly, strong) HardDriveProxy *hd3;
 @property (readonly, strong) KeyboardProxy *keyboard;
+@property (readonly, strong) LogicAnalyzerProxy *logicAnalyzer;
 @property (readonly, strong) MemProxy *mem;
 @property (readonly, strong) PaulaProxy *paula;
 @property (readonly, strong) RemoteManagerProxy *remoteManager;
@@ -247,6 +284,9 @@
 
 - (void)stepInto;
 - (void)stepOver;
+- (void)finishLine;
+- (void)finishFrame;
+
 
 - (NSInteger)get:(Option)opt;
 - (NSInteger)get:(Option)opt id:(NSInteger)id;
@@ -368,6 +408,8 @@
 - (MediaFileProxy *) takeSnapshot;
 - (void) loadSnapshot:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 
+@property (readonly) NSString *stateString;
+
 @end
 
 
@@ -417,6 +459,7 @@
 - (MemorySource)memSrc:(Accessor)accessor addr:(NSInteger)addr;
 - (NSInteger)spypeek16:(Accessor)accessor addr:(NSInteger)addr;
 
+- (NSString *)regName:(NSInteger)addr;
 - (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes;
 - (NSString *)hexDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes;
 
@@ -494,6 +537,20 @@
 @interface DmaDebuggerProxy : Proxy { }
 
 @property (readonly) DmaDebuggerInfo info;
+
+@end
+
+
+//
+// LogicAnalyzer
+//
+
+@interface LogicAnalyzerProxy : Proxy { }
+
+- (const NSInteger *)getData:(NSInteger)channel;
+- (const BusOwner *)busOwners;
+- (const u32 *)addrBus;
+- (const u16 *)dataBus;
 
 @end
 
@@ -593,6 +650,8 @@
 
 @interface VideoPortProxy : CoreComponentProxy { }
 
+- (void)lockTexture;
+- (void)unlockTexture;
 - (void)texture:(const u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof;
 
 @end
@@ -807,6 +866,7 @@
 - (void)pressSpecialKey:(RetroShellKey)key;
 - (void)pressSpecialKey:(RetroShellKey)key shift:(BOOL)shift;
 - (void)executeScript:(MediaFileProxy *)file;
+- (void)executeString:(NSString *)string;
 
 @end
 
@@ -859,6 +919,8 @@
 @property (readonly) FileType type;
 @property (readonly) u64 fnv;
 @property (readonly) NSInteger size;
+@property (readonly) BOOL compressed;
+
 @property (readonly) u8 *data;
 
 - (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex;

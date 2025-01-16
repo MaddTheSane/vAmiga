@@ -11,8 +11,10 @@
 
 #include "RomFileTypes.h"
 
-static std::vector<RomTraits> roms = {
+namespace vamiga {
 
+static std::vector<RomTraits> roms = {
+    
     {
         .crc        = CRC32_BOOT_A1000_8K,
         .title      = "Amiga 1000 Boot Rom",
@@ -416,11 +418,20 @@ static std::vector<RomTraits> roms = {
         .model      = "",
         .vendor     = ROM_VENDOR_DIAG
     },{
-        .crc        = CRC32_LOGICA20,
-        .title      = "Logica Diagnostic",
-        .revision   = "Version 2.0",
-        .released   = "",
-        .model      = "",
-        .vendor     = ROM_VENDOR_DIAG
-    }
+        .crc        = CRC32_CPUBLTRO_F8_0_3_2,
+        .title      = "OCS CPUBLTRO",
+        .revision   = "Version 0.3.2",
+        .released   = "November 2024",
+        .model      = "512 KB",
+        .vendor     = ROM_VENDOR_DEMO
+    },{
+        .crc        = CRC32_CPUBLTRO_FC_0_3_2,
+        .title      = "OCS CPUBLTRO",
+        .revision   = "Version 0.3.2",
+        .released   = "November 2024",
+        .model      = "256 KB",
+        .vendor     = ROM_VENDOR_DEMO
+    },
 };
+
+}

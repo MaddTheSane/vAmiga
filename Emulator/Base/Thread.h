@@ -40,17 +40,21 @@ protected:
     ExecState newState = STATE_UNINIT;
     std::atomic_flag stateChangeRequest {};
 
+    // Synchronization mutex
+    util::ReentrantMutex lock;
+    
     // Warp state and track state
     u8 warp = 0;
     u8 track = 0;
 
     // Counters
     isize suspendCounter = 0;
+    isize frameCounter = 0;
     isize statsCounter = 0;
 
     // Time stamps
     util::Time baseTime;
-    Cycle baseCycle = 0;
+    // Cycle baseCycle = 0;
 
     // Clocks for measuring the CPU load
     util::Clock nonstopClock;
@@ -108,12 +112,6 @@ private:
     // Number of overdue time slices (used in pulsed sync mode)
     virtual isize missingFrames() const = 0;
 
-    // Target frame rate of this thread (provided by the subclass)
-    virtual double refreshRate() const = 0;
-
-    // Target frame rate of this thread (provided by the subclass)
-    virtual Cycle currentCycle() const = 0;
-
     // The code to be executed in each iteration (implemented by the subclass)
     virtual void computeFrame() = 0;
 
@@ -163,10 +161,10 @@ public:
     bool isPoweredOff() const { return state == STATE_UNINIT || state == STATE_OFF; }
     bool isPaused() const { return state == STATE_PAUSED; }
     bool isRunning() const { return state == STATE_RUNNING; }
-    bool isSuspended() const { return state == STATE_SUSPENDED; }
     bool isHalted() const { return state == STATE_HALTED; }
     bool isWarping() const { return warp != 0; }
     bool isTracking() const { return track != 0; }
+    bool isSuspended() const { return suspendCounter > 0; }
 
     void powerOn();
     void powerOff();

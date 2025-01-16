@@ -66,6 +66,12 @@ AmigaAPI::getCachedInfo() const
 // Components (Agnus)
 //
 
+const LogicAnalyzerConfig &
+LogicAnalyzerAPI::getConfig() const
+{
+    return logicAnalyzer->getConfig();
+}
+
 const DmaDebuggerConfig &
 DmaDebuggerAPI::getConfig() const
 {
@@ -405,6 +411,8 @@ DeniseAPI::getCachedInfo() const
 MemorySource 
 MemoryDebuggerAPI::getMemSrc(Accessor acc, u32 addr) const
 {
+    assert(isUserThread());
+    
     switch (acc) {
 
         case ACCESSOR_CPU:      return mem->getMemSrc<ACCESSOR_CPU>(addr);
@@ -418,6 +426,8 @@ MemoryDebuggerAPI::getMemSrc(Accessor acc, u32 addr) const
 u8
 MemoryDebuggerAPI::spypeek8(Accessor acc, u32 addr) const
 {
+    assert(isUserThread());
+    
     switch (acc) {
 
         case ACCESSOR_CPU:      return mem->spypeek8<ACCESSOR_CPU>(addr);
@@ -431,6 +441,8 @@ MemoryDebuggerAPI::spypeek8(Accessor acc, u32 addr) const
 u16 
 MemoryDebuggerAPI::spypeek16(Accessor acc, u32 addr) const
 {
+    assert(isUserThread());
+    
     switch (acc) {
 
         case ACCESSOR_CPU:      return mem->spypeek16<ACCESSOR_CPU>(addr);
@@ -811,18 +823,22 @@ SerialPortAPI::readOutgoingPrintableByte() const
 // Ports (VideoPort)
 //
 
-/*
-const class FrameBuffer &
-VideoPortAPI::getTexture() const
+void
+VideoPortAPI::lockTexture()
 {
-    return videoPort->getTexture();
+    emu->lockTexture();
 }
-*/
+
+void
+VideoPortAPI::unlockTexture()
+{
+    emu->unlockTexture();
+}
 
 const u32 *
 VideoPortAPI::getTexture() const
 {
-    return emu->getTexture().pixels.ptr;
+    return (u32 *)emu->getTexture().pixels.ptr;
 }
 
 const u32 *
@@ -834,7 +850,7 @@ VideoPortAPI::getTexture(isize *nr, bool *lof, bool *prevlof) const
     *lof = frameBuffer.lof;
     *prevlof = frameBuffer.prevlof;
 
-    return frameBuffer.pixels.ptr;
+    return (u32 *)frameBuffer.pixels.ptr;
 }
 
 
@@ -855,17 +871,51 @@ KeyboardAPI::isPressed(KeyCode key) const
 void
 KeyboardAPI::press(KeyCode key, double delay, double duration)
 {
-    emu->put(Cmd(CMD_KEY_PRESS, KeyCmd { .keycode = key, .delay = delay }));
+    if (delay == 0.0) {
 
+        keyboard->press(key);
+        emu->isDirty = true;
+
+    } else {
+        
+        emu->put(Cmd(CMD_KEY_PRESS, KeyCmd { .keycode = key, .delay = delay }));
+    }
     if (duration != 0.0) {
+        
         emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay + duration }));
+    }
+}
+
+void
+KeyboardAPI::toggle(KeyCode key, double delay, double duration)
+{
+    if (delay == 0.0) {
+        
+        keyboard->toggle(key);
+        emu->isDirty = true;
+        
+    } else {
+        
+        emu->put(Cmd(CMD_KEY_TOGGLE, KeyCmd { .keycode = key, .delay = delay }));
+    }
+    if (duration != 0.0) {
+        
+        emu->put(Cmd(CMD_KEY_TOGGLE, KeyCmd { .keycode = key, .delay = delay + duration }));
     }
 }
 
 void
 KeyboardAPI::release(KeyCode key, double delay)
 {
-    emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay }));
+    if (delay == 0.0) {
+        
+        keyboard->release(key);
+        emu->isDirty = true;
+        
+    } else {
+        
+        emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay }));
+    }
 }
 
 void
@@ -1493,6 +1543,8 @@ VAmiga::VAmiga() {
 
     agnus.emu = emu;
     agnus.agnus = &emu->main.agnus;
+    agnus.logicAnalyzer.emu = emu;
+    agnus.logicAnalyzer.logicAnalyzer = &emu->main.logicAnalyzer;
     agnus.dma.emu = emu;
     agnus.dma.debugger.emu = emu;
     agnus.dma.debugger.dmaDebugger = &emu->main.agnus.dmaDebugger;
@@ -1808,6 +1860,18 @@ VAmiga::stepOver()
 }
 
 void
+VAmiga::finishLine()
+{
+    emu->finishLine();
+}
+
+void
+VAmiga::finishFrame()
+{
+    emu->finishFrame();
+}
+
+void
 VAmiga::wakeUp()
 {
     emu->wakeUp();
@@ -1916,6 +1980,5 @@ AmigaAPI::setAutoInspectionMask(u64 mask)
 {
     amiga->setAutoInspectionMask(mask);
 }
-
 
 }

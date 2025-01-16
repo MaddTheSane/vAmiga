@@ -9,19 +9,19 @@
 
 #pragma once
 
-#include "RemoteServer.h"
+#include "SocketServer.h"
 
 namespace vamiga {
 
-class RshServer : public RemoteServer {
+class RshServer final : public SocketServer {
 
 public:
     
-    using RemoteServer::RemoteServer;
+    using SocketServer::SocketServer;
 
     RshServer& operator= (const RshServer& other) {
 
-        RemoteServer::operator = (other);
+        SocketServer::operator = (other);
         return *this;
     }
 
@@ -38,6 +38,16 @@ private:
     //
     // Methods from RemoteServer
     //
+
+public:
+
+    // bool shouldRun() override { return true; }
+
+
+    //
+    // Methods from SocketServer
+    //
+
     
     string doReceive() throws override;
     void doProcess(const string &packet) throws override;

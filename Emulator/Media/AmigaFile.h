@@ -79,13 +79,14 @@ public:
 
     virtual ~AmigaFile();
 
-    void init(std::istream &stream) throws;
-    void init(const std::filesystem::path &path, std::istream &stream) throws;
+    // void init(std::istream &stream) throws;
+    // void init(const std::filesystem::path &path, std::istream &stream) throws;
     void init(isize len) throws;
     void init(const u8 *buf, isize len) throws;
     void init(const Buffer<u8> &buffer) throws;
+    void init(const string &str) throws;
     void init(const std::filesystem::path &path) throws;
-    void init(FILE *file) throws;
+    // void init(FILE *file) throws;
     
     explicit operator bool() const { return data.ptr != nullptr; }
 
@@ -94,13 +95,15 @@ public:
     // Methods from CoreObject
     //
     
+    /*
 private:
     
     void _dump(Category category, std::ostream& os) const override { }
+     */
 
-    
+
     //
-    // Accessing
+    // Methods from MediaFile
     //
     
 public:
@@ -127,10 +130,11 @@ public:
 protected:
     
     virtual bool isCompatiblePath(const std::filesystem::path &path) const = 0;
-    virtual bool isCompatibleStream(std::istream &stream) const = 0;
-    
-    isize readFromStream(std::istream &stream) throws override;
-    isize readFromFile(const std::filesystem::path &path) throws override;
+    virtual bool isCompatibleBuffer(const u8 *buf, isize len) = 0;
+    bool isCompatibleBuffer(const Buffer<u8> &buffer);
+
+    // isize readFromStream(std::istream &stream) throws override;
+    // isize readFromFile(const std::filesystem::path &path) throws override;
     isize readFromBuffer(const u8 *buf, isize len) throws override;
     isize readFromBuffer(const Buffer<u8> &buffer) throws;
 

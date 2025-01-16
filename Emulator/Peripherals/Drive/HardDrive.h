@@ -18,7 +18,7 @@
 
 namespace vamiga {
 
-class HardDrive : public Drive, public Inspectable<HardDriveInfo> {
+class HardDrive final : public Drive, public Inspectable<HardDriveInfo> {
     
     Descriptions descriptions = {
         {
@@ -290,8 +290,6 @@ public:
     void cacheInfo(HardDriveInfo &info) const override;
 
     // Returns information about a specific partition
-    // void getPartitionInfo(isize nr) const;
-
     const PartitionDescriptor &getPartitionDescriptor(isize nr) const;
 
     // Returns the disk geometry

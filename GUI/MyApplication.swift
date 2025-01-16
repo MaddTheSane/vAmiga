@@ -88,6 +88,12 @@ class MyApplication: NSApplication {
     // Information provider for connected HID devices
     var database = DeviceDatabase()
     
+    // Command line arguments
+    var argv: [String] = []
+
+    // User activity token obtained in applicationDidFinishLaunching()
+    var token: NSObjectProtocol!
+    
     // List of recently inserted floppy disks (all drives share the same list)
     var insertedFloppyDisks: [URL] = []
     
@@ -107,13 +113,19 @@ class MyApplication: NSApplication {
     }
     
     public func applicationDidFinishLaunching(_ aNotification: Notification) {
-                        
+        
         debug(.lifetime)
+    
+        token = ProcessInfo.processInfo.beginActivity(options: [ .userInitiated ],
+                                                      reason: "Running vAmiga")
+
+        argv = Array(CommandLine.arguments.dropFirst())
     }
     
     public func applicationWillTerminate(_ aNotification: Notification) {
 
         debug(.lifetime)
+        ProcessInfo.processInfo.endActivity(token)
     }
     
     //
@@ -229,9 +241,14 @@ extension MyAppDelegate {
         prefController?.refresh()
     }
 
-    // Callen when a HID device has been pulled
+    // Callen when a HID event comes in
+    func hidEvent(event: HIDEvent, nr: Int, value: Int) {
+        prefController?.refreshDeviceEvent(event: event, nr: nr, value: value)
+    }
+
+    // Callen when a HID device triggers joystick actions
     func devicePulled(events: [GamePadAction]) {
-        prefController?.refreshDeviceEvents(events: events)
+        prefController?.refreshDeviceActions(actions: events)
     }
 }
 

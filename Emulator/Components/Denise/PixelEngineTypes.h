@@ -13,6 +13,8 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
@@ -28,12 +30,11 @@ enum_long(PALETTE)
 };
 typedef PALETTE Palette;
 
-#ifdef __cplusplus
-struct PaletteEnum : vamiga::util::Reflection<PaletteEnum, Palette>
-{    
+struct PaletteEnum : util::Reflection<PaletteEnum, Palette>
+{
     static constexpr long minVal = 0;
     static constexpr long maxVal = PALETTE_SEPIA;
-
+    
     static const char *prefix() { return "PALETTE"; }
     static const char *_key(long value)
     {
@@ -48,8 +49,21 @@ struct PaletteEnum : vamiga::util::Reflection<PaletteEnum, Palette>
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case PALETTE_COLOR:        return "Color palette";
+            case PALETTE_BLACK_WHITE:  return "Black and white palette";
+            case PALETTE_PAPER_WHITE:  return "Paper white palette";
+            case PALETTE_GREEN:        return "Green palette";
+            case PALETTE_AMBER:        return "Amber palette";
+            case PALETTE_SEPIA:        return "Sepia palette";
+        }
+        return "???";
+    }
 };
-#endif
+
 
 //
 // Structures
@@ -63,3 +77,5 @@ typedef struct
     isize saturation;
 }
 PixelEngineConfig;
+
+}

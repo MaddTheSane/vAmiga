@@ -13,7 +13,7 @@
 #include "ThreadTypes.h"
 #include "AmigaTypes.h"
 
-// namespace vamiga {
+namespace vamiga {
 
 //
 // Enumerations
@@ -33,7 +33,7 @@ enum_long(DEBUG_FLAG)
     FLAG_TIM_DEBUG,        ///< Thread synchronization
     FLAG_WARP_DEBUG,       ///< Warp mode
     FLAG_CMD_DEBUG,        ///< Debug the command queue
-    FLAG_QUEUE_DEBUG,      ///< Message queue
+    FLAG_MSG_DEBUG,        ///< Message queue
     FLAG_SNP_DEBUG,        ///< Serialization (snapshots)
 
     // Run ahead
@@ -43,7 +43,6 @@ enum_long(DEBUG_FLAG)
 
     // CPU
     FLAG_CPU_DEBUG,        ///< CPU
-    FLAG_CST_DEBUG,        ///< Call stack recording
 
     // Memory access
     FLAG_OCSREG_DEBUG,     ///< General OCS register debugging
@@ -71,7 +70,6 @@ enum_long(DEBUG_FLAG)
     FLAG_BLT_DEBUG,        ///< Blitter execution
     FLAG_BLTTIM_DEBUG,     ///< Blitter Timing
     FLAG_SLOW_BLT_DEBUG,   ///< Execute micro-instructions in one chunk
-    FLAG_OLD_LINE_BLIT,    ///< Use the old line blitter implementation
 
     // Denise
     FLAG_BPLREG_DEBUG,     ///< Bitplane registers
@@ -154,8 +152,7 @@ enum_long(DEBUG_FLAG)
 };
 typedef DEBUG_FLAG DebugFlag;
 
-#ifdef __cplusplus
-struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
+struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = FLAG_GDB_DEBUG;
@@ -177,7 +174,7 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
             case FLAG_TIM_DEBUG:        return "TIM_DEBUG";
             case FLAG_WARP_DEBUG:       return "WARP_DEBUG";
             case FLAG_CMD_DEBUG:        return "CMD_DEBUG";
-            case FLAG_QUEUE_DEBUG:      return "QUEUE_DEBUG";
+            case FLAG_MSG_DEBUG:        return "MSG_DEBUG";
             case FLAG_SNP_DEBUG:        return "SNP_DEBUG";
 
                 // Run ahead
@@ -187,7 +184,6 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
 
                 // CPU
             case FLAG_CPU_DEBUG:        return "CPU_DEBUG";
-            case FLAG_CST_DEBUG:        return "CST_DEBUG";
 
                 // Memory access
             case FLAG_OCSREG_DEBUG:     return "OCSREG_DEBUG";
@@ -215,7 +211,6 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
             case FLAG_BLT_DEBUG:        return "BLT_DEBUG";
             case FLAG_BLTTIM_DEBUG:     return "BLTTIM_DEBUG";
             case FLAG_SLOW_BLT_DEBUG:   return "SLOW_BLT_DEBUG";
-            case FLAG_OLD_LINE_BLIT:    return "OLD_LINE_BLIT";
 
                 // Denise
             case FLAG_BPLREG_DEBUG:     return "BPLREG_DEBUG";
@@ -315,12 +310,17 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
             case FLAG_TIM_DEBUG:        return "Thread synchronization";
             case FLAG_WARP_DEBUG:       return "Warp mode";
             case FLAG_CMD_DEBUG:        return "Command queue";
-            case FLAG_QUEUE_DEBUG:      return "Message queue";
+            case FLAG_MSG_DEBUG:        return "Message queue";
             case FLAG_SNP_DEBUG:        return "Serialization (snapshots)";
+
+                // Run ahead
+            case FLAG_RUA_DEBUG:        return "Inform about run-ahead activity";
+            case FLAG_RUA_CHECKSUM:     return "Verify the integrity of the run-ahead instance";
+            case FLAG_RUA_ON_STEROIDS:  return "Update the run-ahead instance in every frame";
+
 
                 // CPU
             case FLAG_CPU_DEBUG:        return "CPU";
-            case FLAG_CST_DEBUG:        return "Call stack recording";
 
                 // Memory access
             case FLAG_OCSREG_DEBUG:     return "General OCS register debugging";
@@ -348,7 +348,6 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
             case FLAG_BLT_DEBUG:        return "Blitter execution";
             case FLAG_BLTTIM_DEBUG:     return "Blitter Timing";
             case FLAG_SLOW_BLT_DEBUG:   return "Execute micro-instructions in one chunk";
-            case FLAG_OLD_LINE_BLIT:    return "Use the old line blitter implementation";
 
                 // Denise
             case FLAG_BPLREG_DEBUG:     return "Bitplane registers";
@@ -432,7 +431,6 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
         return "???";
     }
 };
-#endif
 
 //
 // Structures
@@ -442,7 +440,6 @@ struct DebugFlagEnum : vamiga::util::Reflection<DebugFlagEnum, DebugFlag>
 typedef struct
 {
     ExecState state;        ///< The current emulator state
-    isize refreshRate;      ///< Screen refresh rate of the virtual C64
     bool powered;           ///< Indicates if the emulator is powered on
     bool paused;            ///< Indicates if emulation is paused
     bool running;           ///< Indicates if the emulator is running
@@ -461,4 +458,4 @@ typedef struct
 }
 EmulatorStats;
 
-// }
+}

@@ -21,6 +21,7 @@ RemoteManager::RemoteManager(Amiga& ref) : SubComponent(ref)
         
         &serServer,
         &rshServer,
+        &promServer,
         &gdbServer
     };
 }
@@ -99,13 +100,16 @@ RemoteManager::serviceServerEvent()
 
     // Run the launch daemon
     if (serServer.config.autoRun) {
-        serServer.shouldRun() ? serServer._start() : serServer._stop();
+        serServer.shouldRun() ? serServer.start() : serServer.stop();
     }
     if (rshServer.config.autoRun) {
-        rshServer.shouldRun() ? rshServer._start() : rshServer._stop();
+        rshServer.shouldRun() ? rshServer.start() : rshServer.stop();
+    }
+    if (promServer.config.autoRun) {
+        promServer.shouldRun() ? promServer.start() : promServer.stop();
     }
     if (gdbServer.config.autoRun) {
-        gdbServer.shouldRun() ? gdbServer._start() : gdbServer._stop();
+        gdbServer.shouldRun() ? gdbServer.start() : gdbServer.stop();
     }
 
     // Schedule next event

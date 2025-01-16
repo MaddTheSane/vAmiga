@@ -1033,14 +1033,11 @@ extension Configuration {
 
         amiga.suspend()
 
-        warpMode = defaults.get(.AMIGA_WARP_MODE)
         warpBoot = defaults.get(.AMIGA_WARP_BOOT)
+        warpMode = defaults.get(.AMIGA_WARP_MODE)
+        speedBoost = defaults.get(.AMIGA_SPEED_BOOST)
         vsync = defaults.get(.AMIGA_VSYNC) != 0
-        timeLapse = defaults.get(.AMIGA_SPEED_BOOST)
         runAhead = defaults.get(.AMIGA_RUN_AHEAD)
-        clxSprSpr = defaults.get(.DENISE_CLX_SPR_SPR) != 0
-        clxSprPlf = defaults.get(.DENISE_CLX_SPR_PLF) != 0
-        clxPlfPlf = defaults.get(.DENISE_CLX_PLF_PLF) != 0
         frameSkipping = defaults.get(.DENISE_FRAME_SKIPPING)
         ciaIdleSleep = defaults.get(.CIA_IDLE_SLEEP) != 0
         audioFastPath = defaults.get(.AUD_FASTPATH) != 0
@@ -1058,11 +1055,8 @@ extension Configuration {
         defaults.set(.AMIGA_WARP_MODE, warpMode)
         defaults.set(.AMIGA_WARP_BOOT, warpBoot)
         defaults.set(.AMIGA_VSYNC, vsync)
-        defaults.set(.AMIGA_SPEED_BOOST, timeLapse)
+        defaults.set(.AMIGA_SPEED_BOOST, speedBoost)
         defaults.set(.AMIGA_RUN_AHEAD, runAhead)
-        defaults.set(.DENISE_CLX_SPR_SPR, clxSprSpr)
-        defaults.set(.DENISE_CLX_SPR_PLF, clxSprPlf)
-        defaults.set(.DENISE_CLX_PLF_PLF, clxPlfPlf)
         defaults.set(.DENISE_FRAME_SKIPPING, frameSkipping)
         defaults.set(.CIA_IDLE_SLEEP, [0,1], ciaIdleSleep)
         defaults.set(.AUD_FASTPATH, audioFastPath)
@@ -1096,6 +1090,9 @@ extension DefaultsProxy {
         remove(.DC_AUTO_DSKSYNC)
         remove(.DRIVE_MECHANICS, [ 0, 1, 2, 3])
         remove(.KBD_ACCURACY)
+        remove(.DENISE_CLX_PLF_PLF)
+        remove(.DENISE_CLX_SPR_PLF)
+        remove(.DENISE_CLX_SPR_SPR)
     }
 }
 
@@ -1116,6 +1113,9 @@ extension Configuration {
         defaults.set(.DC_AUTO_DSKSYNC, autoDskSync)
         defaults.set(.DRIVE_MECHANICS, [0, 1, 2, 3], driveMechanics)
         defaults.set(.KBD_ACCURACY, accurateKeyboard)
+        defaults.set(.DENISE_CLX_SPR_SPR, clxSprSpr)
+        defaults.set(.DENISE_CLX_SPR_PLF, clxSprPlf)
+        defaults.set(.DENISE_CLX_PLF_PLF, clxPlfPlf)
         defaults.save()
         
         amiga.resume()
@@ -1136,6 +1136,9 @@ extension Configuration {
         autoDskSync = defaults.get(.DC_AUTO_DSKSYNC) != 0
         driveMechanics = defaults.get(.DRIVE_MECHANICS, 0)
         accurateKeyboard = defaults.get(.KBD_ACCURACY) != 0
+        clxSprSpr = defaults.get(.DENISE_CLX_SPR_SPR) != 0
+        clxSprPlf = defaults.get(.DENISE_CLX_SPR_PLF) != 0
+        clxPlfPlf = defaults.get(.DENISE_CLX_PLF_PLF) != 0
 
         amiga.resume()
     }

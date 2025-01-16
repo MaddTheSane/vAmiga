@@ -12,11 +12,83 @@
 #import "VAmiga.h"
 #import "Emulator.h"
 #import "MutableFileSystem.h"
-#import "vAmiga-Swift.h"
 
 using namespace vamiga;
 using namespace vamiga::moira;
 
+const VAmigaConstants VAMIGA = {
+    
+    .PAL.FREQUENCY.CLK = PAL::CLK_FREQUENCY,
+    .PAL.FREQUENCY.DMA = PAL::DMA_FREQUENCY,
+    .PAL.FREQUENCY.CPU = PAL::CPU_FREQUENCY,
+
+    .PAL.VPOS.CNT_LF = PAL::VPOS_CNT_LF,
+    .PAL.VPOS.CNT_SF = PAL::VPOS_CNT_SF,
+    .PAL.VPOS.CNT = PAL::VPOS_CNT,
+    .PAL.VPOS.MAX_LF = PAL::VPOS_MAX_LF,
+    .PAL.VPOS.MAX_SF = PAL::VPOS_MAX_SF,
+    .PAL.VPOS.MAX = PAL::VPOS_MAX,
+
+    .PAL.HPOS.CNT_LL = PAL::HPOS_CNT,
+    .PAL.HPOS.CNT_SL = PAL::HPOS_CNT,
+    .PAL.HPOS.MAX_LL = PAL::HPOS_MAX,
+    .PAL.HPOS.MAX_SL = PAL::HPOS_MAX,
+    .PAL.HPOS.CNT = PAL::HPOS_CNT,
+    .PAL.HPOS.MAX = PAL::HPOS_MAX,
+    
+    .PAL.VBLANK.MIN = PAL::VBLANK_MIN,
+    .PAL.VBLANK.MAX = PAL::VBLANK_MAX,
+    .PAL.VBLANK.CNT = PAL::VBLANK_CNT,
+
+    .NTSC.FREQUENCY.CLK = NTSC::CLK_FREQUENCY,
+    .NTSC.FREQUENCY.DMA = NTSC::DMA_FREQUENCY,
+    .NTSC.FREQUENCY.CPU = NTSC::CPU_FREQUENCY,
+
+    .NTSC.VPOS.CNT_LF = NTSC::VPOS_CNT_LF,
+    .NTSC.VPOS.CNT_SF = NTSC::VPOS_CNT_SF,
+    .NTSC.VPOS.CNT = NTSC::VPOS_CNT,
+    .NTSC.VPOS.MAX_LF = NTSC::VPOS_MAX_LF,
+    .NTSC.VPOS.MAX_SF = NTSC::VPOS_MAX_SF,
+    .NTSC.VPOS.MAX = NTSC::VPOS_MAX,
+    
+    .NTSC.HPOS.CNT_LL = NTSC::HPOS_CNT_LL,
+    .NTSC.HPOS.CNT_SL = NTSC::HPOS_CNT_SL,
+    .NTSC.HPOS.MAX_LL = NTSC::HPOS_MAX_LL,
+    .NTSC.HPOS.MAX_SL = NTSC::HPOS_MAX_SL,
+    .NTSC.HPOS.CNT = NTSC::HPOS_CNT,
+    .NTSC.HPOS.MAX = NTSC::HPOS_MAX,
+    
+    .NTSC.VBLANK.MIN = NTSC::VBLANK_MIN,
+    .NTSC.VBLANK.MAX = NTSC::VBLANK_MAX,
+    .NTSC.VBLANK.CNT = NTSC::VBLANK_CNT,
+    
+    .VPOS.MAX = VPOS_MAX,
+    .VPOS.CNT = VPOS_CNT,
+
+    .HPOS.MAX = HPOS_MAX,
+    .HPOS.CNT = HPOS_CNT,
+
+    .HBLANK.CNT = HBLANK_CNT,
+    .HBLANK.MIN = HBLANK_MIN,
+    .HBLANK.MAX = HBLANK_MAX,
+
+    .HPIXELS = HPIXELS,
+    .VPIXELS = VPIXELS,
+    .PIXELS = PIXELS,
+    
+    .HDR.C_MIN = HDR_C_MIN,
+    .HDR.C_MAX = HDR_C_MAX,
+    .HDR.H_MIN = HDR_H_MIN,
+    .HDR.H_MAX = HDR_H_MAX,
+    .HDR.S_MIN = HDR_S_MIN,
+    .HDR.S_MAX = HDR_S_MAX,
+};
+
+NSString *EventSlotName(NSInteger slot)
+{
+    return @(EventSlotEnum::help(slot));
+}
+ 
 @implementation ExceptionWrapper
 
 @synthesize errorCode;
@@ -26,7 +98,7 @@ using namespace vamiga::moira;
 
     if (self = [super init]) {
         
-        errorCode = ERROR_OK;
+        errorCode = VAERROR_OK;
         what = @"";
     }
     return self;
@@ -58,45 +130,6 @@ using namespace vamiga::moira;
 }
 
 @end
-
-
-//
-// Constants
-//
-
-@implementation Constants
-
-+ (NSInteger)hpixels { return HPIXELS; }
-+ (NSInteger)vpixels { return VPIXELS; }
-
-+ (NSInteger)hblank_cnt { return HBLANK_CNT; }
-+ (NSInteger)hblank_min { return HBLANK_MIN; }
-+ (NSInteger)hblank_max { return HBLANK_MAX; }
-
-+ (NSInteger)vblank_cnt { return VBLANK_CNT; }
-+ (NSInteger)vblank_min { return VBLANK_MIN; }
-+ (NSInteger)vblank_max { return VBLANK_MAX; }
-
-+ (NSInteger)vpos_cnt_pal { return VPOS_CNT_PAL; }
-+ (NSInteger)vpos_max_pal { return VPOS_MAX_PAL; }
-
-+ (NSInteger)vpos_cnt_ntsc { return VPOS_CNT_NTSC; }
-+ (NSInteger)vpos_max_ntsc { return VPOS_MAX_NTSC; }
-
-+ (NSInteger)vpos_cnt { return VPOS_CNT; }
-+ (NSInteger)vpos_max { return VPOS_MAX; }
-
-+ (NSInteger)hpos_cnt_pal { return HPOS_CNT_PAL; }
-+ (NSInteger)hpos_max_pal { return HPOS_MAX_PAL; }
-
-+ (NSInteger)hpos_cnt_ntsc { return HPOS_CNT_NTSC; }
-+ (NSInteger)hpos_max_ntsc { return HPOS_MAX_NTSC; }
-
-+ (NSInteger)hpos_max { return HPOS_MAX; }
-+ (NSInteger)hpos_cnt { return HPOS_CNT; }
-
-@end
-
 
 //
 // CoreComponent proxy
@@ -569,19 +602,25 @@ using namespace vamiga::moira;
     }
 }
 
+- (NSString *)regName:(NSInteger)addr
+{
+    auto cstr = MemoryDebugger::regName((u32)addr);
+    return @(cstr);
+}
+
 - (NSString *)ascDump:(Accessor)accessor addr:(NSInteger)addr bytes:(NSInteger)bytes
 {
     assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
+    
     auto str = [self mem]->debugger.ascDump(accessor, (u32)addr, bytes);
-
     return @(str.c_str());
 }
 
 - (NSString *)hexDump:(Accessor)accessor addr: (NSInteger)addr bytes:(NSInteger)bytes
 {
     assert(accessor == ACCESSOR_CPU || accessor == ACCESSOR_AGNUS);
+    
     auto str = [self mem]->debugger.hexDump(accessor, (u32)addr, bytes);
-
     return @(str.c_str());
 }
 
@@ -766,6 +805,40 @@ using namespace vamiga::moira;
 - (DmaDebuggerInfo)info
 {
     return [self debugger]->getInfo();
+}
+
+@end
+
+
+//
+// Logic Analyzer
+//
+
+@implementation LogicAnalyzerProxy
+
+- (LogicAnalyzerAPI *)la
+{
+    return (LogicAnalyzerAPI *)obj;
+}
+
+- (const NSInteger *)getData:(NSInteger)channel
+{
+    return [self la]->logicAnalyzer->get(channel);
+}
+
+- (const BusOwner *)busOwners
+{
+    return [self la]->logicAnalyzer->agnus.busOwner;
+}
+
+- (const u32 *)addrBus
+{
+    return [self la]->logicAnalyzer->agnus.busAddr;
+}
+
+- (const u16 *)dataBus
+{
+    return [self la]->logicAnalyzer->agnus.busData;
 }
 
 @end
@@ -1079,6 +1152,16 @@ using namespace vamiga::moira;
 - (VideoPortAPI *)port
 {
     return (VideoPortAPI *)obj;
+}
+
+- (void)lockTexture
+{
+    [self port]->lockTexture();
+}
+
+- (void)unlockTexture
+{
+    [self port]->unlockTexture();
 }
 
 - (void)texture:(const u32 **)ptr nr:(NSInteger *)nr lof:(bool *)lof prevlof:(bool *)prevlof
@@ -1609,6 +1692,11 @@ using namespace vamiga::moira;
     [self shell]->execScript(*(MediaFile *)file->obj);
 }
 
+- (void)executeString:(NSString *)str
+{
+    [self shell]->execScript(std::string([str UTF8String]));
+}
+
 @end
 
 
@@ -1709,6 +1797,11 @@ using namespace vamiga::moira;
 - (NSInteger)size
 {
     return [self file]->getSize();
+}
+
+- (BOOL)compressed
+{
+    return [self file]->isCompressed();
 }
 
 - (u8 *)data
@@ -2124,6 +2217,13 @@ using namespace vamiga::moira;
     catch (Error &error) { [ex save:error]; }
 }
 
+- (NSString *)stateString
+{
+    std::stringstream ss;
+    [self amiga]->amiga->dump(Category::Trace, ss);
+    return @(ss.str().c_str());
+}
+
 @end
 
 
@@ -2157,6 +2257,7 @@ using namespace vamiga::moira;
 @synthesize hd2;
 @synthesize hd3;
 @synthesize keyboard;
+@synthesize logicAnalyzer;
 @synthesize mem;
 @synthesize paula;
 @synthesize remoteManager;
@@ -2201,6 +2302,7 @@ using namespace vamiga::moira;
     hd2 = [[HardDriveProxy alloc] initWith:&vamiga->hd2];
     hd3 = [[HardDriveProxy alloc] initWith:&vamiga->hd3];
     keyboard = [[KeyboardProxy alloc] initWith:&vamiga->keyboard];
+    logicAnalyzer = [[LogicAnalyzerProxy alloc] initWith:&vamiga->agnus.logicAnalyzer];
     mem = [[MemProxy alloc] initWith:&vamiga->mem];
     paula = [[PaulaProxy alloc] initWith:&vamiga->paula];
     retroShell = [[RetroShellProxy alloc] initWith:&vamiga->retroShell];
@@ -2303,17 +2405,6 @@ using namespace vamiga::moira;
     return [self emu]->isTracking();
 }
 
-/*
-- (void)setTrackMode:(BOOL)value
-{
-    if (value) {
-        [self emu]->emu->trackOn();
-    } else {
-        [self emu]->emu->trackOff();
-    }
-}
-*/
-
 - (void)stepInto
 {
     [self emu]->stepInto();
@@ -2322,6 +2413,16 @@ using namespace vamiga::moira;
 - (void)stepOver
 {
     [self emu]->stepOver();
+}
+
+- (void)finishLine
+{
+    [self emu]->finishLine();
+}
+
+- (void)finishFrame
+{
+    [self emu]->finishFrame();
 }
 
 - (void)launch:(const void *)listener function:(Callback *)func

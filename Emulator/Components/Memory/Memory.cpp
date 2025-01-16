@@ -68,7 +68,6 @@ Memory::_dump(Category category, std::ostream& os) const
         os << util::hex(dataBus) << std::endl;
         os << util::tab("Wom is locked");
         os << util::bol(womIsLocked) << std::endl;
-
     }
     
     if (category == Category::BankMap) {
@@ -145,40 +144,40 @@ Memory::checkOption(Option opt, i64 value)
         case OPT_MEM_CHIP_RAM:
 
             if (!isPoweredOff()) {
-                throw Error(ERROR_OPT_LOCKED);
+                throw Error(VAERROR_OPT_LOCKED);
             }
             if (value != 256 && value != 512 && value != 1024 && value != 2048) {
-                throw Error(ERROR_OPT_INV_ARG, "256, 512, 1024, 2048");
+                throw Error(VAERROR_OPT_INV_ARG, "256, 512, 1024, 2048");
             }
             return;
 
         case OPT_MEM_SLOW_RAM:
 
             if (!isPoweredOff()) {
-                throw Error(ERROR_OPT_LOCKED);
+                throw Error(VAERROR_OPT_LOCKED);
             }
             if ((value % 256) != 0 || value > 1536) {
-                throw Error(ERROR_OPT_INV_ARG, "0, 256, 512, ..., 1536");
+                throw Error(VAERROR_OPT_INV_ARG, "0, 256, 512, ..., 1536");
             }
             return;
 
         case OPT_MEM_FAST_RAM:
 
             if (!isPoweredOff()) {
-                throw Error(ERROR_OPT_LOCKED);
+                throw Error(VAERROR_OPT_LOCKED);
             }
             if ((value % 64) != 0 || value > 8192) {
-                throw Error(ERROR_OPT_INV_ARG, "0, 64, 128, ..., 8192");
+                throw Error(VAERROR_OPT_INV_ARG, "0, 64, 128, ..., 8192");
             }
             return;
 
         case OPT_MEM_EXT_START:
 
             if (!isPoweredOff()) {
-                throw Error(ERROR_OPT_LOCKED);
+                throw Error(VAERROR_OPT_LOCKED);
             }
             if (value != 0xE0 && value != 0xF0) {
-                throw Error(ERROR_OPT_INV_ARG, "E0, F0");
+                throw Error(VAERROR_OPT_INV_ARG, "E0, F0");
             }
             return;
 
@@ -191,26 +190,26 @@ Memory::checkOption(Option opt, i64 value)
         case OPT_MEM_BANKMAP:
 
             if (!BankMapEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, BankMapEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, BankMapEnum::keyList());
             }
             return;
 
         case OPT_MEM_UNMAPPING_TYPE:
 
             if (!UnmappedMemoryEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, UnmappedMemoryEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, UnmappedMemoryEnum::keyList());
             }
             return;
 
         case OPT_MEM_RAM_INIT_PATTERN:
 
             if (!RamInitPatternEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, RamInitPatternEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, RamInitPatternEnum::keyList());
             }
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -318,14 +317,17 @@ Memory::operator << (SerChecker &worker)
     if (config.fastSize) {
         for (isize i = 0; i < config.fastSize; i++) worker << fast[i];
     }
-    if (romAllocator.size) {
-        for (isize i = 0; i < romAllocator.size; i++) worker << rom[i];
-    }
-    if (womAllocator.size) {
-        for (isize i = 0; i < womAllocator.size; i++) worker << wom[i];
-    }
-    if (extAllocator.size) {
-        for (isize i = 0; i < extAllocator.size; i++) worker << ext[i];
+    if (config.saveRoms) {
+
+        if (romAllocator.size) {
+            for (isize i = 0; i < romAllocator.size; i++) worker << rom[i];
+        }
+        if (womAllocator.size) {
+            for (isize i = 0; i < womAllocator.size; i++) worker << wom[i];
+        }
+        if (extAllocator.size) {
+            for (isize i = 0; i < extAllocator.size; i++) worker << ext[i];
+        }
     }
 }
 
@@ -375,17 +377,20 @@ Memory::operator << (SerReader &worker)
     << fastSize;
 
     // Check the integrity of the new values before allocating memory
-    if (romSize > KB(512)) throw Error(ERROR_SNAP_CORRUPTED);
-    if (womSize > KB(256)) throw Error(ERROR_SNAP_CORRUPTED);
-    if (extSize > KB(512)) throw Error(ERROR_SNAP_CORRUPTED);
-    if (chipSize > MB(2)) throw Error(ERROR_SNAP_CORRUPTED);
-    if (slowSize > KB(1792)) throw Error(ERROR_SNAP_CORRUPTED);
-    if (fastSize > MB(8)) throw Error(ERROR_SNAP_CORRUPTED);
+    if (romSize > KB(512)) throw Error(VAERROR_SNAP_CORRUPTED);
+    if (womSize > KB(256)) throw Error(VAERROR_SNAP_CORRUPTED);
+    if (extSize > KB(512)) throw Error(VAERROR_SNAP_CORRUPTED);
+    if (chipSize > MB(2)) throw Error(VAERROR_SNAP_CORRUPTED);
+    if (slowSize > KB(1792)) throw Error(VAERROR_SNAP_CORRUPTED);
+    if (fastSize > MB(8)) throw Error(VAERROR_SNAP_CORRUPTED);
 
-    // Allocate ROM space (only if Roms are included in the snapshot)
-    if (romSize) allocRom(romSize, false);
-    if (womSize) allocWom(womSize, false);
-    if (extSize) allocExt(extSize, false);
+    // Allocate ROM space
+    if (config.saveRoms) {
+
+        allocRom(romSize, false);
+        allocWom(womSize, false);
+        allocExt(extSize, false);
+    }
 
     // Allocate RAM space
     allocChip(chipSize, false);
@@ -460,49 +465,49 @@ Memory::_isReady() const
     bool hasAros = traits.vendor == ROM_VENDOR_AROS;
 
     if (!hasRom || FORCE_ROM_MISSING) {
-        throw Error(ERROR_ROM_MISSING);
+        throw Error(VAERROR_ROM_MISSING);
     }
     if (!chip || FORCE_CHIP_RAM_MISSING) {
-        throw Error(ERROR_CHIP_RAM_MISSING);
+        throw Error(VAERROR_CHIP_RAM_MISSING);
     }
     if ((hasAros && !ext) || FORCE_AROS_NO_EXTROM) {
-        throw Error(ERROR_AROS_NO_EXTROM);
+        throw Error(VAERROR_AROS_NO_EXTROM);
     }
     if ((hasAros && ramSize() < MB(1)) || FORCE_AROS_RAM_LIMIT) {
-        throw Error(ERROR_AROS_RAM_LIMIT);
+        throw Error(VAERROR_AROS_RAM_LIMIT);
     }
 }
 
-void 
-Memory::cacheStats(MemStats &result) const
+void
+Memory::updateStats()
 {
     const double w = 0.5;
     
-    result.chipReads.accumulated =
+    stats.chipReads.accumulated =
     w * stats.chipReads.accumulated + (1.0 - w) * stats.chipReads.raw;
-    result.chipWrites.accumulated =
+    stats.chipWrites.accumulated =
     w * stats.chipWrites.accumulated + (1.0 - w) * stats.chipWrites.raw;
-    result.slowReads.accumulated =
+    stats.slowReads.accumulated =
     w * stats.slowReads.accumulated + (1.0 - w) * stats.slowReads.raw;
-    result.slowWrites.accumulated =
+    stats.slowWrites.accumulated =
     w * stats.slowWrites.accumulated + (1.0 - w) * stats.slowWrites.raw;
-    result.fastReads.accumulated =
+    stats.fastReads.accumulated =
     w * stats.fastReads.accumulated + (1.0 - w) * stats.fastReads.raw;
-    result.fastWrites.accumulated =
+    stats.fastWrites.accumulated =
     w * stats.fastWrites.accumulated + (1.0 - w) * stats.fastWrites.raw;
-    result.kickReads.accumulated =
+    stats.kickReads.accumulated =
     w * stats.kickReads.accumulated + (1.0 - w) * stats.kickReads.raw;
-    result.kickWrites.accumulated =
+    stats.kickWrites.accumulated =
     w * stats.kickWrites.accumulated + (1.0 - w) * stats.kickWrites.raw;
 
-    result.chipReads.raw = 0;
-    result.chipWrites.raw = 0;
-    result.slowReads.raw = 0;
-    result.slowWrites.raw = 0;
-    result.fastReads.raw = 0;
-    result.fastWrites.raw = 0;
-    result.kickReads.raw = 0;
-    result.kickWrites.raw = 0;
+    stats.chipReads.raw = 0;
+    stats.chipWrites.raw = 0;
+    stats.slowReads.raw = 0;
+    stats.slowWrites.raw = 0;
+    stats.fastReads.raw = 0;
+    stats.fastWrites.raw = 0;
+    stats.kickReads.raw = 0;
+    stats.kickWrites.raw = 0;
 }
 
 void
@@ -573,8 +578,6 @@ Memory::alloc(Allocator<u8> &allocator, isize bytes, u32 &mask, bool update)
 void
 Memory::fillRamWithInitPattern()
 {
-    assert(!isRunning());
-    
     switch (config.ramInitPattern) {
             
         case RAM_INIT_RANDOMIZED:
@@ -658,7 +661,7 @@ Memory::extFingerprint() const
 void
 Memory::loadRom(MediaFile &file)
 {
-    // if (amiga.isPoweredOn()) throw Error(ERROR_POWERED_ON);
+    // if (amiga.isPoweredOn()) throw Error(VAERROR_POWERED_ON);
 
     try {
 
@@ -692,7 +695,7 @@ Memory::loadRom(MediaFile &file)
 
     } catch (...) {
 
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VAERROR_FILE_TYPE_MISMATCH);
     }}
 }
 
@@ -725,7 +728,7 @@ Memory::loadExt(MediaFile &file)
 
     } catch (...) {
 
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VAERROR_FILE_TYPE_MISMATCH);
     }
 }
 
@@ -746,7 +749,7 @@ Memory::loadExt(const u8 *buf, isize len)
 void
 Memory::saveRom(const std::filesystem::path &path)
 {
-    if (rom == nullptr) throw Error(ERROR_ROM_MISSING);
+    if (rom == nullptr) throw Error(VAERROR_ROM_MISSING);
 
     RomFile file(rom, config.romSize);
     file.writeToFile(path);
@@ -755,7 +758,7 @@ Memory::saveRom(const std::filesystem::path &path)
 void
 Memory::saveWom(const std::filesystem::path &path)
 {
-    if (wom == nullptr) throw Error(ERROR_ROM_MISSING);
+    if (wom == nullptr) throw Error(VAERROR_ROM_MISSING);
 
     RomFile file(wom, config.womSize);
     file.writeToFile(path);
@@ -764,7 +767,7 @@ Memory::saveWom(const std::filesystem::path &path)
 void
 Memory::saveExt(const std::filesystem::path &path)
 {
-    if (ext == nullptr) throw Error(ERROR_ROM_MISSING);
+    if (ext == nullptr) throw Error(VAERROR_ROM_MISSING);
 
     RomFile file(ext, config.extSize);
     file.writeToFile(path);
@@ -1093,9 +1096,13 @@ Memory::peek8 <ACCESSOR_CPU, MEM_CHIP> (u32 addr)
 {
     ASSERT_CHIP_ADDR(addr);
     agnus.executeUntilBusIsFree();
-    
-    stats.chipReads.raw++;
+
     dataBus = READ_CHIP_8(addr);
+
+    stats.chipReads.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+
     return (u8)dataBus;
 }
 
@@ -1104,9 +1111,13 @@ Memory::peek16 <ACCESSOR_CPU, MEM_CHIP> (u32 addr)
 {
     ASSERT_CHIP_ADDR(addr);
     agnus.executeUntilBusIsFree();
-    
-    stats.chipReads.raw++;
+
     dataBus = READ_CHIP_16(addr);
+
+    stats.chipReads.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     return dataBus;
 }
 
@@ -1121,9 +1132,13 @@ Memory::peek8 <ACCESSOR_CPU, MEM_SLOW> (u32 addr)
 {
     ASSERT_SLOW_ADDR(addr);
     agnus.executeUntilBusIsFree();
-    
-    stats.slowReads.raw++;
+
     dataBus = READ_SLOW_8(addr);
+
+    stats.slowReads.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     return (u8)dataBus;
 }
 
@@ -1133,8 +1148,12 @@ Memory::peek16 <ACCESSOR_CPU, MEM_SLOW> (u32 addr)
     ASSERT_SLOW_ADDR(addr);
     agnus.executeUntilBusIsFree();
     
-    stats.slowReads.raw++;
     dataBus = READ_SLOW_16(addr);
+
+    stats.slowReads.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     return dataBus;
 }
 
@@ -1253,6 +1272,10 @@ Memory::peek16 <ACCESSOR_CPU, MEM_CUSTOM> (u32 addr)
     agnus.executeUntilBusIsFree();
     
     dataBus = peekCustom16(addr);
+
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     return dataBus;
 }
 
@@ -1625,8 +1648,12 @@ Memory::poke8 <ACCESSOR_CPU, MEM_CHIP> (u32 addr, u8 value)
 
     agnus.executeUntilBusIsFree();
     
-    stats.chipWrites.raw++;
     dataBus = value;
+
+    stats.chipWrites.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+
     WRITE_CHIP_8(addr, value);
 }
 
@@ -1643,8 +1670,12 @@ Memory::poke16 <ACCESSOR_CPU, MEM_CHIP> (u32 addr, u16 value)
 
     agnus.executeUntilBusIsFree();
     
-    stats.chipWrites.raw++;
     dataBus = value;
+
+    stats.chipWrites.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+
     WRITE_CHIP_16(addr, value);
 }
 
@@ -1655,8 +1686,12 @@ Memory::poke8 <ACCESSOR_CPU, MEM_SLOW> (u32 addr, u8 value)
     
     agnus.executeUntilBusIsFree();
     
-    stats.slowWrites.raw++;
     dataBus = value;
+
+    stats.slowWrites.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     WRITE_SLOW_8(addr, value);
 }
 
@@ -1667,8 +1702,12 @@ Memory::poke16 <ACCESSOR_CPU, MEM_SLOW> (u32 addr, u16 value)
     
     agnus.executeUntilBusIsFree();
     
-    stats.slowWrites.raw++;
     dataBus = value;
+
+    stats.slowWrites.raw++;
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     WRITE_SLOW_16(addr, value);
 }
 
@@ -1732,6 +1771,10 @@ Memory::poke16 <ACCESSOR_CPU, MEM_RTC> (u32 addr, u16 value)
     agnus.executeUntilBusIsFree();
     
     dataBus = value;
+    
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     pokeRTC16(addr, value);
 }
 
@@ -1743,6 +1786,10 @@ Memory::poke8 <ACCESSOR_CPU, MEM_CUSTOM> (u32 addr, u8 value)
     agnus.executeUntilBusIsFree();
     
     dataBus = value;
+    
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     // http://eab.abime.net/showthread.php?p=1156399
     pokeCustom16<ACCESSOR_CPU>(addr & 0x1FE, HI_LO(value, value));
 }
@@ -1755,6 +1802,10 @@ Memory::poke16 <ACCESSOR_CPU, MEM_CUSTOM> (u32 addr, u16 value)
     agnus.executeUntilBusIsFree();
 
     dataBus = value;
+
+    agnus.busAddr[agnus.pos.h] = addr;
+    agnus.busData[agnus.pos.h] = dataBus;
+    
     pokeCustom16<ACCESSOR_CPU>(addr, value);
 }
 
@@ -2762,7 +2813,7 @@ void
 Memory::eofHandler()
 {
     // Update statistics
-    (void)getStats();
+    updateStats();
 }
 
 std::vector <u32>

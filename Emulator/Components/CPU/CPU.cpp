@@ -291,6 +291,7 @@ CPU::getOption(Option option) const
         case OPT_CPU_REVISION:      return (long)config.revision;
         case OPT_CPU_DASM_REVISION: return (long)config.dasmRevision;
         case OPT_CPU_DASM_SYNTAX:   return (long)config.dasmSyntax;
+        case OPT_CPU_DASM_NUMBERS:  return (long)config.dasmNumbers;
         case OPT_CPU_OVERCLOCKING:  return (long)config.overclocking;
         case OPT_CPU_RESET_VAL:     return (long)config.regResetVal;
 
@@ -307,21 +308,28 @@ CPU::checkOption(Option opt, i64 value)
         case OPT_CPU_REVISION:
 
             if (!CPURevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, CPURevisionEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, CPURevisionEnum::keyList());
             }
             return;
 
         case OPT_CPU_DASM_REVISION:
 
             if (!DasmRevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DasmRevisionEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, DasmRevisionEnum::keyList());
             }
             return;
 
         case OPT_CPU_DASM_SYNTAX:
 
             if (!DasmSyntaxEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DasmSyntaxEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, DasmSyntaxEnum::keyList());
+            }
+            return;
+
+        case OPT_CPU_DASM_NUMBERS:
+
+            if (!DasmNumbersEnum::isValid(value)) {
+                throw Error(VAERROR_OPT_INV_ARG, DasmNumbersEnum::keyList());
             }
             return;
 
@@ -331,7 +339,7 @@ CPU::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -362,6 +370,34 @@ CPU::setOption(Option option, i64 value)
             setDasmSyntax(syntax(config.dasmSyntax));
             return;
 
+        case OPT_CPU_DASM_NUMBERS:
+
+            config.dasmNumbers = DasmNumbers(value);
+            
+            switch (config.dasmNumbers) {
+                    
+                case DASM_NUMBERS_HEX:
+                    
+                    setDasmNumberFormat(moira::DasmNumberFormat {
+                        .prefix = "$",
+                        .radix = 16,
+                        .upperCase = false,
+                        .plainZero = false
+                    });
+                    return;
+                    
+                case DASM_NUMBERS_DEC:
+                    
+                    setDasmNumberFormat(moira::DasmNumberFormat {
+                        .prefix = "",
+                        .radix = 10,
+                        .upperCase = false,
+                        .plainZero = false
+                    });
+                    return;
+
+            }
+            
         case OPT_CPU_OVERCLOCKING:
 
             config.overclocking = isize(value);
@@ -638,18 +674,18 @@ CPU::resyncOverclockedCpu()
 }
 
 const char *
-CPU::disassembleRecordedInstr(isize i, isize *len)
+CPU::disassembleRecordedInstr(isize i, isize *len) const
 {
     return disassembleInstr(debugger.logEntryAbs((int)i).pc0, len);
 }
 const char *
-CPU::disassembleRecordedWords(isize i, isize len)
+CPU::disassembleRecordedWords(isize i, isize len) const
 {
     return disassembleWords(debugger.logEntryAbs((int)i).pc0, len);
 }
 
 const char *
-CPU::disassembleRecordedFlags(isize i)
+CPU::disassembleRecordedFlags(isize i) const
 {
     static char result[18];
     
@@ -658,7 +694,7 @@ CPU::disassembleRecordedFlags(isize i)
 }
 
 const char *
-CPU::disassembleRecordedPC(isize i)
+CPU::disassembleRecordedPC(isize i) const
 {
     static char result[16];
 
@@ -667,7 +703,7 @@ CPU::disassembleRecordedPC(isize i)
 }
 
 const char *
-CPU::disassembleAddr(u32 addr)
+CPU::disassembleAddr(u32 addr) const
 {
     static char result[16];
 
@@ -676,7 +712,7 @@ CPU::disassembleAddr(u32 addr)
 }
 
 const char *
-CPU::disassembleWord(u16 value)
+CPU::disassembleWord(u16 value) const
 {
     static char result[16];
 
@@ -685,7 +721,7 @@ CPU::disassembleWord(u16 value)
 }
 
 const char *
-CPU::disassembleInstr(u32 addr, isize *len)
+CPU::disassembleInstr(u32 addr, isize *len) const
 {
     static char result[128];
 
@@ -696,7 +732,7 @@ CPU::disassembleInstr(u32 addr, isize *len)
 }
 
 const char *
-CPU::disassembleWords(u32 addr, isize len)
+CPU::disassembleWords(u32 addr, isize len) const
 {
     static char result[64];
 
@@ -705,25 +741,25 @@ CPU::disassembleWords(u32 addr, isize len)
 }
 
 const char *
-CPU::disassembleInstr(isize *len)
+CPU::disassembleInstr(isize *len) const
 {
     return disassembleInstr(reg.pc0, len);
 }
 
 const char *
-CPU::disassembleWords(isize len)
+CPU::disassembleWords(isize len) const
 {
     return disassembleWords(reg.pc0, len);
 }
 
 const char *
-CPU::disassemblePC()
+CPU::disassemblePC() const
 {
     return disassembleAddr(reg.pc0);
 }
 
 void
-CPU::dumpLogBuffer(std::ostream& os, isize count)
+CPU::dumpLogBuffer(std::ostream& os, isize count) const
 {
     isize numBytes = 0;
     isize num = debugger.loggedInstructions();
@@ -749,19 +785,19 @@ CPU::dumpLogBuffer(std::ostream& os, isize count)
 }
 
 void
-CPU::dumpLogBuffer(std::ostream& os)
+CPU::dumpLogBuffer(std::ostream& os) const
 {
     dumpLogBuffer(os, debugger.loggedInstructions());
 }
 
 void
-CPU::disassembleRange(std::ostream& os, u32 addr, isize count)
+CPU::disassembleRange(std::ostream& os, u32 addr, isize count) const
 {
     disassembleRange(os, std::pair<u32, u32>(addr, UINT32_MAX), count);
 }
 
 void
-CPU::disassembleRange(std::ostream& os, std::pair<u32, u32> range, isize max)
+CPU::disassembleRange(std::ostream& os, std::pair<u32, u32> range, isize max) const
 {
     u32 addr = range.first;
     isize numBytes = 0;

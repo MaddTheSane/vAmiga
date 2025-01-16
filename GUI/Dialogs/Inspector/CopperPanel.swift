@@ -25,9 +25,9 @@ extension Inspector {
             
             let elements = [ cop1LC: fmt24,
                              cop2LC: fmt24,
-                             cop1INS: fmt16,
-                             cop2INS: fmt16,
-                             copPC: fmt24
+                            cop1INS: fmt16,
+                            cop2INS: fmt16,
+                              copPC: fmt24
             ]
             for (c, f) in elements { assignFormatter(f, c!) }
         }

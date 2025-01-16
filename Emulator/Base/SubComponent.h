@@ -45,6 +45,7 @@ public:
     class HdController &hd3con;
     class Host &host;
     class Keyboard &keyboard;
+    class LogicAnalyzer &logicAnalyzer;
     class Memory &mem;
     class MsgQueue &msgQueue;
     class OSDebugger &osDebugger;
@@ -60,6 +61,7 @@ public:
     class ZorroManager &zorro;
 
     class FloppyDrive *df[4] = { &df0, &df1, &df2, &df3 };
+    class HardDrive *hd[4] = { &hd0, &hd1, &hd2, &hd3 };
 
 public:
 
@@ -74,6 +76,7 @@ public:
 
     SubComponent(Amiga& ref, isize id = 0);
 
+    bool isRunAheadInstance() const;
     void prefix(isize level,  const char *component, isize line) const override;
 };
 

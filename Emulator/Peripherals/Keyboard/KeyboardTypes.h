@@ -12,6 +12,8 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
@@ -26,8 +28,7 @@ enum_long(KB_STATE)
 };
 typedef KB_STATE KeyboardState;
 
-#ifdef __cplusplus
-struct KeyboardStateEnum : vamiga::util::Reflection<KeyboardStateEnum, KeyboardState>
+struct KeyboardStateEnum : util::Reflection<KeyboardStateEnum, KeyboardState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = KB_SEND;
@@ -45,8 +46,12 @@ struct KeyboardStateEnum : vamiga::util::Reflection<KeyboardStateEnum, KeyboardS
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
+
 
 //
 // Structures
@@ -57,3 +62,5 @@ typedef struct
     bool accurate;
 }
 KeyboardConfig;
+
+}

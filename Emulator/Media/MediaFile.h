@@ -74,6 +74,12 @@ public:
     // Return a preview image (only available for snapshot files)
     virtual const u32 *previewImageData() const { return nullptr; }
 
+    // Handels data compression (only implemented by snapshot files)
+    virtual bool isCompressed() const { return false; }
+    virtual void compress() { }
+    virtual void uncompress() { }
+
+    //
     DiskInfo getDiskInfo() const;
     FloppyDiskInfo getFloppyDiskInfo() const;
     HDFInfo getHDFInfo() const;
@@ -110,8 +116,8 @@ public:
 
 public:
 
-    virtual isize readFromStream(std::istream &stream) = 0;
-    virtual isize readFromFile(const std::filesystem::path &path) = 0;
+    // virtual isize readFromStream(std::istream &stream) = 0;
+    // virtual isize readFromFile(const std::filesystem::path &path) = 0;
     virtual isize readFromBuffer(const u8 *buf, isize len) = 0;
 
     virtual isize writeToStream(std::ostream &stream) = 0;

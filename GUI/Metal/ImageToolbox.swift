@@ -13,12 +13,12 @@
 
 public extension CGImage {
     
-    static func bitmapInfo() -> CGBitmapInfo {
+    static func defaultBitmapInfo() -> CGBitmapInfo {
         
-        let noAlpha = CGImageAlphaInfo.noneSkipLast.rawValue
+        let alpha = CGImageAlphaInfo.premultipliedLast.rawValue
         let bigEn32 = CGBitmapInfo.byteOrder32Big.rawValue
     
-        return CGBitmapInfo(rawValue: noAlpha | bigEn32)
+        return CGBitmapInfo(rawValue: alpha | bigEn32)
     }
     
     static func dataProvider(data: UnsafeMutableRawPointer, size: CGSize) -> CGDataProvider? {
@@ -37,8 +37,9 @@ public extension CGImage {
                               releaseData: dealloc)
     }
     
-    // Creates a CGImage from a raw data stream in 32 bit big endian format
-    static func make(data: UnsafeMutableRawPointer, size: CGSize) -> CGImage? {
+    // Creates a CGImage from a raw data stream
+    static func make(data: UnsafeMutableRawPointer, size: CGSize, bitmapInfo: CGBitmapInfo? = nil) -> CGImage? {
+        
         
         let w = Int(size.width)
         let h = Int(size.height)
@@ -48,7 +49,7 @@ public extension CGImage {
                        bitsPerPixel: 32,
                        bytesPerRow: 4 * w,
                        space: CGColorSpaceCreateDeviceRGB(),
-                       bitmapInfo: bitmapInfo(),
+                       bitmapInfo: bitmapInfo ?? defaultBitmapInfo(),
                        provider: dataProvider(data: data, size: size)!,
                        decode: nil,
                        shouldInterpolate: false,
@@ -56,11 +57,9 @@ public extension CGImage {
     }
     
     // Creates a CGImage from a MTLTexture
-    static func make(texture: MTLTexture, rect: CGRect) -> CGImage? {
+    static func make(texture: MTLTexture, rect: CGRect, bitmapInfo: CGBitmapInfo? = nil) -> CGImage? {
         
         // Compute texture cutout
-        //   (x,y) : upper left corner
-        //   (w,h) : width and height
         let x = Int(CGFloat(texture.width) * rect.minX)
         let y = Int(CGFloat(texture.height) * rect.minY)
         let w = Int(CGFloat(texture.width) * rect.width)
@@ -73,7 +72,7 @@ public extension CGImage {
                          from: MTLRegionMake2D(x, y, w, h),
                          mipmapLevel: 0)
         
-        return make(data: data, size: CGSize(width: w, height: h))
+        return make(data: data, size: CGSize(width: w, height: h), bitmapInfo: bitmapInfo)
     }
 }
 
@@ -148,6 +147,22 @@ extension NSColor {
         
         return (r << 8) | (g << 4) | b
     }
+    
+    func adjust(brightness: CGFloat, saturation: CGFloat) -> NSColor {
+
+        guard let colorInHSB = usingColorSpace(.deviceRGB) else { return self }
+
+        var h: CGFloat = 0
+        var s: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+
+        colorInHSB.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        b = brightness
+        s = saturation
+
+        return NSColor(hue: h, saturation: s, brightness: b, alpha: a)
+    }
 }
 
 //
@@ -176,9 +191,9 @@ public extension NSImage {
         unlockFocus()
     }
 
-    static func make(texture: MTLTexture, rect: CGRect) -> NSImage? {
+    static func make(texture: MTLTexture, rect: CGRect =  CGRect(x: 0, y: 0, width: 1.0, height: 1.0), bitmapInfo: CGBitmapInfo? = nil) -> NSImage? {
         
-        guard let cgImage = CGImage.make(texture: texture, rect: rect) else {
+        guard let cgImage = CGImage.make(texture: texture, rect: rect, bitmapInfo: bitmapInfo) else {
             warn("Failed to create CGImage.")
             return nil
         }
@@ -187,9 +202,9 @@ public extension NSImage {
         return NSImage(cgImage: cgImage, size: size)
     }
 
-    static func make(data: UnsafeMutableRawPointer, rect: CGSize) -> NSImage? {
+    static func make(data: UnsafeMutableRawPointer, rect: CGSize, bitmapInfo: CGBitmapInfo? = nil) -> NSImage? {
         
-        guard let cgImage = CGImage.make(data: data, size: rect) else {
+        guard let cgImage = CGImage.make(data: data, size: rect, bitmapInfo: bitmapInfo) else {
             warn("Failed to create CGImage")
             return nil
         }
@@ -428,31 +443,6 @@ extension Renderer {
     //
     // Image handling
     //
-
-    /*
-    func screenshot(texture: MTLTexture) -> NSImage? {
-
-        // Use the blitter to copy the texture data back from the GPU
-        let queue = texture.device.makeCommandQueue()!
-        let commandBuffer = queue.makeCommandBuffer()!
-        let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
-        blitEncoder.synchronize(texture: texture, slice: 0, level: 0)
-        blitEncoder.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        
-        return NSImage.make(texture: texture, rect: textureRect)
-    }
-    
-    func screenshot(afterUpscaling: Bool = true) -> NSImage? {
-        
-        if afterUpscaling {
-            return screenshot(texture: canvas.upscaledTexture)
-        } else {
-            return screenshot(texture: canvas.mergeTexture)
-        }
-    }
-    */
     
     func createBackgroundTexture() -> MTLTexture? {
 

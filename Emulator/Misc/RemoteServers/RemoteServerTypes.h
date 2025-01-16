@@ -12,6 +12,8 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
@@ -27,12 +29,11 @@ enum_long(SRV_STATE)
 };
 typedef SRV_STATE SrvState;
 
-#ifdef __cplusplus
-struct SrvStateEnum : vamiga::util::Reflection<SrvStateEnum, SrvState>
+struct SrvStateEnum : util::Reflection<SrvStateEnum, SrvState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SRV_STATE_ERROR;
-
+    
     static const char *prefix() { return "SRV"; }
     static const char *_key(long value)
     {
@@ -47,8 +48,11 @@ struct SrvStateEnum : vamiga::util::Reflection<SrvStateEnum, SrvState>
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 enum_long(SRVPROT)
 {
@@ -56,8 +60,7 @@ enum_long(SRVPROT)
 };
 typedef SRVPROT ServerProtocol;
 
-#ifdef __cplusplus
-struct ServerProtocolEnum : vamiga::util::Reflection<ServerProtocolEnum, ServerProtocol>
+struct ServerProtocolEnum : util::Reflection<ServerProtocolEnum, ServerProtocol>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SRVPROT_DEFAULT;
@@ -71,8 +74,12 @@ struct ServerProtocolEnum : vamiga::util::Reflection<ServerProtocolEnum, ServerP
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
+
 
 //
 // Structures
@@ -93,3 +100,5 @@ typedef struct
     bool verbose;
 }
 ServerConfig;
+
+}

@@ -37,6 +37,7 @@
 // Misc
 #include "GdbServer.h"
 #include "Host.h"
+#include "LogicAnalyzer.h"
 #include "OSDebugger.h"
 #include "RegressionTester.h"
 #include "RemoteManager.h"
@@ -72,9 +73,10 @@ class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
         OPT_AMIGA_WARP_MODE,
         OPT_AMIGA_VSYNC,
         OPT_AMIGA_SPEED_BOOST,
-        OPT_AMIGA_SNAPSHOTS,
-        OPT_AMIGA_SNAPSHOT_DELAY,
-        OPT_AMIGA_RUN_AHEAD
+        OPT_AMIGA_RUN_AHEAD,
+        OPT_AMIGA_SNAP_AUTO,
+        OPT_AMIGA_SNAP_DELAY,
+        OPT_AMIGA_SNAP_COMPRESS
     };
     
     // The current configuration
@@ -135,6 +137,7 @@ public:
     MsgQueue msgQueue = MsgQueue();
 
     // Misc
+    LogicAnalyzer logicAnalyzer = LogicAnalyzer(*this);
     RetroShell retroShell = RetroShell(*this);
     RemoteManager remoteManager = RemoteManager(*this);
     OSDebugger osDebugger = OSDebugger(*this);
@@ -193,7 +196,9 @@ public:
     Amiga(class Emulator& ref, isize id);
     ~Amiga();
 
+    bool isRunAheadInstance() const { return objid == 1; }
 
+    
     //
     // Operators
     //
@@ -259,7 +264,7 @@ public:
         << config.warpMode
         << config.warpBoot
         << config.vsync
-        << config.timeLapse;
+        << config.speedBoost;
 
     } SERIALIZERS(serialize);
 
@@ -322,11 +327,6 @@ public:
     // Reverts to factory settings
     void revertToFactorySettings();
 
-private:
-
-    // Overrides a config option if the corresponding debug option is enabled
-    i64 overrideOption(Option option, i64 value);
-
 
     //
     // Main API for configuring the emulator
@@ -350,14 +350,11 @@ public:
     // Configures the emulator to match a specific Amiga model
     void set(ConfigScheme model);
 
-public: // private
+public:
 
     // Returns the target component for an option
     Configurable *routeOption(Option opt, isize objid);
     const Configurable *routeOption(Option opt, isize objid) const;
-
-    // Overrides a config option if the corresponding debug option is enabled
-    i64 overrideOption(Option opt, i64 value) const;
 
 
     //

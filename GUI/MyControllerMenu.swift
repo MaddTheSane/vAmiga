@@ -179,7 +179,7 @@ extension MyController: NSMenuItemValidation {
         let openPanel = NSOpenPanel()
 
         // Power off the emulator if the user doesn't object
-        if !askToPowerOff() { return }
+        // if !askToPowerOff() { return }
 
         // Show file panel
         openPanel.allowsMultipleSelection = false
@@ -187,7 +187,7 @@ extension MyController: NSMenuItemValidation {
         openPanel.canCreateDirectories = false
         openPanel.canChooseFiles = true
         openPanel.prompt = "Import"
-        openPanel.allowedFileTypes = ["ini"]
+        openPanel.allowedContentTypes = [.ini]
         openPanel.beginSheetModal(for: window!, completionHandler: { result in
 
             if result == .OK, let url = openPanel.url {
@@ -249,20 +249,60 @@ extension MyController: NSMenuItemValidation {
         openConfiguratorAsWindow()
     }
 
-    @IBAction func inspectorAction(_ sender: Any!) {
+    func addInspector() {
+    
+        let count = inspectors.count
         
-        if inspector == nil {
-            inspector = Inspector(with: self, nibName: "Inspector")
+        // Allow 8 inspectors at a time
+        if count < 8, let inspector = Inspector(with: self, nibName: "Inspector") {
+            
+            inspectors.append(inspector)
+            inspector.showWindow(self)
+
+        } else {
+         
+            NSSound.beep();
         }
-        inspector?.showWindow(self)
     }
     
-    @IBAction func monitorAction(_ sender: Any!) {
+    @IBAction func inspectorAction(_ sender: Any!) {
         
-        if monitor == nil {
-            monitor = Monitor(with: self, nibName: "Monitor")
+        if inspectors.isEmpty {
+            addInspector()
+        } else {
+            inspectors[0].showWindow(self)
         }
-        monitor?.showWindow(self)
+    }
+    
+    func addDashboard(type: PanelType = .Combined) {
+    
+        let count = dashboards.count
+        
+        // Allow 24 dashboards at a time
+        if count < 24 {
+            
+            let myStoryboard = NSStoryboard(name: "Dashboard", bundle: nil)
+            
+            if let newDashboard = myStoryboard.instantiateController(withIdentifier: "MyWindowController") as? Dashboard {
+                
+                dashboards.append(newDashboard)
+                newDashboard.setController(self)
+                newDashboard.showWindow(self)
+                newDashboard.viewController?.type = type
+                return
+            }
+        }
+
+        NSSound.beep();
+    }
+    
+    @IBAction func dashboardAction(_ sender: Any!) {
+        
+        if dashboards.isEmpty {
+            addDashboard()
+        } else {
+            dashboards[0].showWindow(self)
+        }
     }
 
     @IBAction func consoleAction(_ sender: Any!) {
@@ -543,7 +583,7 @@ extension MyController: NSMenuItemValidation {
         openPanel.canCreateDirectories = false
         openPanel.canChooseFiles = true
         openPanel.prompt = "Insert"
-        openPanel.allowedFileTypes = ["adf", "img", "ima", "dms", "exe", "adz", "zip", "gz"]
+        openPanel.allowedContentTypes = [.adf, .img, .dms, .exe, .adz, .zip, .gzip ]
         openPanel.beginSheetModal(for: window!, completionHandler: { result in
 
             if result == .OK, let url = openPanel.url {
@@ -690,7 +730,7 @@ extension MyController: NSMenuItemValidation {
         openPanel.canCreateDirectories = false
         openPanel.canChooseFiles = true
         openPanel.prompt = "Attach"
-        openPanel.allowedFileTypes = ["hdf", "hdz", "zip", "gz"]
+        openPanel.allowedContentTypes = [ .hdf, .hdz, .zip, .gzip ]
         openPanel.beginSheetModal(for: window!, completionHandler: { result in
             
             if result == .OK, let url = openPanel.url {

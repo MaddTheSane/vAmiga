@@ -45,29 +45,29 @@ extension Inspector {
             ciaPB0.title = "PB0: " + (ciaA ? "DATA0" : "/STEP")
 
             let elements = [ ciaPRAbinary: fmt8b,
-                             ciaDDRAbinary: fmt8b,
+                            ciaDDRAbinary: fmt8b,
                              ciaPRBbinary: fmt8b,
-                             ciaDDRBbinary: fmt8b,
+                            ciaDDRBbinary: fmt8b,
                              ciaICRbinary: fmt8b,
                              ciaIMRbinary: fmt8b,
-                             ciaPRA: fmt8,
-                             ciaDDRA: fmt8,
-                             ciaPRB: fmt8,
-                             ciaDDRB: fmt8,
-                             ciaCntHi: fmt8,
-                             ciaCntMid: fmt8,
-                             ciaCntLo: fmt8,
-                             ciaAlarmHi: fmt8,
-                             ciaAlarmMid: fmt8,
-                             ciaAlarmLo: fmt8,
-                             ciaIMR: fmt8,
-                             ciaICR: fmt8,
-                             ciaSDR: fmt8,
-                             ciaSSR: fmt8b,
-                             ciaTA: fmt16,
-                             ciaTAlatch: fmt16,
-                             ciaTB: fmt16,
-                             ciaTBlatch: fmt16 ]
+                                   ciaPRA: fmt8,
+                                  ciaDDRA: fmt8,
+                                   ciaPRB: fmt8,
+                                  ciaDDRB: fmt8,
+                                 ciaCntHi: fmt8,
+                                ciaCntMid: fmt8,
+                                 ciaCntLo: fmt8,
+                               ciaAlarmHi: fmt8,
+                              ciaAlarmMid: fmt8,
+                               ciaAlarmLo: fmt8,
+                                   ciaIMR: fmt8,
+                                   ciaICR: fmt8,
+                                   ciaSDR: fmt8,
+                                   ciaSSR: fmt8b,
+                                    ciaTA: fmt16,
+                               ciaTAlatch: fmt16,
+                                    ciaTB: fmt16,
+                               ciaTBlatch: fmt16 ]
 
             for (c, f) in elements { assignFormatter(f, c!) }
         }
@@ -132,11 +132,6 @@ extension Inspector {
 
         ciaSDR.intValue = Int32(ciaInfo.sdr)
         ciaSSR.intValue = Int32(ciaInfo.ssr)
-
-        let idlePercentage = Int(ciaStats.idlePercentage * 100)
-        ciaIdleCycles.stringValue = "\(ciaStats.idleSince) cycles"
-        ciaIdleLevel.integerValue = idlePercentage
-        ciaIdleLevelText.stringValue = "\(idlePercentage) %"
     }
 
     @IBAction func selectCIAAction(_ sender: Any!) {

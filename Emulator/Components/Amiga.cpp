@@ -13,6 +13,7 @@
 #include "Option.h"
 #include "Snapshot.h"
 #include "ADFFile.h"
+#include "Chrono.h"
 #include <algorithm>
 
 namespace vamiga {
@@ -86,6 +87,7 @@ Amiga::Amiga(class Emulator& ref, isize id) : CoreComponent(ref, id)
         &ciaB,
         &mem,
         &cpu,
+        &logicAnalyzer,
         &remoteManager,
         &retroShell,
         &osDebugger,
@@ -105,7 +107,7 @@ Amiga::prefix(isize level, const char *component, isize line) const
 
         if (level >= 2) {
 
-            if (objid == 1) fprintf(stderr, "[Run-ahead] ");
+            if (isRunAheadInstance()) fprintf(stderr, "[Run-ahead] ");
             fprintf(stderr, "%s:%ld", component, line);
         }
         if (level >= 3) {
@@ -171,10 +173,11 @@ Amiga::getOption(Option option) const
         case OPT_AMIGA_WARP_BOOT:       return config.warpBoot;
         case OPT_AMIGA_WARP_MODE:       return config.warpMode;
         case OPT_AMIGA_VSYNC:           return config.vsync;
-        case OPT_AMIGA_SPEED_BOOST:     return config.timeLapse;
-        case OPT_AMIGA_SNAPSHOTS:       return config.snapshots;
-        case OPT_AMIGA_SNAPSHOT_DELAY:  return config.snapshotDelay;
+        case OPT_AMIGA_SPEED_BOOST:     return config.speedBoost;
         case OPT_AMIGA_RUN_AHEAD:       return config.runAhead;
+        case OPT_AMIGA_SNAP_AUTO:       return config.snapshots;
+        case OPT_AMIGA_SNAP_DELAY:      return config.snapshotDelay;
+        case OPT_AMIGA_SNAP_COMPRESS:   return config.compressSnapshots;
 
         default:
             fatalError;
@@ -189,7 +192,7 @@ Amiga::checkOption(Option opt, i64 value)
         case OPT_AMIGA_VIDEO_FORMAT:
 
             if (!VideoFormatEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, VideoFormatEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, VideoFormatEnum::keyList());
             }
             return;
 
@@ -200,7 +203,7 @@ Amiga::checkOption(Option opt, i64 value)
         case OPT_AMIGA_WARP_MODE:
 
             if (!WarpModeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, WarpModeEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, WarpModeEnum::keyList());
             }
             return;
 
@@ -211,30 +214,34 @@ Amiga::checkOption(Option opt, i64 value)
         case OPT_AMIGA_SPEED_BOOST:
 
             if (value < 50 || value > 200) {
-                throw Error(ERROR_OPT_INV_ARG, "50...200");
-            }
-            return;
-
-        case OPT_AMIGA_SNAPSHOTS:
-
-            return;
-
-        case OPT_AMIGA_SNAPSHOT_DELAY:
-
-            if (value < 10 || value > 3600) {
-                throw Error(ERROR_OPT_INV_ARG, "10...3600");
+                throw Error(VAERROR_OPT_INV_ARG, "50...200");
             }
             return;
 
         case OPT_AMIGA_RUN_AHEAD:
 
             if (value < 0 || value > 12) {
-                throw Error(ERROR_OPT_INV_ARG, "0...12");
+                throw Error(VAERROR_OPT_INV_ARG, "0...12");
             }
             return;
 
+        case OPT_AMIGA_SNAP_AUTO:
+
+            return;
+
+        case OPT_AMIGA_SNAP_DELAY:
+
+            if (value < 10 || value > 3600) {
+                throw Error(VAERROR_OPT_INV_ARG, "10...3600");
+            }
+            return;
+
+        case OPT_AMIGA_SNAP_COMPRESS:
+
+            return;
+            
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -269,19 +276,7 @@ Amiga::setOption(Option option, i64 value)
 
         case OPT_AMIGA_SPEED_BOOST:
 
-            config.timeLapse = isize(value);
-            return;
-
-        case OPT_AMIGA_SNAPSHOTS:
-
-            config.snapshots = bool(value);
-            scheduleNextSnpEvent();
-            return;
-
-        case OPT_AMIGA_SNAPSHOT_DELAY:
-
-            config.snapshotDelay = isize(value);
-            scheduleNextSnpEvent();
+            config.speedBoost = isize(value);
             return;
 
         case OPT_AMIGA_RUN_AHEAD:
@@ -289,6 +284,23 @@ Amiga::setOption(Option option, i64 value)
             config.runAhead = isize(value);
             return;
 
+        case OPT_AMIGA_SNAP_AUTO:
+
+            config.snapshots = bool(value);
+            scheduleNextSnpEvent();
+            return;
+
+        case OPT_AMIGA_SNAP_DELAY:
+
+            config.snapshotDelay = isize(value);
+            scheduleNextSnpEvent();
+            return;
+
+        case OPT_AMIGA_SNAP_COMPRESS:
+
+            config.compressSnapshots = bool(value);
+            return;
+            
         default:
             fatalError;
     }
@@ -300,7 +312,7 @@ Amiga::exportConfig(const fs::path &path, bool diff) const
     auto fs = std::ofstream(path, std::ofstream::binary);
 
     if (!fs.is_open()) {
-        throw Error(ERROR_FILE_CANT_WRITE);
+        throw Error(VAERROR_FILE_CANT_WRITE);
     }
 
     exportConfig(fs, diff);
@@ -328,34 +340,18 @@ Amiga::revertToFactorySettings()
 }
 
 i64
-Amiga::overrideOption(Option option, i64 value)
-{
-    static std::map<Option,i64> overrides = OVERRIDES;
-
-    if (overrides.find(option) != overrides.end()) {
-
-        msg("Overriding option: %s = %lld\n", OptionEnum::key(option), value);
-        return overrides[option];
-    }
-
-    return value;
-}
-
-i64
 Amiga::get(Option opt, isize objid) const
 {
     debug(CNF_DEBUG, "get(%s, %ld)\n", OptionEnum::key(opt), objid);
 
     auto target = routeOption(opt, objid);
-    if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
+    if (target == nullptr) throw Error(VAERROR_OPT_INV_ID);
     return target->getOption(opt);
 }
 
 void
 Amiga::check(Option opt, i64 value, const std::vector<isize> objids)
 {
-    value = overrideOption(opt, value);
-
     if (objids.empty()) {
 
         for (isize objid = 0;; objid++) {
@@ -372,7 +368,7 @@ Amiga::check(Option opt, i64 value, const std::vector<isize> objids)
         debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
 
         auto target = routeOption(opt, objid);
-        if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
+        if (target == nullptr) throw Error(VAERROR_OPT_INV_ID);
 
         target->checkOption(opt, value);
     }
@@ -381,8 +377,6 @@ Amiga::check(Option opt, i64 value, const std::vector<isize> objids)
 void
 Amiga::set(Option opt, i64 value, const std::vector<isize> objids)
 {
-    value = overrideOption(opt, value);
-
     if (objids.empty()) {
 
         for (isize objid = 0;; objid++) {
@@ -399,7 +393,7 @@ Amiga::set(Option opt, i64 value, const std::vector<isize> objids)
         debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
 
         auto target = routeOption(opt, objid);
-        if (target == nullptr) throw Error(ERROR_OPT_INV_ID);
+        if (target == nullptr) throw Error(VAERROR_OPT_INV_ID);
 
         target->setOption(opt, value);
     }
@@ -431,7 +425,7 @@ Amiga::set(ConfigScheme scheme)
                 set(OPT_CPU_REVISION, CPU_68000);
                 set(OPT_AGNUS_REVISION, AGNUS_OCS_OLD);
                 set(OPT_DENISE_REVISION, DENISE_OCS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_AMIGA_VIDEO_FORMAT, FORMAT_PAL);
                 set(OPT_MEM_CHIP_RAM, 512);
                 set(OPT_MEM_SLOW_RAM, 512);
                 break;
@@ -441,7 +435,7 @@ Amiga::set(ConfigScheme scheme)
                 set(OPT_CPU_REVISION, CPU_68000);
                 set(OPT_AGNUS_REVISION, AGNUS_OCS);
                 set(OPT_DENISE_REVISION, DENISE_OCS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_AMIGA_VIDEO_FORMAT, FORMAT_PAL);
                 set(OPT_MEM_CHIP_RAM, 512);
                 set(OPT_MEM_SLOW_RAM, 512);
                 break;
@@ -451,7 +445,7 @@ Amiga::set(ConfigScheme scheme)
                 set(OPT_CPU_REVISION, CPU_68000);
                 set(OPT_AGNUS_REVISION, AGNUS_ECS_1MB);
                 set(OPT_DENISE_REVISION, DENISE_OCS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_AMIGA_VIDEO_FORMAT, FORMAT_PAL);
                 set(OPT_MEM_CHIP_RAM, 512);
                 set(OPT_MEM_SLOW_RAM, 512);
                 break;
@@ -461,7 +455,7 @@ Amiga::set(ConfigScheme scheme)
                 set(OPT_CPU_REVISION, CPU_68000);
                 set(OPT_AGNUS_REVISION, AGNUS_ECS_2MB);
                 set(OPT_DENISE_REVISION, DENISE_ECS);
-                set(OPT_AMIGA_VIDEO_FORMAT, PAL);
+                set(OPT_AMIGA_VIDEO_FORMAT, FORMAT_PAL);
                 set(OPT_MEM_CHIP_RAM, 512);
                 set(OPT_MEM_SLOW_RAM, 512);
                 break;
@@ -483,20 +477,6 @@ Amiga::routeOption(Option opt, isize objid) const
 {
     auto result = const_cast<Amiga *>(this)->routeOption(opt, objid);
     return const_cast<const Configurable *>(result);
-}
-
-i64
-Amiga::overrideOption(Option opt, i64 value) const
-{
-    static std::map<Option,i64> overrides = OVERRIDES;
-
-    if (overrides.find(opt) != overrides.end()) {
-
-        msg("Overriding option: %s = %lld\n", OptionEnum::key(opt), value);
-        return overrides[opt];
-    }
-
-    return value;
 }
 
 u64
@@ -525,8 +505,8 @@ Amiga::nativeRefreshRate() const
 {
     switch (config.type) {
 
-        case PAL:   return 50.0;
-        case NTSC:  return 60.0;
+        case FORMAT_PAL:   return 50.0;
+        case FORMAT_NTSC:  return 60.0;
 
         default:
             fatalError;
@@ -538,8 +518,8 @@ Amiga::nativeMasterClockFrequency() const
 {
     switch (config.type) {
 
-        case PAL:   return CLK_FREQUENCY_PAL;
-        case NTSC:  return CLK_FREQUENCY_NTSC;
+        case FORMAT_PAL:   return PAL::CLK_FREQUENCY;
+        case FORMAT_NTSC:  return NTSC::CLK_FREQUENCY;
 
         default:
             fatalError;
@@ -555,14 +535,16 @@ Amiga::refreshRate() const
 
     } else {
 
-        return nativeRefreshRate() * config.timeLapse / 100.0;
+        auto boost = config.speedBoost ? config.speedBoost : 100;
+        return nativeRefreshRate() * boost / 100.0;
     }
 }
 
 i64
 Amiga::masterClockFrequency() const
 {
-    return nativeMasterClockFrequency() * config.timeLapse / 100;
+    auto boost = config.speedBoost ? config.speedBoost : 100;
+    return nativeMasterClockFrequency() * boost / 100;
 }
 
 void
@@ -666,6 +648,17 @@ Amiga::_dump(Category category, std::ostream& os) const
         os << ((fc & 0b001) ? '1' : '0');
         os << std::endl;
     }
+    
+    if (category == Category::Trace) {
+        
+        os << "\n";
+        cpu.dumpLogBuffer(os, 8);
+        os << "\n";
+        dump(Category::Current, os);
+        os << "\n";
+        cpu.disassembleRange(os, cpu.getPC0(), 8);
+        os << "\n";
+    }
 }
 
 void
@@ -673,23 +666,7 @@ Amiga::_powerOn()
 {
     debug(RUN_DEBUG, "_powerOn\n");
 
-    // Perform a reset
     hardReset();
-
-    // Start from a snapshot if requested
-    if (string(INITIAL_SNAPSHOT) != "") {
-
-        Snapshot snapshot(INITIAL_SNAPSHOT);
-        loadSnapshot(snapshot);
-    }
-
-    // Set initial breakpoints
-    for (auto &bp : std::vector <u32> (INITIAL_BREAKPOINTS)) {
-
-        cpu.debugger.breakpoints.setAt(bp);
-        // track = true; // TODO: FIXME
-    }
-
     msgQueue.put(MSG_POWER, 1);
 }
 
@@ -698,9 +675,7 @@ Amiga::_powerOff()
 {
     debug(RUN_DEBUG, "_powerOff\n");
 
-    // Perform a reset
     hardReset();
-
     msgQueue.put(MSG_POWER, 0);
 }
 
@@ -708,9 +683,6 @@ void
 Amiga::_run()
 {
     debug(RUN_DEBUG, "_run\n");
-
-    // Enable or disable CPU debugging
-    // track ? cpu.debugger.enableLogging() : cpu.debugger.disableLogging(); // TODO: FIXME
 
     msgQueue.put(MSG_RUN);
 }
@@ -721,7 +693,6 @@ Amiga::_pause()
     debug(RUN_DEBUG, "_pause\n");
 
     remoteManager.gdbServer.breakpointReached();
-
     msgQueue.put(MSG_PAUSE);
 }
 
@@ -772,7 +743,6 @@ Amiga::update(CmdQueue &queue)
     bool cmdConfig = false;
 
     auto dfn = [&]() -> FloppyDrive& { return *df[cmd.value]; };
-    auto cp = [&]() -> ControlPort& { return cmd.value ? controlPort2 : controlPort1; };
 
     // Process all commands
     while (queue.poll(cmd)) {
@@ -822,6 +792,20 @@ Amiga::update(CmdQueue &queue)
                 keyboard.processCommand(cmd);
                 break;
 
+            case CMD_MOUSE_MOVE_ABS:
+            case CMD_MOUSE_MOVE_REL:
+            {
+                auto &port = cmd.coord.port ? controlPort2 : controlPort1;
+                port.processCommand(cmd); break;
+                break;
+            }
+            case CMD_MOUSE_EVENT:
+            case CMD_JOY_EVENT:
+            {
+                auto &port = cmd.action.port ? controlPort2 : controlPort1;
+                port.processCommand(cmd); break;
+                break;
+            }
             case CMD_DSK_TOGGLE_WP:
             case CMD_DSK_MODIFIED:
             case CMD_DSK_UNMODIFIED:
@@ -829,18 +813,7 @@ Amiga::update(CmdQueue &queue)
                 dfn().processCommand(cmd);
                 break;
 
-            case CMD_MOUSE_MOVE_ABS:
-            case CMD_MOUSE_MOVE_REL:
-
-                cp().processCommand(cmd); break;
-                break;
-
-            case CMD_MOUSE_EVENT:
-            case CMD_JOY_EVENT:
-
-                cp().processCommand(cmd); break;
-                break;
-
+                
             case CMD_RSH_EXECUTE:
 
                 retroShell.exec();
@@ -874,87 +847,99 @@ Amiga::computeFrame()
         // Check if special action needs to be taken
         if (flags) {
 
+            enum Action { cont, pause, leave } action = cont;
+                        
+            // Are we requested to synchronize the thread?
+            if (flags & RL::SYNC_THREAD) {
+
+                action = leave;
+            }
+
             // Did we reach a soft breakpoint?
             if (flags & RL::SOFTSTOP_REACHED) {
-                clearFlag(RL::SOFTSTOP_REACHED);
+
                 msgQueue.put(MSG_STEP);
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
+            }
+
+            // Shall we stop at the end of the current line?
+            if (flags & RL::EOL_REACHED) {
+
+                msgQueue.put(MSG_EOL_REACHED);
+                action = pause;
+            }
+  
+            // Shall we stop at the end of the current frame?
+            if (flags & RL::EOF_REACHED) {
+
+                msgQueue.put(MSG_EOF_REACHED);
+                action = pause;
             }
 
             // Did we reach a breakpoint?
             if (flags & RL::BREAKPOINT_REACHED) {
-                clearFlag(RL::BREAKPOINT_REACHED);
+
                 auto addr = cpu.debugger.breakpoints.hit->addr;
                 msgQueue.put(MSG_BREAKPOINT_REACHED, CpuMsg { addr, 0 });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
             // Did we reach a watchpoint?
             if (flags & RL::WATCHPOINT_REACHED) {
-                clearFlag(RL::WATCHPOINT_REACHED);
+
                 auto addr = cpu.debugger.watchpoints.hit->addr;
                 msgQueue.put(MSG_WATCHPOINT_REACHED, CpuMsg { addr, 0 });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
             // Did we reach a catchpoint?
             if (flags & RL::CATCHPOINT_REACHED) {
-                clearFlag(RL::CATCHPOINT_REACHED);
+
                 auto vector = u8(cpu.debugger.catchpoints.hit->addr);
                 msgQueue.put(MSG_CATCHPOINT_REACHED, CpuMsg { cpu.getPC0(), vector });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
             // Did we reach a software trap?
             if (flags & RL::SWTRAP_REACHED) {
-                clearFlag(RL::SWTRAP_REACHED);
+
                 msgQueue.put(MSG_SWTRAP_REACHED, CpuMsg { cpu.getPC0(), 0 });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
             // Did we reach a beam trap?
             if (flags & RL::BEAMTRAP_REACHED) {
-                clearFlag(RL::BEAMTRAP_REACHED);
+
                 msgQueue.put(MSG_BEAMTRAP_REACHED, CpuMsg { 0, 0 });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
             // Did we reach a Copper breakpoint?
             if (flags & RL::COPPERBP_REACHED) {
-                clearFlag(RL::COPPERBP_REACHED);
+
                 auto addr = u8(agnus.copper.debugger.breakpoints.hit()->addr);
                 msgQueue.put(MSG_COPPERBP_REACHED, CpuMsg { addr, 0 });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
             // Did we reach a Copper watchpoint?
             if (flags & RL::COPPERWP_REACHED) {
-                clearFlag(RL::COPPERWP_REACHED);
+
                 auto addr = u8(agnus.copper.debugger.watchpoints.hit()->addr);
                 msgQueue.put(MSG_COPPERWP_REACHED, CpuMsg { addr, 0 });
-                throw StateChangeException(STATE_PAUSED);
-                break;
+                action = pause;
             }
 
-            // Are we requested to terminate the run loop?
+            // Are we requested to pause the emulator?
             if (flags & RL::STOP) {
-                clearFlag(RL::STOP);
-                throw StateChangeException(STATE_PAUSED);
-                break;
-            }
 
-            // Are we requested to synchronize the thread?
-            if (flags & RL::SYNC_THREAD) {
-                clearFlag(RL::SYNC_THREAD);
-                break;
+                action = pause;
             }
+            
+            flags = 0;
+            
+            if (action == pause) { throw StateChangeException(STATE_PAUSED); }
+            if (action == leave) { break; }
         }
     }
 }
@@ -1002,10 +987,15 @@ Amiga::clearFlag(u32 flag)
 MediaFile *
 Amiga::takeSnapshot()
 {
-    {   SUSPENDED
-
-        return new Snapshot(*this);
-    }
+    Snapshot *result;
+    
+    // Take the snapshot
+    { SUSPENDED result = new Snapshot(*this); }
+    
+    // Compress the snapshot if requested
+    if (config.compressSnapshots) result->compress();
+    
+    return result;
 }
 
 void
@@ -1025,8 +1015,8 @@ Amiga::serviceSnpEvent(EventID eventId)
 void
 Amiga::scheduleNextSnpEvent()
 {
-    auto snapshots = emulator.get(OPT_AMIGA_SNAPSHOTS);
-    auto delay = emulator.get(OPT_AMIGA_SNAPSHOT_DELAY);
+    auto snapshots = emulator.get(OPT_AMIGA_SNAP_AUTO);
+    auto delay = emulator.get(OPT_AMIGA_SNAP_DELAY);
 
     if (snapshots) {
         agnus.scheduleRel<SLOT_SNP>(SEC(double(delay)), SNP_TAKE);
@@ -1034,54 +1024,6 @@ Amiga::scheduleNextSnpEvent()
         agnus.cancel<SLOT_SNP>();
     }
 }
-
-/*
-void
-Amiga::requestAutoSnapshot()
-{
-    if (!isRunning()) {
-
-        // Take snapshot immediately
-        takeAutoSnapshot();
-
-    } else {
-
-        // Schedule the snapshot to be taken
-        signalAutoSnapshot();
-    }
-}
-
-void
-Amiga::requestUserSnapshot()
-{
-    if (!isRunning()) {
-
-        // Take snapshot immediately
-        takeUserSnapshot();
-
-    } else {
-
-        // Schedule the snapshot to be taken
-        signalUserSnapshot();
-    }
-}
-
-Snapshot *
-Amiga::latestAutoSnapshot()
-{
-    Snapshot *result = autoSnapshot;
-    autoSnapshot = nullptr;
-    return result;
-}
-
-Snapshot *
-Amiga::latestUserSnapshot()
-{
-    Snapshot *result = userSnapshot;
-    userSnapshot = nullptr;
-    return result;
-}
-*/
 
 void 
 Amiga::loadSnapshot(const MediaFile &file)
@@ -1093,13 +1035,19 @@ Amiga::loadSnapshot(const MediaFile &file)
 
     } catch (...) {
 
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VAERROR_FILE_TYPE_MISMATCH);
     }
 }
 
 void
-Amiga::loadSnapshot(const Snapshot &snapshot)
+Amiga::loadSnapshot(const Snapshot &snap)
 {
+    // Make a copy so we can modify the snapshot
+    Snapshot snapshot(snap);
+
+    // Uncompress the snapshot
+    snapshot.uncompress();
+    
     {   SUSPENDED
 
         try {
@@ -1122,7 +1070,7 @@ Amiga::loadSnapshot(const Snapshot &snapshot)
 
     // Inform the GUI
     msgQueue.put(MSG_SNAPSHOT_RESTORED);
-    msgQueue.put(MSG_VIDEO_FORMAT, agnus.isPAL() ? PAL : NTSC);
+    msgQueue.put(MSG_VIDEO_FORMAT, agnus.isPAL() ? FORMAT_PAL : FORMAT_NTSC);
 }
 
 /*
@@ -1181,14 +1129,7 @@ Amiga::processCommand(const Cmd &cmd)
 void
 Amiga::eolHandler()
 {
-    // Get the maximum number of rasterlines
-    auto lines = agnus.isPAL() ? VPOS_CNT_PAL : VPOS_CNT_NTSC;
 
-    // Check if we need to sync the thread
-    if (agnus.pos.v % (lines + 1) == 0) {
-
-        setFlag(RL::SYNC_THREAD);
-    }
 }
 
 void

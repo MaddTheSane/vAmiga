@@ -42,7 +42,7 @@ namespace vamiga {
  *           -----------------------------------------------------
  */
 
-class AudioPort : public SubComponent {
+class AudioPort final : public SubComponent {
 
     friend class AudioFilter;
 
@@ -123,7 +123,7 @@ public:
         Sampler()
     };
 
-    // Output
+    // Output buffer
     AudioStream stream;
 
     // The audio filter pipeline

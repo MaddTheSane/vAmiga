@@ -25,42 +25,9 @@
 namespace vamiga {
 
 void
-AmigaFile::init(const std::filesystem::path &path)
-{
-    std::ifstream stream(path, std::ifstream::binary);
-    if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, path);
-    init(path, stream);
-}
-
-void
-AmigaFile::init(const std::filesystem::path &path, std::istream &stream)
-{
-    if (!isCompatiblePath(path)) throw Error(ERROR_FILE_TYPE_MISMATCH);
-    init(stream);
-    this->path = path;
-}
-
-void
-AmigaFile::init(std::istream &stream)
-{
-    if (!isCompatibleStream(stream)) throw Error(ERROR_FILE_TYPE_MISMATCH);
-    readFromStream(stream);
-}
-
-void
 AmigaFile::init(isize len)
 {
     data.init(len);
-    data.clear();
-}
-
-void
-AmigaFile::init(const u8 *buf, isize len)
-{    
-    assert(buf);
-    std::stringstream stream;
-    stream.write((const char *)buf, len);
-    init(stream);
 }
 
 void
@@ -70,6 +37,63 @@ AmigaFile::init(const Buffer<u8> &buffer)
 }
 
 void
+AmigaFile::init(const string &str)
+{
+    init((const u8 *)str.c_str(), (isize)str.length());
+}
+
+void
+AmigaFile::init(const std::filesystem::path &path)
+{
+    std::ifstream stream(path, std::ios::binary);
+    if (!stream.is_open()) throw Error(VAERROR_FILE_NOT_FOUND, path);
+
+    std::ostringstream sstr(std::ios::binary);
+    sstr << stream.rdbuf();
+    init(sstr.str());
+    this->path = path;
+    
+    /*
+    std::ifstream stream(path, std::ifstream::binary);
+    if (!stream.is_open()) throw Error(VAERROR_FILE_NOT_FOUND, path);
+    init(path, stream);
+    */
+}
+/*
+void
+AmigaFile::init(const std::filesystem::path &path, std::istream &stream)
+{
+    if (!isCompatiblePath(path)) throw Error(VAERROR_FILE_TYPE_MISMATCH);
+    init(stream);
+    this->path = path;
+}
+*/
+/*
+void
+AmigaFile::init(std::istream &stream)
+{
+    if (!isCompatibleStream(stream)) throw Error(VAERROR_FILE_TYPE_MISMATCH);
+    readFromStream(stream);
+}
+*/
+
+void
+AmigaFile::init(const u8 *buf, isize len)
+{    
+    assert(buf);
+    if (!isCompatibleBuffer(buf, len)) throw Error(VAERROR_FILE_TYPE_MISMATCH);
+    readFromBuffer(buf, len);
+
+    /*
+    assert(buf);
+    std::stringstream stream;
+    stream.write((const char *)buf, len);
+    init(stream);
+    */
+}
+
+/*
+void
 AmigaFile::init(FILE *file)
 {
     assert(file);
@@ -77,6 +101,7 @@ AmigaFile::init(FILE *file)
     int c; while ((c = fgetc(file)) != EOF) { stream.put((char)c); }
     init(stream);
 }
+*/
 
 AmigaFile::~AmigaFile()
 {
@@ -96,6 +121,13 @@ AmigaFile::flash(u8 *buf, isize offset) const
     flash (buf, offset, data.size);
 }
 
+bool
+AmigaFile::isCompatibleBuffer(const Buffer<u8> &buffer)
+{
+    return isCompatibleBuffer(buffer.ptr, buffer.size);
+}
+
+/*
 isize
 AmigaFile::readFromStream(std::istream &stream)
 {
@@ -107,22 +139,22 @@ AmigaFile::readFromStream(std::istream &stream)
 
     // Allocate memory
     data.init(isize(fsize));
-    data.clear();
-    
+
     // Read from stream
     stream.read((char *)data.ptr, data.size);
     finalizeRead();
 
     return data.size;
 }
-
+*/
+/*
 isize
 AmigaFile::readFromFile(const std::filesystem::path &path)
 {
     std::ifstream stream(path, std::ifstream::binary);
 
     if (!stream.is_open()) {
-        throw Error(ERROR_FILE_CANT_READ, path);
+        throw Error(VAERROR_FILE_CANT_READ, path);
     }
 
     this->path = path;
@@ -132,6 +164,7 @@ AmigaFile::readFromFile(const std::filesystem::path &path)
     
     return result;
 }
+*/
 
 isize
 AmigaFile::readFromBuffer(const u8 *buf, isize len)
@@ -170,13 +203,13 @@ isize
 AmigaFile::writeToFile(const std::filesystem::path &path, isize offset, isize len)
 {
     if (util::isDirectory(path)) {
-        throw Error(ERROR_FILE_IS_DIRECTORY);
+        throw Error(VAERROR_FILE_IS_DIRECTORY);
     }
     
     std::ofstream stream(path, std::ofstream::binary);
 
     if (!stream.is_open()) {
-        throw Error(ERROR_FILE_CANT_WRITE, path);
+        throw Error(VAERROR_FILE_CANT_WRITE, path);
     }
     
     isize result = writeToStream(stream, offset, len);
@@ -220,7 +253,7 @@ AmigaFile::writeToFile(const std::filesystem::path &path)
 isize 
 AmigaFile::writePartitionToFile(const std::filesystem::path &path, isize partition)
 {
-    throw Error(ERROR_FILE_TYPE_UNSUPPORTED);
+    throw Error(VAERROR_FILE_TYPE_UNSUPPORTED);
 }
 
 isize

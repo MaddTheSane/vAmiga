@@ -30,7 +30,7 @@ const u8 RomFile::bootRomHeaders[1][8] = {
 // Kickstart Roms
 //
 
-const u8 RomFile::kickRomHeaders[8][7] = {
+const u8 RomFile::kickRomHeaders[10][7] = {
 
     // AROS Kickstart replacement
     { 0x11, 0x14, 0x4E, 0xF9, 0x00, 0xF8, 0x00 },
@@ -52,7 +52,11 @@ const u8 RomFile::kickRomHeaders[8][7] = {
     { 0x11, 0x11, 0x4E, 0xF9, 0x00, 0xF8, 0x04 },
 
     // QDOS Classic (experimental)
-    { 0x00, 0x02, 0x84, 0x80, 0x00, 0xFC, 0x00 }
+    { 0x00, 0x02, 0x84, 0x80, 0x00, 0xFC, 0x00 },
+
+    // Hardware demos (CPUBLTRO)
+    { 0x11, 0x14, 0x4e, 0xf9, 0x00, 0xf8, 0x00 },
+    { 0x11, 0x14, 0x4e, 0xf9, 0x00, 0xfc, 0x00 },
 };
 
 //
@@ -72,10 +76,8 @@ RomFile::isCompatible(const std::filesystem::path &path)
 }
 
 bool
-RomFile::isCompatible(std::istream &stream)
+RomFile::isCompatible(const u8 *buf, isize length)
 {
-    isize length = util::streamLength(stream);
-
     // Boot Roms
     if (length == KB(8) || length == KB(16)) {
 
@@ -83,7 +85,7 @@ RomFile::isCompatible(std::istream &stream)
         isize cnt = isizeof(bootRomHeaders) / len;
 
         for (isize i = 0; i < cnt; i++) {
-            if (util::matchingStreamHeader(stream, bootRomHeaders[i], len)) return true;
+            if (util::matchingBufferHeader(buf, bootRomHeaders[i], len)) return true;
         }
         return ALLOW_ALL_ROMS;
     }
@@ -95,7 +97,7 @@ RomFile::isCompatible(std::istream &stream)
         isize cnt = isizeof(kickRomHeaders) / len;
 
         for (isize i = 0; i < cnt; i++) {
-            if (util::matchingStreamHeader(stream, kickRomHeaders[i], len)) return true;
+            if (util::matchingBufferHeader(buf, kickRomHeaders[i], len)) return true;
         }
         return ALLOW_ALL_ROMS;
     }
@@ -107,7 +109,7 @@ RomFile::isCompatible(std::istream &stream)
         isize cnt = isizeof(encrRomHeaders) / len;
 
         for (isize i = 0; i < cnt; i++) {
-            if (util::matchingStreamHeader(stream, encrRomHeaders[i], len)) return true;
+            if (util::matchingBufferHeader(buf, encrRomHeaders[i], len)) return true;
         }
     }
 
@@ -115,19 +117,9 @@ RomFile::isCompatible(std::istream &stream)
 }
 
 bool
-RomFile::isRomBuffer(const u8 *buf, isize len)
+RomFile::isCompatible(const Buffer<u8> &buf)
 {
-    std::stringstream stream;
-    stream.write((const char *)buf, len);
-
-    return isCompatible(stream);
-}
-
-bool
-RomFile::isRomFile(const std::filesystem::path &path)
-{
-    std::ifstream stream(path, std::ifstream::binary);
-    return stream.is_open() ? isCompatible(stream) : false;
+    return isCompatible(buf.ptr, buf.size);
 }
 
 bool
@@ -152,7 +144,7 @@ RomFile::decrypt()
 
     // Load the rom.key file
     romKey.init(romKeyPath);
-    if (romKey.empty()) throw Error(ERROR_MISSING_ROM_KEY);
+    if (romKey.empty()) throw Error(VAERROR_MISSING_ROM_KEY);
     
     // Decrypt
     decrypted.alloc(data.size - headerSize);
@@ -164,8 +156,8 @@ RomFile::decrypt()
     data.init(decrypted);
     
     // Check if we've got a valid ROM
-    if (!isRomBuffer(data.ptr, data.size)) {
-        throw Error(ERROR_INVALID_ROM_KEY);
+    if (!isCompatible(data.ptr, data.size)) {
+        throw Error(VAERROR_INVALID_ROM_KEY);
     }
 }
 

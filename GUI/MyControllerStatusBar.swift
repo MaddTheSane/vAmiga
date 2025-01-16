@@ -32,6 +32,7 @@ extension MyController {
         let tracking = emu.tracking
         let cpuinfo = emu.cpu.info
         let warp = emu.warping
+        let speedBoost = emu.get(.AMIGA_SPEED_BOOST)
 
         // Df0 - Df3
         for n in 0...3 where drv[n] != nil {
@@ -61,12 +62,23 @@ extension MyController {
         cmdLeftIcon.image = cmdKeyIcon(mapLeft)
         cmdRightIcon.image = cmdKeyIcon(mapRight)
 
+        // Track icon
+        trackIcon.toolTip = info
+        trackIcon.contentTintColor = info == nil ? nil : NSColor.warning
+        if let image = NSImage(systemSymbolName: "waveform.badge.magnifyingglass", accessibilityDescription: nil) {
+            trackIcon.image = image
+        }
+ 
         // Remote server icon
         serverIcon.image = emu.remoteManager.icon
         
         // Warp mode icon
         warpIcon.image = hourglassIcon
         
+        // Speed adjust
+        speedStepper.integerValue = speedBoost
+        speedStepper.toolTip = "\(speedBoost) %"
+
         // Visibility
         let items: [NSView: Bool] = [
             
@@ -87,15 +99,16 @@ extension MyController {
 
             haltIcon: cpuinfo.halt,
             trackIcon: tracking,
-            cmdLeftIcon: false, // mapLeft || mapRight,
-            cmdRightIcon: false, // mapLeft || mapRight,
+            cmdLeftIcon: false,
+            cmdRightIcon: false,
             serverIcon: true,
             muteIcon: warp || muted,
 
             warpIcon: running,
             activityType: running,
             activityInfo: running,
-            activityBar: running
+            activityBar: running,
+            speedStepper: running
         ]
         
         for (item, visible) in items {
@@ -248,7 +261,7 @@ extension MyController {
             setColor(color: [.systemGreen, .systemGreen, .systemGreen, .systemYellow, .systemRed])
 
         case 3:
-            let fps = speedometer.gpsFps
+            let fps = speedometer.gpuFps
             activityBar.doubleValue = fps
             activityInfo.stringValue = String(format: "%d FPS", Int(fps))
             setColor(color: [.systemRed, .systemYellow, .systemGreen, .systemYellow, .systemRed])
@@ -292,4 +305,54 @@ extension MyController {
 
         refreshStatusBar()
     }
+
+    @IBAction func speedAction(_ sender: NSStepper!) {
+
+        // Round the value to the next number dividable by 5
+        var value = Int(round(sender.doubleValue / 5.0)) * 5
+
+        // Make sure the value is in the valid range
+        if value < 50 { value = 50 }
+        if value > 200 { value = 200 }
+
+        emu?.set(.AMIGA_SPEED_BOOST, value: value)
+    }
+
+    @IBAction func infoAction(_ sender: Any!) {
+                
+        if let info = info {
+                
+            // Get some auxiliary debug information from the emulator
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.monospaced(ofSize: 11, weight: .semibold),
+                .foregroundColor: NSColor.labelColor
+            ]
+            let text = NSAttributedString(string: emu.amiga.stateString!, attributes: attributes)
+            let size = CGRect(x: 0, y: 0, width: text.size().width + 16, height: text.size().height)
+
+            // Put the information into an accessory view
+            let accessory = NSTextView(frame: size)
+            accessory.textStorage?.setAttributedString(text)
+            accessory.drawsBackground = false
+            accessory.isEditable = false
+            
+            // Create an alert
+            let alert = NSAlert()
+            alert.messageText = info
+            alert.informativeText = info2 ?? ""
+            alert.alertStyle = .informational
+            alert.icon = NSImage(systemSymbolName: "waveform.badge.magnifyingglass",
+                                      accessibilityDescription: nil)
+            alert.addButton(withTitle: "OK")
+            alert.accessoryView = accessory
+  
+            alert.runModal()
+        }
+    }
+    
+    @IBAction func speedResetAction(_ sender: Any!) {
+
+        emu?.set(.AMIGA_SPEED_BOOST, value: 100)
+    }
+
 }

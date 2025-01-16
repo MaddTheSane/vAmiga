@@ -7,13 +7,13 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-let image0 = NSImage(named: "state0Template")!
-let image1 = NSImage(named: "state1Template")!
-let image2 = NSImage(named: "state2Template")!
-let image3 = NSImage(named: "state3Template")!
-let image5 = NSImage(named: "state5Template")!
-
 extension Inspector {
+
+    static let image0 = NSImage(named: "state0Template")!
+    static let image1 = NSImage(named: "state1Template")!
+    static let image2 = NSImage(named: "state2Template")!
+    static let image3 = NSImage(named: "state3Template")!
+    static let image5 = NSImage(named: "state5Template")!
 
     private func cachePaula() {
 
@@ -32,27 +32,27 @@ extension Inspector {
         if full {
             let elements = [ paulaIntena: fmt16,
                              paulaIntreq: fmt16,
-                             dskDsklen: fmt16,
-                             dskDskbytr: fmt16,
+                               dskDsklen: fmt16,
+                              dskDskbytr: fmt16,
                              dskAdkconHi: fmt8,
-                             dskDsksync: fmt16,
+                              dskDsksync: fmt16,
 
-                             audioLen0: fmt16,
-                             audioPer0: fmt16,
-                             audioVol0: fmt16,
-                             audioDat0: fmt16,
-                             audioLen1: fmt16,
-                             audioPer1: fmt16,
-                             audioVol1: fmt16,
-                             audioDat1: fmt16,
-                             audioLen2: fmt16,
-                             audioPer2: fmt16,
-                             audioVol2: fmt16,
-                             audioDat2: fmt16,
-                             audioLen3: fmt16,
-                             audioPer3: fmt16,
-                             audioVol3: fmt16,
-                             audioDat3: fmt16
+                               audioLen0: fmt16,
+                               audioPer0: fmt16,
+                               audioVol0: fmt16,
+                               audioDat0: fmt16,
+                               audioLen1: fmt16,
+                               audioPer1: fmt16,
+                               audioVol1: fmt16,
+                               audioDat1: fmt16,
+                               audioLen2: fmt16,
+                               audioPer2: fmt16,
+                               audioVol2: fmt16,
+                               audioDat2: fmt16,
+                               audioLen3: fmt16,
+                               audioPer3: fmt16,
+                               audioVol3: fmt16,
+                               audioDat3: fmt16
             ]
 
             for (c, f) in elements { assignFormatter(f, c!) }
@@ -185,11 +185,11 @@ extension Inspector {
 
             // Assign the correct image
             switch displayState {
-            case 0:  button.image = image0
-            case 1:  button.image = image1
-            case 2:  button.image = image2
-            case 3:  button.image = image3
-            case 5:  button.image = image5
+            case 0:  button.image = Inspector.image0
+            case 1:  button.image = Inspector.image1
+            case 2:  button.image = Inspector.image2
+            case 3:  button.image = Inspector.image3
+            case 5:  button.image = Inspector.image5
             default: button.image = nil
             }
         }

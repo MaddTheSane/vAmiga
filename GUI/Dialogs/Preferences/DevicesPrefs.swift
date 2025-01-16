@@ -8,52 +8,41 @@
 // -----------------------------------------------------------------------------
 
 extension PreferencesController {
-    
-    var selectedDev: GamePad? {
-        if devSelector.indexOfSelectedItem == 0 {
-            return parent.gamePadManager.gamePads[3]
-        } else {
-            return parent.gamePadManager.gamePads[4]
-        }
+
+    var pad: GamePad? { return gamePadManager.gamePads[devSelector.selectedTag()] }
+    var db: DeviceDatabase { return myAppDelegate.database }
+    var guid: GUID {return pad?.guid ?? GUID() }
+
+    func property(_ key: String) -> String {
+        return pad?.property(key: key) ?? "-"
+    }
+
+    var usageDescription: String {
+        return pad?.device?.usageDescription ?? property(kIOHIDPrimaryUsageKey)
     }
 
     func refreshDevicesTab() {
-                
-        let pad = selectedDev
-
-        func property(_ key: String) -> String {
-            return pad?.property(key: key) ?? "-"
-        }
 
         // Let us notify when the device is pulled
         pad?.notify = true
-        
-        let db = myAppDelegate.database
-        let vend = property(kIOHIDVendorIDKey)
-        let prod = property(kIOHIDProductIDKey)
 
-        // track("\(db.custom)")
-        
+        // Device properties
         devManufacturer.stringValue = property(kIOHIDManufacturerKey)
         devProduct.stringValue = property(kIOHIDProductKey)
         devVersion.stringValue = property(kIOHIDVersionNumberKey)
-        devVendorID.stringValue = vend
-        devProductID.stringValue = prod
+        devVendorID.stringValue = property(kIOHIDVendorIDKey)
+        devProductID.stringValue = property(kIOHIDProductIDKey)
         devTransport.stringValue = property(kIOHIDTransportKey)
         devUsagePage.stringValue = property(kIOHIDPrimaryUsagePageKey)
         devLocationID.stringValue = property(kIOHIDLocationIDKey)
         devUniqueID.stringValue = property(kIOHIDUniqueIDKey)
+        devUsage.stringValue = usageDescription
 
-        if let usageDescription = pad?.device?.usageDescription {
-            devUsage.stringValue = usageDescription
-        } else {
-            devUsage.stringValue = property(kIOHIDPrimaryUsageKey)
-        }
-        
-        devLeftScheme.selectItem(withTag: db.left(vendorID: vend, productID: prod))
-        devRightScheme.selectItem(withTag: db.right(vendorID: vend, productID: prod))
-        devHatScheme.selectItem(withTag: db.hatSwitch(vendorID: vend, productID: prod))
-        
+        // Controller mapping
+        devHidMapping.focusRingType = .none
+        devHidMapping.string = pad?.db.seek(guid: guid, withDelimiter: ",\n") ?? ""
+
+        // Information messages
         if pad?.isKnown == true {
             devInfoBoxTitle.stringValue = ""
             devInfoBoxTitle.textColor = .secondaryLabelColor
@@ -64,20 +53,36 @@ extension PreferencesController {
             devInfoBoxTitle.stringValue = "Not connected"
             devInfoBoxTitle.textColor = .secondaryLabelColor
         }
-        
+
+        // Hide some controls
         let hide = pad == nil || pad?.isMouse == true
         devImage.isHidden = hide
-        devLeftText.isHidden = hide
-        devRightText.isHidden = hide
-        devHatText.isHidden = hide
-        devLeftScheme.isHidden = hide
-        devRightScheme.isHidden = hide
-        devHatScheme.isHidden = hide
-        devActivity.isHidden = hide
-        devActivity2.isHidden = hide
+        devHidMappingScrollView.isHidden = hide
+        devHidEvent.isHidden = hide
+        devAction.isHidden = hide
+        devAction2.isHidden = hide
     }
 
-    func refreshDeviceEvents(events: [GamePadAction]) {
+    func refreshDeviceEvent(event: HIDEvent, nr: Int, value: Int) {
+
+        var text = ""
+
+        switch event {
+
+        case .BUTTON: text = "b\(nr) = \(value)"
+        case .AXIS: text = "a\(nr) = \(value)"
+        case .DPAD_UP: text = "DPad = Up"
+        case .DPAD_DOWN: text = "DPad = Down"
+        case .DPAD_RIGHT: text = "DPad = Right"
+        case .DPAD_LEFT: text = "DPad = Left"
+        case .HATSWITCH: text = "h\(nr).\(value)"
+        default: text = ""
+        }
+
+        devHidEvent.stringValue = text
+    }
+
+    func refreshDeviceActions(actions: [GamePadAction]) {
             
         var activity = "", activity2 = ""
         
@@ -85,88 +90,62 @@ extension PreferencesController {
             if activity == "" { activity += str } else { activity2 += str }
         }
         
-        if events.contains(.PULL_UP) { add(" Pull Up ") }
-        if events.contains(.PULL_DOWN) { add(" Pull Down ") }
-        if events.contains(.PULL_RIGHT) { add(" Pull Right ") }
-        if events.contains(.PULL_LEFT) { add(" Pull Left ") }
-        if events.contains(.PRESS_FIRE) { add(" Press Fire ") }
-        if events.contains(.RELEASE_X) { add(" Release X Axis ") }
-        if events.contains(.RELEASE_Y) { add(" Release Y Axis ") }
-        if events.contains(.RELEASE_XY) { add(" Release Axis ") }
-        if events.contains(.RELEASE_FIRE) { add(" Release Fire ") }
+        if actions.contains(.PULL_UP) { add(" Pull Up ") }
+        if actions.contains(.PULL_DOWN) { add(" Pull Down ") }
+        if actions.contains(.PULL_RIGHT) { add(" Pull Right ") }
+        if actions.contains(.PULL_LEFT) { add(" Pull Left ") }
+        if actions.contains(.PRESS_FIRE) { add(" Press Fire ") }
+        if actions.contains(.RELEASE_X) { add(" Release X Axis ") }
+        if actions.contains(.RELEASE_Y) { add(" Release Y Axis ") }
+        if actions.contains(.RELEASE_XY) { add(" Release Axis ") }
+        if actions.contains(.RELEASE_FIRE) { add(" Release Fire ") }
      
-        devActivity.stringValue = activity
-        devActivity2.stringValue = activity2
+        devAction.stringValue = activity
+        devAction2.stringValue = activity2
     }
     
     func selectDevicesTab() {
         
-        devActivity.stringValue = ""
-        devActivity2.stringValue = ""
+        devHidEvent.stringValue = ""
+        devAction.stringValue = ""
+        devAction2.stringValue = ""
         refreshDevicesTab()
     }
 
     //
     // Action methods (Misc)
     //
-      
+
     @IBAction func selectDeviceAction(_ sender: Any!) {
 
         refresh()
     }
-    
-    @IBAction func devLeftAction(_ sender: NSPopUpButton!) {
-        
-        let selectedTag = "\(sender.selectedTag())"
-                
-        if let device = selectedDev {
-            myAppDelegate.database.setLeft(vendorID: device.vendorID,
-                                           productID: device.productID,
-                                           selectedTag)
-            device.updateMappingScheme()
-        }
-        refresh()
-    }
 
-    @IBAction func devRightAction(_ sender: NSPopUpButton!) {
-        
-        let selectedTag = "\(sender.selectedTag())"
-                
-        if let device = selectedDev {
-            myAppDelegate.database.setRight(vendorID: device.vendorID,
-                                            productID: device.productID,
-                                            selectedTag)
-            device.updateMappingScheme()
-        }
-        refresh()
-    }
-
-    @IBAction func devHatSwitchAction(_ sender: NSPopUpButton!) {
-        
-        let selectedTag = "\(sender.selectedTag())"
-        
-        if let device = selectedDev {
-            myAppDelegate.database.setHatSwitch(vendorID: device.vendorID,
-                                                productID: device.productID,
-                                                selectedTag)
-            device.updateMappingScheme()
-        }
-        refresh()
-    }
-        
     @IBAction func devPresetAction(_ sender: NSPopUpButton!) {
         
         assert(sender.selectedTag() == 0)
-        
-        if let device = selectedDev {
-            
-            let db = myAppDelegate.database
-            db.setLeft(vendorID: device.vendorID, productID: device.productID, nil)
-            db.setRight(vendorID: device.vendorID, productID: device.productID, nil)
-            db.setHatSwitch(vendorID: device.vendorID, productID: device.productID, nil)
-            device.updateMappingScheme()
-        }
-        
+
+        // Reset the database
+        myAppDelegate.database.reset()
+
+        // Make the change effective
+        gamePadManager.updateHidMapping()
+
         refresh()
+    }
+}
+
+extension PreferencesController : NSTextViewDelegate {
+
+    func textDidChange(_ notification: Notification) {
+
+        if let textView = notification.object as? NSTextView {
+
+            // Add the update device description to the 'custom' database
+            db.update(line: textView.string)
+
+            // Make the change effective
+            gamePadManager.updateHidMapping()
+        }
     }
 }

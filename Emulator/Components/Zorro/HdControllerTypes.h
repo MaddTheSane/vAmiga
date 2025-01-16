@@ -12,11 +12,11 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Constants
 //
-
-#ifdef __cplusplus
 
 // Constants from exec/errors.h
 constexpr i8    IOERR_OPENFAIL      = -1;
@@ -35,7 +35,6 @@ constexpr u32   IO_LENGTH           = 0x24;
 constexpr u32   IO_DATA             = 0x28;
 constexpr u32   IO_OFFSET           = 0x2C;
 
-#endif
 
 //
 // Enumerations
@@ -74,17 +73,16 @@ enum_long(IO_CMD)
 };
 typedef IO_CMD IoCommand;
 
-#ifdef __cplusplus
-struct IoCommandEnum : vamiga::util::Reflection<IoCommandEnum, IoCommand>
+struct IoCommandEnum : util::Reflection<IoCommandEnum, IoCommand>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = CMD_TD_LASTCOMM;
-
+    
     static const char *prefix() { return "CMD"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case CMD_INVALID:           return "INVALID";
             case CMD_RESET:             return "RESET";
             case CMD_READ:              return "READ";
@@ -114,8 +112,11 @@ struct IoCommandEnum : vamiga::util::Reflection<IoCommandEnum, IoCommand>
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 enum_long(HDC_STATE)
 {
@@ -125,25 +126,27 @@ enum_long(HDC_STATE)
 };
 typedef HDC_STATE HdcState;
 
-#ifdef __cplusplus
-struct HdcStateEnum : vamiga::util::Reflection<HdcStateEnum, HdcState>
+struct HdcStateEnum : util::Reflection<HdcStateEnum, HdcState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = HDC_READY;
-        
+    
     static const char *prefix() { return "HDC"; }
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case HDC_UNDETECTED:    return "UNDETECTED";
             case HDC_INITIALIZING:  return "INITIALIZING";
             case HDC_READY:         return "READY";
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
 
 
 //
@@ -170,3 +173,5 @@ typedef struct
     isize cmdCount[25];
 }
 HdcStats;
+
+}

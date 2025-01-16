@@ -152,11 +152,19 @@ Agnus::scheduleDasEventForCycle(isize hpos)
 void
 Agnus::scheduleNextREGEvent()
 {
-    // Determine when the next register change happens
-    Cycle next = changeRecorder.trigger();
-
-    // Schedule a register change event for that cycle
-    if (next < trigger[SLOT_REG]) scheduleAbs<SLOT_REG>(next, REG_CHANGE);
+    if (syncEvent) {
+        
+        // Schedule an event for the next cycle as there are pending events
+        scheduleImm <SLOT_REG> (DMA_CYCLES(1), REG_CHANGE);
+        
+    } else {
+        
+        // Determine when the next register change happens
+        Cycle next = changeRecorder.trigger();
+        
+        // Schedule a register change event for that cycle
+        scheduleAbs<SLOT_REG>(next, REG_CHANGE);
+    }
 }
 
 void
@@ -186,12 +194,10 @@ Agnus::serviceREGEvent(Cycle until)
     if (syncEvent) {
 
         // Call the EOL handler if requested
-        if (syncEvent == DAS_EOL) eolHandler();
+        if (syncEvent & EVFL::EOL) { eolHandler(); syncEvent &= ~EVFL::EOL; }
 
         // Call the HSYNC handler if requested
-        if (syncEvent == DAS_HSYNC) hsyncHandler();
-
-        syncEvent = EVENT_NONE;
+        if (syncEvent & EVFL::HSYNC) { hsyncHandler(); syncEvent &= ~EVFL::HSYNC; }
     }
 
     // Iterate through all recorded register changes
@@ -297,7 +303,9 @@ Agnus::serviceREGEvent(Cycle until)
         }
     }
 
-    // Schedule next event
+    // Let the logic analyzer probe all observed signals
+    if (syncEvent & EVFL::PROBE) { logicAnalyzer.recordSignals(); }
+
     scheduleNextREGEvent();
 }
 
@@ -573,10 +581,15 @@ Agnus::serviceDASEvent(EventID id)
             busOwner[0x05] = BUS_REFRESH;
             busOwner[pos.lol ? 0xE3 : 0xE2] = BUS_REFRESH;
 
-            busValue[0x01] = 0;
-            busValue[0x03] = 0;
-            busValue[0x05] = 0;
-            busValue[pos.lol ? 0xE3 : 0xE2] = 0;
+            busAddr[0x01] = 0;
+            busAddr[0x03] = 0;
+            busAddr[0x05] = 0;
+            busAddr[pos.lol ? 0xE3 : 0xE2] = 0;
+            
+            busData[0x01] = 0;
+            busData[0x03] = 0;
+            busData[0x05] = 0;
+            busData[pos.lol ? 0xE3 : 0xE2] = 0;
 
             stats.usage[BUS_REFRESH] += 4;
             break;
@@ -612,8 +625,7 @@ Agnus::serviceDASEvent(EventID id)
              * that the the HSYNC handler is executed before any other
              * operation is performed in this cycle.
              */
-            syncEvent = DAS_HSYNC;
-            // recordRegisterChange(DMA_CYCLES(1), REG_NONE, 0);
+            syncEvent |= EVFL::HSYNC;
             scheduleRel <SLOT_REG> (DMA_CYCLES(1), REG_CHANGE);
 
             if (audxDR[2]) {
@@ -724,7 +736,7 @@ Agnus::serviceDASEvent(EventID id)
 
             assert(pos.h == HPOS_MAX_PAL || pos.h == HPOS_MAX_NTSC);
 
-            if (pos.h == HPOS_MAX_PAL && pos.lol) {
+            if (pos.h == PAL::HPOS_MAX && pos.lol) {
 
                 // Run for an additional cycle (long line)
                 break;
@@ -737,7 +749,7 @@ Agnus::serviceDASEvent(EventID id)
                  * that the the EOL handler is executed before any other
                  * operation is performed in this cycle.
                  */
-                syncEvent = id;
+                syncEvent |= EVFL::EOL;
                 scheduleRel <SLOT_REG> (DMA_CYCLES(1), REG_CHANGE);
             }
             break;
@@ -763,11 +775,11 @@ Agnus::serviceINSEvent()
     if (mask & 1LL << CIAClass)             { ciaa.record(); ciab.record(); }
     if (mask & 1LL << CPUClass)             { cpu.record(); }
     if (mask & 1LL << DeniseClass)          { denise.record(); }
-    if (mask & 1LL << MemoryClass)             { mem.record(); }
+    if (mask & 1LL << MemoryClass)          { mem.record(); }
     if (mask & 1LL << PaulaClass)           { paula.record(); }
     if (mask & 1LL << UARTClass)            { uart.record(); }
-    if (mask & 1LL << ControlPortClass)    { controlPort1.record(); controlPort2.record(); }
-    if (mask & 1LL << SerialPortClass)     { serialPort.record(); }
+    if (mask & 1LL << ControlPortClass)     { controlPort1.record(); controlPort2.record(); }
+    if (mask & 1LL << SerialPortClass)      { serialPort.record(); }
 
     // Reschedule the event
     rescheduleRel<SLOT_INS>((Cycle)(inspectionInterval * 28000007));

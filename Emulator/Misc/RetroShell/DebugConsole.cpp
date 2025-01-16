@@ -16,7 +16,9 @@ namespace vamiga {
 void
 DebugConsole::_pause()
 {
-    retroShell.asyncExec("state");
+    *this << '\n' << '\n';
+    exec("state");
+    *this << getPrompt();
 }
 
 string
@@ -105,6 +107,22 @@ DebugConsole::initCommands(Command &root)
 
         root.clone("n", {"next"});
 
+        root.add({"eol"}, { }, { },
+                 "Complete the current line",
+                 [this](Arguments& argv, long value) {
+
+            dmaDebugger.eolTrap = true;
+            emulator.run();
+        });
+        
+        root.add({"eof"}, { }, { },
+                 "Complete the current frame",
+                 [this](Arguments& argv, long value) {
+
+            dmaDebugger.eofTrap = true;
+            emulator.run();
+        });
+        
         root.add({"break"},     "Manage CPU breakpoints");
 
         {
@@ -121,7 +139,7 @@ DebugConsole::initCommands(Command &root)
                      [this](Arguments& argv, long value) {
 
                 auto addr = parseAddr(argv[0]);
-                if (IS_ODD(addr)) throw Error(ERROR_ADDR_UNALIGNED);
+                if (IS_ODD(addr)) throw Error(VAERROR_ADDR_UNALIGNED);
                 cpu.breakpoints.setAt(addr, parseNum(argv, 1, 0));
             });
 
@@ -190,7 +208,7 @@ DebugConsole::initCommands(Command &root)
                      [this](Arguments& argv, long value) {
 
                 auto nr = parseNum(argv[0]);
-                if (nr < 0 || nr > 255) throw Error(ERROR_OPT_INV_ARG, "0...255");
+                if (nr < 0 || nr > 255) throw Error(VAERROR_OPT_INV_ARG, "0...255");
                 cpu.catchpoints.setAt(u32(nr), parseNum(argv, 1, 0));
             });
 
@@ -199,7 +217,7 @@ DebugConsole::initCommands(Command &root)
                      [this](Arguments& argv, long value) {
 
                 auto nr = parseNum(argv[0]);
-                if (nr < 1 || nr > 7) throw Error(ERROR_OPT_INV_ARG, "1...7");
+                if (nr < 1 || nr > 7) throw Error(VAERROR_OPT_INV_ARG, "1...7");
                 cpu.catchpoints.setAt(u32(nr + 24), parseNum(argv, 1, 0));
             });
 
@@ -208,7 +226,7 @@ DebugConsole::initCommands(Command &root)
                      [this](Arguments& argv, long value) {
 
                 auto nr = parseNum(argv[0]);
-                if (nr < 0 || nr > 15) throw Error(ERROR_OPT_INV_ARG, "0...15");
+                if (nr < 0 || nr > 15) throw Error(VAERROR_OPT_INV_ARG, "0...15");
                 cpu.catchpoints.setAt(u32(nr + 32), parseNum(argv, 1, 0));
             });
 
@@ -243,7 +261,7 @@ DebugConsole::initCommands(Command &root)
                      [this](Arguments& argv, long value) {
 
                 auto addr = parseAddr(argv[0]);
-                if (IS_ODD(addr)) throw Error(ERROR_ADDR_UNALIGNED);
+                if (IS_ODD(addr)) throw Error(VAERROR_ADDR_UNALIGNED);
                 copper.debugger.breakpoints.setAt(addr, parseNum(argv, 1, 0));
             });
 
@@ -278,7 +296,7 @@ DebugConsole::initCommands(Command &root)
                      [this](Arguments& argv, long value) {
 
                 auto addr = parseAddr(argv[0]);
-                if (IS_ODD(addr)) throw Error(ERROR_ADDR_UNALIGNED);
+                if (IS_ODD(addr)) throw Error(VAERROR_ADDR_UNALIGNED);
                 copper.debugger.watchpoints.setAt(addr, parseNum(argv, 1, 0));
             });
 
@@ -468,16 +486,16 @@ DebugConsole::initCommands(Command &root)
         root.clone("e.w", {"e"}, "", 2);
         root.clone("e.l", {"e"}, "", 4);
 
-        root.add({"i"},
+        root.add({"?"},
                  "Inspect a component");
 
         {   Command::currentGroup = "Components";
 
-            root.add({"i", "amiga"}, "Main computer");
+            root.add({"?", "amiga"}, "Main computer");
 
             {
 
-                root.add({"i", "amiga", ""},
+                root.add({"?", "amiga", ""},
                          "Inspects the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -485,18 +503,18 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "memory"}, "RAM and ROM");
+            root.add({"?", "memory"}, "RAM and ROM");
 
             {
 
-                root.add({"i", "memory", ""},
+                root.add({"?", "memory", ""},
                          "Inspects the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(mem, Category::State );
                 });
 
-                root.add({"i", "memory", "bankmap"},
+                root.add({"?", "memory", "bankmap"},
                          "Dumps the memory bank map",
                          [this](Arguments& argv, long value) {
 
@@ -504,11 +522,11 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "cpu"}, "Motorola CPU");
+            root.add({"?", "cpu"}, "Motorola CPU");
 
             {
 
-                root.add({"i", "cpu", ""},
+                root.add({"?", "cpu", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -519,11 +537,11 @@ DebugConsole::initCommands(Command &root)
             for (isize i = 0; i < 2; i++) {
 
                 string cia = (i == 0) ? "ciaa" : "ciab";
-                root.add({"i", cia}, "Complex Interface Adapter");
+                root.add({"?", cia}, "Complex Interface Adapter");
 
                 {
 
-                    root.add({"i", cia, ""},
+                    root.add({"?", cia, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
@@ -534,7 +552,7 @@ DebugConsole::initCommands(Command &root)
                         }
                     }, i);
 
-                    root.add({"i", cia, "tod"},
+                    root.add({"?", cia, "tod"},
                              "Display the state of the 24-bit counter",
                              [this](Arguments& argv, long value) {
 
@@ -547,39 +565,39 @@ DebugConsole::initCommands(Command &root)
                 }
             }
 
-            root.add({"i", "agnus"}, "Custom Chipset");
+            root.add({"?", "agnus"}, "Custom Chipset");
 
             {
 
-                root.add({"i", "agnus", ""},
+                root.add({"?", "agnus", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(agnus, Category::State );
                 });
 
-                root.add({"i", "agnus", "beam"},
+                root.add({"?", "agnus", "beam"},
                          "Display the current beam position",
                          [this](Arguments& argv, long value) {
 
                     dump(amiga.agnus, Category::Beam);
                 });
 
-                root.add({"i", "agnus", "dma"},
+                root.add({"?", "agnus", "dma"},
                          "Print all scheduled DMA events",
                          [this](Arguments& argv, long value) {
 
                     dump(amiga.agnus, Category::Dma);
                 });
 
-                root.add({"i", "agnus", "sequencer"},
+                root.add({"?", "agnus", "sequencer"},
                          "Inspect the sequencer logic",
                          [this](Arguments& argv, long value) {
 
                     dump(amiga.agnus.sequencer, { Category::State, Category::Signals } );
                 });
 
-                root.add({"i", "agnus", "events"},
+                root.add({"?", "agnus", "events"},
                          "Inspect the event scheduler",
                          [this](Arguments& argv, long value) {
 
@@ -587,11 +605,11 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "blitter"}, "Coprocessor");
+            root.add({"?", "blitter"}, "Coprocessor");
 
             {
 
-                root.add({"i", "blitter", ""},
+                root.add({"?", "blitter", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -599,18 +617,18 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "copper"}, "Coprocessor");
+            root.add({"?", "copper"}, "Coprocessor");
 
             {
 
-                root.add({"i", "copper", ""},
+                root.add({"?", "copper", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(copper, Category::State );
                 });
 
-                root.add({"i", "copper", "list"}, { Arg::value },
+                root.add({"?", "copper", "list"}, { Arg::value },
                          "Print the Copper list",
                          [this](Arguments& argv, long value) {
 
@@ -622,46 +640,46 @@ DebugConsole::initCommands(Command &root)
                         case 2: dump(amiga.agnus.copper, Category::List2); break;
 
                         default:
-                            throw Error(ERROR_OPT_INV_ARG, "1 or 2");
+                            throw Error(VAERROR_OPT_INV_ARG, "1 or 2");
                     }
                 });
             }
 
-            root.add({"i", "paula"}, "Ports, Audio, Interrupts");
+            root.add({"?", "paula"}, "Ports, Audio, Interrupts");
 
             {
 
-                root.add({"i", "paula", "audio"},
+                root.add({"?", "paula", "audio"},
                          "Audio unit");
 
-                root.add({"i", "paula", "dc"},
+                root.add({"?", "paula", "dc"},
                          "Disk controller");
 
-                root.add({"i", "paula", "uart"},
+                root.add({"?", "paula", "uart"},
                          "Universal Asynchronous Receiver Transmitter");
 
-                root.add({"i", "paula", "audio", ""},
+                root.add({"?", "paula", "audio", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(audioPort, Category::State );
                 });
 
-                root.add({"i", "paula", "audio", "filter"},
+                root.add({"?", "paula", "audio", "filter"},
                          "Inspect the internal filter state",
                          [this](Arguments& argv, long value) {
 
                     dump(audioPort.filter, Category::State );
                 });
 
-                root.add({"i", "paula", "dc", ""},
+                root.add({"?", "paula", "dc", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(diskController, Category::State );
                 });
 
-                root.add({"i", "paula", "uart", ""},
+                root.add({"?", "paula", "uart", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -669,11 +687,11 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "denise"}, "Graphics");
+            root.add({"?", "denise"}, "Graphics");
 
             {
 
-                root.add({"i", "denise", ""},
+                root.add({"?", "denise", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -681,11 +699,11 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "rtc"}, "Real-time clock");
+            root.add({"?", "rtc"}, "Real-time clock");
 
             {
 
-                root.add({"i", "rtc", ""},
+                root.add({"?", "rtc", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -693,18 +711,18 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "zorro"}, "Expansion boards");
+            root.add({"?", "zorro"}, "Expansion boards");
 
             {
 
-                root.add({"i", "zorro", ""},
+                root.add({"?", "zorro", ""},
                          "List all connected boards",
                          [this](Arguments& argv, long value) {
 
                     dump(zorro, Category::Slots);
                 });
 
-                root.add({"i", "zorro", "board"}, { Arg::value },
+                root.add({"?", "zorro", "board"}, { Arg::value },
                          "Inspect a specific Zorro board",
                          [this](Arguments& argv, long value) {
 
@@ -717,7 +735,7 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "controlport"}, "Control ports");
+            root.add({"?", "controlport"}, "Control ports");
 
             {
 
@@ -725,10 +743,10 @@ DebugConsole::initCommands(Command &root)
 
                     string nr = (i == 1) ? "1" : "2";
 
-                    root.add({"i", "controlport", nr},
+                    root.add({"?", "controlport", nr},
                              "Control port " + nr);
 
-                    root.add({"i", "controlport", nr, ""},
+                    root.add({"?", "controlport", nr, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
@@ -739,11 +757,11 @@ DebugConsole::initCommands(Command &root)
                 }
             }
 
-            root.add({"i", "serial"}, "Serial port");
+            root.add({"?", "serial"}, "Serial port");
 
             {
 
-                root.add({"i", "serial", ""},
+                root.add({"?", "serial", ""},
                          "Display the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -753,11 +771,11 @@ DebugConsole::initCommands(Command &root)
         }
         {   Command::currentGroup = "Peripherals";
 
-            root.add({"i", "keyboard"}, "Keyboard");
+            root.add({"?", "keyboard"}, "Keyboard");
 
             {
 
-                root.add({"i", "keyboard", ""},
+                root.add({"?", "keyboard", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -765,7 +783,7 @@ DebugConsole::initCommands(Command &root)
                 });
             }
 
-            root.add({"i", "mouse"}, "Mouse");
+            root.add({"?", "mouse"}, "Mouse");
 
             {
 
@@ -773,10 +791,10 @@ DebugConsole::initCommands(Command &root)
 
                     string nr = (i == 1) ? "1" : "2";
 
-                    root.add({"i", "mouse", nr},
+                    root.add({"?", "mouse", nr},
                              "Mouse in port " + nr);
 
-                    root.add({"i", "mouse", nr, ""},
+                    root.add({"?", "mouse", nr, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
@@ -787,7 +805,7 @@ DebugConsole::initCommands(Command &root)
                 }
             }
 
-            root.add({"i", "joystick"}, "Joystick");
+            root.add({"?", "joystick"}, "Joystick");
 
             {
 
@@ -795,10 +813,10 @@ DebugConsole::initCommands(Command &root)
 
                     string nr = (i == 1) ? "1" : "2";
 
-                    root.add({"i", "joystick", nr},
+                    root.add({"?", "joystick", nr},
                              "Joystick in port " + nr);
 
-                    root.add({"i", "joystick", nr, ""},
+                    root.add({"?", "joystick", nr, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
@@ -814,14 +832,14 @@ DebugConsole::initCommands(Command &root)
                 string df = "df" + std::to_string(i);
 
                 if (i == 0) {
-                    root.add({"i", df}, std::pair<string,string>("df[n]", "Floppy drive n"));
+                    root.add({"?", df}, std::pair<string,string>("df[n]", "Floppy drive n"));
                 } else {
-                    root.add({"i", df}, "");
+                    root.add({"?", df}, "");
                 }
 
                 {
 
-                    root.add({"i", df, ""},
+                    root.add({"?", df, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
@@ -829,7 +847,7 @@ DebugConsole::initCommands(Command &root)
 
                     }, i);
 
-                    root.add({"i", df, "disk"},
+                    root.add({"?", df, "disk"},
                              "Inspect the inserted disk",
                              [this](Arguments& argv, long value) {
 
@@ -844,14 +862,14 @@ DebugConsole::initCommands(Command &root)
                 string hd = "hd" + std::to_string(i);
 
                 if (i == 0) {
-                    root.add({"i", hd}, std::pair<string,string>("hd[n]", "Hard drive n"));
+                    root.add({"?", hd}, std::pair<string,string>("hd[n]", "Hard drive n"));
                 } else {
-                    root.add({"i", hd}, "");
+                    root.add({"?", hd}, "");
                 }
 
                 {
 
-                    root.add({"i", hd, ""},
+                    root.add({"?", hd, ""},
                              "Inspect the internal state",
                              [this](Arguments& argv, long value) {
 
@@ -859,7 +877,7 @@ DebugConsole::initCommands(Command &root)
 
                     }, i);
 
-                    root.add({"i", hd, "drive"},
+                    root.add({"?", hd, "drive"},
                              "Display hard drive parameters",
                              [this](Arguments& argv, long value) {
 
@@ -867,7 +885,7 @@ DebugConsole::initCommands(Command &root)
 
                     }, i);
 
-                    root.add({"i", hd, "volumes"},
+                    root.add({"?", hd, "volumes"},
                              "Display summarized volume information",
                              [this](Arguments& argv, long value) {
 
@@ -875,7 +893,7 @@ DebugConsole::initCommands(Command &root)
 
                     }, i);
 
-                    root.add({"i", hd, "partitions"},
+                    root.add({"?", hd, "partitions"},
                              "Display information about all partitions",
                              [this](Arguments& argv, long value) {
 
@@ -887,53 +905,53 @@ DebugConsole::initCommands(Command &root)
         }
         {   Command::currentGroup = "Miscellaneous";
 
-            root.add({"i", "host"}, "Host machine");
+            root.add({"?", "thread"}, "Emulator thread");
 
             {
 
-                root.add({"i", "host", ""},
-                         "Display information about the host machine",
+                root.add({"?", "thread", ""},
+                         "Display information about the thread state",
                          [this](Arguments& argv, long value) {
 
-                    dump(host, Category::State);
+                    dump(emulator, Category::State);
                 });
             }
-
-            root.add({"i", "server"}, "Remote server");
+            
+            root.add({"?", "server"}, "Remote server");
 
             {
 
-                root.add({"i", "server", ""},
+                root.add({"?", "server", ""},
                          "Display a server status summary",
                          [this](Arguments& argv, long value) {
 
                     dump(remoteManager, Category::Status);
                 });
 
-                root.add({"i", "server", "serial"},
+                root.add({"?", "server", "serial"},
                          "Serial port server");
 
-                root.add({"i", "server", "serial", ""},
+                root.add({"?", "server", "serial", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(remoteManager.serServer, Category::State );
                 });
 
-                root.add({"i", "server", "rshell"},
+                root.add({"?", "server", "rshell"},
                          "Retro shell server");
 
-                root.add({"i", "server", "rshell", ""},
+                root.add({"?", "server", "rshell", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
                     dump(remoteManager.rshServer, Category::State );
                 });
 
-                root.add({"i", "server", "gdb"},
+                root.add({"?", "server", "gdb"},
                          "GDB server");
 
-                root.add({"i", "server", "gdb", ""},
+                root.add({"?", "server", "gdb", ""},
                          "Inspect the internal state",
                          [this](Arguments& argv, long value) {
 
@@ -1160,6 +1178,7 @@ DebugConsole::initCommands(Command &root)
     //
     // Miscellaneous
     //
+
     {   Command::currentGroup = "Miscellaneous";
 
         root.add({"debug"}, "Debug variables");
@@ -1177,9 +1196,9 @@ DebugConsole::initCommands(Command &root)
 
                 root.add({"debug", DebugFlagEnum::key(i)}, { Arg::boolean },
                          DebugFlagEnum::help(i),
-                         [this](Arguments& argv, long value) {
+                         [](Arguments& argv, long value) {
 
-                    emulator.setDebugVariable(DebugFlag(value), int(util::parseNum(argv[0])));
+                    Emulator::setDebugVariable(DebugFlag(value), int(util::parseNum(argv[0])));
 
                 }, i);
             }
@@ -1192,7 +1211,7 @@ DebugConsole::initCommands(Command &root)
             });
         }
 
-        root.add({"?"}, { Arg::value },
+        root.add({"%"}, { Arg::value },
                  "Convert a value into different formats",
                  [this](Arguments& argv, long value) {
 

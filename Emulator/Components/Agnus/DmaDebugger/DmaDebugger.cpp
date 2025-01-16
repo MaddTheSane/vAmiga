@@ -18,7 +18,7 @@ DmaDebugger::DmaDebugger(Amiga &ref) : SubComponent(ref)
     
 }
 
-void 
+void
 DmaDebugger::_dump(Category category, std::ostream& os) const
 {
     auto print = [&]() {
@@ -38,6 +38,11 @@ DmaDebugger::_dump(Category category, std::ostream& os) const
             os << std::endl;
         }
     };
+
+    if (category == Category::Config) {
+        
+        dumpConfig(os);
+    }
 
     if (category == Category::Beamtraps) {
 
@@ -93,7 +98,7 @@ DmaDebugger::checkOption(Option opt, i64 value)
         case OPT_DMA_DEBUG_MODE:
 
             if (!DmaDisplayModeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DmaDisplayModeEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, DmaDisplayModeEnum::keyList());
             }
             return;
             
@@ -118,7 +123,7 @@ DmaDebugger::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -326,15 +331,19 @@ DmaDebugger::setColor(BusOwner owner, u32 rgba)
 void
 DmaDebugger::eolHandler()
 {
-    // Only proceed if DMA debugging has been turned on
-    if (!config.enabled) return;
-
-    // Copy Agnus arrays before they get deleted
-    std::memcpy(busValue, agnus.busValue, sizeof(agnus.busValue));
-    std::memcpy(busOwner, agnus.busOwner, sizeof(agnus.busOwner));
-
-    // Record some information for being picked up in the HSYNC handler
-    pixel0 = agnus.pos.pixel(0);
+    // Check if execution should be interrupted
+    if (eolTrap) { eolTrap = false; amiga.setFlag(RL::EOL_REACHED); }
+    
+    if (config.enabled) {
+        
+        // Copy Agnus arrays before they get deleted
+        std::memcpy(busOwner, agnus.busOwner, sizeof(agnus.busOwner));
+        std::memcpy(busAddr, agnus.busAddr, sizeof(agnus.busAddr));
+        std::memcpy(busData, agnus.busData, sizeof(agnus.busData));
+        
+        // Record some information for being picked up in the HSYNC handler
+        pixel0 = agnus.pos.pixel(0);
+    }
 }
 
 void
@@ -342,16 +351,16 @@ DmaDebugger::hsyncHandler(isize vpos)
 {
     assert(agnus.pos.h == 0x12);
 
-    // Only proceed if DMA debugging has been turned on
-    if (!config.enabled) return;
-
-    // Draw first chunk (data from previous DMA line)
-    auto *ptr1 = pixelEngine.workingPtr(vpos);
-    computeOverlay(ptr1, HBLANK_MIN, HPOS_MAX, busOwner, busValue);
-
-    // Draw second chunk (data from current DMA line)
-    auto *ptr2 = ptr1 + agnus.pos.pixel(0);
-    computeOverlay(ptr2, 0, HBLANK_MIN - 1, agnus.busOwner, agnus.busValue);
+    if (config.enabled) {
+        
+        // Draw first chunk (data from previous DMA line)
+        auto *ptr1 = pixelEngine.workingPtr(vpos);
+        computeOverlay(ptr1, HBLANK_MIN, HPOS_MAX, busOwner, busData);
+        
+        // Draw second chunk (data from current DMA line)
+        auto *ptr2 = ptr1 + agnus.pos.pixel(0);
+        computeOverlay(ptr2, 0, HBLANK_MIN - 1, agnus.busOwner, agnus.busData);
+    }
 }
 
 void
@@ -432,7 +441,8 @@ DmaDebugger::vSyncHandler()
     if (!config.enabled) return;
 
     // Clear old data in the VBLANK area of the next frame
-    for (isize row = 0; row < VBLANK_CNT; row++) {
+    auto cnt = agnus.isPAL() ? PAL::VBLANK_CNT : NTSC::VBLANK_CNT;
+    for (isize row = 0; row < cnt; row++) {
 
         auto *ptr = denise.pixelEngine.workingPtr(row);
         for (isize col = 0; col < HPIXELS; col++) {
@@ -445,7 +455,8 @@ DmaDebugger::vSyncHandler()
 void
 DmaDebugger::eofHandler()
 {
-
+    // Check if execution should be interrupted
+    if (eofTrap) { eofTrap = false; amiga.setFlag(RL::EOF_REACHED); }
 }
 
 }

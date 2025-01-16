@@ -12,39 +12,12 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-//
-// Booleans
-//
-
-#ifndef __cplusplus
-#include <stdbool.h>
-#endif
-
-
-//
-// Strings
-//
-
-#ifdef __cplusplus
-#include <string>
-#include <cstring>
-using std::string;
-#endif
-
-
-//
-// Filesystem
-//
-
-#ifdef __cplusplus
-#include <filesystem>
-namespace vamiga { namespace fs = std::filesystem; }
-#endif
-
 
 //
 // Integers
 //
+
+namespace vamiga {
 
 // Signed integers
 typedef signed char        i8;
@@ -60,15 +33,32 @@ typedef unsigned int       u32;
 typedef unsigned long long u64;
 typedef unsigned long      usize;
 
+}
+
+
+//
+// Strings
+//
+
+#include <string>
+#include <cstring>
+using std::string;
+
 
 //
 // Optionals
 //
 
-#ifdef __cplusplus
 #include <optional>
 using std::optional;
-#endif
+
+
+//
+// Filesystem
+//
+
+#include <filesystem>
+namespace vamiga { namespace fs = std::filesystem; }
 
 
 //

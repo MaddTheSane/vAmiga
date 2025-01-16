@@ -12,6 +12,8 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
@@ -33,12 +35,11 @@ enum_long(RSKEY_KEY)
 };
 typedef RSKEY_KEY RetroShellKey;
 
-#ifdef __cplusplus
-struct RetroShellKeyEnum : vamiga::util::Reflection<RetroShellKeyEnum, RetroShellKey>
+struct RetroShellKeyEnum : util::Reflection<RetroShellKeyEnum, RetroShellKey>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = RSKEY_CR;
-
+    
     static const char *prefix() { return "RSKEY"; }
     static const char *_key(long value)
     {
@@ -59,5 +60,10 @@ struct RetroShellKeyEnum : vamiga::util::Reflection<RetroShellKeyEnum, RetroShel
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
+
+}

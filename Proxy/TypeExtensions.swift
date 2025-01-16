@@ -7,59 +7,61 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+typealias Accessor = vamiga.Accessor
+typealias AmigaInfo = vamiga.AmigaInfo
+typealias AgnusInfo = vamiga.AgnusInfo
+typealias AgnusRevision = vamiga.AgnusRevision
+typealias AgnusStats = vamiga.AgnusStats
+typealias BankMap = vamiga.BankMap
+typealias BlitterInfo = vamiga.BlitterInfo
+typealias BootBlockId = vamiga.BootBlockId
+typealias CIAInfo = vamiga.CIAInfo
+typealias CIARevision = vamiga.CIARevision
+typealias CIAStats = vamiga.CIAStats
+typealias ControlPortDevice = vamiga.ControlPortDevice
+typealias ControlPortInfo = vamiga.ControlPortInfo
+typealias CopperInfo = vamiga.CopperInfo
+typealias CPUInfo = vamiga.CPUInfo
+typealias CPURevision = vamiga.CPURevision
+typealias DasmNumbers = vamiga.DasmNumbers
+typealias DasmSyntax = vamiga.DasmSyntax
+typealias DeniseInfo = vamiga.DeniseInfo
+typealias DeniseRevision = vamiga.DeniseRevision
+typealias DiskControllerInfo = vamiga.DiskControllerInfo
+typealias ErrorCode = vamiga.ErrorCode
+typealias EventSlot = vamiga.EventSlot
+typealias EventSlotInfo = vamiga.EventSlotInfo
+typealias FileType = vamiga.FileType
+typealias FloppyDriveInfo = vamiga.FloppyDriveInfo
+typealias FloppyDriveType = vamiga.FloppyDriveType
+typealias FSBlockType = vamiga.FSBlockType
+typealias FSErrorReport = vamiga.FSErrorReport
+typealias FSItemType = vamiga.FSItemType
+typealias FSVolumeType = vamiga.FSVolumeType
+typealias GamePadAction = vamiga.GamePadAction
+typealias HardDriveInfo = vamiga.HardDriveInfo
+typealias HIDEvent = vamiga.HIDEvent
+typealias MemorySource = vamiga.MemorySource
+typealias MemInfo = vamiga.MemInfo
+typealias MemStats = vamiga.MemStats
+typealias Message = vamiga.Message
+typealias Option = vamiga.Option
+typealias PaulaInfo = vamiga.PaulaInfo
+typealias Probe = vamiga.Probe
+typealias RomTraits = vamiga.RomTraits
+typealias RTCRevision = vamiga.RTCRevision
+typealias SerialPortDevice = vamiga.SerialPortDevice
+typealias SerialPortInfo = vamiga.SerialPortInfo
+typealias ServerType = vamiga.ServerType
+typealias SpriteInfo = vamiga.SpriteInfo
+typealias StateMachineInfo = vamiga.StateMachineInfo
+typealias UARTInfo = vamiga.UARTInfo
+typealias VideoFormat = vamiga.VideoFormat
+typealias WarpMode = vamiga.WarpMode
+
 extension EventSlot: CustomStringConvertible {
 
-    public var description: String {
-        
-        switch self {
-        
-        case .REG:      return "Registers"
-        case .CIAA:     return "CIA A"
-        case .CIAB:     return "CIA B"
-        case .BPL:      return "Bitplane DMA"
-        case .DAS:      return "Other DMA"
-        case .COP:      return "Copper"
-        case .BLT:      return "Blitter"
-        case .SEC:      return "Next Secondary Event"
-
-        case .CH0:      return "Audio Channel 0"
-        case .CH1:      return "Audio Channel 1"
-        case .CH2:      return "Audio Channel 2"
-        case .CH3:      return "Audio Channel 3"
-        case .DSK:      return "Disk Controller"
-        case .VBL:      return "Vertical Blank"
-        case .IRQ:      return "Interrupts"
-        case .IPL:      return "IPL"
-        case .KBD:      return "Keyboard"
-        case .TXD:      return "UART Out"
-        case .RXD:      return "UART In"
-        case .POT:      return "Potentiometer"
-        case .TER:      return "Next Tertiary Event"
-
-        case .DC0:      return "Disk Change Df0"
-        case .DC1:      return "Disk Change Df1"
-        case .DC2:      return "Disk Change Df2"
-        case .DC3:      return "Disk Change Df3"
-        case .HD0:      return "Hard Drive Hd0"
-        case .HD1:      return "Hard Drive Hd1"
-        case .HD2:      return "Hard Drive Hd2"
-        case .HD3:      return "Hard Drive Hd3"
-        case .MSE1:     return "Port 1 Mouse"
-        case .MSE2:     return "Port 2 Mouse"
-        case .SNP:      return "Snapshots"
-        case .RSH:      return "Retro Shell"
-        case .KEY:      return "Auto Typing"
-        case .SRV:      return "Server Daemon"
-        case .SER:      return "Null Modem Cable"
-        case .BTR:      return "Beam Traps"
-        case .ALA:      return "Alarms"
-        case .INS:      return "Inspector"
-
-        case .COUNT:    return "???"
-            
-        default:        fatalError()
-        }
-    }
+    public var description: String { return EventSlotName(self.rawValue) }
 }
 
 extension FileType {

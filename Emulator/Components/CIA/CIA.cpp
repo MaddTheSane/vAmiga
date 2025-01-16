@@ -93,7 +93,7 @@ CIA::checkOption(Option opt, i64 value)
         case OPT_CIA_REVISION:
 
             if (!CIARevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
             }
             return;
 
@@ -104,7 +104,7 @@ CIA::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -182,9 +182,12 @@ CIA::cacheStats(CIAStats &result) const
 {
     {   SYNCHRONIZED
 
-        result.idleSince = idleSince();
-        result.idleTotal = idleTotal() + result.idleSince;
-        result.idlePercentage =  clock ? (double)result.idleTotal / (double)clock : 100.0;
+        auto idle = idleSince();
+        auto total = idleTotal() + idle;
+        
+        result.idleSince = idle;
+        result.idleTotal = total;
+        result.idlePercentage =  clock ? double(total) / double(clock + idle) : 100.0;
     }
 }
 

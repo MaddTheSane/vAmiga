@@ -21,7 +21,7 @@ debugflag RUN_DEBUG       = 0;
 debugflag TIM_DEBUG       = 0;
 debugflag WARP_DEBUG      = 0;
 debugflag CMD_DEBUG       = 0;
-debugflag QUEUE_DEBUG     = 0;
+debugflag MSG_DEBUG       = 0;
 debugflag SNP_DEBUG       = 0;
 
 // Run ahead
@@ -31,7 +31,6 @@ debugflag RUA_ON_STEROIDS = 0;
 
 // CPU
 debugflag CPU_DEBUG       = 0;
-debugflag CST_DEBUG       = 0;
 
 // Memory access
 debugflag OCSREG_DEBUG    = 0;
@@ -59,7 +58,6 @@ debugflag BLT_MEM_GUARD   = 0;
 debugflag BLT_DEBUG       = 0;
 debugflag BLTTIM_DEBUG    = 0;
 debugflag SLOW_BLT_DEBUG  = 0;
-debugflag OLD_LINE_BLIT   = 0;
 
 // Denise
 debugflag BPLREG_DEBUG    = 0;

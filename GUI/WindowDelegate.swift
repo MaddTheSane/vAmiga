@@ -13,6 +13,10 @@ extension MyController: NSWindowDelegate {
         
     public func windowDidBecomeMain(_ notification: Notification) {
         
+        debug(.lifetime)
+        
+        initialize()
+        
         guard let window = notification.object as? NSWindow else { return }
         
         // Inform the application delegate
@@ -61,14 +65,18 @@ extension MyController: NSWindowDelegate {
         debug(.shutdown, "Shut down the audio unit...")
         macAudio.shutDown()
 
-        debug(.shutdown, "Close the inspector...")
-        inspector?.close()
-        inspector?.join()
+        debug(.shutdown, "Close all inspectors...")
+        for inspector in inspectors {
+            inspector.close()
+            inspector.join()
+        }
 
-        debug(.shutdown, "Close the monitor...")
-        monitor?.close()
-        monitor?.join()
-
+        debug(.shutdown, "Close all dashboards...")
+        for dashboard in dashboards {
+            dashboard.close()
+            dashboard.join()
+        }
+        
         debug(.shutdown, "Stop the renderer...")
         renderer.halt()
 
@@ -100,7 +108,6 @@ extension MyController: NSWindowDelegate {
     public func windowDidEnterFullScreen(_ notification: Notification) {
 
         debug(.lifetime)
-        renderer.monitors.updateMonitorPositions()
     }
     
     public func windowWillExitFullScreen(_ notification: Notification) {
@@ -113,7 +120,6 @@ extension MyController: NSWindowDelegate {
     public func windowDidExitFullScreen(_ notification: Notification) {
 
         debug(.lifetime)
-        renderer.monitors.updateMonitorPositions()
     }
     
     public func window(_ window: NSWindow, willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []) -> NSApplication.PresentationOptions {

@@ -97,7 +97,7 @@ AudioPort::_powerOn()
 void
 AudioPort::_run()
 {
-    unmute(10000);
+    if (!emulator.isWarping()) unmute(10000);
 }
 
 void
@@ -176,7 +176,7 @@ AudioPort::checkOption(Option opt, i64 value)
         case OPT_AUD_SAMPLING_METHOD:
 
             if (!SamplingMethodEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, SamplingMethodEnum::keyList());
+                throw Error(VAERROR_OPT_INV_ARG, SamplingMethodEnum::keyList());
             }
             return;
 
@@ -195,7 +195,7 @@ AudioPort::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -435,10 +435,8 @@ AudioPort::handleBufferUnderflow()
     //
     // (1) The consumer runs slightly faster than the producer
     // (2) The producer is halted or not startet yet
-    
-    // debug(AUDBUF_DEBUG, "UNDERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
 
-    // Reset the write pointer
+    // Wipe out the buffer and reset the write pointer
     stream.clear(SamplePair{0,0});
     stream.alignWritePtr();
 
@@ -465,8 +463,6 @@ AudioPort::handleBufferOverflow()
     //
     // (1) The consumer runs slightly slower than the producer
     // (2) The consumer is halted or not startet yet
-
-    // debug(AUDBUF_DEBUG, "OVERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
 
     // Reset the write pointer
     stream.alignWritePtr();
@@ -507,13 +503,13 @@ AudioPort::copyMono(float *buffer, isize n)
 }
 
 isize
-AudioPort::copyStereo(float *buffer1, float *buffer2, isize n)
+AudioPort::copyStereo(float *left, float *right, isize n)
 {
     // Inform the sample rate detector about the number of requested samples
     detector.feed(n);
 
     // Copy sound samples
-    auto cnt = stream.copyStereo(buffer1, buffer2, n);
+    auto cnt = stream.copyStereo(left, right, n);
     stats.consumedSamples += cnt;
 
     // Check for a buffer underflow

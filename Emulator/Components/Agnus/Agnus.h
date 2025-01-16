@@ -32,6 +32,7 @@ static constexpr usize DRAW_ODD =  0b001;
 static constexpr usize DRAW_EVEN = 0b010;
 static constexpr usize DRAW_BOTH = 0b011;
 
+
 class Agnus : public SubComponent, public Inspectable<AgnusInfo, AgnusStats> {
 
     Descriptions descriptions = {{
@@ -85,9 +86,8 @@ public:
     // Pending register changes
     RegChangeRecorder<8> changeRecorder;
 
-    // An optional sync event to be processed in serviceRegEvent()
-    EventID syncEvent = EVENT_NONE;
-
+    // Optional events to be processed in serviceRegEvent()
+    EventFlags syncEvent = 0;
     
     //
     // Counters
@@ -158,11 +158,14 @@ public:
 
 public:
     
-    // Recorded DMA values for all cycles in the current rasterline
-    u16 busValue[HPOS_CNT] = { };
-
-    // Recorded DMA usage for all cycles in the current rasterline
+    // Recorded bus ownership for all cycles in the current rasterline
     BusOwner busOwner[HPOS_CNT] = { };
+
+    // Recorded address bus for all cycles in the current rasterline
+    u32 busAddr[HPOS_CNT] = { };
+    
+    // Recorded data bus for all cycles in the current rasterline
+    u16 busData[HPOS_CNT] = { };
 
     // Remembers the last write to SPRxCTL (EXPERIMENTAL)
     u8 lastCtlWrite[8] = { };
@@ -213,61 +216,9 @@ public:
 public:
     
     Agnus(Amiga& ref);
+    Agnus& operator= (const Agnus& other);
+ 
     
-    Agnus& operator= (const Agnus& other) {
-
-        CLONE(sequencer)
-        CLONE(copper)
-        CLONE(blitter)
-
-        CLONE_ARRAY(trigger)
-        CLONE_ARRAY(id)
-        CLONE_ARRAY(data)
-        CLONE(nextTrigger)
-        CLONE(changeRecorder)
-        CLONE(syncEvent)
-
-        CLONE(pos)
-        CLONE(latchedPos)
-
-        CLONE(bplcon0)
-        CLONE(bplcon0Initial)
-        CLONE(bplcon1)
-        CLONE(bplcon1Initial)
-        CLONE(dmacon)
-        CLONE(dmaconInitial)
-        CLONE(dskpt)
-        CLONE_ARRAY(audpt)
-        CLONE_ARRAY(audlc)
-        CLONE_ARRAY(bplpt)
-        CLONE(bpl1mod)
-        CLONE(bpl2mod)
-        CLONE_ARRAY(sprpt)
-        CLONE(res)
-        CLONE(scrollOdd)
-        CLONE(scrollEven)
-
-        CLONE_ARRAY(busValue)
-        CLONE_ARRAY(busOwner)
-        CLONE_ARRAY(lastCtlWrite)
-
-        CLONE_ARRAY(audxDR)
-        CLONE_ARRAY(audxDSR)
-        CLONE(bls)
-
-        CLONE_ARRAY(sprVStrt)
-        CLONE_ARRAY(sprVStop)
-        CLONE_ARRAY(sprDmaState)
-
-        CLONE(clock)
-
-        CLONE(config)
-        CLONE(ptrMask)
-
-        return *this;
-    }
-
-
     //
     // Methods from Serializable
     //
@@ -306,8 +257,9 @@ private:
         << scrollOdd
         << scrollEven
 
-        << busValue
         << busOwner
+        // << busAddr
+        << busData
         << lastCtlWrite
 
         << audxDR
@@ -379,7 +331,7 @@ public:
 
     bool isOCS() const;
     bool isECS() const;
-    bool isPAL() const { return pos.type == PAL; }
+    bool isPAL() const { return pos.type == FORMAT_PAL; }
     bool isNTSC() const { return !isPAL(); }
 
     // Returns the chip identification bits of this Agnus (show up in VPOSR)
@@ -415,7 +367,7 @@ private:
 public:
 
     // Indicates if the electron beam is inside the VBLANK area
-    bool inVBlankArea(isize posv) const { return posv < 26; }
+    bool inVBlankArea(isize posv) const { return posv < (isPAL() ? 26 : 20); }
     bool inVBlankArea() const { return inVBlankArea(pos.v); }
 
     // Indicates if the current rasterline is the last line in this frame

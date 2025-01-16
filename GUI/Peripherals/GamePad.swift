@@ -16,42 +16,30 @@ import IOKit.hid
 /// `GamePadAction` events by utilizing a key map.
 class GamePad {
 
-    /// Mapping schemes
-    enum Schemes {
-
-        // Left stick
-        static let A0A1 = 0
-        static let A0A1r = 1
-        
-        // Right stick
-        static let A2A5 = 0
-        static let A2A3 = 1
-        static let A3A4 = 2
-        static let A2A5r = 3
-
-        // Hat switch
-        static let H0H7 = 0
-        static let H1H8 = 1
-        static let B4B7 = 2
-        static let B11B14 = 3
-        static let U90U93 = 4
-    }
-             
-    // References to other objects
+    // References
     var manager: GamePadManager
-    var prefs: Preferences { return manager.parent.pref }
-    var config: Configuration { return manager.parent.config }
+    var amiga: EmulatorProxy { return manager.controller.emu }
+    var prefs: Preferences { return manager.controller.pref }
+    var config: Configuration { return manager.controller.config }
     var db: DeviceDatabase { return myAppDelegate.database }
-    
+
     /// The Amiga port this device is connected to (1, 2, or nil)
     var port: Int?
+
+    // GamePad properties (derived from database)
+    // var traits: MyData = MyData()
+
+    // HID mapping
+    var mapping: HIDMapping?
 
     // Reference to the HID device
     var device: IOHIDDevice?
     var vendorID: String { return device?.vendorID ?? "" }
     var productID: String { return device?.productID ?? "" }
     var locationID: String { return device?.locationID ?? "" }
-    
+    var version: String { return device?.versionNumberKey ?? "" }
+    var guid: GUID { return device?.guid ?? GUID() }
+
     // Type of the managed device (joystick or mouse)
     var type: ControlPortDevice
     var isMouse: Bool { return type == .MOUSE }
@@ -64,8 +52,8 @@ class GamePad {
     var icon: NSImage?
             
     /// Indicates if this device is officially supported
-    var isKnown: Bool { return db.isKnown(vendorID: vendorID, productID: productID) }
-    
+    var isKnown: Bool { return db.isKnown(guid: guid) }
+
     /// Keymap of the managed device (only set for keyboard emulated devices)
     var keyMap: Int?
     
@@ -74,23 +62,7 @@ class GamePad {
     
     /// Indicates if other components should be notified when the device is used
     var notify = false
-        
-    // Controller specific mapping schemes for the two sticks and the hat switch
-    var lScheme = 0
-    var rScheme = 0
-    var hScheme = 0
-    
-    // Cotroller specific mapping parameters (set in updateMappingScheme())
-    /*
-    var lxAxis = kHIDUsage_GD_X
-    var lyAxis = kHIDUsage_GD_Y
-    var rxAxis = kHIDUsage_GD_Z
-    var ryAxis = kHIDUsage_GD_Rz
-    var hShift = 0
-    var pressActions: [Int: [GamePadAction]] = [:]
-    var releaseActions: [Int: [GamePadAction]] = [:]
-    */
-    
+
     /* Rescued information from the latest invocation of the action function.
      * This information is utilized to determine whether a joystick event has
      * to be triggered.
@@ -113,29 +85,21 @@ class GamePad {
         self.manager = manager
         self.device = device
         self.type = type
-        
-        name = db.name(vendorID: vendorID, productID: productID) ?? device?.name ?? ""
-        icon = db.icon(vendorID: vendorID, productID: productID)
 
-        if icon == nil && isMouse {
-            icon = NSImage(named: "devMouseTemplate")
+        name = device?.name ?? "HID device"
+        icon = NSImage(named: isMouse ? "devMouseTemplate" : "devGamepad1Template")!
+
+        updateMapping()
+    }
+
+    func updateMapping() {
+
+        if device != nil {
+
+            mapping = db.query(guid: device!.guid)
         }
-        
-        updateMappingScheme()
     }
-    
-    func updateMappingScheme() {
-        
-        lScheme = db.left(vendorID: vendorID, productID: productID)
-        rScheme = db.right(vendorID: vendorID, productID: productID)
-        hScheme = db.hatSwitch(vendorID: vendorID, productID: productID)
-    }
-        
-    func setIcon(name: String) {
-        
-        icon = NSImage(named: name)
-    }
-    
+
     func property(key: String) -> String? {
             
         if let device = device {
@@ -291,40 +255,35 @@ class GamePad {
         v = v * 2.0 - 1.0
         
         if v < 0 {
-            if v < -0.45 { return -2 }
+            if v < -0.45 { return -1 }
             if v > -0.35 { return 0 }
         } else {
-            if v > 0.45 { return 2 }
+            if v > 0.45 { return 1 }
             if v < 0.35 { return 0 }
         }
         
         return nil // Dead zone
     }
-    
-    func mapHAxis(value: IOHIDValue, element: IOHIDElement) -> [GamePadAction]? {
-    
-        if let v = mapAnalogAxis(value: value, element: element) {
-            return v == 2 ? [.PULL_RIGHT] : v == -2 ? [.PULL_LEFT] : [.RELEASE_X]
-        } else {
-            return nil
-        }
-    }
-    
-    func mapVAxis(value: IOHIDValue, element: IOHIDElement) -> [GamePadAction]? {
-    
-        if let v = mapAnalogAxis(value: value, element: element) {
-            return v == 2 ? [.PULL_DOWN] : v == -2 ? [.PULL_UP] : [.RELEASE_Y]
-        } else {
-            return nil
-        }
-    }
 
-    func mapVAxisRev(value: IOHIDValue, element: IOHIDElement) -> [GamePadAction]? {
-    
-        if let v = mapAnalogAxis(value: value, element: element) {
-            return v == 2 ? [.PULL_UP] : v == -2 ? [.PULL_DOWN] : [.RELEASE_Y]
-        } else {
-            return nil
+    func mapHatSwitch(value: IOHIDValue, element: IOHIDElement) -> Int? {
+
+
+        let val = IOHIDValueGetIntegerValue(value)
+        let min = IOHIDElementGetLogicalMin(element)
+
+        // let max = IOHIDElementGetLogicalMax(element)
+        // print("min = \(min) max = \(max) val = \(val)")
+
+        switch (val - min) {
+        case 0: return 1
+        case 1: return 1 | 2
+        case 2: return 2
+        case 3: return 2 | 4
+        case 4: return 4
+        case 5: return 4 | 8
+        case 6: return 8
+        case 7: return 8 | 1
+        default: return 0
         }
     }
 
@@ -333,127 +292,93 @@ class GamePad {
                              sender: UnsafeMutableRawPointer?,
                              value: IOHIDValue) {
         
+        var hidEvent: (HIDEvent, Int, Int)?
+
         let element   = IOHIDValueGetElement(value)
         let intValue  = Int(IOHIDValueGetIntegerValue(value))
         let usagePage = Int(IOHIDElementGetUsagePage(element))
         let usage     = Int(IOHIDElementGetUsage(element))
-                
-        // track("usagePage = \(usagePage) usage = \(usage) value = \(intValue)")
-        
-        var events: [GamePadAction]?
-        
+
+        // print("usagePage = \(usagePage) usage = \(usage) value = \(intValue)")
+
         if usagePage == kHIDPage_Button {
-                             
-            // track("button = \(usage)")
-            
-            switch hScheme {
-            
-            case Schemes.B4B7:
-                
-                switch usage {
-                case 5: events = intValue != 0 ? [.PULL_UP] : [.RELEASE_Y]
-                case 6: events = intValue != 0 ? [.PULL_RIGHT] : [.RELEASE_X]
-                case 7: events = intValue != 0 ? [.PULL_DOWN] : [.RELEASE_Y]
-                case 8: events = intValue != 0 ? [.PULL_LEFT] : [.RELEASE_X]
-                default: events = intValue != 0 ? [.PRESS_FIRE] : [.RELEASE_FIRE]
-                }
-            
-            case Schemes.B11B14:
-                
-                switch usage {
-                case 12: events = intValue != 0 ? [.PULL_UP] : [.RELEASE_Y]
-                case 13: events = intValue != 0 ? [.PULL_DOWN] : [.RELEASE_Y]
-                case 14: events = intValue != 0 ? [.PULL_LEFT] : [.RELEASE_X]
-                case 15: events = intValue != 0 ? [.PULL_RIGHT] : [.RELEASE_X]
-                default: events = intValue != 0 ? [.PRESS_FIRE] : [.RELEASE_FIRE]
-                }
-            
-            default:
-                events = intValue != 0 ? [.PRESS_FIRE] : [.RELEASE_FIRE]
-            }
+
+            hidEvent = (.BUTTON, usage, intValue)
         }
         
         if usagePage == kHIDPage_GenericDesktop {
-            
+
             switch usage {
-            
-            case kHIDUsage_GD_X where lScheme == Schemes.A0A1:   // A0
-                events = mapHAxis(value: value, element: element)
 
-            case kHIDUsage_GD_X where lScheme == Schemes.A0A1r:  // A0
-                events = mapHAxis(value: value, element: element)
-                
-            case kHIDUsage_GD_Y where lScheme == Schemes.A0A1:   // A1
-                events = mapVAxis(value: value, element: element)
-                
-            case kHIDUsage_GD_Y where lScheme == Schemes.A0A1r:  // A1
-               events = mapVAxisRev(value: value, element: element)
+            case kHIDUsage_GD_X: // A0
+                if let value = mapAnalogAxis(value: value, element: element) {
+                    hidEvent = (.AXIS, 0, value)
+                }
 
-            case kHIDUsage_GD_Z where rScheme == Schemes.A2A5:   // A2
-                events = mapHAxis(value: value, element: element)
+            case kHIDUsage_GD_Y: // A1
+                if let value = mapAnalogAxis(value: value, element: element) {
+                    hidEvent = (.AXIS, 1, value)
+                }
 
-            case kHIDUsage_GD_Z where rScheme == Schemes.A2A5r:  // A2
-                events = mapHAxis(value: value, element: element)
+            case kHIDUsage_GD_Z: // A2
+                if let value = mapAnalogAxis(value: value, element: element) {
+                    hidEvent = (.AXIS, 2, value)
+                }
 
-            case kHIDUsage_GD_Z where rScheme == Schemes.A2A3:   // A2
-                events = mapHAxis(value: value, element: element)
-                    
-            case kHIDUsage_GD_Rx where lScheme == Schemes.A3A4:  // A3
-                events = mapHAxis(value: value, element: element)
+            case kHIDUsage_GD_Rx: // A3
+                if let value = mapAnalogAxis(value: value, element: element) {
+                    hidEvent = (.AXIS, 3, value)
+                }
 
-            case kHIDUsage_GD_Rx where lScheme == Schemes.A2A3:  // A3
-                events = mapVAxisRev(value: value, element: element)
+            case kHIDUsage_GD_Ry: // A4
+                if let value = mapAnalogAxis(value: value, element: element) {
+                    hidEvent = (.AXIS, 4, value)
+                }
 
-            case kHIDUsage_GD_Ry where lScheme == Schemes.A3A4:  // A4
-                events = mapVAxis(value: value, element: element)
-
-            case kHIDUsage_GD_Rz where rScheme == Schemes.A2A5:  // A5
-                events = mapVAxis(value: value, element: element)
-
-            case kHIDUsage_GD_Rz where rScheme == Schemes.A2A5r: // A5
-                events = mapVAxisRev(value: value, element: element)
-                            
-            case 0x90 where hScheme == Schemes.U90U93:
-                events = intValue != 0 ? [.PULL_UP] : [.RELEASE_Y]
-
-            case 0x91 where hScheme == Schemes.U90U93:
-                events = intValue != 0 ? [.PULL_DOWN] : [.RELEASE_Y]
-
-            case 0x92 where hScheme == Schemes.U90U93:
-                events = intValue != 0 ? [.PULL_RIGHT] : [.RELEASE_X]
-
-            case 0x93 where hScheme == Schemes.U90U93:
-                events = intValue != 0 ? [.PULL_LEFT] : [.RELEASE_X]
+            case kHIDUsage_GD_Rz: // A5
+                if let value = mapAnalogAxis(value: value, element: element) {
+                    hidEvent = (.AXIS, 5, value)
+                }
 
             case kHIDUsage_GD_Hatswitch:
-                
-                // track("kHIDUsage_GD_Hatswitch: \(intValue)")
-                let shift = hScheme == Schemes.H0H7 ? 0 : 1
-                    
-                switch intValue - shift {
-                case 0: events = [.PULL_UP, .RELEASE_X]
-                case 1: events = [.PULL_UP, .PULL_RIGHT]
-                case 2: events = [.PULL_RIGHT, .RELEASE_Y]
-                case 3: events = [.PULL_RIGHT, .PULL_DOWN]
-                case 4: events = [.PULL_DOWN, .RELEASE_X]
-                case 5: events = [.PULL_DOWN, .PULL_LEFT]
-                case 6: events = [.PULL_LEFT, .RELEASE_Y]
-                case 7: events = [.PULL_LEFT, .PULL_UP]
-                default: events = [.RELEASE_XY]
+                if let value = mapHatSwitch(value: value, element: element) {
+                    hidEvent = (.HATSWITCH, 0, value)
                 }
+
+            case kHIDUsage_GD_DPadUp:
+                hidEvent = (.DPAD_UP, 0, intValue == 0 ? 0 : 1)
+
+            case kHIDUsage_GD_DPadDown:
+                hidEvent = (.DPAD_DOWN, 0, intValue == 0 ? 0 : 1)
+
+            case kHIDUsage_GD_DPadRight:
+                hidEvent = (.DPAD_RIGHT, 0, intValue == 0 ? 0 : 1)
+
+            case kHIDUsage_GD_DPadLeft:
+                hidEvent = (.DPAD_LEFT, 0, intValue == 0 ? 0 : 1)
 
             default:
                 debug(.hid, "Unknown HID usage: \(usage)")
             }
         }
-        
-        // Only proceed if the event is different than the previous one
-        if events == nil || oldEvents[usage] == events { return }
-        oldEvents[usage] = events!
-        
-        // Trigger events
-        // for e in events! { track("event = \(e)") }
-        processJoystickEvents(events: events!)
+
+        if let hid = hidEvent {
+
+            // Notify the GUI
+            if notify { myAppDelegate.hidEvent(event: hid.0, nr: hid.1, value: hid.2) }
+
+            // Map the HID event to an action list
+            if let events = mapping?[hid.0]?[hid.1]?[hid.2] {
+
+                // Only proceed if the event is different than the previous one
+                if oldEvents[usage] != events {
+
+                    // Trigger events
+                    processJoystickEvents(events: events)
+                    oldEvents[usage] = events
+                }
+            }
+        }
     }
     
     //
@@ -463,12 +388,12 @@ class GamePad {
     @discardableResult
     func processJoystickEvents(events: [GamePadAction]) -> Bool {
         
-        let amiga = manager.parent.emu!
+        let amiga = manager.controller.emu!
         
         if port == 1 { for e in events { amiga.controlPort1.joystick.trigger(e) } }
         if port == 2 { for e in events { amiga.controlPort2.joystick.trigger(e) } }
         
-        // Notify other components (if requested)
+        // Notify the GUI
         if notify { myAppDelegate.devicePulled(events: events) }
 
         return !events.isEmpty
@@ -477,7 +402,7 @@ class GamePad {
     @discardableResult
     func processMouseEvents(events: [GamePadAction]) -> Bool {
         
-        let amiga = manager.parent.emu!
+        let amiga = manager.controller.emu!
         
         if port == 1 { for e in events { amiga.controlPort1.mouse.trigger(e) } }
         if port == 2 { for e in events { amiga.controlPort2.mouse.trigger(e) } }
@@ -487,7 +412,7 @@ class GamePad {
     
     func processMouseEvents(delta: NSPoint) {
         
-        let amiga = manager.parent.emu!
+        let amiga = manager.controller.emu!
 
         // Check for a shaking mouse
         amiga.controlPort1.mouse.detectShakeRel(delta)
@@ -526,7 +451,7 @@ class GamePad {
 
     func processKeyboardEvent(events: [GamePadAction]) {
 
-        let amiga = manager.parent.emu!
+        let amiga = manager.controller.emu!
         
         if isMouse {
             if port == 1 { for e in events { amiga.controlPort1.mouse.trigger(e) } }

@@ -13,6 +13,12 @@
 #include "Reflection.h"
 #include "BusTypes.h"
 
+namespace vamiga {
+
+//
+// Enumerations
+//
+
 enum_long(DMA_DISPLAY_MODE)
 {
     DMA_DISPLAY_MODE_FG_LAYER,
@@ -21,12 +27,11 @@ enum_long(DMA_DISPLAY_MODE)
 };
 typedef DMA_DISPLAY_MODE DmaDisplayMode;
 
-#ifdef __cplusplus
-struct DmaDisplayModeEnum : vamiga::util::Reflection<DmaDisplayModeEnum, DmaDisplayMode>
+struct DmaDisplayModeEnum : util::Reflection<DmaDisplayModeEnum, DmaDisplayMode>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = DMA_DISPLAY_MODE_ODD_EVEN_LAYERS;
-
+    
     static const char *prefix() { return "DMA_DISPLAY_MODE"; }
     static const char *_key(long value)
     {
@@ -38,8 +43,17 @@ struct DmaDisplayModeEnum : vamiga::util::Reflection<DmaDisplayModeEnum, DmaDisp
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case DMA_DISPLAY_MODE_FG_LAYER:        return "Foreground layer";
+            case DMA_DISPLAY_MODE_BG_LAYER:        return "Background layer";
+            case DMA_DISPLAY_MODE_ODD_EVEN_LAYERS: return "Mixed layers";
+        }
+        return "???";
+    }
 };
-#endif
 
 enum_long(DMA_CHANNEL)
 {
@@ -56,12 +70,11 @@ enum_long(DMA_CHANNEL)
 };
 typedef DMA_CHANNEL DmaChannel;
 
-#ifdef __cplusplus
-struct DmaChannelEnum : vamiga::util::Reflection<DmaChannelEnum, DmaChannel>
+struct DmaChannelEnum : util::Reflection<DmaChannelEnum, DmaChannel>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = DMA_CHANNEL_COUNT - 1;
-
+    
     static const char *prefix() { return "DMA_CHANNEL"; }
     static const char *_key(long value)
     {
@@ -79,8 +92,23 @@ struct DmaChannelEnum : vamiga::util::Reflection<DmaChannelEnum, DmaChannel>
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        switch (value) {
+                
+            case DMA_CHANNEL_COPPER:    return "Copper DMA";
+            case DMA_CHANNEL_BLITTER:   return "Blitter DMA";
+            case DMA_CHANNEL_DISK:      return "Disk DMA";
+            case DMA_CHANNEL_AUDIO:     return "Audio DMA";
+            case DMA_CHANNEL_SPRITE:    return "Sprite DMA";
+            case DMA_CHANNEL_BITPLANE:  return "Bitplane DMA";
+            case DMA_CHANNEL_CPU:       return "CPU access";
+            case DMA_CHANNEL_REFRESH:   return "Refresh cycle";
+            case DMA_CHANNEL_COUNT:     return "";
+        }
+        return "???";
+    }
 };
-#endif
 
 
 //
@@ -91,16 +119,16 @@ typedef struct
 {
     // Global enable switch
     bool enabled;
-
+    
     // Individual enable switch for each DMA channel
     bool visualize[DMA_CHANNEL_COUNT];
-
+    
     // Color palette
     u32 debugColor[DMA_CHANNEL_COUNT];
-
+    
     // Display mode
     DmaDisplayMode displayMode;
-
+    
     // Opacity
     isize opacity;
 }
@@ -127,3 +155,5 @@ typedef struct
     double refreshColor[3];
 }
 DmaDebuggerInfo;
+
+}

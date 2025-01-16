@@ -119,7 +119,7 @@ struct AmigaAPI : public API {
      *  @param  mask A bit mask indicating the components under inspection
      */
     void setAutoInspectionMask(u64 mask);
-
+    
     /// @}
 };
 
@@ -145,6 +145,15 @@ struct DmaDebuggerAPI : public API {
 struct DmaAPI : public API {
 
     DmaDebuggerAPI debugger;
+};
+
+struct LogicAnalyzerAPI : public API {
+
+    class LogicAnalyzer *logicAnalyzer = nullptr;
+
+    /** @brief  Returns the component's current configuration.
+     */
+    const LogicAnalyzerConfig &getConfig() const;
 };
 
 struct BlitterAPI : public API {
@@ -199,10 +208,11 @@ struct AgnusAPI : public API {
 
     class Agnus *agnus = nullptr;
 
-    DmaAPI dma;
     CopperAPI copper;
     BlitterAPI blitter;
-
+    DmaAPI dma;
+    LogicAnalyzerAPI logicAnalyzer;
+    
     /** @brief  Returns the component's current configuration.
      */
     const AgnusConfig &getConfig() const;
@@ -408,7 +418,7 @@ struct MemoryDebuggerAPI : public API {
     /**  @brief  Returns the memory source for a given address
      */
     MemorySource getMemSrc(Accessor acc, u32 addr) const;
-
+    
     /** @brief  Reads a value from memory without causing side effects.
      */
     u8 spypeek8(Accessor acc, u32 addr) const;
@@ -782,6 +792,13 @@ struct KeyboardAPI : public API {
      */
     void press(KeyCode key, double delay = 0.0, double duration = 0.0);
 
+    /** @brief  Toggles a key
+     *  @param  key         The key to toggle.
+     *  @param  delay       An optional delay in seconds until the key is toggled.
+     *  @param  duration    If specified, the key will be toggled again after the additional delay.
+     */
+    void toggle(KeyCode key, double delay = 0.0, double duration = 0.0);
+
     /** @brief  Releases a key
      *  @param  key     The key to release.
      *  @param  delay   An optional delay in seconds.
@@ -992,13 +1009,26 @@ struct VideoPortAPI : public API {
     /// @name Retrieving video data
     /// @{
 
+    /** @brief  Locks the emulator texture
+     *
+     * This function aquires a mutex that prevents the emulator to modify the
+     * stable texture. Call this function prior to getTexture().
+     */
+    void lockTexture();
+
+    /** @brief  Unlocks the emulator texture
+     *
+     * This function releases the mutex acquired in lockTexture(). Call this
+     * function when the pointer returned by getTexture() is no longer needed.
+     */
+    void unlockTexture();
+
     /** @brief  Returns a pointer to the most recent stable texture
      *
      * The texture dimensions are given by constants vamiga::Texture::width
      * and vamiga::Texture::height texels. Each texel is represented by a
      * 32 bit color value.
      */
-    // const class FrameBuffer &getTexture() const;
     const u32 *getTexture() const;
     const u32 *getTexture(isize *nr, bool *lof, bool *prevlof) const;
 
@@ -1068,23 +1098,23 @@ struct DefaultsAPI : public API {
     /// @name Loading and saving the key-value storage
 
     /** @brief  Loads a storage file from disk
-     *  @throw  VC64Error (#ERROR_FILE_NOT_FOUND)
-     *  @throw  VC64Error (#ERROR_SYNTAX)
+     *  @throw  VC64Error (#VAERROR_FILE_NOT_FOUND)
+     *  @throw  VC64Error (#VAERROR_SYNTAX)
      */
     void load(const std::filesystem::path &path);
 
     /** @brief  Loads a storage file from a stream
-     *  @throw  VC64Error (#ERROR_SYNTAX)
+     *  @throw  VC64Error (#VAERROR_SYNTAX)
      */
     void load(std::ifstream &stream);
 
     /** @brief  Loads a storage file from a string stream
-     *  @throw  VC64Error (#ERROR_SYNTAX)
+     *  @throw  VC64Error (#VAERROR_SYNTAX)
      */
     void load(std::stringstream &stream);
 
     /** @brief  Saves a storage file to disk
-     *  @throw  VC64Error (#ERROR_FILE_CANT_WRITE)
+     *  @throw  VC64Error (#VAERROR_FILE_CANT_WRITE)
      */
     void save(const std::filesystem::path &path);
 
@@ -1153,14 +1183,14 @@ struct DefaultsAPI : public API {
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  key     The key, given as a string.
      *  @param  value   The value, given as a string.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void set(const string &key, const string &value);
 
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as a string.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void set(Option opt, const string &value);
 
@@ -1168,14 +1198,14 @@ struct DefaultsAPI : public API {
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as a string.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void set(Option opt, const string &value, std::vector<isize> objids);
 
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void set(Option opt, i64 value);
 
@@ -1183,7 +1213,7 @@ struct DefaultsAPI : public API {
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as an integer.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void set(Option opt, i64 value, std::vector<isize> objids);
 
@@ -1196,7 +1226,7 @@ struct DefaultsAPI : public API {
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void setFallback(Option opt, const string &value);
 
@@ -1210,7 +1240,7 @@ struct DefaultsAPI : public API {
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void setFallback(Option opt, i64 value);
 
@@ -1232,20 +1262,20 @@ struct DefaultsAPI : public API {
 
     /** @brief  Deletes a key-value pair
      *  @param  key     The key of the key-value pair.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void remove(const string &key) throws;
 
     /** @brief  Deletes a key-value pair
      *  @param  option  The option's name forms the key.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void remove(Option option) throws;
 
     /** @brief  Deletes multiple key-value pairs.
      *  @param  option  The option's name forms the prefix of the keys.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VAERROR_INVALID_KEY)
      */
     void remove(Option option, std::vector <isize> objids) throws;
 
@@ -1657,6 +1687,18 @@ public:
      *  location.
      */
     void stepOver();
+
+    /** @brief  Fnishes the current rasterline
+     *
+     *  Calling this functions runs the CPU until the end of the current rasterline.
+     */
+    void finishLine();
+
+    /** @brief  Fnishes the current frame
+     *
+     *  Calling this functions runs the CPU until the end of the current frame.
+     */
+    void finishFrame();
 
 
     /// @}

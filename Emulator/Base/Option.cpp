@@ -21,7 +21,7 @@ OptionParser::create(Option opt, i64 arg)
     auto enumParser = [&]<typename T>() { return std::unique_ptr<EnumParser<T>>(new EnumParser<T>(opt, arg)); };
     auto boolParser = [&]() { return std::unique_ptr<BoolParser>(new BoolParser(opt, arg)); };
     auto numParser  = [&](string unit = "") { return std::unique_ptr<NumParser>(new NumParser(opt, arg, unit)); };
-    // auto hexParser  = [&](string unit = "") { return std::unique_ptr<HexParser>(new HexParser(opt, arg, unit)); };
+    auto hexParser  = [&](string unit = "") { return std::unique_ptr<HexParser>(new HexParser(opt, arg, unit)); };
 
     switch (opt) {
 
@@ -35,9 +35,11 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_AMIGA_WARP_BOOT:           return numParser(" sec");
         case OPT_AMIGA_VSYNC:               return boolParser();
         case OPT_AMIGA_SPEED_BOOST:         return numParser("%");
-        case OPT_AMIGA_SNAPSHOTS:           return boolParser();
-        case OPT_AMIGA_SNAPSHOT_DELAY:      return numParser(" sec");
         case OPT_AMIGA_RUN_AHEAD:           return numParser(" frames");
+
+        case OPT_AMIGA_SNAP_AUTO:           return boolParser();
+        case OPT_AMIGA_SNAP_DELAY:          return numParser(" sec");
+        case OPT_AMIGA_SNAP_COMPRESS:       return boolParser();
 
         case OPT_AGNUS_REVISION:            return enumParser.template operator()<AgnusRevisionEnum>();
         case OPT_AGNUS_PTR_DROPS:           return boolParser();
@@ -78,11 +80,21 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_DMA_DEBUG_COLOR6:          return numParser();
         case OPT_DMA_DEBUG_COLOR7:          return numParser();
 
+        case OPT_LA_PROBE0:                 return enumParser.template operator()<ProbeEnum>();
+        case OPT_LA_PROBE1:                 return enumParser.template operator()<ProbeEnum>();
+        case OPT_LA_PROBE2:                 return enumParser.template operator()<ProbeEnum>();
+        case OPT_LA_PROBE3:                 return enumParser.template operator()<ProbeEnum>();
+        case OPT_LA_ADDR0:                  return hexParser();
+        case OPT_LA_ADDR1:                  return hexParser();
+        case OPT_LA_ADDR2:                  return hexParser();
+        case OPT_LA_ADDR3:                  return hexParser();
+
         case OPT_VID_WHITE_NOISE:           return boolParser();
             
         case OPT_CPU_REVISION:              return enumParser.template operator()<CPURevisionEnum>();
         case OPT_CPU_DASM_REVISION:         return enumParser.template operator()<DasmRevisionEnum>();
         case OPT_CPU_DASM_SYNTAX:           return enumParser.template operator()<DasmSyntaxEnum>();
+        case OPT_CPU_DASM_NUMBERS:          return enumParser.template operator()<DasmNumbersEnum>();
         case OPT_CPU_OVERCLOCKING:          return numParser("x");
         case OPT_CPU_RESET_VAL:             return numParser();
 
@@ -174,6 +186,12 @@ OptionParser::parse(Option opt, const string &arg)
     return create(opt)->parse(arg);
 }
 
+std::vector<std::pair<string, long>>
+OptionParser::pairs(Option opt)
+{
+    return create(opt)->pairs();
+}
+
 string
 OptionParser::asPlainString(Option opt, i64 arg)
 {
@@ -196,6 +214,12 @@ string
 OptionParser::argList(Option opt)
 {
     return create(opt)->argList();
+}
+
+string
+OptionParser::help(Option opt, isize item)
+{
+    return create(opt)->help(item);
 }
 
 string

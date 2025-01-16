@@ -22,14 +22,16 @@ Defaults::Defaults()
     setFallback(OPT_HOST_FRAMEBUF_WIDTH,        0);
     setFallback(OPT_HOST_FRAMEBUF_HEIGHT,       0);
     
-    setFallback(OPT_AMIGA_VIDEO_FORMAT,         PAL);
+    setFallback(OPT_AMIGA_VIDEO_FORMAT,         FORMAT_PAL);
     setFallback(OPT_AMIGA_WARP_BOOT,            0);
     setFallback(OPT_AMIGA_WARP_MODE,            WARP_NEVER);
     setFallback(OPT_AMIGA_VSYNC,                false);
     setFallback(OPT_AMIGA_SPEED_BOOST,          100);
-    setFallback(OPT_AMIGA_SNAPSHOTS,            false);
-    setFallback(OPT_AMIGA_SNAPSHOT_DELAY,       10);
     setFallback(OPT_AMIGA_RUN_AHEAD,            0);
+
+    setFallback(OPT_AMIGA_SNAP_AUTO,            false);
+    setFallback(OPT_AMIGA_SNAP_DELAY,           10);
+    setFallback(OPT_AMIGA_SNAP_COMPRESS,        true);
 
     setFallback(OPT_AGNUS_REVISION,             AGNUS_ECS_1MB);
     setFallback(OPT_AGNUS_PTR_DROPS,            true);
@@ -63,11 +65,21 @@ Defaults::Defaults()
     setFallback(OPT_DMA_DEBUG_COLOR6,           0xFFFFFF00);
     setFallback(OPT_DMA_DEBUG_COLOR7,           0xFF000000);
 
+    setFallback(OPT_LA_PROBE0,                  PROBE_NONE);
+    setFallback(OPT_LA_PROBE1,                  PROBE_NONE);
+    setFallback(OPT_LA_PROBE2,                  PROBE_NONE);
+    setFallback(OPT_LA_PROBE3,                  PROBE_NONE);
+    setFallback(OPT_LA_ADDR0,                   0);
+    setFallback(OPT_LA_ADDR1,                   0);
+    setFallback(OPT_LA_ADDR2,                   0);
+    setFallback(OPT_LA_ADDR3,                   0);
+
     setFallback(OPT_VID_WHITE_NOISE,            true);
 
     setFallback(OPT_CPU_REVISION,               CPU_68000);
     setFallback(OPT_CPU_DASM_REVISION,          CPU_68000);
     setFallback(OPT_CPU_DASM_SYNTAX,            DASM_SYNTAX_MOIRA);
+    setFallback(OPT_CPU_DASM_NUMBERS,           DASM_NUMBERS_HEX);
     setFallback(OPT_CPU_OVERCLOCKING,           0);
     setFallback(OPT_CPU_RESET_VAL,              0);
 
@@ -159,7 +171,11 @@ Defaults::Defaults()
     setFallback(OPT_SRV_PROTOCOL,               SRVPROT_DEFAULT,        { SERVER_RSH });
     setFallback(OPT_SRV_AUTORUN,                false,                  { SERVER_RSH });
     setFallback(OPT_SRV_VERBOSE,                true,                   { SERVER_RSH });
-    setFallback(OPT_SRV_PORT,                   8082,                   { SERVER_GDB });
+    setFallback(OPT_SRV_PORT,                   8082,                   { SERVER_PROM });
+    setFallback(OPT_SRV_PROTOCOL,               SRVPROT_DEFAULT,        { SERVER_PROM });
+    setFallback(OPT_SRV_AUTORUN,                false,                  { SERVER_PROM });
+    setFallback(OPT_SRV_VERBOSE,                true,                   { SERVER_PROM });
+    setFallback(OPT_SRV_PORT,                   8083,                   { SERVER_GDB });
     setFallback(OPT_SRV_PROTOCOL,               SRVPROT_DEFAULT,        { SERVER_GDB });
     setFallback(OPT_SRV_AUTORUN,                false,                  { SERVER_GDB });
     setFallback(OPT_SRV_VERBOSE,                true,                   { SERVER_GDB });
@@ -198,7 +214,7 @@ Defaults::load(const fs::path &path)
     auto fs = std::ifstream(path, std::ifstream::binary);
     
     if (!fs.is_open()) {
-        throw Error(ERROR_FILE_NOT_FOUND);
+        throw Error(VAERROR_FILE_NOT_FOUND);
     }
     
     debug(DEF_DEBUG, "Loading user defaults from %s...\n", path.string().c_str());
@@ -276,7 +292,7 @@ Defaults::load(std::stringstream &stream)
                 continue;
             }
             
-            throw Error(ERROR_SYNTAX, line);
+            throw Error(VAERROR_SYNTAX, line);
         }
 
         if (accepted || skipped) {
@@ -291,7 +307,7 @@ Defaults::save(const fs::path &path)
     auto fs = std::ofstream(path, std::ofstream::binary);
     
     if (!fs.is_open()) {
-        throw Error(ERROR_FILE_CANT_WRITE);
+        throw Error(VAERROR_FILE_CANT_WRITE);
     }
     
     save(fs);
@@ -360,7 +376,7 @@ Defaults::getRaw(const string &key) const
     if (values.contains(key)) return values.at(key);
     if (fallbacks.contains(key)) return fallbacks.at(key);
 
-    throw Error(ERROR_INVALID_KEY, key);
+    throw Error(VAERROR_INVALID_KEY, key);
 }
 
 i64
@@ -397,7 +413,7 @@ Defaults::getFallbackRaw(const string &key) const
 {
     if (fallbacks.contains(key)) return fallbacks.at(key);
 
-    throw Error(ERROR_INVALID_KEY, key);
+    throw Error(VAERROR_INVALID_KEY, key);
 }
 
 i64
@@ -440,7 +456,7 @@ Defaults::set(const string &key, const string &value)
 
             warn("Invalid key: %s\n", key.c_str());
             assert(false);
-            throw Error(ERROR_INVALID_KEY, key);
+            throw Error(VAERROR_INVALID_KEY, key);
         }
 
         values[key] = value;
@@ -528,7 +544,7 @@ Defaults::remove(const string &key)
 
             warn("Invalid key: %s\n", key.c_str());
             assert(false);
-            throw Error(ERROR_INVALID_KEY, key);
+            throw Error(VAERROR_INVALID_KEY, key);
         }
         if (values.contains(key)) {
             values.erase(key);

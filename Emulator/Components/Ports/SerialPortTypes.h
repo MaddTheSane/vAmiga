@@ -12,6 +12,8 @@
 #include "Types.h"
 #include "Reflection.h"
 
+namespace vamiga {
+
 //
 // Enumerations
 //
@@ -26,8 +28,7 @@ enum_long(SPD)
 };
 typedef SPD SerialPortDevice;
 
-#ifdef __cplusplus
-struct SerialPortDeviceEnum : vamiga::util::Reflection<SerialPortDeviceEnum, SerialPortDevice>
+struct SerialPortDeviceEnum : util::Reflection<SerialPortDeviceEnum, SerialPortDevice>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SPD_COMMANDER;
@@ -36,7 +37,7 @@ struct SerialPortDeviceEnum : vamiga::util::Reflection<SerialPortDeviceEnum, Ser
     static const char *_key(long value)
     {
         switch (value) {
-
+                
             case SPD_NONE:          return "NONE";
             case SPD_NULLMODEM:     return "NULLMODEM";
             case SPD_LOOPBACK:      return "LOOPBACK";
@@ -45,8 +46,12 @@ struct SerialPortDeviceEnum : vamiga::util::Reflection<SerialPortDeviceEnum, Ser
         }
         return "???";
     }
+    static const char *help(long value)
+    {
+        return "";
+    }
 };
-#endif
+
 
 //
 // Structures
@@ -62,7 +67,7 @@ SerialPortConfig;
 typedef struct
 {
     u32 port;
-
+    
     bool txd;
     bool rxd;
     bool rts;
@@ -72,3 +77,5 @@ typedef struct
     bool dtr;
 }
 SerialPortInfo;
+
+}

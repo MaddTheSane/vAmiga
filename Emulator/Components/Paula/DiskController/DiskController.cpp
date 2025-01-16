@@ -53,7 +53,7 @@ DiskController::checkOption(Option opt, i64 value)
         case OPT_DC_SPEED:
 
             if (!isValidDriveSpeed((isize)value)) {
-                throw Error(ERROR_OPT_INV_ARG, "-1, 1, 2, 4, 8");
+                throw Error(VAERROR_OPT_INV_ARG, "-1, 1, 2, 4, 8");
             }
             return;
 
@@ -63,7 +63,7 @@ DiskController::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw(VAERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -511,7 +511,7 @@ DiskController::performTurboDMA(FloppyDrive *drive)
     }
     
     // Trigger disk interrupt with some delay
-    Cycle delay = MIMIC_UAE ? 2 * HPOS_CNT_PAL - agnus.pos.h + 30 : 512;
+    Cycle delay = MIMIC_UAE ? 2 * PAL::HPOS_CNT - agnus.pos.h + 30 : 512;
     paula.scheduleIrqRel(INT_DSKBLK, DMA_CYCLES(delay));
     
     setState(DRIVE_DMA_OFF);
