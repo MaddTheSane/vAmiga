@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class ScreenshotDialog: DialogController {
+class ScreenshotDialog: DialogController, iCarouselDataSource, iCarouselDelegate {
     
     var now: Date!
 
@@ -175,13 +175,10 @@ class ScreenshotDialog: DialogController {
         if needsSaving { try? saveScreenshots() }
         screenshots = []
     }
-}
 
 //
 // iCarousel data source and delegate
 //
-
-extension ScreenshotDialog: iCarouselDataSource, iCarouselDelegate {
     
     func numberOfItems(in carousel: iCarousel) -> Int {
                 

@@ -35,7 +35,7 @@ protocol DialogControllerDelegate: AnyObject {
  * and a reference to the parents proxy object. It also provides some wrappers
  * around showing and hiding the window.
  */
-class DialogController: NSWindowController, DialogControllerDelegate {
+class DialogController: NSWindowController, DialogControllerDelegate, NSWindowDelegate {
 
     var parent: MyController!
     var emu: EmulatorProxy! { return parent.emu }
@@ -147,9 +147,6 @@ class DialogController: NSWindowController, DialogControllerDelegate {
         lock.lock()
         lock.unlock()
     }
-}
-
-extension DialogController: NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
 

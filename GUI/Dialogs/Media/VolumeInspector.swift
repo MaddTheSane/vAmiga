@@ -9,7 +9,7 @@
 
 import Darwin
 
-class VolumeInspector: DialogController {
+class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDelegate, NSTabViewDelegate {
         
     @IBOutlet weak var icon: NSImageView!
     @IBOutlet weak var virus: NSImageView!
@@ -437,9 +437,6 @@ class VolumeInspector: DialogController {
             update()
         }
     }
-}
-
-extension VolumeInspector: NSTableViewDataSource {
     
     func columnNr(_ column: NSTableColumn?) -> Int? {
         
@@ -471,9 +468,6 @@ extension VolumeInspector: NSTableViewDataSource {
         }
         fatalError()
     }
-}
-
-extension VolumeInspector: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
 
@@ -500,9 +494,6 @@ extension VolumeInspector: NSTableViewDelegate {
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
         return false
     }
-}
-
-extension VolumeInspector: NSTabViewDelegate {
     
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         

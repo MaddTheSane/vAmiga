@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class SpriteTableView: NSTableView {
+class SpriteTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
     var deniseInfo: DeniseInfo { return inspector.deniseInfo }
@@ -69,9 +69,6 @@ class SpriteTableView: NSTableView {
 
         reloadData()
     }
-}
-
-extension SpriteTableView: NSTableViewDataSource {
     
     func colorIndex(tableColumn: NSTableColumn?, row: Int) -> Int? {
        
@@ -97,9 +94,6 @@ extension SpriteTableView: NSTableViewDataSource {
         
         return nil
     }
-}
-
-extension SpriteTableView: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
         

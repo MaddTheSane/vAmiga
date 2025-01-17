@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class PreferencesController: DialogController {
+class PreferencesController: DialogController, NSTabViewDelegate, NSTextFieldDelegate {
 
     var pref: Preferences { return parent.pref }
     var gamePadManager: GamePadManager { return parent.gamePadManager }
@@ -198,17 +198,11 @@ class PreferencesController: DialogController {
         myAppDelegate.database.save()
         close()
     }
-}
-
-extension PreferencesController: NSTabViewDelegate {
 
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
 
         select()
     }
-}
-
-extension PreferencesController {
     
     override func windowWillClose(_ notification: Notification) {
 
@@ -220,9 +214,6 @@ extension PreferencesController {
         
         select()
     }
-}
-    
-extension PreferencesController: NSTextFieldDelegate {
     
     func controlTextDidChange(_ obj: Notification) {
                 

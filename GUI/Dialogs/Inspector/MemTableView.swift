@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class MemTableView: NSTableView {
+class MemTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
 
@@ -88,9 +88,6 @@ class MemTableView: NSTableView {
         cache()
         reloadData()
     }
-}
-
-extension MemTableView: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
         
@@ -122,9 +119,6 @@ extension MemTableView: NSTableViewDataSource {
             fatalError()
         }
     }
-}
-
-extension MemTableView: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
         

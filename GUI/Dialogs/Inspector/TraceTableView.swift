@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class TraceTableView: NSTableView {
+class TraceTableView: NSTableView, NSTableViewDataSource {
 
     @IBOutlet weak var inspector: Inspector!
     var amiga: EmulatorProxy { return inspector.parent.emu }
@@ -43,9 +43,6 @@ class TraceTableView: NSTableView {
         cache()
         reloadData()
     }
-}
-
-extension TraceTableView: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
 

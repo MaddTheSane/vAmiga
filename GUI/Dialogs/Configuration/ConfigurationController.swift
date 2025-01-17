@@ -9,7 +9,7 @@
 
 import AppKit
 
-class ConfigurationController: DialogController {
+class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldDelegate {
 
     var config: Configuration { return parent.config }
     
@@ -394,17 +394,11 @@ class ConfigurationController: DialogController {
         hide()
         try? emu.run()
     }
-}
-
-extension ConfigurationController: NSTabViewDelegate {
 
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
 
         refresh()
     }
-}
-
-extension ConfigurationController: NSTextFieldDelegate {
 
     func controlTextDidChange(_ obj: Notification) {
 

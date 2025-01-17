@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class BankTableView: NSTableView {
+class BankTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     @IBOutlet weak var inspector: Inspector!
     
@@ -46,9 +46,6 @@ class BankTableView: NSTableView {
 
         inspector.jumpTo(bank: sender.clickedRow)
     }
-}
-
-extension BankTableView: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int { return 256; }
     
@@ -84,16 +81,13 @@ extension BankTableView: NSTableViewDataSource {
             return String(format: "%02X", row)
         }
     }
-}
-
-extension BankTableView: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
         
         if let cell = cell as? NSTextFieldCell {
 
             if bankCache[row] == .NONE {
-                cell.textColor = .gray
+                cell.textColor = .systemGray
             } else {
                 cell.textColor = .labelColor
             }

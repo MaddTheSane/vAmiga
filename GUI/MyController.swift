@@ -127,9 +127,6 @@ class MyController: NSWindowController, MessageReceiver {
     var drvIcon: [NSButton?] = Array(repeating: nil, count: 8)
     
     var initialized = false
-}
-
-extension MyController {
     
     // Provides the undo manager
     override open var undoManager: UndoManager? { return metal.undoManager }

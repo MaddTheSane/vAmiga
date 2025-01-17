@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class Inspector: DialogController {
+class Inspector: DialogController, NSTabViewDelegate {
 
     let fmt4  = MyFormatter(radix: 16, min: 0, max: 0xF)
     let fmt8  = MyFormatter(radix: 16, min: 0, max: 0xFF)
@@ -876,9 +876,6 @@ class Inspector: DialogController {
 
         emu.finishFrame()
     }
-}
-
-extension Inspector {
     
     override func windowWillClose(_ notification: Notification) {
 
@@ -899,9 +896,6 @@ extension Inspector {
             amiga.autoInspectionMask = 0
         }
     }
-}
-
-extension Inspector: NSTabViewDelegate {
 
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         

@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class CopperTableView: NSTableView {
+class CopperTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     enum BreakpointType {
         
@@ -184,9 +184,6 @@ class CopperTableView: NSTableView {
             inspector.fullRefresh()
         }
     }
-}
-
-extension CopperTableView: NSTableViewDataSource {
 
     func numberOfRows(in tableView: NSTableView) -> Int {
 
@@ -209,9 +206,6 @@ extension CopperTableView: NSTableViewDataSource {
             return ""
         }
     }
-}
-
-extension CopperTableView: NSTableViewDelegate {
 
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
         

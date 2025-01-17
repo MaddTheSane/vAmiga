@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class GuardTableView: NSTableView {
+class GuardTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
     var amiga: EmulatorProxy { return inspector.parent.emu }
@@ -50,9 +50,6 @@ class GuardTableView: NSTableView {
 
         click(row: sender.clickedRow, col: sender.clickedColumn)
     }
-}
-
-extension GuardTableView: NSTableViewDataSource {
 
     func numberOfRows(in tableView: NSTableView) -> Int {
 
@@ -77,9 +74,6 @@ extension GuardTableView: NSTableViewDataSource {
         default: return ""
         }
     }
-}
-
-extension GuardTableView: NSTableViewDelegate {
 
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
 

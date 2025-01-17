@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class DiskInspector: DialogController {
+class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegate {
         
     @IBOutlet weak var icon: NSImageView!
     @IBOutlet weak var title: NSTextField!
@@ -375,13 +375,10 @@ class DiskInspector: DialogController {
         
         setBlock(sender.integerValue)
     }
-}
 
 //
-// Extensions
+// - MARK: Extensions
 //
-
-extension DiskInspector: NSTableViewDataSource {
     
     func columnNr(_ column: NSTableColumn?) -> Int? {
         
@@ -410,9 +407,6 @@ extension DiskInspector: NSTableViewDataSource {
             return String(format: "%02X", byte)
         }
     }
-}
-
-extension DiskInspector: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
         return false

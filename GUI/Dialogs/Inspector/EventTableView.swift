@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class EventTableView: NSTableView {
+class EventTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
     var amiga: EmulatorProxy!
@@ -33,9 +33,6 @@ class EventTableView: NSTableView {
         cache()
         reloadData()
     }
-}
-
-extension EventTableView: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
 
@@ -93,9 +90,6 @@ extension EventTableView: NSTableViewDataSource {
         default:        return "???"
         }
     }
-}
-
-extension EventTableView: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
         

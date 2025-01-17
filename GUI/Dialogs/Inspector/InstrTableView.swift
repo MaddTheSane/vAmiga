@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class InstrTableView: NSTableView {
+class InstrTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     @IBOutlet weak var inspector: Inspector!
     
@@ -170,9 +170,6 @@ class InstrTableView: NSTableView {
             inspector.fullRefresh()
         }
     }
-}
-
-extension InstrTableView: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
         
@@ -199,9 +196,6 @@ extension InstrTableView: NSTableViewDataSource {
             return ""
         }
     }
-}
-
-extension InstrTableView: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
         

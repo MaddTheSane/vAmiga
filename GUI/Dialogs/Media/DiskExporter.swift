@@ -7,7 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class DiskExporter: DialogController {
+class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
 
     enum Format {
         
@@ -421,13 +421,10 @@ class DiskExporter: DialogController {
             parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
         }
     }
-}
 
 //
 // Protocols
 //
-
-extension DiskExporter: NSFilePromiseProviderDelegate {
    
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
         
