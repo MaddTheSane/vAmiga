@@ -13,13 +13,13 @@
 
 public extension CGImage {
     
-    static func defaultBitmapInfo() -> CGBitmapInfo {
+    static let defaultBitmapInfo: CGBitmapInfo = {
         
         let alpha = CGImageAlphaInfo.premultipliedLast.rawValue
         let bigEn32 = CGBitmapInfo.byteOrder32Big.rawValue
     
         return CGBitmapInfo(rawValue: alpha | bigEn32)
-    }
+    }()
     
     static func dataProvider(data: UnsafeMutableRawPointer, size: CGSize) -> CGDataProvider? {
         
@@ -49,7 +49,7 @@ public extension CGImage {
                        bitsPerPixel: 32,
                        bytesPerRow: 4 * w,
                        space: CGColorSpaceCreateDeviceRGB(),
-                       bitmapInfo: bitmapInfo ?? defaultBitmapInfo(),
+                       bitmapInfo: bitmapInfo ?? defaultBitmapInfo,
                        provider: dataProvider(data: data, size: size)!,
                        decode: nil,
                        shouldInterpolate: false,

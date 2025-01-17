@@ -167,7 +167,7 @@ class RessourceManager {
             let cap = Int(maskSize[n].width) * Int(maskSize[n].height)
             let mask = calloc(cap, MemoryLayout<UInt32>.size)!
             let ptr = mask.bindMemory(to: UInt32.self, capacity: cap)
-            for i in 0 ... cap - 1 {
+            for i in 0 ..< cap {
                 ptr[i] = maskData[n][i]
             }
 
