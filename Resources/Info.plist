@@ -215,7 +215,7 @@
 			<key>UTTypeDescription</key>
 			<string>ADF files</string>
 			<key>UTTypeIconFile</key>
-			<string></string>
+			<string>ADFIcon</string>
 			<key>UTTypeIcons</key>
 			<dict>
 				<key>UTTypeIconBackgroundName</key>
@@ -243,6 +243,8 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Compressed ADF files</string>
+			<key>UTTypeIconFile</key>
+			<string>ADFIcon</string>
 			<key>UTTypeIcons</key>
 			<dict>
 				<key>UTTypeIconBackgroundName</key>
@@ -269,6 +271,8 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>DMS files</string>
+			<key>UTTypeIconFile</key>
+			<string>ADFIcon</string>
 			<key>UTTypeIcons</key>
 			<dict>
 				<key>UTTypeIconBadgeName</key>
@@ -319,6 +323,8 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>HDF files</string>
+			<key>UTTypeIconFile</key>
+			<string>HDFIcon</string>
 			<key>UTTypeIcons</key>
 			<dict>
 				<key>UTTypeIconBackgroundName</key>
@@ -346,6 +352,8 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Compressed HDF files</string>
+			<key>UTTypeIconFile</key>
+			<string>HDFIcon</string>
 			<key>UTTypeIcons</key>
 			<dict>
 				<key>UTTypeIconBackgroundName</key>
@@ -372,6 +380,8 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>IMG files</string>
+			<key>UTTypeIconFile</key>
+			<string>ADFIcon</string>
 			<key>UTTypeIcons</key>
 			<dict>
 				<key>UTTypeIconBadgeName</key>
