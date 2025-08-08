@@ -503,6 +503,7 @@
 		50FC08B127819E4100F0C567 /* BlitterInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50FC08B027819E4100F0C567 /* BlitterInfo.cpp */; };
 		50FCCA7C262AAAEA00398342 /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50FCCA7A262AAAEA00398342 /* Script.cpp */; };
 		50FF747327D3BBFE00B6EA01 /* hdr_click.aiff in Resources */ = {isa = PBXBuildFile; fileRef = 50FF747227D3BBFE00B6EA01 /* hdr_click.aiff */; };
+		556E03A82E46ADBC00942804 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 556E03A72E46ADBC00942804 /* Localizable.xcstrings */; };
 		9C47C0322D6215B100E57B41 /* lz4.c in Sources */ = {isa = PBXBuildFile; fileRef = 9C47C0312D6215B100E57B41 /* lz4.c */; settings = {COMPILER_FLAGS = "-w"; }; };
 		9C47C0332D6215B100E57B41 /* lz4.c in Sources */ = {isa = PBXBuildFile; fileRef = 9C47C0312D6215B100E57B41 /* lz4.c */; settings = {COMPILER_FLAGS = "-w"; }; };
 /* End PBXBuildFile section */
@@ -1146,6 +1147,7 @@
 		50FCCA7A262AAAEA00398342 /* Script.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Script.cpp; sourceTree = "<group>"; };
 		50FCCA7B262AAAEA00398342 /* Script.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Script.h; sourceTree = "<group>"; };
 		50FF747227D3BBFE00B6EA01 /* hdr_click.aiff */ = {isa = PBXFileReference; lastKnownFileType = audio.aiff; path = hdr_click.aiff; sourceTree = "<group>"; };
+		556E03A72E46ADBC00942804 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9C47C0302D6215B100E57B41 /* lz4.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lz4.h; sourceTree = "<group>"; };
 		9C47C0312D6215B100E57B41 /* lz4.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lz4.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1562,6 +1564,7 @@
 				508FDE6D21EA1FA50043D0E9 /* Assets.xcassets */,
 				508FDE7221EA1FA50043D0E9 /* Info.plist */,
 				508FDE7321EA1FA50043D0E9 /* vAmiga.entitlements */,
+				556E03A72E46ADBC00942804 /* Localizable.xcstrings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -2405,6 +2408,7 @@
 				508FDFC521EA1FF10043D0E9 /* A500ISO.xib in Resources */,
 				50D263CE21F6378100FA167F /* A1000ISO.xib in Resources */,
 				50B14C2021EB8445002E32A6 /* drive_head.aiff in Resources */,
+				556E03A82E46ADBC00942804 /* Localizable.xcstrings in Resources */,
 				5029C6E127CA2EAB002F6CCC /* DiskInspector.xib in Resources */,
 				500A4E9F24470713002A4DE1 /* disk_eject.aiff in Resources */,
 				508FDE6E21EA1FA50043D0E9 /* Assets.xcassets in Resources */,
@@ -3041,6 +3045,7 @@
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -3144,6 +3149,7 @@
 				);
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;

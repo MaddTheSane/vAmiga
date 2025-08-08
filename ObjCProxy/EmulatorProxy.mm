@@ -961,7 +961,7 @@ NSString *EventSlotName(EventSlot slot)
 
 - (BOOL)exportAs:(NSString *)path
 {
-    return [self recorder]->exportAs(string([path fileSystemRepresentation]));
+    return [self recorder]->exportAs([path fileSystemRepresentation]);
 }
 
 @end

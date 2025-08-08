@@ -96,7 +96,7 @@ class ScreenshotViewer: DialogController {
         finderLabel.isHidden = empty
         finderButton.isHidden = empty
         
-        var label1 = "No screenshots available"
+        var label1 = NSLocalizedString("No screenshots available", comment: "No screenshots available")
         var label2 = ""
         
         if currentItem >= 0 && currentItem < screenshots.count {

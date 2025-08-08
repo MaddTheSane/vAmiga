@@ -75,7 +75,7 @@ class SnapshotViewer: DialogController {
             
         } else {
             
-            nr.stringValue = "No snapshots taken"
+            nr.stringValue = NSLocalizedString("No snapshots taken", comment: "No snapshots taken")
             message.stringValue = ""
         }
         

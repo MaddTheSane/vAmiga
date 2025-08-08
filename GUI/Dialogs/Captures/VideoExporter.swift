@@ -54,11 +54,11 @@ class VideoExporter: DialogController {
         }
 
         debug(.exec, "Export to \(path)")
-        if emu.recorder.export(as: path.absoluteString) {
+        if emu.recorder.export(as: path.path) {
                         
             let config = emu.recorder.config
             
-            text.stringValue = "MPEG-4 Video Stream"
+            text.stringValue = NSLocalizedString("MPEG-4 Video Stream", comment: "MPEG-4 Video Stream")
             icon.isHidden = false
             exportButton.isHidden = false
             sizeOnDisk.stringValue = path.fileSizeString
@@ -69,7 +69,7 @@ class VideoExporter: DialogController {
 
         } else {
             
-            text.stringValue = "Encoding error"
+            text.stringValue = NSLocalizedString("Encoding error", comment: "Encoding error")
             text.textColor = .warning
         }
         

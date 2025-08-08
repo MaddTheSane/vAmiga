@@ -8,6 +8,7 @@
 // -----------------------------------------------------------------------------
 
 // import Darwin
+import Foundation
 
 extension AmigaProxy {
 
@@ -658,12 +659,13 @@ extension HardDriveProxy {
         switch controller.info.state {
             
         case .UNDETECTED:
-            return "The hard drive is waiting to be initialized by the OS."
+            return NSLocalizedString("The hard drive is waiting to be initialized by the OS.",
+                                     comment: "The hard drive is waiting to be initialized by the OS.")
             
         case .INITIALIZING:
-            return "The OS has started to initialize the hard drive. If the " +
-            "condition persists the hard drive is not valid or incompatible " +
-            "with the chosen setup."
+            return NSLocalizedString("The OS has started to initialize the hard drive tooltip",
+                                     value: "The OS has started to initialize the hard drive. If the condition persists the hard drive is not valid or incompatible with the chosen setup.",
+                                     comment: "The OS has started to initialize the hard drive tooltip")
             
         default:
             return nil
