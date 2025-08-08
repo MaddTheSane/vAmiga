@@ -7,9 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension ConfigurationController {
     
-    func awakeVideoPrefsFromNib() {
+    func initVideoTab() {
 
         // Check for available enhancers
         let enhancers = parent.renderer.ressourceManager.enhancerGallery
@@ -34,24 +35,32 @@ extension ConfigurationController {
     func refreshVideoTab() {
 
         let renderer = parent.renderer!
-
+        let palette = config.palette
+        let adjustable = palette != Palette.RGB.rawValue
+        
         // Colors
-        vidPalettePopUp.selectItem(withTag: config.palette)
+        vidPalettePopUp.selectItem(withTag: palette)
         vidBrightnessSlider.integerValue = config.brightness
         vidContrastSlider.integerValue = config.contrast
         vidSaturationSlider.integerValue = config.saturation
-
+        vidBrightnessSlider.isEnabled = adjustable
+        vidContrastSlider.isEnabled = adjustable
+        vidSaturationSlider.isEnabled = adjustable
+        vidBrightnessLabel.textColor = adjustable ? .labelColor : .disabledControlTextColor
+        vidContrastLabel.textColor = adjustable ? .labelColor : .disabledControlTextColor
+        vidSaturationLabel.textColor = adjustable ? .labelColor : .disabledControlTextColor
+        
         // Geometry
         vidZoom.selectItem(withTag: config.zoom)
-        vidHZoom.floatValue = config.hZoom * 1000
-        vidVZoom.floatValue = config.vZoom * 1000
+        vidHZoom.integerValue = config.hZoom
+        vidVZoom.integerValue = config.vZoom
         vidHZoom.isEnabled = config.zoom == 0
         vidVZoom.isEnabled = config.zoom == 0
         vidHZoomLabel.textColor = config.zoom == 0 ? .labelColor : .disabledControlTextColor
         vidVZoomLabel.textColor = config.zoom == 0 ? .labelColor : .disabledControlTextColor
         vidCenter.selectItem(withTag: config.center)
-        vidHCenter.floatValue = config.hCenter * 1000
-        vidVCenter.floatValue = config.vCenter * 1000
+        vidHCenter.integerValue = config.hCenter
+        vidVCenter.integerValue = config.vCenter
         vidHCenter.isEnabled = config.center == 0
         vidVCenter.isEnabled = config.center == 0
         vidHCenterLabel.textColor = config.center == 0 ? .labelColor : .disabledControlTextColor
@@ -63,38 +72,38 @@ extension ConfigurationController {
 
         // Effects
         vidBlurPopUp.selectItem(withTag: Int(config.blur))
-        vidBlurRadiusSlider.floatValue = config.blurRadius
+        vidBlurRadiusSlider.integerValue = config.blurRadius
         vidBlurRadiusSlider.isEnabled = config.blur > 0
         
         vidBloomPopUp.selectItem(withTag: Int(config.bloom))
-        vidBloomRadiusSlider.floatValue = config.bloomRadius
+        vidBloomRadiusSlider.integerValue = config.bloomRadius
         vidBloomRadiusSlider.isEnabled = config.bloom > 0
-        vidBloomBrightnessSlider.floatValue = config.bloomBrightness
+        vidBloomBrightnessSlider.integerValue = config.bloomBrightness
         vidBloomBrightnessSlider.isEnabled = config.bloom > 0
-        vidBloomWeightSlider.floatValue = config.bloomWeight
+        vidBloomWeightSlider.integerValue = config.bloomWeight
         vidBloomWeightSlider.isEnabled = config.bloom > 0
 
         vidFlickerPopUp.selectItem(withTag: Int(config.flicker))
-        vidFlickerWeightSlider.floatValue = config.flickerWeight
+        vidFlickerWeightSlider.integerValue = config.flickerWeight
         vidFlickerWeightSlider.isEnabled = config.flicker > 0
 
         vidDotMaskPopUp.selectItem(withTag: Int(config.dotMask))
         for i in 0 ... 4 {
             vidDotMaskPopUp.item(at: i)?.image = renderer.ressourceManager.dotmaskImages[i]
         }
-        vidDotMaskBrightnessSlider.floatValue = config.dotMaskBrightness
+        vidDotMaskBrightnessSlider.integerValue = config.dotMaskBrightness
         vidDotMaskBrightnessSlider.isEnabled = config.dotMask > 0
         
         vidScanlinesPopUp.selectItem(withTag: Int(config.scanlines))
-        vidScanlineBrightnessSlider.floatValue = config.scanlineBrightness
+        vidScanlineBrightnessSlider.integerValue = config.scanlineBrightness
         vidScanlineBrightnessSlider.isEnabled = config.scanlines > 0
-        vidScanlineWeightSlider.floatValue = config.scanlineWeight
+        vidScanlineWeightSlider.integerValue = config.scanlineWeight
         vidScanlineWeightSlider.isEnabled = config.scanlines == 2
         
         vidMisalignmentPopUp.selectItem(withTag: Int(config.disalignment))
-        vidMisalignmentXSlider.floatValue = config.disalignmentH
+        vidMisalignmentXSlider.integerValue = config.disalignmentH
         vidMisalignmentXSlider.isEnabled = config.disalignment > 0
-        vidMisalignmentYSlider.floatValue = config.disalignmentV
+        vidMisalignmentYSlider.integerValue = config.disalignmentV
         vidMisalignmentYSlider.isEnabled = config.disalignment > 0
   
         // Buttons
@@ -137,13 +146,13 @@ extension ConfigurationController {
 
     @IBAction func vidHZoomAction(_ sender: NSSlider!) {
 
-        config.hZoom = sender.floatValue / 1000
+        config.hZoom = sender.integerValue
         refresh()
     }
 
     @IBAction func vidVZoomAction(_ sender: NSSlider!) {
 
-        config.vZoom = sender.floatValue / 1000
+        config.vZoom = sender.integerValue
         refresh()
     }
 
@@ -155,13 +164,13 @@ extension ConfigurationController {
 
     @IBAction func vidHCenterAction(_ sender: NSSlider!) {
 
-        config.hCenter = sender.floatValue / 1000
+        config.hCenter = sender.integerValue
         refresh()
     }
 
     @IBAction func vidVCenterAction(_ sender: NSSlider!) {
 
-        config.vCenter = sender.floatValue / 1000
+        config.vCenter = sender.integerValue
         refresh()
     }
 
@@ -189,7 +198,7 @@ extension ConfigurationController {
     
     @IBAction func vidBlurRadiusAction(_ sender: NSSlider!) {
         
-        config.blurRadius = sender.floatValue
+        config.blurRadius = sender.integerValue
         refresh()
     }
     
@@ -201,19 +210,19 @@ extension ConfigurationController {
     
     @IBAction func vidBloomRadiusAction(_ sender: NSSlider!) {
         
-        config.bloomRadius = sender.floatValue
+        config.bloomRadius = sender.integerValue
         refresh()
     }
 
     @IBAction func vidBloomBrightnessAction(_ sender: NSSlider!) {
         
-        config.bloomBrightness = sender.floatValue
+        config.bloomBrightness = sender.integerValue
         refresh()
     }
     
     @IBAction func vidBloomWeightAction(_ sender: NSSlider!) {
         
-        config.bloomWeight = sender.floatValue
+        config.bloomWeight = sender.integerValue
         refresh()
     }
 
@@ -225,7 +234,7 @@ extension ConfigurationController {
 
     @IBAction func vidFlickerWeightAction(_ sender: NSSlider!) {
 
-        config.flickerWeight = sender.floatValue
+        config.flickerWeight = sender.integerValue
         refresh()
     }
     
@@ -237,7 +246,7 @@ extension ConfigurationController {
     
     @IBAction func vidDotMaskBrightnessAction(_ sender: NSSlider!) {
         
-        config.dotMaskBrightness = sender.floatValue
+        config.dotMaskBrightness = sender.integerValue
         refresh()
     }
     
@@ -249,13 +258,13 @@ extension ConfigurationController {
 
     @IBAction func vidScanlineBrightnessAction(_ sender: NSSlider!) {
         
-        config.scanlineBrightness = sender.floatValue
+        config.scanlineBrightness = sender.integerValue
         refresh()
     }
     
     @IBAction func vidScanlineWeightAction(_ sender: NSSlider!) {
         
-        config.scanlineWeight = sender.floatValue
+        config.scanlineWeight = sender.integerValue
         refresh()
     }
     
@@ -267,13 +276,13 @@ extension ConfigurationController {
 
     @IBAction func vidDisalignmentHAction(_ sender: NSSlider!) {
         
-        config.disalignmentH = sender.floatValue
+        config.disalignmentH = sender.integerValue
         refresh()
     }
     
     @IBAction func vidDisalignmentVAction(_ sender: NSSlider!) {
 
-        config.disalignmentV = sender.floatValue
+        config.disalignmentV = sender.integerValue
         refresh()
     }
 
@@ -299,12 +308,12 @@ extension ConfigurationController {
 
             debug(1, "ViewSonic VP191b")
             EmulatorProxy.defaults.removeGeometryUserDefaults()
-            defaults.set(Keys.Vid.zoom, 0)
-            defaults.set(Keys.Vid.hZoom, 0.6763221)
-            defaults.set(Keys.Vid.vZoom, 0.032)
-            defaults.set(Keys.Vid.center, 0)
-            defaults.set(Keys.Vid.hCenter, 0.39813587)
-            defaults.set(Keys.Vid.vCenter, 1.0)
+            defaults.set(.MON_ZOOM, 0)          // (Keys.Vid.zoom, 0)
+            defaults.set(.MON_HZOOM, 676)       // (Keys.Vid.hZoom, 0.6763221)
+            defaults.set(.MON_VZOOM, 032)       // (Keys.Vid.vZoom, 0.032)
+            defaults.set(.MON_CENTER, 0)        // (Keys.Vid.center, 0)
+            defaults.set(.MON_HCENTER, 398)     // (Keys.Vid.hCenter, 0.39813587)
+            defaults.set(.MON_VCENTER, 1000)    // (Keys.Vid.vCenter, 1.0)
 
         case 20: // Recommended settings (colors + shader)
 
@@ -320,10 +329,10 @@ extension ConfigurationController {
 
             EmulatorProxy.defaults.removeColorUserDefaults()
             EmulatorProxy.defaults.removeShaderUserDefaults()
-            defaults.set(Keys.Vid.blurRadius, 1.5)
-            defaults.set(Keys.Vid.bloom, 1)
-            defaults.set(Keys.Vid.dotMask, 1)
-            defaults.set(Keys.Vid.scanlines, 2)
+            defaults.set(.MON_BLUR_RADIUS, 330) // (Keys.Vid.blurRadius, 1.5)
+            defaults.set(.MON_BLOOM, 1)         // (Keys.Vid.bloom, 1)
+            defaults.set(.MON_DOTMASK, 1)       // (Keys.Vid.dotMask, 1)
+            defaults.set(.MON_SCANLINES, 2)     // (Keys.Vid.scanlines, 2)
 
         default:
             fatalError()

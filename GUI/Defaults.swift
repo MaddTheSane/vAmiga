@@ -13,6 +13,7 @@ import Carbon.HIToolbox
 // Proxy extensions
 //
 
+@MainActor
 extension DefaultsProxy {
 
     func resetSearchPaths() {
@@ -31,7 +32,7 @@ extension DefaultsProxy {
 
         let exception = ExceptionWrapper()
         load(url, exception: exception)
-        if exception.errorCode != .OK { throw VAError(exception) }     
+        if exception.fault != .OK { throw AppError(exception) }     
 
         debug(.defaults, "Successfully loaded user defaults from \(url)")
     }
@@ -59,7 +60,7 @@ extension DefaultsProxy {
         
         let exception = ExceptionWrapper()
         save(url, exception: exception)
-        if exception.errorCode != .OK { throw VAError(exception) }
+        if exception.fault != .OK { throw AppError(exception) }
 
         debug(.defaults, "Successfully saved user defaults to \(url)")
     }
@@ -201,6 +202,7 @@ extension DefaultsProxy {
 // Paths
 //
 
+@MainActor
 extension UserDefaults {
     
     static func romUrl(name: String) -> URL? {
@@ -212,6 +214,11 @@ extension UserDefaults {
     static func romUrl(fingerprint: Int) -> URL? {
 
         return romUrl(name: String(format: "%08x", fingerprint) + ".rom")
+    }
+
+    static func romUrl(crc32: UInt32) -> URL? {
+
+        return romUrl(fingerprint: Int(crc32))
     }
 
     static func mediaUrl(name: String) -> URL? {
@@ -237,6 +244,7 @@ extension UserDefaults {
 // User defaults (all)
 //
 
+@MainActor
 extension DefaultsProxy {
     
     func registerUserDefaults() {
@@ -244,6 +252,7 @@ extension DefaultsProxy {
         debug(.defaults, "Registering user defaults")
         
         registerGeneralUserDefaults()
+        registerCapturesUserDefaults()
         registerControlsUserDefaults()
         registerDevicesUserDefaults()
 
@@ -256,18 +265,21 @@ extension DefaultsProxy {
     }
 }
 
+@MainActor
 extension Preferences {
 
     func applyUserDefaults() {
         
-        debug(.defaults, "Applying user defaults")
+        debug(.defaults)
         
         applyGeneralUserDefaults()
+        applyCapturesUserDefaults()
         applyControlsUserDefaults()
         applyDevicesUserDefaults()
     }
 }
 
+@MainActor
 extension Configuration {
         
     func applyUserDefaults() {
@@ -295,17 +307,6 @@ struct Keys {
         static let snapshotStorage        = "General.SnapshotStorage"
         static let autoSnapshots          = "General.AutoSnapshots"
         static let autoSnapshotInterval   = "General.ScreenshotInterval"
-
-        // Screenshots
-        static let screenshotSource       = "General.ScreenshotSource"
-        static let screenshotTarget       = "General.ScreenshotTarget"
-                
-        // Screen captures
-        static let ffmpegPath             = "General.ffmpegPath"
-        static let captureSource          = "General.Source"
-        static let bitRate                = "General.BitRate"
-        static let aspectX                = "General.AspectX"
-        static let aspectY                = "General.AspectY"
         
         // Fullscreen
         static let keepAspectRatio        = "General.FullscreenKeepAspectRatio"
@@ -319,28 +320,18 @@ struct Keys {
     }
 }
 
+@MainActor
 extension DefaultsProxy {
     
     func registerGeneralUserDefaults() {
         
         debug(.defaults)
-        
+
         // Snapshots
         register(Keys.Gen.snapshotStorage, 512)
         register(Keys.Gen.autoSnapshots, false)
         register(Keys.Gen.autoSnapshotInterval, 20)
-        
-        // Screenshots
-        register(Keys.Gen.screenshotSource, 0)
-        register(Keys.Gen.screenshotTarget, NSBitmapImageRep.FileType.png.rawValue)
-        
-        // Captures
-        register(Keys.Gen.ffmpegPath, "")
-        register(Keys.Gen.captureSource, 0)
-        register(Keys.Gen.bitRate, 2048)
-        register(Keys.Gen.aspectX, 768)
-        register(Keys.Gen.aspectY, 702)
-        
+                
         // Fullscreen
         register(Keys.Gen.keepAspectRatio, false)
         register(Keys.Gen.exitOnEsc, true)
@@ -359,16 +350,7 @@ extension DefaultsProxy {
         let keys = [ Keys.Gen.snapshotStorage,
                      Keys.Gen.autoSnapshots,
                      Keys.Gen.autoSnapshotInterval,
-                     
-                     Keys.Gen.screenshotSource,
-                     Keys.Gen.screenshotTarget,
-                     
-                     Keys.Gen.ffmpegPath,
-                     Keys.Gen.captureSource,
-                     Keys.Gen.bitRate,
-                     Keys.Gen.aspectX,
-                     Keys.Gen.aspectY,
-                     
+                                          
                      Keys.Gen.keepAspectRatio,
                      Keys.Gen.exitOnEsc,
 
@@ -382,26 +364,18 @@ extension DefaultsProxy {
     }
 }
 
+@MainActor
 extension Preferences {
 
     func saveGeneralUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-        
+
         defaults.set(Keys.Gen.snapshotStorage, snapshotStorage)
         defaults.set(Keys.Gen.autoSnapshots, autoSnapshots)
         defaults.set(Keys.Gen.autoSnapshotInterval, snapshotInterval)
-        
-        defaults.set(Keys.Gen.screenshotSource, screenshotSource)
-        defaults.set(Keys.Gen.screenshotTarget, screenshotTargetIntValue)
-        
-        defaults.set(Keys.Gen.ffmpegPath, ffmpegPath)
-        defaults.set(Keys.Gen.captureSource, captureSourceIntValue)
-        defaults.set(Keys.Gen.bitRate, bitRate)
-        defaults.set(Keys.Gen.aspectX, aspectX)
-        defaults.set(Keys.Gen.aspectY, aspectY)
-        
+                
         defaults.set(Keys.Gen.keepAspectRatio, keepAspectRatio)
         defaults.set(Keys.Gen.exitOnEsc, exitOnEsc)
 
@@ -421,16 +395,7 @@ extension Preferences {
         snapshotStorage = defaults.int(Keys.Gen.snapshotStorage)
         autoSnapshots = defaults.bool(Keys.Gen.autoSnapshots)
         snapshotInterval = defaults.int(Keys.Gen.autoSnapshotInterval)
-        
-        screenshotSource = defaults.int(Keys.Gen.screenshotSource)
-        screenshotTargetIntValue = defaults.int(Keys.Gen.screenshotTarget)
-        
-        ffmpegPath = defaults.string(Keys.Gen.ffmpegPath)
-        captureSourceIntValue = defaults.int(Keys.Gen.captureSource)
-        bitRate = defaults.int(Keys.Gen.bitRate)
-        aspectX = defaults.int(Keys.Gen.aspectX)
-        aspectY = defaults.int(Keys.Gen.aspectY)
-        
+                
         keepAspectRatio = defaults.bool(Keys.Gen.keepAspectRatio)
         exitOnEsc = defaults.bool(Keys.Gen.exitOnEsc)
 
@@ -442,9 +407,120 @@ extension Preferences {
 }
 
 //
+// User defaults (Captures)
+//
+
+@MainActor
+extension Keys {
+    
+    struct Cap {
+                
+        // Screenshots
+        static let screenshotFormat       = "General.ScreenshotFormat"
+        static let screenshotSource       = "General.ScreenshotSource"
+        static let screenshotCutout       = "General.ScreenshotCutout"
+        static let screenshotWidth        = "General.ScreenshotWidth"
+        static let screenshotHeight       = "General.ScreenshotHeight"
+
+        // Videos
+        static let ffmpegPath             = "General.ffmpegPath"
+        static let captureSource          = "General.Source"
+        static let bitRate                = "General.BitRate"
+        static let aspectX                = "General.AspectX"
+        static let aspectY                = "General.AspectY"
+    }
+}
+
+@MainActor
+extension DefaultsProxy {
+    
+    func registerCapturesUserDefaults() {
+        
+        debug(.defaults)
+        
+        // Screenshots
+        register(Keys.Cap.screenshotFormat, NSBitmapImageRep.FileType.png.rawValue)
+        register(Keys.Cap.screenshotSource, 0)
+        register(Keys.Cap.screenshotCutout, 0)
+        register(Keys.Cap.screenshotWidth, 1200)
+        register(Keys.Cap.screenshotHeight, 900)
+
+        // Videos
+        register(Keys.Cap.ffmpegPath, "")
+        register(Keys.Cap.captureSource, 0)
+        register(Keys.Cap.bitRate, 2048)
+        register(Keys.Cap.aspectX, 768)
+        register(Keys.Cap.aspectY, 702)
+    }
+    
+    func removeCapturesUserDefaults() {
+        
+        debug(.defaults)
+        
+        let keys = [ Keys.Cap.screenshotFormat,
+                     Keys.Cap.screenshotSource,
+                     Keys.Cap.screenshotCutout,
+                     Keys.Cap.screenshotWidth,
+                     Keys.Cap.screenshotHeight,
+
+                     Keys.Cap.ffmpegPath,
+                     Keys.Cap.captureSource,
+                     Keys.Cap.bitRate,
+                     Keys.Cap.aspectX,
+                     Keys.Cap.aspectY,
+        ]
+        
+        for key in keys { removeKey(key) }
+    }
+}
+
+@MainActor
+extension Preferences {
+
+    func saveCapturesUserDefaults() {
+        
+        debug(.defaults)
+        let defaults = EmulatorProxy.defaults!
+        
+        defaults.set(Keys.Cap.screenshotFormat, screenshotFormatIntValue)
+        defaults.set(Keys.Cap.screenshotSource, screenshotSourceIntValue)
+        defaults.set(Keys.Cap.screenshotCutout, screenshotCutoutIntValue)
+        defaults.set(Keys.Cap.screenshotWidth, screenshotWidth)
+        defaults.set(Keys.Cap.screenshotHeight, screenshotHeight)
+
+        defaults.set(Keys.Cap.ffmpegPath, ffmpegPath)
+        defaults.set(Keys.Cap.captureSource, captureSourceIntValue)
+        defaults.set(Keys.Cap.bitRate, bitRate)
+        defaults.set(Keys.Cap.aspectX, aspectX)
+        defaults.set(Keys.Cap.aspectY, aspectY)
+                
+        defaults.save()
+    }
+    
+    func applyCapturesUserDefaults() {
+        
+        debug(.defaults)
+        let defaults = EmulatorProxy.defaults!
+                
+        screenshotFormatIntValue = defaults.int(Keys.Cap.screenshotFormat)
+        screenshotSourceIntValue = defaults.int(Keys.Cap.screenshotSource)
+        screenshotCutoutIntValue = defaults.int(Keys.Cap.screenshotCutout)
+        screenshotWidth = defaults.int(Keys.Cap.screenshotWidth)
+        screenshotHeight = defaults.int(Keys.Cap.screenshotHeight)
+
+        ffmpegPath = defaults.string(Keys.Cap.ffmpegPath)
+        captureSourceIntValue = defaults.int(Keys.Cap.captureSource)
+        bitRate = defaults.int(Keys.Cap.bitRate)
+        aspectX = defaults.int(Keys.Cap.aspectX)
+        aspectY = defaults.int(Keys.Cap.aspectY)
+    }
+}
+
+//
 // User defaults (Controls)
 //
 
+@MainActor
 extension Keys {
     
     struct Con {
@@ -472,6 +548,7 @@ extension Keys {
     }
 }
 
+@MainActor
 extension DefaultsProxy {
     
     func registerControlsUserDefaults() {
@@ -545,6 +622,7 @@ extension DefaultsProxy {
     }
 }
 
+@MainActor
 extension Preferences {
 
     func saveControlsUserDefaults() {
@@ -602,6 +680,7 @@ extension Preferences {
 // User defaults (Devices)
 //
 
+@MainActor
 extension Keys {
     
     struct Dev {
@@ -610,6 +689,7 @@ extension Keys {
     }
 }
 
+@MainActor
 extension DefaultsProxy {
     
     func registerDevicesUserDefaults() {
@@ -621,6 +701,7 @@ extension DefaultsProxy {
     }
 }
 
+@MainActor
 extension Preferences {
 
     func saveDevicesUserDefaults() {
@@ -641,6 +722,7 @@ extension Preferences {
 // User Defaults (Roms)
 //
 
+@MainActor
 extension Configuration {
 
     func saveRomUserDefaults() throws {
@@ -651,35 +733,32 @@ extension Configuration {
         let fm = FileManager.default
         var url: URL?
 
-        amiga.suspend()
+        emu.suspend()
 
         defaults.set(.MEM_EXT_START, extStart)
         defaults.save()
         
         do {
 
-            if amiga.mem.info.hasRom {
+            // Kickstart
+            url = UserDefaults.romUrl
+            if url == nil { throw AppError(.FILE_CANT_WRITE) }
+            try? fm.removeItem(at: url!)
+            if emu.mem.info.hasRom { try emu.mem.saveRom(url!) }
 
-                url = UserDefaults.romUrl
-                if url == nil { throw VAError(.FILE_CANT_WRITE) }
-                try? fm.removeItem(at: url!)
-                try amiga.mem.saveRom(url!)
-            }
-            if amiga.mem.info.hasExt {
-
-                url = UserDefaults.extUrl
-                if url == nil { throw VAError(.FILE_CANT_WRITE) }
-                try? fm.removeItem(at: url!)
-                try amiga.mem.saveExt(url!)
-            }
+            // Kickstart extension
+            url = UserDefaults.extUrl
+            if url == nil { throw AppError(.FILE_CANT_WRITE) }
+            try? fm.removeItem(at: url!)
+            if emu.mem.info.hasExt { try emu.mem.saveExt(url!) }
 
         } catch {
 
-            amiga.resume()
+            emu.resume()
             throw error
         }
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -687,6 +766,7 @@ extension Configuration {
 // User defaults (Hardware)
 //
 
+@MainActor
 extension DefaultsProxy {
 
     func registerHardwareUserDefaults() {
@@ -702,6 +782,7 @@ extension DefaultsProxy {
     }
 }
 
+@MainActor
 extension Configuration {
 
     func applyHardwareUserDefaults() {
@@ -721,6 +802,7 @@ extension Configuration {
 // User defaults (Hardware::Chipset)
 //
 
+@MainActor
 extension DefaultsProxy {
     
     func registerChipsetUserDefaults() {
@@ -743,6 +825,7 @@ extension DefaultsProxy {
     }
 }
 
+@MainActor
 extension Configuration {
 
     func applyChipsetUserDefaults() {
@@ -750,7 +833,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         machineType = defaults.get(.AMIGA_VIDEO_FORMAT)
         cpuRev = defaults.get(.CPU_REVISION)
@@ -760,7 +843,7 @@ extension Configuration {
         ciaRev = defaults.get(.CIA_REVISION)
         rtClock = defaults.get(.RTC_MODEL)
         
-        amiga.resume()
+        emu.resume()
     }
 
     func saveChipsetUserDefaults() {
@@ -768,7 +851,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         defaults.set(.AMIGA_VIDEO_FORMAT, machineType)
         defaults.set(.CPU_REVISION, cpuRev)
@@ -779,7 +862,7 @@ extension Configuration {
         defaults.set(.RTC_MODEL, rtClock)
         defaults.save()
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -787,6 +870,7 @@ extension Configuration {
 // User defaults (Hardware::Memory)
 //
 
+@MainActor
 extension DefaultsProxy {
     
     func registerMemoryUserDefaults() {
@@ -805,11 +889,10 @@ extension DefaultsProxy {
         remove(.MEM_RAM_INIT_PATTERN)
         remove(.MEM_BANKMAP)
         remove(.MEM_UNMAPPING_TYPE)
-        remove(.MEM_SLOW_RAM_DELAY)
-        remove(.MEM_SLOW_RAM_MIRROR)
     }
 }
 
+@MainActor
 extension Configuration {
 
     func saveMemoryUserDefaults() {
@@ -817,7 +900,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
         
         defaults.set(.MEM_CHIP_RAM, chipRam)
         defaults.set(.MEM_SLOW_RAM, slowRam)
@@ -825,11 +908,9 @@ extension Configuration {
         defaults.set(.MEM_RAM_INIT_PATTERN, ramInitPattern)
         defaults.set(.MEM_BANKMAP, bankMap)
         defaults.set(.MEM_UNMAPPING_TYPE, unmappingType)
-        defaults.set(.MEM_SLOW_RAM_DELAY, slowRamDelay)
-        defaults.set(.MEM_SLOW_RAM_MIRROR, slowRamMirror)
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
     
     func applyMemoryUserDefaults() {
@@ -837,7 +918,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         chipRam = defaults.get(.MEM_CHIP_RAM)
         slowRam = defaults.get(.MEM_SLOW_RAM)
@@ -845,10 +926,8 @@ extension Configuration {
         ramInitPattern = defaults.get(.MEM_RAM_INIT_PATTERN)
         bankMap = defaults.get(.MEM_BANKMAP)
         unmappingType = defaults.get(.MEM_UNMAPPING_TYPE)
-        slowRamDelay = defaults.get(.MEM_SLOW_RAM_DELAY) != 0
-        slowRamMirror = defaults.get(.MEM_SLOW_RAM_MIRROR) != 0
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -856,6 +935,7 @@ extension Configuration {
 // User defaults (Peripherals)
 //
 
+@MainActor
 extension Keys {
     
     struct Per {
@@ -866,6 +946,7 @@ extension Keys {
     }
 }
 
+@MainActor
 extension DefaultsProxy {
     
     func registerPeripheralsUserDefaults() {
@@ -897,6 +978,7 @@ extension DefaultsProxy {
     }
 }
  
+@MainActor
 extension Configuration {
 
     func savePeripheralsUserDefaults() {
@@ -904,7 +986,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
         
         defaults.set(.DRIVE_CONNECT, 0, df0Connected)
         defaults.set(.DRIVE_CONNECT, 1, df1Connected)
@@ -944,7 +1026,7 @@ extension Configuration {
 
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
 
     func applyPeripheralsUserDefaults() {
@@ -952,7 +1034,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         df0Connected = defaults.get(.DRIVE_CONNECT, 0) != 0
         df1Connected = defaults.get(.DRIVE_CONNECT, 1) != 0
@@ -990,7 +1072,7 @@ extension Configuration {
         autofireBullets = defaults.get(.JOY_AUTOFIRE_BULLETS, 0)
         autofireDelay = defaults.get(.JOY_AUTOFIRE_DELAY, 0)
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -998,6 +1080,7 @@ extension Configuration {
 // User defaults (Performance)
 //
 
+@MainActor
 extension DefaultsProxy {
 
     func registerPerformanceUserDefaults() {
@@ -1021,9 +1104,12 @@ extension DefaultsProxy {
         remove(.DENISE_FRAME_SKIPPING)
         remove(.CIA_IDLE_SLEEP, [0, 1])
         remove(.AUD_FASTPATH)
+        remove(.AMIGA_WS_COMPRESSION)
+        remove(.AMIGA_SNAP_COMPRESSOR)
     }
 }
 
+@MainActor
 extension Configuration {
 
     func applyPerformanceUserDefaults() {
@@ -1031,7 +1117,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         warpBoot = defaults.get(.AMIGA_WARP_BOOT)
         warpMode = defaults.get(.AMIGA_WARP_MODE)
@@ -1041,8 +1127,10 @@ extension Configuration {
         frameSkipping = defaults.get(.DENISE_FRAME_SKIPPING)
         ciaIdleSleep = defaults.get(.CIA_IDLE_SLEEP) != 0
         audioFastPath = defaults.get(.AUD_FASTPATH) != 0
+        wsCompressor = defaults.get(.AMIGA_WS_COMPRESSION)
+        snapCompressor = defaults.get(.AMIGA_SNAP_COMPRESSOR)
 
-        amiga.resume()
+        emu.resume()
     }
 
     func savePerformanceUserDefaults() {
@@ -1050,7 +1138,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         defaults.set(.AMIGA_WARP_MODE, warpMode)
         defaults.set(.AMIGA_WARP_BOOT, warpBoot)
@@ -1060,9 +1148,11 @@ extension Configuration {
         defaults.set(.DENISE_FRAME_SKIPPING, frameSkipping)
         defaults.set(.CIA_IDLE_SLEEP, [0,1], ciaIdleSleep)
         defaults.set(.AUD_FASTPATH, audioFastPath)
+        defaults.set(.AMIGA_WS_COMPRESSION, wsCompressor)
+        defaults.set(.AMIGA_SNAP_COMPRESSOR, snapCompressor)
         defaults.save()
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -1070,6 +1160,7 @@ extension Configuration {
 // User defaults (Compatibility)
 //
 
+@MainActor
 extension DefaultsProxy {
     
     func registerCompatibilityUserDefaults() {
@@ -1083,6 +1174,7 @@ extension DefaultsProxy {
         debug(.defaults)
         
         remove(.BLITTER_ACCURACY)
+        remove(.AGNUS_PTR_DROPS)
         remove(.CIA_TODBUG, [0, 1])
         remove(.CIA_ECLOCK_SYNCING, [0, 1])
         remove(.DC_SPEED)
@@ -1093,9 +1185,12 @@ extension DefaultsProxy {
         remove(.DENISE_CLX_PLF_PLF)
         remove(.DENISE_CLX_SPR_PLF)
         remove(.DENISE_CLX_SPR_SPR)
+        remove(.MEM_SLOW_RAM_DELAY)
+        remove(.MEM_SLOW_RAM_MIRROR)
     }
 }
 
+@MainActor
 extension Configuration {
 
     func saveCompatibilityUserDefaults() {
@@ -1103,9 +1198,10 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
         
         defaults.set(.BLITTER_ACCURACY, blitterAccuracy)
+        defaults.set(.AGNUS_PTR_DROPS, ptrDrops)
         defaults.set(.CIA_TODBUG, [0,1], todBug)
         defaults.set(.CIA_ECLOCK_SYNCING, [0,1], eClockSyncing)
         defaults.set(.DC_SPEED, driveSpeed)
@@ -1116,9 +1212,11 @@ extension Configuration {
         defaults.set(.DENISE_CLX_SPR_SPR, clxSprSpr)
         defaults.set(.DENISE_CLX_SPR_PLF, clxSprPlf)
         defaults.set(.DENISE_CLX_PLF_PLF, clxPlfPlf)
+        defaults.set(.MEM_SLOW_RAM_DELAY, slowRamDelay)
+        defaults.set(.MEM_SLOW_RAM_MIRROR, slowRamMirror)
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
 
     func applyCompatibilityUserDefaults() {
@@ -1126,9 +1224,10 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
         
         blitterAccuracy = defaults.get(.BLITTER_ACCURACY)
+        ptrDrops = defaults.get(.AGNUS_PTR_DROPS) != 0
         todBug = defaults.get(.CIA_TODBUG) != 0
         eClockSyncing = defaults.get(.CIA_ECLOCK_SYNCING) != 0
         driveSpeed = defaults.get(.DC_SPEED)
@@ -1139,8 +1238,10 @@ extension Configuration {
         clxSprSpr = defaults.get(.DENISE_CLX_SPR_SPR) != 0
         clxSprPlf = defaults.get(.DENISE_CLX_SPR_PLF) != 0
         clxPlfPlf = defaults.get(.DENISE_CLX_PLF_PLF) != 0
+        slowRamDelay = defaults.get(.MEM_SLOW_RAM_DELAY) != 0
+        slowRamMirror = defaults.get(.MEM_SLOW_RAM_MIRROR) != 0
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -1148,6 +1249,7 @@ extension Configuration {
 // User defaults (Audio)
 //
 
+@MainActor
 extension DefaultsProxy {
     
     func registerAudioUserDefaults() {
@@ -1172,15 +1274,18 @@ extension DefaultsProxy {
         remove(.AUD_VOL3)
         remove(.AUD_VOLL)
         remove(.AUD_VOLR)
-        remove(.AUD_SAMPLING_METHOD)
         remove(.DRIVE_STEP_VOLUME, [0, 1, 2, 3])
         remove(.DRIVE_POLL_VOLUME, [0, 1, 2, 3])
         remove(.DRIVE_INSERT_VOLUME, [0, 1, 2, 3])
         remove(.DRIVE_EJECT_VOLUME, [0, 1, 2, 3])
         remove(.AUD_FILTER_TYPE)
+        remove(.AUD_SAMPLING_METHOD)
+        remove(.AUD_BUFFER_SIZE)
+        remove(.AUD_ASR)
     }
 }
 
+@MainActor
 extension Configuration {
     
     func saveAudioUserDefaults() {
@@ -1188,7 +1293,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
         
         defaults.set(.AUD_VOL0, vol0)
         defaults.set(.AUD_VOL1, vol1)
@@ -1200,7 +1305,6 @@ extension Configuration {
         defaults.set(.AUD_PAN3, pan3)
         defaults.set(.AUD_VOLL, volL)
         defaults.set(.AUD_VOLR, volR)
-        defaults.set(.AUD_SAMPLING_METHOD, samplingMethod)
         defaults.set(.DRIVE_PAN, 0, df0Pan)
         defaults.set(.DRIVE_PAN, 1, df1Pan)
         defaults.set(.DRIVE_PAN, 2, df2Pan)
@@ -1214,9 +1318,13 @@ extension Configuration {
         defaults.set(.DRIVE_INSERT_VOLUME, [0, 1, 2, 3], insertVolume)
         defaults.set(.DRIVE_EJECT_VOLUME, [0, 1, 2, 3], ejectVolume)
         defaults.set(.AUD_FILTER_TYPE, filterType)
+        defaults.set(.AUD_SAMPLING_METHOD, samplingMethod)
+        defaults.set(.AUD_BUFFER_SIZE, audioBufferSize)
+        defaults.set(.AUD_ASR, asr)
+
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
     
     func applyAudioUserDefaults() {
@@ -1224,7 +1332,7 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
 
-        amiga.suspend()
+        emu.suspend()
 
         vol0 = defaults.get(.AUD_VOL0)
         vol1 = defaults.get(.AUD_VOL1)
@@ -1248,14 +1356,17 @@ extension Configuration {
 
         volL = defaults.get(.AUD_VOLL)
         volR = defaults.get(.AUD_VOLR)
-        samplingMethod = defaults.get(.AUD_SAMPLING_METHOD)
         stepVolume = defaults.get(.DRIVE_STEP_VOLUME, 0)
         pollVolume = defaults.get(.DRIVE_POLL_VOLUME, 0)
         insertVolume = defaults.get(.DRIVE_INSERT_VOLUME, 0)
         ejectVolume = defaults.get(.DRIVE_EJECT_VOLUME, 0)
         filterType = defaults.get(.AUD_FILTER_TYPE)
+        
+        samplingMethod = defaults.get(.AUD_SAMPLING_METHOD)
+        audioBufferSize = defaults.get(.AUD_BUFFER_SIZE, audioBufferSize)
+        asr = defaults.get(.AUD_ASR, asr)
 
-        amiga.resume()
+        emu.resume()
     }
 }
 
@@ -1263,10 +1374,12 @@ extension Configuration {
 // User defaults (Video)
 //
 
+@MainActor
 extension Keys {
     
     struct Vid {
 
+        /*
         // Geometry
         static let zoom               = "Geometry.Zoom"
         static let hZoom              = "Geometry.HZoom"
@@ -1294,9 +1407,11 @@ extension Keys {
         static let disalignment       = "Shaders.Disalignment"
         static let disalignmentH      = "Shaders.DisalignmentH"
         static let disalignmentV      = "Shaders.DisalignmentV"
+        */
     }
 }
 
+@MainActor
 extension DefaultsProxy {
     
     func registerVideoUserDefaults() {
@@ -1317,37 +1432,13 @@ extension DefaultsProxy {
     func registerGeometryUserDefaults() {
 
         debug(.defaults)
-
-        register(Keys.Vid.zoom, 2)
-        register(Keys.Vid.hZoom, 1.0)
-        register(Keys.Vid.vZoom, 0.27)
-        register(Keys.Vid.center, 1)
-        register(Keys.Vid.hCenter, 0.6)
-        register(Keys.Vid.vCenter, 0.47)
+        // No GUI related keys in this category
     }
     
     func registerShaderUserDefaults() {
 
         debug(.defaults)
-        
-        register(Keys.Vid.enhancer, 0)
-        register(Keys.Vid.upscaler, 0)
-        register(Keys.Vid.blur, 1)
-        register(Keys.Vid.blurRadius, 0)
-        register(Keys.Vid.bloom, 0)
-        register(Keys.Vid.bloomRadius, 1.0)
-        register(Keys.Vid.bloomBrightness, 0.4)
-        register(Keys.Vid.bloomWeight, 1.21)
-        register(Keys.Vid.flicker, 1)
-        register(Keys.Vid.flickerWeight, 0.25)
-        register(Keys.Vid.dotMask, 0)
-        register(Keys.Vid.dotMaskBrightness, 0.55)
-        register(Keys.Vid.scanlines, 0)
-        register(Keys.Vid.scanlineBrightness, 0.55)
-        register(Keys.Vid.scanlineWeight, 0.11)
-        register(Keys.Vid.disalignment, 0)
-        register(Keys.Vid.disalignmentH, 0.001)
-        register(Keys.Vid.disalignmentV, 0.001)
+        // No GUI related keys in this category
     }
     
     func removeVideoUserDefaults() {
@@ -1373,64 +1464,61 @@ extension DefaultsProxy {
 
         debug(.defaults)
         
-        let keys = [ Keys.Vid.zoom,
-                     Keys.Vid.hZoom,
-                     Keys.Vid.vZoom,
-                     Keys.Vid.center,
-                     Keys.Vid.hCenter,
-                     Keys.Vid.vCenter ]
-
-        for key in keys { removeKey(key) }
+        remove(.MON_CENTER)
+        remove(.MON_HCENTER)
+        remove(.MON_VCENTER)
+        remove(.MON_ZOOM)
+        remove(.MON_HZOOM)
+        remove(.MON_VZOOM)
     }
     
     func removeShaderUserDefaults() {
 
         debug(.defaults)
         
-        let keys = [ Keys.Vid.enhancer,
-                     Keys.Vid.upscaler,
-                     Keys.Vid.blur,
-                     Keys.Vid.blurRadius,
-                     Keys.Vid.bloom,
-                     Keys.Vid.bloomRadius,
-                     Keys.Vid.bloomBrightness,
-                     Keys.Vid.bloomWeight,
-                     Keys.Vid.flicker,
-                     Keys.Vid.flickerWeight,
-                     Keys.Vid.dotMask,
-                     Keys.Vid.dotMaskBrightness,
-                     Keys.Vid.scanlines,
-                     Keys.Vid.scanlineBrightness,
-                     Keys.Vid.scanlineWeight,
-                     Keys.Vid.disalignment,
-                     Keys.Vid.disalignmentH,
-                     Keys.Vid.disalignmentV ]
-        
-        for key in keys { removeKey(key) }
+        remove(.MON_ENHANCER)
+        remove(.MON_UPSCALER)
+        remove(.MON_BLUR)
+        remove(.MON_BLUR_RADIUS)
+        remove(.MON_BLOOM)
+        remove(.MON_BLOOM_RADIUS)
+        remove(.MON_BLOOM_BRIGHTNESS)
+        remove(.MON_BLOOM_WEIGHT)
+        remove(.MON_DOTMASK)
+        remove(.MON_DOTMASK_BRIGHTNESS)
+        remove(.MON_SCANLINES)
+        remove(.MON_SCANLINE_BRIGHTNESS)
+        remove(.MON_SCANLINE_WEIGHT)
+        remove(.MON_DISALIGNMENT)
+        remove(.MON_DISALIGNMENT_H)
+        remove(.MON_DISALIGNMENT_V)
+        remove(.MON_FLICKER)
+        remove(.MON_FLICKER_WEIGHT)
     }
 }
 
+@MainActor
 extension Configuration {
 
     func saveVideoUserDefaults() {
         
         debug(.defaults)
 
-        amiga.suspend()
+        emu.suspend()
 
         saveColorUserDefaults()
         saveGeometryUserDefaults()
         saveShaderUserDefaults()
 
-        amiga.resume()
+        emu.resume()
     }
-         
+    
     func saveColorUserDefaults() {
 
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
         
         defaults.set(.MON_PALETTE, palette)
         defaults.set(.MON_BRIGHTNESS, brightness)
@@ -1439,7 +1527,7 @@ extension Configuration {
 
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
     
     func saveGeometryUserDefaults() {
@@ -1447,18 +1535,18 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
                 
-        defaults.set(Keys.Vid.zoom, zoom)
-        defaults.set(Keys.Vid.hZoom, hZoom)
-        defaults.set(Keys.Vid.vZoom, vZoom)
-        defaults.set(Keys.Vid.center, center)
-        defaults.set(Keys.Vid.hCenter, hCenter)
-        defaults.set(Keys.Vid.vCenter, vCenter)
+        defaults.set(.MON_ZOOM, Int(zoom))
+        defaults.set(.MON_HZOOM, Int(hZoom))
+        defaults.set(.MON_VZOOM, Int(vZoom))
+        defaults.set(.MON_CENTER, Int(center))
+        defaults.set(.MON_HCENTER, Int(hCenter))
+        defaults.set(.MON_VCENTER, Int(vCenter))
 
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
   
     func saveShaderUserDefaults() {
@@ -1466,30 +1554,30 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
                         
-        defaults.set(Keys.Vid.enhancer, enhancer)
-        defaults.set(Keys.Vid.upscaler, upscaler)
-        defaults.set(Keys.Vid.blur, blur)
-        defaults.set(Keys.Vid.blurRadius, blurRadius)
-        defaults.set(Keys.Vid.bloom, bloom)
-        defaults.set(Keys.Vid.bloomRadius, bloomRadius)
-        defaults.set(Keys.Vid.bloomBrightness, bloomBrightness)
-        defaults.set(Keys.Vid.bloomWeight, bloomWeight)
-        defaults.set(Keys.Vid.flicker, flicker)
-        defaults.set(Keys.Vid.flickerWeight, flickerWeight)
-        defaults.set(Keys.Vid.dotMask, dotMask)
-        defaults.set(Keys.Vid.dotMaskBrightness, dotMaskBrightness)
-        defaults.set(Keys.Vid.scanlines, scanlines)
-        defaults.set(Keys.Vid.scanlineBrightness, scanlineBrightness)
-        defaults.set(Keys.Vid.scanlineWeight, scanlineWeight)
-        defaults.set(Keys.Vid.disalignment, disalignment)
-        defaults.set(Keys.Vid.disalignmentH, disalignmentH)
-        defaults.set(Keys.Vid.disalignmentV, disalignmentV)
+        defaults.set(.MON_ENHANCER, enhancer)
+        defaults.set(.MON_UPSCALER, upscaler)
+        defaults.set(.MON_BLUR, blur)
+        defaults.set(.MON_BLUR_RADIUS, blurRadius)
+        defaults.set(.MON_BLOOM, bloom)
+        defaults.set(.MON_BLOOM_RADIUS, bloomRadius)
+        defaults.set(.MON_BLOOM_BRIGHTNESS, bloomBrightness)
+        defaults.set(.MON_BLOOM_WEIGHT, bloomWeight)
+        defaults.set(.MON_FLICKER, flicker)
+        defaults.set(.MON_FLICKER_WEIGHT, flickerWeight)
+        defaults.set(.MON_DOTMASK, dotMask)
+        defaults.set(.MON_DOTMASK_BRIGHTNESS, dotMaskBrightness)
+        defaults.set(.MON_SCANLINES, scanlines)
+        defaults.set(.MON_SCANLINE_BRIGHTNESS, scanlineBrightness)
+        defaults.set(.MON_SCANLINE_WEIGHT, scanlineWeight)
+        defaults.set(.MON_DISALIGNMENT, disalignment)
+        defaults.set(.MON_DISALIGNMENT_H, disalignmentH)
+        defaults.set(.MON_DISALIGNMENT_V, disalignmentV)
         
         defaults.save()
         
-        amiga.resume()
+        emu.resume()
     }
     
     func applyVideoUserDefaults() {
@@ -1506,14 +1594,14 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
         
         palette = defaults.get(.MON_PALETTE)
         brightness = defaults.get(.MON_BRIGHTNESS)
         contrast = defaults.get(.MON_CONTRAST)
         saturation = defaults.get(.MON_SATURATION)
 
-        amiga.resume()
+        emu.resume()
     }
 
     func applyGeometryUserDefaults() {
@@ -1521,16 +1609,16 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
           
-        zoom = defaults.int(Keys.Vid.zoom)
-        hZoom = defaults.float(Keys.Vid.hZoom)
-        vZoom = defaults.float(Keys.Vid.vZoom)
-        center = defaults.int(Keys.Vid.center)
-        hCenter = defaults.float(Keys.Vid.hCenter)
-        vCenter = defaults.float(Keys.Vid.vCenter)
+        zoom = defaults.get(.MON_ZOOM)
+        hZoom = defaults.get(.MON_HZOOM)
+        vZoom = defaults.get(.MON_VZOOM)
+        center = defaults.get(.MON_CENTER)
+        hCenter = defaults.get(.MON_HCENTER)
+        vCenter = defaults.get(.MON_VCENTER)
 
-        amiga.resume()
+        emu.resume()
     }
 
     func applyShaderUserDefaults() {
@@ -1538,27 +1626,27 @@ extension Configuration {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        amiga.suspend()
+        emu.suspend()
                         
-        enhancer = defaults.int(Keys.Vid.enhancer)
-        upscaler = defaults.int(Keys.Vid.upscaler)
-        blur = defaults.int(Keys.Vid.blur)
-        blurRadius = defaults.float(Keys.Vid.blurRadius)
-        bloom = defaults.int(Keys.Vid.bloom)
-        bloomRadius = defaults.float(Keys.Vid.bloomRadius)
-        bloomBrightness = defaults.float(Keys.Vid.bloomBrightness)
-        bloomWeight = defaults.float(Keys.Vid.bloomWeight)
-        flicker = defaults.int(Keys.Vid.flicker)
-        flickerWeight = defaults.float(Keys.Vid.flickerWeight)
-        dotMask = defaults.int(Keys.Vid.dotMask)
-        dotMaskBrightness = defaults.float(Keys.Vid.dotMaskBrightness)
-        scanlines = defaults.int(Keys.Vid.scanlines)
-        scanlineBrightness = defaults.float(Keys.Vid.scanlineBrightness)
-        scanlineWeight = defaults.float(Keys.Vid.scanlineWeight)
-        disalignment = defaults.int(Keys.Vid.disalignment)
-        disalignmentH = defaults.float(Keys.Vid.disalignmentH)
-        disalignmentV = defaults.float(Keys.Vid.disalignmentV)
+        enhancer = defaults.get(.MON_ENHANCER)
+        upscaler = defaults.get(.MON_UPSCALER)
+        blur = defaults.get(.MON_BLUR)
+        blurRadius = defaults.get(.MON_BLUR_RADIUS)
+        bloom = defaults.get(.MON_BLOOM)
+        bloomRadius = defaults.get(.MON_BLOOM_RADIUS)
+        bloomBrightness = defaults.get(.MON_BLOOM_BRIGHTNESS)
+        bloomWeight = defaults.get(.MON_BLOOM_WEIGHT)
+        flicker = defaults.get(.MON_FLICKER)
+        flickerWeight = defaults.get(.MON_FLICKER_WEIGHT)
+        dotMask = defaults.get(.MON_DOTMASK)
+        dotMaskBrightness = defaults.get(.MON_DOTMASK_BRIGHTNESS)
+        scanlines = defaults.get(.MON_SCANLINES)
+        scanlineBrightness = defaults.get(.MON_SCANLINE_BRIGHTNESS)
+        scanlineWeight = defaults.get(.MON_SCANLINE_WEIGHT)
+        disalignment = defaults.get(.MON_DISALIGNMENT)
+        disalignmentH = defaults.get(.MON_DISALIGNMENT_H)
+        disalignmentV = defaults.get(.MON_DISALIGNMENT_V)
         
-        amiga.resume()
+        emu.resume()
     }
 }

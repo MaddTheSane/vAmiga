@@ -9,6 +9,7 @@
 
 import AppKit
 
+@MainActor
 class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldDelegate {
 
     var config: Configuration { return parent.config }
@@ -179,6 +180,7 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
     @IBOutlet weak var prfVSync: NSButton!
     @IBOutlet weak var prfSpeedBoost: NSSlider!
     @IBOutlet weak var prfSpeedBoostInfo: NSTextField!
+    @IBOutlet weak var prfRunAheadLabel: NSTextField!
     @IBOutlet weak var prfRunAhead: NSSlider!
     @IBOutlet weak var prfRunAheadInfo: NSTextField!
 
@@ -186,6 +188,10 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
     @IBOutlet weak var prfCiaIdleSleep: NSButton!
     @IBOutlet weak var prfFrameSkipping: NSButton!
     @IBOutlet weak var prfAudioFastPath: NSButton!
+
+    // Compression
+    @IBOutlet weak var prfWsCompressor: NSPopUpButton!
+    @IBOutlet weak var prfSnapCompressor: NSPopUpButton!
 
     // Lock
     @IBOutlet weak var prfLockImage: NSButton!
@@ -250,7 +256,6 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
     // Out
     @IBOutlet weak var audVolL: NSSlider!
     @IBOutlet weak var audVolR: NSSlider!
-    @IBOutlet weak var audSamplingMethod: NSPopUpButton!
 
     // Drive volumes
     @IBOutlet weak var audStepVolume: NSSlider!
@@ -269,6 +274,14 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
     // Filter
     @IBOutlet weak var audFilterType: NSPopUpButton!
 
+    // Mixer
+    @IBOutlet weak var audSamplingMethod: NSPopUpButton!
+    @IBOutlet weak var audSamplingMethodText: NSTextField!
+    @IBOutlet weak var audASR: NSPopUpButton!
+    @IBOutlet weak var audASRText: NSTextField!
+    @IBOutlet weak var audCapacity: NSSlider!
+    @IBOutlet weak var audCapacityText: NSTextField!
+
     // Buttons
     @IBOutlet weak var audOKButton: NSButton!
     @IBOutlet weak var audPowerButton: NSButton!
@@ -282,6 +295,9 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
     @IBOutlet weak var vidBrightnessSlider: NSSlider!
     @IBOutlet weak var vidContrastSlider: NSSlider!
     @IBOutlet weak var vidSaturationSlider: NSSlider!
+    @IBOutlet weak var vidBrightnessLabel: NSTextField!
+    @IBOutlet weak var vidContrastLabel: NSTextField!
+    @IBOutlet weak var vidSaturationLabel: NSTextField!
 
     // Geometry
     @IBOutlet weak var vidZoom: NSPopUpButton!
@@ -344,17 +360,14 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
         firstTab = tab
         showAsSheet()
     }
-
-    override func awakeFromNib() {
-
-        super.awakeFromNib()
-        awakeVideoPrefsFromNib()
-        refreshRomSelector()
-    }
-
+    
     override func dialogWillShow() {
 
         super.dialogWillShow()
+
+        initVideoTab()
+        refreshRomSelector()
+        
         if firstTab != "" { prefTabView?.selectTabViewItem(withIdentifier: firstTab) }
         refresh()
     }
@@ -386,7 +399,6 @@ class ConfigurationController: DialogController, NSTabViewDelegate, NSTextFieldD
     @IBAction override func okAction(_ sender: Any!) {
         
         hide()
-        // close()
     }
 
     @IBAction func powerAction(_ sender: Any!) {

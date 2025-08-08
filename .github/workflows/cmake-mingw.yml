@@ -6,9 +6,6 @@ on:
   schedule:
     - cron: '40 5 * * *'
 
-#env:
-#  BUILD_TYPE: Release
-
 jobs:
   build:
     runs-on: windows-latest
@@ -50,11 +47,11 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
         
     - name: Build
-      working-directory: ./Emulator
+      working-directory: ./Core
       run: |
         cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=${{matrix.build}}
         cmake --build build --config ${{matrix.build}}
       
     #- name: Test
     #  working-directory: build
-    #  run: ctest --verbose -C ${{matrix.build}}
+    #  run: ctest --verbose --build-config ${{matrix.build}}

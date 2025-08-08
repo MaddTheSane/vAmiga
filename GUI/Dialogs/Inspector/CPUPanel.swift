@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension Inspector {
 
     private func cacheCPU() {
@@ -145,13 +146,19 @@ extension Inspector {
         cpuWatchView.refresh(count: count, full: full)
     }
 
-    @IBAction func cpuClearTraceBufferAction(_ sender: NSButton!) {
+    //
+    // Action methods
+    //
+    
+    @IBAction
+    func cpuClearTraceBufferAction(_ sender: NSButton!) {
 
         emu.cpu.clearLog()
         refreshCPU(full: true)
     }
     
-    @IBAction func cpuGotoAction(_ sender: NSSearchField!) {
+    @IBAction
+    func cpuGotoAction(_ sender: NSSearchField!) {
 
         if sender.stringValue == "" {
             cpuInstrView.jumpTo(addr: Int(cpuInfo.pc0))
@@ -162,12 +169,14 @@ extension Inspector {
         }
     }
 
-    @IBAction func cpuSyntaxAction(_ sender: NSPopUpButton!) {
+    @IBAction
+    func cpuSyntaxAction(_ sender: NSPopUpButton!) {
 
         emu.set(.CPU_DASM_SYNTAX, value: sender.selectedTag())
     }
 
-    @IBAction func cpuDasmRevAction(_ sender: NSPopUpButton!) {
+    @IBAction
+    func cpuDasmRevAction(_ sender: NSPopUpButton!) {
 
         emu.set(.CPU_DASM_REVISION, value: sender.selectedTag())
     }

@@ -8,6 +8,20 @@
 // -----------------------------------------------------------------------------
 
 //
+// Build settings
+//
+
+struct BuildSettings {
+
+    // Determines how the GUI interacts with the emulator's message system.
+    // If true, the GUI registers a callback function in the emulator core
+    // to process messages as they arrive. If false, the GUI polls messages
+    // from the queue during each update cycle.
+    
+    static let msgCallback = true
+}
+
+//
 // Debug settings
 //
 
@@ -15,6 +29,7 @@ public extension Int {
 
     static let config       = 0     // Configuration
     static let defaults     = 0     // User defaults
+    static let dragndrop    = 0     // Drag and drop
     static let events       = 0     // Event processing
     static let exec         = 0     // Execution of external tools
     static let hid          = 0     // Human interface devices

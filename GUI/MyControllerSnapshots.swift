@@ -7,7 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension MyController {
+    
+    var snapshotCount: Int { return mydocument!.snapshots.count }
     
     func restoreSnapshot(item: Int) throws {
         
@@ -18,7 +21,6 @@ extension MyController {
     
     func restoreLatestSnapshot() throws {
         
-        let count = mydocument!.snapshots.count
-        if count > 0 { try restoreSnapshot(item: count - 1) }
+        if snapshotCount > 0 { try restoreSnapshot(item: snapshotCount - 1) }
     }
 }

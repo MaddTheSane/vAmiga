@@ -7,46 +7,16 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension PreferencesController {
     
     func refreshGeneralTab() {
-        
-        // Initialize combo boxes
-        if genFFmpegPath.tag == 0 {
-            
-            genFFmpegPath.tag = 1
-            
-            for i in 0...5 {
-                if let path = emu.recorder.findFFmpeg(i) {
-                    genFFmpegPath.addItem(withObjectValue: path)
-                } else {
-                    break
-                }
-            }
-        }
         
         // Snapshots
         genSnapshotStorage.integerValue = pref.snapshotStorage
         genAutoSnapshots.state = pref.autoSnapshots ? .on : .off
         genSnapshotInterval.integerValue = pref.snapshotInterval
         genSnapshotInterval.isEnabled = pref.autoSnapshots
-
-        // Screenshots
-        genScreenshotSourcePopup.selectItem(withTag: pref.screenshotSource)
-        genScreenshotTargetPopup.selectItem(withTag: pref.screenshotTargetIntValue)
-                
-        // Screen captures
-        let hasFFmpeg = emu.recorder.hasFFmpeg
-        genFFmpegPath.stringValue = emu.recorder.path
-        genFFmpegPath.textColor = hasFFmpeg ? .textColor : .warning
-        genSource.selectItem(withTag: pref.captureSourceIntValue)
-        genBitRate.stringValue = "\(pref.bitRate)"
-        genAspectX.integerValue = pref.aspectX
-        genAspectY.integerValue = pref.aspectY
-        genSource.isEnabled = hasFFmpeg
-        genBitRate.isEnabled = hasFFmpeg
-        genAspectX.isEnabled = hasFFmpeg
-        genAspectY.isEnabled = hasFFmpeg
         
         // Fullscreen
         genAspectRatioButton.state = pref.keepAspectRatio ? .on : .off
@@ -91,69 +61,6 @@ extension PreferencesController {
     }
     
     //
-    // Action methods (Screenshots)
-    //
-
-    @IBAction func genScreenshotSourceAction(_ sender: NSPopUpButton!) {
-        
-        pref.screenshotSource = sender.selectedTag()
-        refresh()
-    }
-    
-    @IBAction func genScreenshotTargetAction(_ sender: NSPopUpButton!) {
-        
-        pref.screenshotTargetIntValue = sender.selectedTag()
-        refresh()
-    }
-
-    //
-    // Action methods (Screen captures)
-    //
-    
-    @IBAction func genPathAction(_ sender: NSComboBox!) {
-
-        let path = sender.stringValue
-        pref.ffmpegPath = path
-        refresh()
-        
-        // Display a warning if the recorder is inaccessible
-        let fm = FileManager.default
-        if fm.fileExists(atPath: path), !fm.isExecutableFile(atPath: path) {
-
-            parent.showAlert(.recorderSandboxed(exec: path), window: window)
-        }
-    }
-        
-    @IBAction func capSourceAction(_ sender: NSPopUpButton!) {
-        
-        pref.captureSourceIntValue = sender.selectedTag()
-        refresh()
-    }
-
-    @IBAction func genBitRateAction(_ sender: NSComboBox!) {
-        
-        var input = sender.objectValueOfSelectedItem as? Int
-        if input == nil { input = sender.integerValue }
-        
-        if let bitrate = input {
-            pref.bitRate = bitrate
-        }
-        refresh()
-    }
-
-    @IBAction func genAspectXAction(_ sender: NSTextField!) {
-        
-        pref.aspectX = sender.integerValue
-        refresh()
-    }
-
-    @IBAction func genAspectYAction(_ sender: NSTextField!) {
-        
-        pref.aspectY = sender.integerValue
-        refresh()
-    }
-    
-    //
     // Action methods (Fullscreen)
     //
     
@@ -188,9 +95,6 @@ extension PreferencesController {
     @IBAction func genCloseWithoutAskingAction(_ sender: NSButton!) {
         
         pref.closeWithoutAsking = (sender.state == .on)
-        for c in myAppDelegate.controllers {
-            c.needsSaving = c.emu.running
-        }
         refresh()
     }
 

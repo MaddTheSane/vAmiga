@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension MyController: NSMenuItemValidation {
     
     open func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -16,31 +17,9 @@ extension MyController: NSMenuItemValidation {
         let paused = emu.paused
         let recording = emu.recorder.recording
 
-        var driveNr: Int { return item.tag / 10 }
-        var slotNr: Int { return item.tag % 10 }
         var dfn: FloppyDriveProxy { return emu.df(item.tag)! }
         var hdn: HardDriveProxy { return emu.hd(item.tag)! }
 
-        func validateURLlist(_ list: [URL], image: NSImage) -> Bool {
-            
-            let slot = item.tag % 10
-
-            if let url = myAppDelegate.getRecentlyUsedURL(slot, from: list) {
-                
-                item.title = url.lastPathComponent
-                item.isHidden = false
-                item.image = image
-                
-            } else {
-                
-                item.title = ""
-                item.isHidden = true
-                item.image = nil
-            }
-            
-            return true
-        }
-        
         switch item.action {
             
             // Machine menu
@@ -79,48 +58,46 @@ extension MyController: NSMenuItemValidation {
             return true
 
             // Df<n> menu
-        case #selector(MyController.insertRecentDiskAction(_:)):
-            return validateURLlist(myAppDelegate.insertedFloppyDisks, image: smallDisk)
-            
         case  #selector(MyController.ejectDiskAction(_:)),
             #selector(MyController.exportFloppyDiskAction(_:)),
             #selector(MyController.inspectFloppyDiskAction(_:)),
             #selector(MyController.inspectDfnVolumeAction(_:)):
             return dfn.info.hasDisk
 
-        case #selector(MyController.exportRecentDiskDummyAction(_:)):
-            return dfn.info.hasDisk
+        case #selector(MyController.insertRecentDiskDummyAction(_:)):
+            return !mm.insertedFloppyDisks.isEmpty
 
-        case #selector(MyController.exportRecentDiskAction(_:)):
-            return validateURLlist(myAppDelegate.exportedFloppyDisks[driveNr],
-                                   image: smallDisk)
-            
+        case #selector(MyController.exportRecentDiskDummyAction(_:)):
+            if !dfn.info.hasDisk { return false }
+            switch item.tag {
+            case 0: return !mm.exportedFloppyDisks0.isEmpty
+            case 1: return !mm.exportedFloppyDisks1.isEmpty
+            case 2: return !mm.exportedFloppyDisks2.isEmpty
+            case 3: return !mm.exportedFloppyDisks3.isEmpty
+            default: fatalError()
+            }
+
         case #selector(MyController.writeProtectAction(_:)):
             item.state = dfn.info.hasProtectedDisk ? .on : .off
             return dfn.info.hasDisk
 
             // Hd<n> menu
-        case #selector(MyController.attachRecentHdrAction(_:)):
-            return validateURLlist(myAppDelegate.attachedHardDrives, image: smallHdr)
+        case #selector(MyController.attachRecentHdrDummyAction(_:)):
+            return !mm.attachedHardDrives.isEmpty
 
-        case #selector(MyController.exportRecentHdDummyAction(_:)):
-            return hdn.info.hasDisk
-
-        case #selector(MyController.exportRecentHdrAction(_:)):
-            return validateURLlist(myAppDelegate.exportedHardDrives[driveNr],
-                                   image: smallHdr)
+        case #selector(MyController.exportRecentHdrDummyAction(_:)):
+            if !hdn.info.hasDisk { return false }
+            switch item.tag {
+            case 0: return !mm.exportedHardDrives0.isEmpty
+            case 1: return !mm.exportedHardDrives1.isEmpty
+            case 2: return !mm.exportedHardDrives2.isEmpty
+            case 3: return !mm.exportedHardDrives3.isEmpty
+            default: fatalError()
+            }
 
         case #selector(MyController.writeProtectHdrAction(_:)):
             item.state = hdn.info.hasProtectedDisk ? .on : .off
             return hdn.info.hasDisk
-
-        case #selector(MyController.writeThroughHdrAction(_:)):
-            item.state = hdn.config.writeThrough ? .on : .off
-            return true
-
-        case #selector(MyController.writeThroughFinderAction(_:)):
-            item.isHidden = !hdn.config.writeThrough
-            return true
 
         default:
             return true
@@ -137,6 +114,10 @@ extension MyController: NSMenuItemValidation {
         myAppDelegate.hd1Menu.isHidden = !config.hd1Connected
         myAppDelegate.hd2Menu.isHidden = !config.hd2Connected
         myAppDelegate.hd3Menu.isHidden = !config.hd3Connected
+    }
+    
+    @IBAction func testAction(_ sender: NSMenuItem!) {
+        print("test")
     }
     
     //
@@ -176,49 +157,18 @@ extension MyController: NSMenuItemValidation {
 
     @IBAction func importScriptAction(_ sender: Any!) {
 
-        let openPanel = NSOpenPanel()
-
         // Power off the emulator if the user doesn't object
         // if !askToPowerOff() { return }
 
-        // Show file panel
-        openPanel.allowsMultipleSelection = false
-        openPanel.canChooseDirectories = true
-        openPanel.canCreateDirectories = false
-        openPanel.canChooseFiles = true
-        openPanel.prompt = "Import"
-        openPanel.allowedContentTypes = [.ini]
-        openPanel.beginSheetModal(for: window!, completionHandler: { result in
-
-            if result == .OK, let url = openPanel.url {
+        myOpenPanel.configure(types: [ .retrosh ], prompt: "Import")
+        myOpenPanel.open(for: window, { result in
+            
+            if result == .OK, let url = self.myOpenPanel.url {
 
                 do {
-                    try self.mydocument.addMedia(url: url, allowedTypes: [.SCRIPT])
+                    try self.mm.addMedia(url: url, allowedTypes: [.SCRIPT])
                 } catch {
                     self.showAlert(.cantOpen(url: url), error: error, async: true)
-                }
-            }
-        })
-    }
-
-    @IBAction func exportConfigAction(_ sender: Any!) {
-
-        let savePanel = NSSavePanel()
-
-        // Show file panel
-        savePanel.prompt = "Export"
-        savePanel.title = "Export"
-        savePanel.nameFieldLabel = "Export As:"
-        savePanel.nameFieldStringValue = "vAmiga.ini"
-        savePanel.canCreateDirectories = true
-        savePanel.beginSheetModal(for: window!, completionHandler: { result in
-
-            if result == .OK, let url = savePanel.url {
-
-                do {
-                    try self.emu.exportConfig(url: url)
-                } catch {
-                    self.showAlert(.cantExport(url: url), error: error, async: true)
                 }
             }
         })
@@ -257,7 +207,7 @@ extension MyController: NSMenuItemValidation {
         if count < 8, let inspector = Inspector(with: self, nibName: "Inspector") {
             
             inspectors.append(inspector)
-            inspector.showWindow(self)
+            inspector.showAsWindow()
 
         } else {
          
@@ -270,7 +220,7 @@ extension MyController: NSMenuItemValidation {
         if inspectors.isEmpty {
             addInspector()
         } else {
-            inspectors[0].showWindow(self)
+            inspectors[0].showAsWindow()
         }
     }
     
@@ -316,11 +266,13 @@ extension MyController: NSMenuItemValidation {
     
     @IBAction func takeSnapshotAction(_ sender: Any!) {
         
-        if let snapshot = emu.amiga.takeSnapshot() {
-
-            mydocument.snapshots.append(snapshot, size: snapshot.size)
-            renderer.flash()
+        guard let snapshot = emu.amiga.takeSnapshot() else {
+            
+            NSSound.beep()
+            return
         }
+        mydocument.snapshots.append(snapshot, size: snapshot.size)
+        renderer.flash()
     }
     
     @IBAction func restoreSnapshotAction(_ sender: Any!) {
@@ -335,25 +287,62 @@ extension MyController: NSMenuItemValidation {
     @IBAction func browseSnapshotsAction(_ sender: Any!) {
         
         if snapshotBrowser == nil {
-            snapshotBrowser = SnapshotDialog(with: self, nibName: "SnapshotDialog")
+            snapshotBrowser = SnapshotViewer(with: self, nibName: "SnapshotDialog")
         }
         snapshotBrowser?.showAsSheet()
     }
+
+    @IBAction func loadSnapshotAction(_ sender: Any!) {
+        
+        myOpenPanel.configure(types: [ .snapshot ], prompt: "Restore")
+        myOpenPanel.open(for: window, { result in
+            
+            if result == .OK, let url = self.myOpenPanel.url {
+
+                do {
+                    try self.emu.amiga.loadSnapshot(url: url)
+                } catch {
+                    self.showAlert(.cantOpen(url: url), error: error, async: true)
+                }
+            }
+        })
+    }
+
+    @IBAction func saveSnapshotAction(_ sender: Any!) {
+        
+        mySavePanel.configure(types: [ .snapshot ],
+                              prompt: "Export",
+                              title: "Export",
+                              nameFieldLabel: "Export As:",
+                              nameFieldStringValue: "workspace.vasnap")
+        
+        mySavePanel.open(for: window, { result in
+            
+            if result == .OK, let url = self.mySavePanel.url {
+                
+                do {
+                    try self.emu.amiga.saveSnapshot(url: url)
+                } catch {
+                    self.showAlert(.cantExport(url: url), error: error, async: true)
+                }
+            }
+        })
+    }
     
     @IBAction func takeScreenshotAction(_ sender: Any!) {
-
-        // Determine screenshot format
-        let format = ScreenshotSource(rawValue: pref.screenshotSource)!
         
         // Take screenshot
-        guard let screen = renderer.canvas.screenshot(source: format) else {
+        guard let screen = renderer.canvas.screenshot(source: pref.screenshotSource,
+                                                      cutout: pref.screenshotCutout,
+                                                      width: pref.screenshotWidth,
+                                                      height: pref.screenshotHeight) else {
             
             warn("Failed to create screenshot")
             return
         }
 
         // Convert to Screenshot object
-        let screenshot = Screenshot(screen: screen, format: pref.screenshotTarget)
+        let screenshot = Screenshot(screen: screen, format: pref.screenshotFormat)
 
         // Save to disk
         try? screenshot.save()
@@ -362,7 +351,7 @@ extension MyController: NSMenuItemValidation {
     @IBAction func browseScreenshotsAction(_ sender: Any!) {
         
         if screenshotBrowser == nil {
-            screenshotBrowser = ScreenshotDialog(with: self, nibName: "ScreenshotDialog")
+            screenshotBrowser = ScreenshotViewer(with: self, nibName: "ScreenshotDialog")
         }
         screenshotBrowser?.showAsSheet()
     }
@@ -427,18 +416,12 @@ extension MyController: NSMenuItemValidation {
 
     @IBAction func stepIntoAction(_ sender: Any!) {
         
-        needsSaving = true
-        if let emu = emu {
-            emu.stepInto()
-        }
+       emu.stepInto()
     }
     
     @IBAction func stepOverAction(_ sender: Any!) {
         
-        needsSaving = true
-        if let emu = emu {
-            emu.stepOver()
-        }
+        emu.stepOver()
     }
     
     @IBAction func resetAction(_ sender: Any!) {
@@ -483,11 +466,8 @@ extension MyController: NSMenuItemValidation {
     // Action methods (View menu)
     //
     
-    @IBAction func toggleStatusBarAction(_ sender: Any!) {
-        
-        undoManager?.registerUndo(withTarget: self) { targetSelf in
-            targetSelf.toggleStatusBarAction(sender)
-        }
+    @IBAction
+    func toggleStatusBarAction(_ sender: Any!) {
         
         showStatusBar(!statusBar)
     }
@@ -507,7 +487,7 @@ extension MyController: NSMenuItemValidation {
         } else {
             debug(.lifetime, "Opeining virtual keyboard as a window")
         }
-        virtualKeyboard?.showWindow()
+        virtualKeyboard?.showAsWindow()
     }
 
     @IBAction func mapLeftCmdKeyAction(_ sender: NSMenuItem!) {
@@ -545,8 +525,8 @@ extension MyController: NSMenuItemValidation {
     
     func type(keyCode: Int, completion: (() -> Void)? = nil) {
         
-        DispatchQueue.global().async {
-            
+        Task { @MainActor in
+
             self.emu.keyboard.press(keyCode)
             usleep(useconds_t(20000))
             self.emu.keyboard.release(keyCode)
@@ -576,23 +556,14 @@ extension MyController: NSMenuItemValidation {
         // Ask the user if an unsafed disk should be replaced
         if !proceedWithUnsavedFloppyDisk(drive: drive) { return }
         
-        // Show the OpenPanel
-        let openPanel = NSOpenPanel()
-        openPanel.allowsMultipleSelection = false
-        openPanel.canChooseDirectories = true
-        openPanel.canCreateDirectories = false
-        openPanel.canChooseFiles = true
-        openPanel.prompt = "Insert"
-        openPanel.allowedContentTypes = [.adf, .img, .dms, .exe, .adz, .zip, .gzip ]
-        openPanel.beginSheetModal(for: window!, completionHandler: { result in
+        myOpenPanel.configure(types: [.adf, .adz, .img, .dms, .exe ], prompt: "Insert")
+        myOpenPanel.panel.canChooseDirectories = true
+        myOpenPanel.open(for: window, { result in
+            
+            if result == .OK, let url = self.myOpenPanel.url {
 
-            if result == .OK, let url = openPanel.url {
-                
                 do {
-                    let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
-                    try self.mydocument.addMedia(url: url,
-                                                 allowedTypes: types,
-                                                 df: sender.tag)
+                    try self.mm.addMedia(df: sender.tag, url: url)
                 } catch {
                     self.showAlert(.cantInsert, error: error, async: true)
                 }
@@ -600,24 +571,25 @@ extension MyController: NSMenuItemValidation {
         })
     }
     
+    @IBAction func insertRecentDiskDummyAction(_ sender: NSMenuItem!) {}
     @IBAction func insertRecentDiskAction(_ sender: NSMenuItem!) {
-        
-        let drive = sender.tag / 10
-        let slot  = sender.tag % 10
-        
+                
+        let drive = sender.tag >> 16
+        let slot = sender.tag & 0xFFFF
+
         insertRecentDiskAction(drive: drive, slot: slot)
     }
 
     func insertRecentDiskAction(drive: Int, slot: Int) {
-        
+
+        debug(.media, "insertRecentDiskAction(drive: \(drive), slot: \(slot)")
+
         let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
 
-        if let url = myAppDelegate.getRecentlyInsertedDiskURL(slot) {
+        if let url = mm.getRecentlyInsertedDiskURL(slot) {
 
             do {
-                try self.mydocument.addMedia(url: url,
-                                             allowedTypes: types,
-                                             df: drive)
+                try self.mm.addMedia(url: url, allowedTypes: types, drive: drive)
             } catch {
                 self.showAlert(.cantInsert, error: error)
             }
@@ -633,15 +605,15 @@ extension MyController: NSMenuItemValidation {
     @IBAction func exportRecentDiskDummyAction(_ sender: NSMenuItem!) {}
     @IBAction func exportRecentDiskAction(_ sender: NSMenuItem!) {
 
-        let n = sender.tag / 10
-        let slot = sender.tag % 10
+        let drive = sender.tag >> 16
+        let slot = sender.tag % 0xFFFF
 
-        exportRecentAction(df: n, slot: slot)
+        exportRecentAction(df: drive, slot: slot)
     }
     
     func exportRecentAction(df n: Int, slot: Int) {
         
-        if let url = myAppDelegate.getRecentlyExportedDiskURL(slot, df: n) {
+        if let url = mm.getRecentlyExportedDiskURL(slot, df: n) {
             
             do {
                 try mydocument.export(drive: n, to: url)
@@ -653,12 +625,12 @@ extension MyController: NSMenuItemValidation {
 
     @IBAction func clearRecentlyInsertedDisksAction(_ sender: NSMenuItem!) {
         
-        myAppDelegate.clearRecentlyInsertedDiskURLs()
+        mm.clearRecentlyInsertedDiskURLs()
     }
     
     @IBAction func clearRecentlyExportedDisksAction(_ sender: NSMenuItem!) {
         
-        myAppDelegate.clearRecentlyExportedDiskURLs(df: sender.tag)
+        mm.clearRecentlyExportedDiskURLs(df: sender.tag)
     }
     
     @IBAction func ejectDiskAction(_ sender: NSMenuItem!) {
@@ -668,7 +640,7 @@ extension MyController: NSMenuItemValidation {
         if proceedWithUnsavedFloppyDisk(drive: drive) {
             
             drive.eject()
-            myAppDelegate.clearRecentlyExportedDiskURLs(df: drive.info.nr)
+            mm.clearRecentlyExportedDiskURLs(df: drive.info.nr)
         }
     }
     
@@ -723,24 +695,15 @@ extension MyController: NSMenuItemValidation {
         // Ask the user if an unsafed disk should be discarded
         if !proceedWithUnsavedHardDisk(drive: drive) { return }
 
-        // Show the OpenPanel
-        let openPanel = NSOpenPanel()
-        openPanel.allowsMultipleSelection = false
-        openPanel.canChooseDirectories = true
-        openPanel.canCreateDirectories = false
-        openPanel.canChooseFiles = true
-        openPanel.prompt = "Attach"
-        openPanel.allowedContentTypes = [ .hdf, .hdz, .zip, .gzip ]
-        openPanel.beginSheetModal(for: window!, completionHandler: { result in
+        myOpenPanel.configure(types: [ .hdf, .hdz, .zip, .gzip ], prompt: "Attach")
+        myOpenPanel.open(for: window, { result in
             
-            if result == .OK, let url = openPanel.url {
+            if result == .OK, let url = self.myOpenPanel.url {
                 
                 DispatchQueue.main.async {
                     
                     do {
-                        try self.mydocument.addMedia(url: url,
-                                                     allowedTypes: [ .HDF ],
-                                                     hd: sender.tag)
+                        try self.mm.addMedia(hd: sender.tag, url: url)
                     } catch {
                         self.showAlert(.cantAttach, error: error, async: true)
                     }
@@ -750,19 +713,15 @@ extension MyController: NSMenuItemValidation {
     }
     
     @IBAction func attachRecentHdrDummyAction(_ sender: NSMenuItem!) {}
-
     @IBAction func attachRecentHdrAction(_ sender: NSMenuItem!) {
         
-        let drive = sender.tag / 10
-        let slot  = sender.tag % 10
+        let drive = sender.tag >> 16
+        let slot = sender.tag & 0xFFFF
 
-        if let url = myAppDelegate.getRecentlyAttachedHdrURL(slot) {
+        if let url = mm.getRecentlyAttachedHdrURL(slot) {
             
             do {
-                let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
-                try self.mydocument.addMedia(url: url,
-                                             allowedTypes: types,
-                                             hd: drive)
+                try self.mm.addMedia(hd: drive, url: url)
             } catch {
                 self.showAlert(.cantAttach, error: error)
             }
@@ -772,30 +731,29 @@ extension MyController: NSMenuItemValidation {
     @IBAction func detachHdrAction(_ sender: NSMenuItem!) {
         
         do {
-
-            try mydocument.detach(hd: sender.tag)
-            
+            try mm.detach(hd: sender.tag)
         } catch {
-            
             showAlert(.cantDetach, error: error)
         }
     }
 
-    @IBAction func exportRecentHdDummyAction(_ sender: NSMenuItem!) {}
+    @IBAction func exportRecentHdrDummyAction(_ sender: NSMenuItem!) {}
     @IBAction func exportRecentHdrAction(_ sender: NSMenuItem!) {
 
-        let n = sender.tag / 10
-        let slot = sender.tag % 10
+        let drive = sender.tag >> 16
+        let slot = sender.tag & 0xFFFF
 
-        exportRecentAction(hd: n, slot: slot)
+        exportRecentAction(hd: drive, slot: slot)
     }
 
     func exportRecentAction(hd n: Int, slot: Int) {
         
-        debug(.media, "hd\(n) slot: \(slot)")
+        debug(1, "hd\(n) slot: \(slot)")
 
-        if let url = myAppDelegate.getRecentlyExportedHdrURL(slot, hd: n) {
-            
+        if let url = mm.getRecentlyExportedHdrURL(slot, hd: n) {
+
+            debug(1, "url: \(url)")
+
             do {
                 try mydocument.export(hardDrive: n, to: url)
 
@@ -807,12 +765,12 @@ extension MyController: NSMenuItemValidation {
     
     @IBAction func clearRecentlyAttachedHdrsAction(_ sender: NSMenuItem!) {
         
-        myAppDelegate.clearRecentlyAttachedHdrURLs()
+        mm.clearRecentlyAttachedHdrURLs()
     }
     
     @IBAction func clearRecentlyExportedHdrsAction(_ sender: NSMenuItem!) {
         
-        myAppDelegate.clearRecentlyExportedHdrURLs(hd: sender.tag)
+        mm.clearRecentlyExportedHdrURLs(hd: sender.tag)
     }
     
     @IBAction func exportHdrAction(_ sender: NSMenuItem!) {
@@ -820,7 +778,7 @@ extension MyController: NSMenuItemValidation {
         let exportPanel = DiskExporter(with: self, nibName: "DiskExporter")
         exportPanel?.showSheet(hardDrive: sender.tag)
     }
-    
+        
     @IBAction func inspectHdrDiskAction(_ sender: NSMenuItem!) {
 
         let panel = DiskInspector(with: self, nibName: "DiskInspector")
@@ -851,34 +809,6 @@ extension MyController: NSMenuItemValidation {
         
         let hdn = emu.hd(sender)!
         hdn.setFlag(.PROTECTED, value: !hdn.getFlag(.PROTECTED))
-    }
-
-    @IBAction func writeThroughHdrAction(_ sender: NSMenuItem!) {
-        
-        if sender.state == .on {
-
-            emu.hd(sender)!.disableWriteThrough()
-            sender.state = .off
-
-            try? FileManager.default.removeItem(at: UserDefaults.hdUrl(sender.tag)!)
-            
-        } else {
-            
-            do {
-                try emu.hd(sender)!.enableWriteThrough()
-                sender.state = .on
-            } catch {
-                sender.state = .off
-                showAlert(.cantWriteThrough, error: error)
-            }
-        }
-    }
-    
-    @IBAction func writeThroughFinderAction(_ sender: NSMenuItem!) {
-        
-        if let url = UserDefaults.mediaUrl(name: "") {
-            NSWorkspace.shared.open(url)
-        }
     }
 
     //

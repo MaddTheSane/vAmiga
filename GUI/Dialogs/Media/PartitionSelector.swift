@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class PartitionSelector: DialogController {
         
     @IBOutlet weak var partitionPopup: NSPopUpButton!
@@ -30,9 +31,9 @@ class PartitionSelector: DialogController {
         super.showAsSheet(completionHandler: completionHandler)
     }
             
-    override public func awakeFromNib() {
+    override func dialogWillShow() {
         
-        super.awakeFromNib()
+        super.dialogWillShow()
         
         partitionPopup.removeAllItems()
         
@@ -55,7 +56,7 @@ class PartitionSelector: DialogController {
     func update() {
           
         let traits = drive.partitionTraits(partition)
-        name.stringValue = String(cString: traits.name)
+        name.stringValue = String(traits.name)
         lowerCyl.integerValue = traits.lowerCyl
         upperCyl.integerValue = traits.upperCyl
         /*

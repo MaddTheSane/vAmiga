@@ -9,6 +9,7 @@
 
 import MetalKit
 
+@MainActor
 public class MetalView: MTKView {
     
     @IBOutlet weak var parent: MyController!
@@ -45,16 +46,18 @@ public class MetalView: MTKView {
     required public init(coder: NSCoder) {
     
         super.init(coder: coder)
+        commonInit()
     }
     
     required public override init(frame frameRect: CGRect, device: MTLDevice?) {
         
         super.init(frame: frameRect, device: device)
+        commonInit()
     }
     
-    override open func awakeFromNib() {
-
-        setupDragAndDrop()
+    private func commonInit() {
+        
+        registerForDraggedTypes(acceptedTypes())
     }
     
     override public var acceptsFirstResponder: Bool { return true }

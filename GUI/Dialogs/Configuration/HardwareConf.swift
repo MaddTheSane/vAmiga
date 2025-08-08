@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension ConfigurationController {
 
     func refreshHardwareTab() {
@@ -42,7 +43,7 @@ extension ConfigurationController {
     func refreshChipsetTab() {
 
         let poweredOff = emu.poweredOff
-        let pal = config.machineType == VideoFormat.FORMAT_PAL.rawValue
+        let pal = config.machineType == VideoFormat.PAL.rawValue
 
         // CPU
         csCpuRevision.selectItem(withTag: config.cpuRev)

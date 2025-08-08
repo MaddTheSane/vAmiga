@@ -7,8 +7,9 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegate {
-        
+@MainActor
+class DiskInspector: DialogController {
+    
     @IBOutlet weak var icon: NSImageView!
     @IBOutlet weak var title: NSTextField!
     @IBOutlet weak var subTitle1: NSTextField!
@@ -20,7 +21,7 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     @IBOutlet weak var blocksInfo: NSTextField!
     @IBOutlet weak var bsizeInfo: NSTextField!
     @IBOutlet weak var capacityInfo: NSTextField!
-
+    
     @IBOutlet weak var cylinderField: NSTextField!
     @IBOutlet weak var cylinderStepper: NSStepper!
     @IBOutlet weak var headField: NSTextField!
@@ -31,60 +32,60 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     @IBOutlet weak var sectorStepper: NSStepper!
     @IBOutlet weak var blockField: NSTextField!
     @IBOutlet weak var blockStepper: NSStepper!
-
+    
     @IBOutlet weak var tabView: NSTabView!
     @IBOutlet weak var blockScrollView: NSScrollView!
     @IBOutlet weak var blockView: NSTableView!
     @IBOutlet weak var mfmView: NSScrollView!
     @IBOutlet weak var syncColorButton: NSButton!
-
+    
     var myDocument: MyDocument { return parent.mydocument! }
-
+    
     // Title and icon of the info section
     var titleString = ""
     var image: NSImage?
     
     // Block data provider
     var decoder: MediaFileProxy?
-
+    
     // MFM data provider
     var drive: FloppyDriveProxy?
-
+    
     // Drive geometry
     var numCyls: Int { return decoder?.diskInfo.cyls ?? 0 }
     var numHeads: Int { return decoder?.diskInfo.heads ?? 0 }
     var numSectors: Int { return decoder?.diskInfo.sectors ?? 0 }
     var numTracks: Int { return decoder?.diskInfo.tracks ?? 0 }
     var numBlocks: Int { return decoder?.diskInfo.blocks ?? 0 }
-
+    
     var upperCyl: Int { return max(numCyls - 1, 0) }
     var upperHead: Int { return max(numHeads - 1, 0) }
     var upperSector: Int { return max(numSectors - 1, 0) }
     var upperTrack: Int { return max(numTracks - 1, 0) }
     var upperBlock: Int { return max(numBlocks - 1, 0) }
-        
+    
     // Current selection
     var currentCyl = 0
     var currentHead = 0
     var currentTrack = 0
     var currentSector = 0
     var currentBlock = 0
-        
+    
     //
     // Starting up
     //
-        
+    
     func show(diskDrive nr: Int) {
-                
+        
         drive = emu.df(nr)
         
         titleString = "Floppy Drive DF\(nr)"
-
+        
         // Run the ADF decoder
         decoder = try? MediaFileProxy.make(with: drive!, type: .ADF)
-
+        
         if decoder == nil {
-
+            
             // Run the DOS decoder
             decoder = try? MediaFileProxy.make(with: drive!, type: .IMG)
         }
@@ -93,33 +94,33 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             // Run the extended ADF decoder
             decoder = try? MediaFileProxy.make(with: drive!, type: .EADF)
         }
-
+        
         let protected = drive!.info.hasProtectedDisk
         image = decoder?.icon(protected: protected)
         showAsWindow()
     }
     
     func show(hardDrive nr: Int) {
-                
+        
         titleString = "Hard Drive HD\(nr)"
-
+        
         // Run the HDF decoder
         decoder = try? MediaFileProxy.make(with: emu.hd(nr)!, type: .HDF)
-
+        
         image = NSImage(named: "hdf")!
         showAsWindow()
     }
-            
+    
     override func dialogWillShow() {
-
+        
         super.dialogWillShow()
-
+        
         cylinderStepper.maxValue = .greatestFiniteMagnitude
         headStepper.maxValue = .greatestFiniteMagnitude
         trackStepper.maxValue = .greatestFiniteMagnitude
         sectorStepper.maxValue = .greatestFiniteMagnitude
         blockStepper.maxValue = .greatestFiniteMagnitude
-                
+        
         // Remove the MFM tab if a hard drive is analyzed
         if decoder?.type == .HDF {
             tabView.removeTabViewItem(tabView.tabViewItem(at: 1))
@@ -127,31 +128,31 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
         
         update()
     }
-         
+    
     //
     // Updating the displayed information
     //
-
+    
     func update() {
-          
+        
         updateInfo()
         updateSelection()
         updateMfm()
         blockView.reloadData()
     }
-
+    
     func updateInfo() {
         
         icon.image = image
         title.stringValue = titleString
-
+        
         switch decoder?.type {
-
+            
         case .HDF:
-
+            
             let info = decoder!.diskInfo
             let hdfInfo = decoder!.hdfInfo
-
+            
             subTitle1.stringValue = decoder!.fileTypeInfo
             subTitle2.stringValue = "\(hdfInfo.partitions) Partition"
             subTitle2.stringValue += hdfInfo.partitions != 1 ? "s" : ""
@@ -165,13 +166,13 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             blocksInfo.integerValue = info.blocks
             bsizeInfo.stringValue = "\(info.bsize) Bytes"
             capacityInfo.stringValue = String(capacity: info.bytes)
-
-
+            
+            
         case .ADF, .EADF, .IMG:
-
+            
             let info = decoder!.diskInfo
             // let floppyInfo = decoder!.floppyDiskInfo
-
+            
             subTitle1.stringValue = decoder!.fileTypeInfo
             subTitle2.stringValue = decoder!.typeInfo + " " + decoder!.layoutInfo
             subTitle3.stringValue = ""
@@ -181,9 +182,9 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             blocksInfo.integerValue = info.blocks
             bsizeInfo.stringValue = "\(info.bsize) Bytes"
             capacityInfo.stringValue = String(capacity: info.bytes)
-
+            
         default:
-
+            
             subTitle1.stringValue = "Raw MFM stream"
             subTitle2.stringValue = ""
             subTitle3.stringValue = ""
@@ -195,7 +196,7 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             bsizeInfo.stringValue = "-"
         }
     }
-     
+    
     func updateSelection() {
         
         cylinderField.stringValue      = String(format: "%d", currentCyl)
@@ -211,25 +212,25 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     }
     
     func updateMfm() {
-                
+        
         // Only proceed if the MFM view is present
         if tabView.numberOfTabViewItems == 1 { return }
         
         let size = NSSize(width: 32, height: 32)
         syncColorButton.image = NSImage(color: .warning, size: size)
-
+        
         // Read a whole MFM encoded track
         let mfm = drive?.readTrackBits(currentTrack) ?? ""
-
+        
         // Search all SYNC sequences (0x4489 + 0x4489)
         let sync = "0100010010001001"
         let indices = mfm.indicesOf(string: sync + sync)
-                        
+        
         // Create a text storage
         let storage = NSTextStorage(string: mfm)
         storage.font = NSFont.monospaced(ofSize: 10.0, weight: .semibold)
         storage.foregroundColor = .labelColor
-
+        
         // Colorize all SYNC sequences
         for index in indices {
             
@@ -240,7 +241,7 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
                                  value: NSColor.white,
                                  range: NSRange(location: index, length: 32))
         }
-
+        
         // Assign the text storage to the MFM view
         let textView = mfmView.documentView as? NSTextView
         textView!.layoutManager!.replaceTextStorage(storage)
@@ -253,9 +254,9 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     func setCylinder(_ newValue: Int) {
         
         if newValue != currentCyl {
-
+            
             let value = clamp(newValue, minimum: 0, maximum: upperCyl)
-
+            
             currentCyl      = value
             currentTrack    = currentCyl * 2 + currentHead
             currentBlock    = currentTrack * numSectors + currentSector
@@ -267,9 +268,9 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     func setHead(_ newValue: Int) {
         
         if newValue != currentHead {
-                        
+            
             let value = clamp(newValue, minimum: 0, maximum: upperHead)
-
+            
             currentHead     = value
             currentTrack    = currentCyl * 2 + currentHead
             currentBlock    = currentTrack * numSectors + currentSector
@@ -281,7 +282,7 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     func setTrack(_ newValue: Int) {
         
         if newValue != currentTrack {
-                   
+            
             let value = clamp(newValue, minimum: 0, maximum: upperTrack)
             
             currentTrack    = value
@@ -292,11 +293,11 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             update()
         }
     }
-
+    
     func setSector(_ newValue: Int) {
         
         if newValue != currentSector {
-                  
+            
             let value = clamp(newValue, minimum: 0, maximum: upperSector)
             
             currentSector   = value
@@ -305,13 +306,13 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             update()
         }
     }
-
+    
     func setBlock(_ newValue: Int) {
         
         if newValue != currentBlock {
-                        
+            
             let value = clamp(newValue, minimum: 0, maximum: upperBlock)
-
+            
             currentBlock    = value
             currentTrack    = currentBlock / numSectors
             currentSector   = currentBlock % numSectors
@@ -325,7 +326,7 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
     //
     // Action methods
     //
-
+    
     @IBAction func cylinderAction(_ sender: NSTextField!) {
         
         setCylinder(sender.integerValue)
@@ -375,10 +376,14 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
         
         setBlock(sender.integerValue)
     }
+}
 
 //
 // - MARK: Extensions
 //
+
+@MainActor
+extension DiskInspector: NSTableViewDataSource {
     
     func columnNr(_ column: NSTableColumn?) -> Int? {
         
@@ -407,6 +412,10 @@ class DiskInspector: DialogController, NSTableViewDataSource, NSTableViewDelegat
             return String(format: "%02X", byte)
         }
     }
+}
+
+@MainActor
+extension DiskInspector: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
         return false

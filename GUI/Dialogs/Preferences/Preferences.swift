@@ -22,12 +22,13 @@ public enum CaptureSource: Int {
     case entire = 1
 }
 
+@MainActor
 class Preferences {
     
     //
     // General
     //
-      
+    
     // Snapshots
     var autoSnapshots = false {
         didSet {
@@ -43,23 +44,57 @@ class Preferences {
             }
         }
     }
-
-    // Snapshots
     var snapshotStorage = 0 {
         didSet { for c in myAppDelegate.controllers {
             c.mydocument.snapshots.maxSize = snapshotStorage * 1024 * 1024 }
         }
     }
+        
+    // Fullscreen
+    var keepAspectRatio = false
+    var exitOnEsc = false
 
+    // Misc
+    var ejectWithoutAsking = false
+    var detachWithoutAsking = false
+    var closeWithoutAsking = false
+    var pauseInBackground = false
+
+    //
+    // Captures
+    //
+    
     // Screenshots
-    var screenshotSource = 0
-    var screenshotTarget = NSBitmapImageRep.FileType.png
-    var screenshotTargetIntValue: Int {
-        get { return Int(screenshotTarget.rawValue) }
-        set { screenshotTarget = NSBitmapImageRep.FileType(rawValue: UInt(newValue))! }
+    var screenshotFormat = NSBitmapImageRep.FileType.png
+    var screenshotFormatIntValue: Int {
+        get { return Int(screenshotFormat.rawValue) }
+        set { screenshotFormat = NSBitmapImageRep.FileType(rawValue: UInt(newValue)) ?? screenshotFormat }
     }
 
-    // Screen captures
+    var screenshotSource = ScreenshotSource.emulator
+    var screenshotSourceIntValue: Int {
+        get { return Int(screenshotSource.rawValue) }
+        set { screenshotSource = ScreenshotSource(rawValue: newValue) ?? screenshotSource }
+    }
+    var screenshotCutout = ScreenshotCutout.visible
+    var screenshotCutoutIntValue: Int {
+        get { return Int(screenshotCutout.rawValue) }
+        set { screenshotCutout = ScreenshotCutout(rawValue: newValue) ?? screenshotCutout }
+    }
+    var screenshotWidth = 1200 {
+        didSet {
+            screenshotWidth = max(screenshotWidth, 0)
+            screenshotWidth = min(screenshotWidth, TextureSize.merged.width)
+        }
+    }
+    var screenshotHeight = 900 {
+        didSet {
+            screenshotHeight = max(screenshotHeight, 0)
+            screenshotHeight = min(screenshotHeight, TextureSize.merged.height)
+        }
+    }
+
+    // Videos
     var ffmpegPath = "" {
         didSet {
             for proxy in myAppDelegate.proxies {
@@ -72,7 +107,6 @@ class Preferences {
         get { return Int(captureSource.rawValue) }
         set { captureSource = CaptureSource(rawValue: Int(newValue)) ?? .visible }
     }
-
     var bitRate = 512 {
         didSet {
             if bitRate < 64 { bitRate = 64 }
@@ -91,17 +125,7 @@ class Preferences {
             if aspectY > 999 { aspectY = 999 }
         }
     }
-        
-    // Fullscreen
-    var keepAspectRatio = false
-    var exitOnEsc = false
-
-    // Misc
-    var ejectWithoutAsking = false
-    var detachWithoutAsking = false
-    var closeWithoutAsking = false
-    var pauseInBackground = false
-
+    
     //
     // Controls
     //

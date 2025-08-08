@@ -9,15 +9,15 @@
 
 import Foundation
 
+@MainActor
 class DropZone: Layer {
-
-    let controller: MyController
     
     var window: NSWindow { return controller.window! }
     var contentView: NSView { return window.contentView! }
     var metal: MetalView { return controller.metal! }
     var mydocument: MyDocument { return controller.mydocument! }
-    
+    var mm: MediaManager { return controller.mm }
+
     var zones = [NSImageView(), NSImageView(), NSImageView(), NSImageView()]
     var labels = [NSImageView(), NSImageView(), NSImageView(), NSImageView()]
     var ul = [NSPoint(x: 0, y: 0), NSPoint(x: 0, y: 0),
@@ -53,9 +53,7 @@ class DropZone: Layer {
     //
     
     override init(renderer: Renderer) {
-        
-        controller = renderer.parent
-        
+                
         for i in 0...3 { zones[i].unregisterDraggedTypes() }
         for i in 0...3 { labels[i].unregisterDraggedTypes() }
         super.init(renderer: renderer)
@@ -64,18 +62,22 @@ class DropZone: Layer {
 
     private func zoneImage(zone: Int) -> NSImage? {
 
+        let isHD = [.HDF, .HDZ].contains(type)
+        
         if !enabled[zone] {
-            return type == .HDF ? hdDisabled : dfDisabled
-        } else if amiga.df(zone)!.info.hasDisk {
-            return type == .HDF ? hdInUse : dfInUse
+            return isHD ? hdDisabled : dfDisabled
+        } else if emu.df(zone)!.info.hasDisk {
+            return isHD ? hdInUse : dfInUse
         } else {
-            return type == .HDF ? hdEmpty : dfEmpty
+            return isHD ? hdEmpty : dfEmpty
         }
     }
 
     private func labelImage(zone: Int) -> NSImage? {
 
-        var name = "drop" + (type == .HDF ? "Hd" : "Df") + "\(zone)"
+        let isHD = [.HDF, .HDZ].contains(type)
+        
+        var name = "drop" + (isHD ? "Hd" : "Df") + "\(zone)"
         if !enabled[zone] { name += "_disabled" }
 
         return NSImage(named: name)!
@@ -87,14 +89,17 @@ class DropZone: Layer {
         
         switch type {
         
-        case .ADF, .EADF, .IMG, .ST, .DMS, .EXE, .DIR:
-            enabled = [ amiga.df0.info.isConnected,
-                        amiga.df1.info.isConnected,
-                        amiga.df2.info.isConnected,
-                        amiga.df3.info.isConnected ]
+        case .ADF, .ADZ, .EADF, .IMG, .ST, .DMS, .EXE, .DIR:
+            enabled = [ emu.df0.info.isConnected,
+                        emu.df1.info.isConnected,
+                        emu.df2.info.isConnected,
+                        emu.df3.info.isConnected ]
 
-        case .HDF:
-            enabled = [ true, true, true, true ]
+        case .HDF, .HDZ:
+            enabled = [ true,
+                        emu.hd1.info.isConnected,
+                        emu.hd2.info.isConnected,
+                        emu.hd3.info.isConnected ]
             
         default:
             enabled = [false, false, false, false]
@@ -183,26 +188,13 @@ class DropZone: Layer {
         
         guard let url = metal.dropUrl else { return }
         guard let type = metal.dropType else { return }
-        let n = metal.dropZone
-
+        
         do {
-                        
-            switch type {
-                
-            case .SNAPSHOT:
-
-                try mydocument.addMedia(url: url, allowedTypes: [type])
-                
-            case .SCRIPT:
-
-                try mydocument.addMedia(url: url, allowedTypes: [type])
-
-            case .ADF, .EADF, .HDF, .IMG, .ST, .DMS, .EXE, .DIR:
-                
-                try mydocument.addMedia(url: url,
-                                        allowedTypes: [type], df: n!, hd: n!)
-            default:
-                fatalError()
+            
+            if let nr = metal.dropZone {
+                try mm.addMedia(url: url, allowedTypes: [type], drive: nr)
+            } else {
+                try mm.addMedia(url: url, allowedTypes: [type])
             }
             
         } catch {

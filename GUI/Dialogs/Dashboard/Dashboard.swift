@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class Dashboard: DialogController {
     
     var toolbar: DashboardToolbar? { return window?.toolbar as? DashboardToolbar }

@@ -9,7 +9,7 @@
 
 import Cocoa
 
-@objc(MyApplication)
+@MainActor @objc(MyApplication)
 class MyApplication: NSApplication {
 
     /* Set this variable to true to take away the control of the Command key
@@ -58,18 +58,38 @@ class MyApplication: NSApplication {
     }
 }
 
-@main
-@objc public class MyAppDelegate: NSObject, NSApplicationDelegate {
+@MainActor @main @objc
+public class MyAppDelegate: NSObject, NSApplicationDelegate {
     
     @IBOutlet weak var df0Menu: NSMenuItem!
     @IBOutlet weak var df1Menu: NSMenuItem!
     @IBOutlet weak var df2Menu: NSMenuItem!
     @IBOutlet weak var df3Menu: NSMenuItem!
+
+    @IBOutlet weak var df0OpenRecent: NSMenuItem!
+    @IBOutlet weak var df1OpenRecent: NSMenuItem!
+    @IBOutlet weak var df2OpenRecent: NSMenuItem!
+    @IBOutlet weak var df3OpenRecent: NSMenuItem!
+
+    @IBOutlet weak var df0ExportRecent: NSMenuItem!
+    @IBOutlet weak var df1ExportRecent: NSMenuItem!
+    @IBOutlet weak var df2ExportRecent: NSMenuItem!
+    @IBOutlet weak var df3ExportRecent: NSMenuItem!
     
     @IBOutlet weak var hd0Menu: NSMenuItem!
     @IBOutlet weak var hd1Menu: NSMenuItem!
     @IBOutlet weak var hd2Menu: NSMenuItem!
     @IBOutlet weak var hd3Menu: NSMenuItem!
+    
+    @IBOutlet weak var hd0OpenRecent: NSMenuItem!
+    @IBOutlet weak var hd1OpenRecent: NSMenuItem!
+    @IBOutlet weak var hd2OpenRecent: NSMenuItem!
+    @IBOutlet weak var hd3OpenRecent: NSMenuItem!
+
+    @IBOutlet weak var hd0ExportRecent: NSMenuItem!
+    @IBOutlet weak var hd1ExportRecent: NSMenuItem!
+    @IBOutlet weak var hd2ExportRecent: NSMenuItem!
+    @IBOutlet weak var hd3ExportRecent: NSMenuItem!
 
     // Replace the old document controller by instantiating a custom controller
     let myDocumentController = MyDocumentController()
@@ -93,33 +113,27 @@ class MyApplication: NSApplication {
 
     // User activity token obtained in applicationDidFinishLaunching()
     var token: NSObjectProtocol!
-    
-    // List of recently inserted floppy disks (all drives share the same list)
-    var insertedFloppyDisks: [URL] = []
-    
-    // List of recently exported floppy disks (one list for each drive)
-    var exportedFloppyDisks: [[URL]] = [[URL]](repeating: [URL](), count: 4)
-    
-    // List of recently attached hard drive URLs
-    var attachedHardDrives: [URL] = []
-    
-    // List of recently exported hard drive URLs (one list for each drive)
-    var exportedHardDrives: [[URL]] = [[URL]](repeating: [URL](), count: 4)
 
     override init() {
-                
+        
         super.init()
         pref = Preferences()
+        
+        // diskMenuImage.isTemplate = true
+        // hdrMenuImage.isTemplate = true
+    }
+    
+    public func application(_ application: NSApplication, open urls: [URL]) {
+        
+        debug(.lifetime, "application(open urls: \(urls))")
     }
     
     public func applicationDidFinishLaunching(_ aNotification: Notification) {
-        
-        debug(.lifetime)
-    
-        token = ProcessInfo.processInfo.beginActivity(options: [ .userInitiated ],
-                                                      reason: "Running vAmiga")
-
+                
+        token = ProcessInfo.processInfo.beginActivity(options: [ .userInitiated ], reason: "Running vAmiga")
         argv = Array(CommandLine.arguments.dropFirst())
+        
+        debug(.lifetime, "vAmiga launched with arguments \(argv)")
     }
     
     public func applicationWillTerminate(_ aNotification: Notification) {
@@ -127,79 +141,13 @@ class MyApplication: NSApplication {
         debug(.lifetime)
         ProcessInfo.processInfo.endActivity(token)
     }
-    
-    //
-    // Handling lists of recently used URLs
-    //
-    
-    private func noteRecentlyUsedURL(_ url: URL, to list: inout [URL], size: Int) {
-        
-        if !list.contains(url) {
-
-            // Shorten the list if it is too large
-            if list.count == size { list.remove(at: size - 1) }
-            
-            // Add new item at the beginning
-            list.insert(url, at: 0)
-        }
-    }
-    
-    func getRecentlyUsedURL(_ pos: Int, from list: [URL]) -> URL? {
-        return (pos < list.count) ? list[pos] : nil
-    }
-    
-    func noteNewRecentlyInsertedDiskURL(_ url: URL) {
-        noteRecentlyUsedURL(url, to: &insertedFloppyDisks, size: 10)
-    }
-    
-    func getRecentlyInsertedDiskURL(_ pos: Int) -> URL? {
-        return getRecentlyUsedURL(pos, from: insertedFloppyDisks)
-    }
-    
-    func clearRecentlyInsertedDiskURLs() {
-        insertedFloppyDisks = []
-    }
-    func noteNewRecentlyExportedDiskURL(_ url: URL, df n: Int) {
-        noteRecentlyUsedURL(url, to: &exportedFloppyDisks[n], size: 1)
-    }
-    
-    func getRecentlyExportedDiskURL(_ pos: Int, df n: Int) -> URL? {
-        return getRecentlyUsedURL(pos, from: exportedFloppyDisks[n])
-    }
-    
-    func clearRecentlyExportedDiskURLs(df n: Int) {
-        exportedFloppyDisks[n] = [URL]()
-    }
-    
-    func noteNewRecentlyAttachedHdrURL(_ url: URL) {
-        noteRecentlyUsedURL(url, to: &attachedHardDrives, size: 10)
-    }
-    
-    func getRecentlyAttachedHdrURL(_ pos: Int) -> URL? {
-        return getRecentlyUsedURL(pos, from: attachedHardDrives)
-    }
-    
-    func clearRecentlyAttachedHdrURLs() {
-        attachedHardDrives = []
-    }
-    
-    func noteNewRecentlyExportedHdrURL(_ url: URL, hd n: Int) {
-        noteRecentlyUsedURL(url, to: &exportedHardDrives[n], size: 1)
-    }
-    
-    func getRecentlyExportedHdrURL(_ pos: Int, hd n: Int) -> URL? {
-        return getRecentlyUsedURL(pos, from: exportedHardDrives[n])
-    }
-    
-    func clearRecentlyExportedHdrURLs(hd n: Int) {
-        exportedHardDrives[n] = []
-    }
 }
 
 //
 // Personal delegation methods
 //
 
+@MainActor
 extension MyAppDelegate {
     
     var documents: [MyDocument] {
@@ -252,5 +200,5 @@ extension MyAppDelegate {
     }
 }
 
-var myApp: MyApplication { return NSApp as! MyApplication }
-var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }
+@MainActor var myApp: MyApplication { return NSApp as! MyApplication }
+@MainActor var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }

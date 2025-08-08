@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class InstrTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     @IBOutlet weak var inspector: Inspector!
@@ -37,8 +38,11 @@ class InstrTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     // Optional address to be highlighted by an alert symbol
     var alertAddr: Int?
     
-    override func awakeFromNib() {
-        
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
+
         delegate = self
         dataSource = self
         target = self
@@ -46,7 +50,7 @@ class InstrTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
         doubleAction = #selector(doubleClickAction(_:))
         action = #selector(clickAction(_:))
     }
-
+                
     private func cache(addrInFirstRow addr: Int) {
 
         addrInFirstRow = addr
@@ -55,7 +59,7 @@ class InstrTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     private func cache() {
         
-        numRows = Int(CPUINFO_INSTR_COUNT)
+        numRows = 256
         rowForAddr = [:]
         
         var addr = addrInFirstRow

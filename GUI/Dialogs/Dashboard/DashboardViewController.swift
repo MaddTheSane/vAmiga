@@ -33,6 +33,7 @@ enum PanelType: Int {
     case WaveformR      = 19
 }
 
+@MainActor
 class OverviewController : NSViewController {
     
     @IBOutlet weak var chipRamBox: NSBox!

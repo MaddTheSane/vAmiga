@@ -7,14 +7,19 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class HardDiskCreator: DialogController {
         
     @IBOutlet weak var diskIcon: NSImageView!
+    
     @IBOutlet weak var capacity: NSPopUpButton!
     @IBOutlet weak var fileSystem: NSPopUpButton!
     @IBOutlet weak var nameLabel: NSTextField!
     @IBOutlet weak var nameField: NSTextField!
-    
+    @IBOutlet weak var importLabel: NSTextField!
+    @IBOutlet weak var importButton: NSButton!
+    @IBOutlet weak var urlField: NSTextField!
+
     @IBOutlet weak var cylinderText: NSTextField!
     @IBOutlet weak var headText: NSTextField!
     @IBOutlet weak var sectorText: NSTextField!
@@ -28,13 +33,16 @@ class HardDiskCreator: DialogController {
     @IBOutlet weak var sectorStepper: NSStepper!
 
     var nr = 0
-
     var cylinders = 0
     var heads = 0
     var sectors = 0
     var bsize = 0
-        
+    var fs = FSVolumeType.NODOS
+    
     var drive: HardDriveProxy? { emu.hd(nr) }
+    
+    var importURL: URL?
+    let myOpenPanel = MyOpenPanel()
     
     //
     // Selecting a block
@@ -67,6 +75,12 @@ class HardDiskCreator: DialogController {
         }
     }
     
+    func setFS(_ newValue: Int) {
+        
+        fs = newValue == 0 ? .NODOS : newValue == 1 ? .OFS : .FFS
+        update()
+    }
+        
     //
     // Starting up
     //
@@ -77,31 +91,37 @@ class HardDiskCreator: DialogController {
         super.showAsSheet()
     }
             
-    override public func awakeFromNib() {
+    override func dialogWillShow() {
         
-        super.awakeFromNib()
+        super.dialogWillShow()
                 
         // Configure elements
         cylinderStepper.maxValue = .greatestFiniteMagnitude
         headStepper.maxValue = .greatestFiniteMagnitude
         sectorStepper.maxValue = .greatestFiniteMagnitude
-        
+        capacity.selectItem(withTag: 8)
         setCapacity(mb: capacity.selectedTag())
+
         update()
     }
     
     func setCapacity(mb: Int) {
         
-        bsize = 512
-        sectors = 32
-        heads = 1
-        cylinders = (mb * 1024 * 1024) / (heads * sectors * bsize)
-
-        while cylinders > 1024 {
+        if mb > 0 {
             
-            cylinders /= 2
-            heads *= 2
+            bsize = 512
+            sectors = 32
+            heads = 1
+            cylinders = (mb * 1024 * 1024) / (heads * sectors * bsize)
+            
+            while cylinders > 1024 {
+                
+                cylinders /= 2
+                heads *= 2
+            }
         }
+
+        update()
     }
     
     //
@@ -109,10 +129,20 @@ class HardDiskCreator: DialogController {
     //
     
     func update() {
-          
-        let custom = capacity.selectedTag() == 0
-        let nodos = fileSystem.selectedTag() == 0
         
+        let custom = capacity.selectedTag() == 0
+        let nodos = fs == .NODOS
+        
+        // Remove the import URL when no file system is selected
+        if nodos { importURL = nil }
+
+        // Update icon
+        diskIcon.image = NSImage(named: importURL != nil ? "NSFolder" : "hdf")
+        urlField.stringValue = importURL?.path ?? ""
+        
+        // Update file system
+        fileSystem.selectItem(withTag: fs == .NODOS ? 0 : fs == .OFS ? 1 : 2)
+            
         // Update text fields and steppers
         cylinderField.stringValue      = String(format: "%d", cylinders)
         cylinderStepper.integerValue   = cylinders
@@ -140,7 +170,9 @@ class HardDiskCreator: DialogController {
         let controls2: [NSControl: Bool] = [
             
             nameLabel: nodos,
-            nameField: nodos
+            nameField: nodos,
+            importLabel: nodos,
+            importButton: nodos
         ]
 
         for (control, hidden) in controls2 {
@@ -167,12 +199,11 @@ class HardDiskCreator: DialogController {
     @IBAction func capacityAction(_ sender: NSPopUpButton!) {
         
         setCapacity(mb: sender.selectedTag())
-        update()
     }
 
     @IBAction func fileSystemAction(_ sender: NSPopUpButton!) {
         
-        update()
+        setFS(sender.selectedTag())
     }
 
     @IBAction func cylinderAction(_ sender: NSTextField!) {
@@ -205,6 +236,20 @@ class HardDiskCreator: DialogController {
         setSector(sender.integerValue)
     }
     
+    @IBAction func importAction(_ sender: NSButton!) {
+        
+        myOpenPanel.configure(types: [ .directory ], prompt: "Import")
+        myOpenPanel.panel.canChooseDirectories = true
+        myOpenPanel.open(for: window, { result in
+            
+            if result == .OK, let url = self.myOpenPanel.url {
+                
+                self.importURL = url
+                self.update()
+            }
+        })
+    }
+    
     @IBAction func attachAction(_ sender: Any!) {
         
         let fs: FSVolumeType =
@@ -216,11 +261,75 @@ class HardDiskCreator: DialogController {
         do {
             try drive?.attach(c: cylinders, h: heads, s: sectors, b: bsize)
             try drive?.format(fs: fs, name: name)
+            if let url = importURL { try drive?.importFiles(url: url) }
+
             hide()
             
         } catch {
             
-            parent.showAlert(.cantAttach, error: error)
+            parent.showAlert(.cantAttach, error: error, window: window)
         }
+    }
+}
+
+//
+// Drop view
+//
+
+@MainActor
+class HdDropView: NSImageView {
+    
+    @IBOutlet var parent: HardDiskCreator!
+    var amiga: EmulatorProxy { return parent.emu }
+
+    var oldImage: NSImage?
+    
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
+
+        registerForDraggedTypes([NSPasteboard.PasteboardType.fileURL])
+    }
+    
+    func acceptDragSource(url: URL) -> Bool { return false }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+
+        if let url = sender.url, url.hasDirectoryPath {
+            
+            parent.diskIcon.image = NSImage(named: "NSFolder")
+            return .copy
+        }
+        
+        return NSDragOperation()
+    }
+    
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        
+        if let url = sender.url, url.hasDirectoryPath {
+            
+            parent.importURL = url
+            if parent.fs == .NODOS { parent.fs = .OFS }
+            parent.update()
+            return true
+        }
+        
+        return false
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+
+        parent.update()
+    }
+    
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+
+        return true
+    }
+        
+    override func concludeDragOperation(_ sender: NSDraggingInfo?) {
+
+        parent.update()
     }
 }

@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension NSDraggingInfo {
     
     var url: URL? {
@@ -19,6 +20,7 @@ extension NSDraggingInfo {
     }
 }
 
+@MainActor
 class DropView: NSImageView {
     
     @IBOutlet var parent: ConfigurationController!
@@ -26,11 +28,14 @@ class DropView: NSImageView {
 
     var oldImage: NSImage?
     
-    override func awakeFromNib() {
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
 
         registerForDraggedTypes([NSPasteboard.PasteboardType.fileURL])
     }
-
+    
     func acceptDragSource(url: URL) -> Bool { return false }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -71,15 +76,14 @@ class RomDropView: DropView {
     override func acceptDragSource(url: URL) -> Bool {
         
         if !amiga.poweredOff { return false }
-            
-        let suffix = url.pathExtension
-        return suffix == "zip" || suffix == "gz" || amiga.mem.isRom(url)
+        return amiga.mem.isRom(url)
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
 
-        guard let url = sender.url?.unpacked else { return false }
-        
+        // guard let url = sender.url?.unpacked else { return false }
+        guard let url = sender.url else { return false }
+
         do {
             
             let rom = try MediaFileProxy.make(with: url)
@@ -118,15 +122,14 @@ class ExtRomDropView: DropView {
     override func acceptDragSource(url: URL) -> Bool {
 
         if !amiga.poweredOff { return false }
-
-        let suffix = url.pathExtension
-        return suffix == "zip" || suffix == "gz" || amiga.mem.isExt(url)
+        return amiga.mem.isRom(url)
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         
-        guard let url = sender.url?.unpacked else { return false }
-        
+        // guard let url = sender.url?.unpacked else { return false }
+        guard let url = sender.url else { return false }
+
         do {
             
             let ext = try MediaFileProxy.make(with: url)

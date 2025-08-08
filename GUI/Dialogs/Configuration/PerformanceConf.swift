@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension ConfigurationController {
 
     func refreshPerformanceTab() {
@@ -25,14 +26,19 @@ extension ConfigurationController {
         prfSpeedBoostInfo.stringValue = "\(config.speedBoost) %"
         prfSpeedBoost.isEnabled = !vsync
         prfSpeedBoostInfo.textColor = vsync ? .tertiaryLabelColor : .labelColor
+        prfRunAheadLabel.stringValue = runAhead >= 0 ? "Run ahead:" : "Run behind:"
         prfRunAhead.integerValue = runAhead
-        prfRunAheadInfo.stringValue = "\(runAhead) frame" + (runAhead == 1 ? "" : "s")
+        prfRunAheadInfo.stringValue = "\(abs(runAhead)) frame" + (abs(runAhead) == 1 ? "" : "s")
 
         // Boosters
         prfCiaIdleSleep.state = config.ciaIdleSleep ? .on : .off
         prfFrameSkipping.state = config.frameSkipping > 0 ? .on : .off
         prfAudioFastPath.state = config.audioFastPath ? .on : .off
 
+        // Compression
+        prfWsCompressor.selectItem(withTag: config.wsCompressor)
+        prfSnapCompressor.selectItem(withTag: config.snapCompressor)
+        
         // Lock
         prfLockImage.isHidden = poweredOff
         prfLockInfo1.isHidden = poweredOff
@@ -43,7 +49,7 @@ extension ConfigurationController {
     }
 
     //
-    // Action methods (warp)
+    // Action methods (Warp)
     //
 
     @IBAction func prfWarpModeAction(_ sender: NSPopUpButton!) {
@@ -57,7 +63,7 @@ extension ConfigurationController {
     }
     
     //
-    // Action methods (threading)
+    // Action methods (Threading)
     //
 
     @IBAction func prfVSyncAction(_ sender: NSButton!) {
@@ -77,7 +83,7 @@ extension ConfigurationController {
 
 
     //
-    // Action methods (performance boosters)
+    // Action methods (Boosters)
     //
 
     @IBAction func prfCiaIdleSleepAction(_ sender: NSButton!) {
@@ -94,6 +100,24 @@ extension ConfigurationController {
 
         config.audioFastPath = sender.state == .on
     }
+
+    //
+    // Action methods (Compressor)
+    //
+
+    @IBAction func prfWsCompressorAction(_ sender: NSPopUpButton!) {
+
+        config.wsCompressor = sender.selectedTag()
+    }
+
+    @IBAction func prfSnapCompressorAction(_ sender: NSPopUpButton!) {
+
+        config.snapCompressor = sender.selectedTag()
+    }
+
+    //
+    // Presets
+    //
 
     @IBAction func prfPresetAction(_ sender: NSPopUpButton!) {
 

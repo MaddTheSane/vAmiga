@@ -7,7 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class VideoExporter: DialogController, NSFilePromiseProviderDelegate {
+@MainActor
+class VideoExporter: DialogController {
 
     @IBOutlet weak var text: NSTextField!
     @IBOutlet weak var duration: NSTextField!
@@ -22,10 +23,21 @@ class VideoExporter: DialogController, NSFilePromiseProviderDelegate {
 
     var panel: NSSavePanel!
 
-    var name: String { return "vAmiga.mp4" }
-    var tmp: URL { return URL(fileURLWithPath: NSTemporaryDirectory()) }
-    var path: URL { return tmp.appendingPathComponent(name); }
-    
+    let name = "vAmiga.mp4"
+    let path: URL
+
+    public override init(window: NSWindow?) {
+
+        path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(name)
+        super.init(window: window)
+    }
+
+    public required init?(coder: NSCoder) {
+        
+        path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(name)
+        super.init(coder: coder)
+    }
+        
     override func showAsSheet(completionHandler handler: (() -> Void)? = nil) {
             
         super.showAsSheet()
@@ -44,14 +56,16 @@ class VideoExporter: DialogController, NSFilePromiseProviderDelegate {
         debug(.exec, "Export to \(path)")
         if emu.recorder.export(as: path.absoluteString) {
                         
+            let config = emu.recorder.config
+            
             text.stringValue = "MPEG-4 Video Stream"
             icon.isHidden = false
             exportButton.isHidden = false
             sizeOnDisk.stringValue = path.fileSizeString
             duration.stringValue = String(format: "%.1f sec", emu.recorder.duration)
-            frameRate.stringValue = "\(emu.recorder.frameRate) Hz"
-            bitRate.stringValue = "\(emu.recorder.bitRate) kHz"
-            sampleRate.stringValue = "\(emu.recorder.sampleRate) Hz"
+            frameRate.stringValue = "\(config.frameRate) Hz"
+            bitRate.stringValue = "\(config.bitRate) kHz"
+            sampleRate.stringValue = "\(config.sampleRate) Hz"
 
         } else {
             
@@ -82,7 +96,10 @@ class VideoExporter: DialogController, NSFilePromiseProviderDelegate {
             })
         }
     }
-   
+}
+
+extension VideoExporter: NSFilePromiseProviderDelegate {
+    
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
         
         return name

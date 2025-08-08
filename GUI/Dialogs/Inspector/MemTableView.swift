@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class MemTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
@@ -21,15 +22,16 @@ class MemTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     var asciiInRow: [Int: String] = [:]
     var dataInAddr: [Int: Int] = [:]
     
-    override func awakeFromNib() {
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
 
         delegate = self
         dataSource = self
         target = self
-    
-        inspector.jumpTo(addr: 0)
     }
-
+        
     private func cache() {
 
         addrInRow = [:]

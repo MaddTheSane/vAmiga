@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension MyController {
 
     func cmdKeyIcon(_ state: Bool) -> NSImage? {
@@ -33,6 +34,7 @@ extension MyController {
         let cpuinfo = emu.cpu.info
         let warp = emu.warping
         let speedBoost = emu.get(.AMIGA_SPEED_BOOST)
+        let width = renderer.parent.window?.frame.size.width ?? 0
 
         // Df0 - Df3
         for n in 0...3 where drv[n] != nil {
@@ -85,17 +87,17 @@ extension MyController {
             powerLED: true,
             
             ledSlot0: true,
-            ledSlot1: true,
-            letSlot2: true,
-            ledSlot3: true,
+            ledSlot1: width > 400,
+            letSlot2: width > 500,
+            ledSlot3: width > 600,
             iconSlot0: true,
-            iconSlot1: true,
-            iconSlot2: true,
-            iconSlot3: true,
+            iconSlot1: width > 400,
+            iconSlot2: width > 500,
+            iconSlot3: width > 600,
             cylSlot0: true,
-            cylSlot1: true,
-            cylSlot2: true,
-            cylSlot3: true,
+            cylSlot1: width > 400,
+            cylSlot2: width > 500,
+            cylSlot3: width > 600,
 
             haltIcon: cpuinfo.halt,
             trackIcon: tracking,
@@ -282,7 +284,8 @@ extension MyController {
     // Action methods
     //
 
-    @IBAction func activityTypeAction(_ sender: NSPopUpButton!) {
+    @IBAction
+    func activityTypeAction(_ sender: NSPopUpButton!) {
         
         var min, max, warn, crit: Double
         
@@ -306,7 +309,8 @@ extension MyController {
         refreshStatusBar()
     }
 
-    @IBAction func speedAction(_ sender: NSStepper!) {
+    @IBAction
+    func speedAction(_ sender: NSStepper!) {
 
         // Round the value to the next number dividable by 5
         var value = Int(round(sender.doubleValue / 5.0)) * 5
@@ -318,7 +322,8 @@ extension MyController {
         emu?.set(.AMIGA_SPEED_BOOST, value: value)
     }
 
-    @IBAction func infoAction(_ sender: Any!) {
+    @IBAction
+    func infoAction(_ sender: Any!) {
                 
         if let info = info {
                 
@@ -350,7 +355,8 @@ extension MyController {
         }
     }
     
-    @IBAction func speedResetAction(_ sender: Any!) {
+    @IBAction
+    func speedResetAction(_ sender: Any!) {
 
         emu?.set(.AMIGA_SPEED_BOOST, value: 100)
     }

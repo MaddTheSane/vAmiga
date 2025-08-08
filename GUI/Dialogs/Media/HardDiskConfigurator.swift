@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class HardDiskConfigurator: DialogController {
         
     @IBOutlet weak var geometryPopup: NSPopUpButton!
@@ -95,9 +96,9 @@ class HardDiskConfigurator: DialogController {
         super.showAsSheet()
     }
             
-    override public func awakeFromNib() {
+    override func dialogWillShow() {
         
-        super.awakeFromNib()
+        super.dialogWillShow()
                 
         cylinderStepper.maxValue = .greatestFiniteMagnitude
         headStepper.maxValue = .greatestFiniteMagnitude

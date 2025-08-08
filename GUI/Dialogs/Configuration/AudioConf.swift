@@ -7,10 +7,15 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension ConfigurationController {
     
     func refreshAudioTab() {
-                
+        
+        //
+        // Mixer
+        //
+        
         // In
         audVol0.integerValue = config.vol0
         audVol1.integerValue = config.vol1
@@ -20,12 +25,11 @@ extension ConfigurationController {
         audPan1.integerValue = config.pan1
         audPan2.integerValue = config.pan2
         audPan3.integerValue = config.pan3
-
+        
         // Out
         audVolL.integerValue = config.volL
         audVolR.integerValue = config.volR
-        audSamplingMethod.selectItem(withTag: config.samplingMethod)
-
+        
         // Drives
         audStepVolume.integerValue = config.stepVolume
         audPollVolume.integerValue = config.pollVolume
@@ -39,14 +43,48 @@ extension ConfigurationController {
         audHd1Pan.integerValue = config.hd1Pan
         audHd2Pan.integerValue = config.hd2Pan
         audHd3Pan.integerValue = config.hd3Pan
-
+        
         // Audio filter
         audFilterType.selectItem(withTag: config.filterType)
-
-        // Buttons
+        
+        //
+        // Sampler
+        //
+        
+        audSamplingMethod.selectItem(withTag: config.samplingMethod)
+        audASR.selectItem(withTag: config.asr)
+        audCapacity.integerValue = config.audioBufferSize
+        audCapacityText.stringValue = "\(config.audioBufferSize) samples"
+        
+        switch SamplingMethod(rawValue: Int32(config.samplingMethod)) {
+        case .NONE:
+            audSamplingMethodText.stringValue = "Instructs the sampler to select the most recent sample from the ring buffer. This minimizes latency but may introduce jitter when the sample rate fluctuates."
+        case .NEAREST:
+            audSamplingMethodText.stringValue = "Instructs the sampler to pick the sample closest to the target timestamp. It improves timing accuracy over the latest-sample method but may still have minor mismatches."
+        case .LINEAR:
+            audSamplingMethodText.stringValue = "Instructs the sampler to compute a value between two neighboring samples for smoother output. Increases computation slightly but reduces artifacts and improves fidelity."
+        default:
+            break
+        }
+        
+        switch (config.asr) {
+        case 0:
+            audASRText.stringValue = "Audio samples are synthesized at a constant sampling rate, ignoring drift between emulated and real-time playback rates. This may cause buffer underflows and overflows over time, leading to audio stutter or glitches."
+        default:
+            audASRText.stringValue = "ASR (Adaptive Sample Rate) dynamically adjusts the sampling rate to maintain audio sync. This prevents buffer underflows and overflows by adapting to slight drift between emulated and real-time playback rates."
+        }
+        
+        //
+        // Commons
+        //
+        
         audPowerButton.isHidden = !bootable
     }
 
+    //
+    // Mixer
+    //
+    
     @IBAction func audVol0Action(_ sender: NSSlider!) {
 
         config.vol0 = sender.integerValue
@@ -96,11 +134,6 @@ extension ConfigurationController {
         
         config.volR = sender.integerValue
     }
-
-    @IBAction func audSamplingMethodAction(_ sender: NSPopUpButton!) {
-        
-        config.samplingMethod = sender.selectedTag()
-    }
     
     @IBAction func audDrivePanAction(_ sender: NSSlider!) {
                                 
@@ -149,6 +182,27 @@ extension ConfigurationController {
         config.filterType = sender.selectedTag()
     }
 
+    //
+    // Sampler
+    //
+    
+    @IBAction func audSamplingMethodAction(_ sender: NSPopUpButton!) {
+        
+        config.samplingMethod = sender.selectedTag()
+    }
+    
+    @IBAction func audASRAction(_ sender: NSPopUpButton!) {
+        
+        config.asr = sender.selectedTag()
+    }
+
+    @IBAction func audCapacityAction(_ sender: NSSlider!) {
+
+        print("Value: \(sender.integerValue)")
+        
+        config.audioBufferSize = sender.integerValue
+    }
+    
     @IBAction func audPresetAction(_ sender: NSPopUpButton!) {
         
         emu.suspend()

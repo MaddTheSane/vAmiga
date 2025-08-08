@@ -7,12 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 public extension MetalView {
-
-    func setupDragAndDrop() {
-    
-        registerForDraggedTypes(acceptedTypes())
-    }
 
     func acceptedTypes() -> [NSPasteboard.PasteboardType] {
 
@@ -20,6 +16,8 @@ public extension MetalView {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        
+        // debug(.dragndrop, "draggingEntered \(sender)\n")
         
         dropZone = nil
         dropUrl = nil
@@ -43,7 +41,7 @@ public extension MetalView {
             if let url = NSURL.init(from: pasteBoard) as URL? {
             
                 // Unpack the file if it is compressed
-                dropUrl = url.unpacked(maxSize: 2048 * 1024)
+                dropUrl = url // url.unpacked(maxSize: 2048 * 1024)
 
                 // Analyze the file type
                 let type = MediaFileProxy.type(of: dropUrl)
@@ -61,22 +59,30 @@ public extension MetalView {
     
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
         
+        // debug(.dragndrop, "draggingUpdated \(sender)\n")
+
         parent.renderer.dropZone.draggingUpdated(sender)
         return NSDragOperation.copy
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
     
+        debug(.dragndrop, "draggingExited \(String(describing: sender))")
+        
         parent.renderer.dropZone.close(delay: 0.25)
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        
+        debug(.dragndrop, "prepareForDragOperation \(sender)\n")
         
         parent.renderer.dropZone.close(delay: 0.25)
         return true
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        
+        debug(.dragndrop, "performDragOperation \(sender)\n")
         
         let pasteBoard = sender.draggingPasteboard
         
@@ -124,10 +130,10 @@ public extension MetalView {
         let type = FileType(url: dropUrl)
         switch type {
             
-        case .SNAPSHOT, .SCRIPT:
+        case .WORKSPACE, .SNAPSHOT, .SCRIPT:
             break
             
-        case .ADF, .EADF, .HDF, .IMG, .ST, .DMS, .EXE, .DIR:
+        case .ADF, .ADZ, .DIR, .DMS, .EADF, .EXE, .HDF, .HDZ, .IMG, .ST:
             if zone == nil { return false }
             
         default:

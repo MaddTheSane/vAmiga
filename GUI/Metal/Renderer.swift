@@ -11,13 +11,20 @@ import Metal
 
 enum ScreenshotSource: Int {
         
-    case emulatorVisible = 0
-    case emulatorEntire = 1
-    case upscaledVisible = 2
-    case upscaledEntire = 3
-    case framebuffer = 4
+    case emulator = 0
+    case upscaler = 1
+    case framebuffer = 2
 }
 
+enum ScreenshotCutout: Int {
+        
+    case visible = 0
+    case entire = 1
+    case automatic = 2
+    case custom = 3
+}
+
+@MainActor
 class Renderer: NSObject, MTKViewDelegate {
     
     let view: MTKView
@@ -69,7 +76,7 @@ class Renderer: NSObject, MTKViewDelegate {
     // Uniforms
     //
     
-    var shaderOptions: ShaderOptions!
+    var shaderOptions = ShaderOptions.zero
 
     //
     // Animations
@@ -104,27 +111,10 @@ class Renderer: NSObject, MTKViewDelegate {
         
         self.view.device = device
         self.view.delegate = self
-
-        /*
-        let screens = NSScreen.screens
-        if #available(macOS 12.0, *) {
-
-            for screen in screens {
-
-                let fps = screen.maximumFramesPerSecond
-                let min = 1.0 / screen.minimumRefreshInterval
-                let max = 1.0 / screen.maximumRefreshInterval
-                let name = screen.localizedName
-                print("\(name):  Min = \(min) Hz, Max = \(max) Hz maxfps = \(fps)")
-            }
-        }
-
-        view.preferredFramesPerSecond = 60
-        */
         
         setup()
     }
-    
+        
     func halt() {
 
         // Wait until the current frame has been completed
@@ -148,7 +138,7 @@ class Renderer: NSObject, MTKViewDelegate {
 
         reshape(withSize: size)
     }
-
+    
     func reshape(withSize size: CGSize) {
 
         // Rebuild matrices
@@ -186,7 +176,7 @@ class Renderer: NSObject, MTKViewDelegate {
         
         return commandBuffer
     }
-    
+
     func makeCommandEncoder(_ drawable: CAMetalDrawable, _ buffer: MTLCommandBuffer) -> MTLRenderCommandEncoder? {
         
         // Update the render pass descriptor
@@ -209,6 +199,15 @@ class Renderer: NSObject, MTKViewDelegate {
                          
         if animates != 0 { animate() }
 
+        if !BuildSettings.msgCallback {
+            
+            // Process all pending messages
+            var msg = Message()
+            while amiga.amiga.getMessage(&msg) {
+                parent.process(message: msg)
+            }
+        }
+        
         splashScreen.update(frames: frames)
         dropZone.update(frames: frames)
         console.update(frames: frames)
@@ -242,46 +241,65 @@ class Renderer: NSObject, MTKViewDelegate {
             }
         }
     }
+    
+    func processMessage(_ msg: Message) {
+        
+        let option = Option(rawValue: Int(msg.value))!
 
+        switch msg.type {
+            
+        case .MON_SETTING:
+            
+            switch option {
+                
+            case .MON_CENTER, .MON_HCENTER, .MON_VCENTER, .MON_ZOOM, .MON_HZOOM, .MON_VZOOM:
+                canvas.updateTextureRect()
+
+            default:
+                updateShaderOption(option, value: msg.value2)
+            }
+            
+        default:
+            break
+        }
+    }
+            
     //
     // Methods from MTKViewDelegate
     //
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
 
-        amiga.set(.HOST_FRAMEBUF_WIDTH, value: Int(size.width))
-        amiga.set(.HOST_FRAMEBUF_HEIGHT, value: Int(size.height))
         reshape(withSize: size)
     }
-
+    
     func draw(in view: MTKView) {
+        
+        MainActor.assertIsolated("Not isolated!!")
         
         frames += 1
         update(frames: frames)
 
+        // Wait for the next frame
         semaphore.wait()
 
-        if let drawable = metalLayer.nextDrawable() {
+        // Get drawable
+        guard let drawable = metalLayer.nextDrawable() else { semaphore.signal(); return }
 
-            // Create the command buffer
-            let buffer = makeCommandBuffer()
-            
-            // Create the command encoder
-            guard let encoder = makeCommandEncoder(drawable, buffer) else {
-
-                semaphore.signal()
-                return
-            }
-
-            // Render the scene
-            if canvas.isTransparent { splashScreen.render(encoder) }
-            if canvas.isVisible { canvas.render(encoder) }
-            encoder.endEncoding()
-
-            // Commit the command buffer
-            buffer.addCompletedHandler { _ in self.semaphore.signal() }
-            buffer.present(drawable)
-            buffer.commit()
-        }
+        // Create the command buffer
+        let buffer = makeCommandBuffer()
+        
+        // Create the command encoder
+        guard let encoder = makeCommandEncoder(drawable, buffer) else { semaphore.signal(); return }
+        
+        // Render the scene
+        if canvas.isTransparent { splashScreen.render(encoder) }
+        if canvas.isVisible { canvas.render(encoder) }
+        encoder.endEncoding()
+        
+        // Commit the command buffer
+        buffer.addCompletedHandler { _ in self.semaphore.signal() }
+        buffer.present(drawable)
+        buffer.commit()
     }
 }

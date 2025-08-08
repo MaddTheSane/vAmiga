@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class TraceTableView: NSTableView, NSTableViewDataSource {
 
     @IBOutlet weak var inspector: Inspector!
@@ -19,12 +20,15 @@ class TraceTableView: NSTableView, NSTableViewDataSource {
     var flagsInRow: [Int: String] = [:]
     var instrInRow: [Int: String] = [:]
 
-    override func awakeFromNib() {
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
 
         dataSource = self
         target = self
     }
-
+        
     private func cache() {
 
         numRows = cpu.loggedInstructions

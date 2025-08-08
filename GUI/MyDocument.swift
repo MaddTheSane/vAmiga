@@ -11,27 +11,34 @@ import UniformTypeIdentifiers
 
 extension UTType {
 
-    static let adf = UTType("de.dirkwhoffmann.retro.adf")!
-    static let adz = UTType("de.dirkwhoffmann.retro.adf")!
-    static let dms = UTType("de.dirkwhoffmann.retro.dms")!
-    static let exe = UTType("de.dirkwhoffmann.retro.exe")!
-    static let hdf = UTType("de.dirkwhoffmann.retro.hdf")!
-    static let hdz = UTType("de.dirkwhoffmann.retro.hdz")!
-    static let img = UTType("de.dirkwhoffmann.retro.img")!
-    static let ini = UTType("de.dirkwhoffmann.retro.ini")!
-    static let vamiga = UTType("de.dirkwhoffmann.retro.vamiga")!
+    static let workspace = UTType("de.dirkwhoffmann.retro.vamiga")!
+    static let snapshot = UTType("de.dirkwhoffmann.retro.vasnap")!
+    static let retrosh = UTType("de.dirkwhoffmann.retro.retrosh")!
+    static let adf = UTType("public.retro.adf")!
+    static let adz = UTType("public.retro.adz")!
+    static let dms = UTType("public.retro.dms")!
+    static let exe = UTType("public.retro.exe")!
+    static let hdf = UTType("public.retro.hdf")!
+    static let hdz = UTType("public.retro.hdz")!
+    static let img = UTType("public.retro.img")!
 }
 
+@MainActor
 class MyDocument: NSDocument {
 
     var pref: Preferences { return myAppDelegate.pref }
-    
-    // The window controller for this document
-    var parent: MyController { return windowControllers.first as! MyController }
-    var console: Console { return parent.renderer.console }
 
+    // The window controller for this document
+    var controller: MyController { return windowControllers.first as! MyController }
+    
+    var console: Console { return controller.renderer.console }
+    var canvas: Canvas { return controller.renderer.canvas }
+    
     // Optional media URL provided on app launch
-    var launchUrl: URL?
+    var mediaURL: URL?
+    
+    // The media manager for this document
+    var mm: MediaManager!
 
     // Gateway to the core emulator
     var emu: EmulatorProxy!
@@ -42,7 +49,7 @@ class MyDocument: NSDocument {
     //
     // Initializing
     //
-    
+
     override init() {
         
         debug(.lifetime)
@@ -57,6 +64,9 @@ class MyDocument: NSDocument {
             return
         }
                 
+        // Create the media manager
+        mm = MediaManager(with: self)
+
         // Register all GUI related user defaults
         EmulatorProxy.defaults.registerUserDefaults()
         
@@ -84,32 +94,21 @@ class MyDocument: NSDocument {
 
         debug(.media, "Reading file \(url.lastPathComponent)")
 
-        // If the provided URL points to compressed file, decompress it first
-        let newUrl = url.unpacked(maxSize: 2048 * 1024)
-
         // Iterate through all allowed file types
         for type in allowedTypes {
-
+            
             do {
-                switch type {
-
-                case .SNAPSHOT, .SCRIPT, .ADF, .EADF, .IMG, .ST, .DMS, .EXE, .DIR, .HDF:
-
-                    return try MediaFileProxy.make(with: newUrl, type: type)
-
-                default:
-                    break
-                }
-
-            } catch let error as VAError {
-                if error.errorCode != .FILE_TYPE_MISMATCH {
-                    throw error
-                }
+                
+                return try MediaFileProxy.make(with: url, type: type)
+                
+            } catch let error as AppError {
+               
+                if error.errorCode != .FILE_TYPE_MISMATCH { throw error }
             }
         }
-
+        
         // None of the allowed types matched the file
-        throw VAError(.FILE_TYPE_MISMATCH,
+        throw AppError(.FILE_TYPE_MISMATCH,
                       "The type of this file is not known to the emulator.")
     }
 
@@ -118,24 +117,11 @@ class MyDocument: NSDocument {
     // Loading
     //
     
+    
     override open func read(from url: URL, ofType typeName: String) throws {
              
+        Swift.print("read(from url: \(url.path))")
         debug(.media)
-
-        launchUrl = url
-        
-        /*
-        let types: [FileType] =
-        [ .SNAPSHOT, .SCRIPT, .ADF, .EADF, .HDF, .IMG, .ST, .DMS, .EXE, .DIR ]
-
-        do {
-            try addMedia(url: url, allowedTypes: types)
-            
-        } catch let error as VAError {
-            
-            throw NSError(error: error)
-        }
-        */
     }
     
     override open func revert(toContentsOf url: URL, ofType typeName: String) throws {
@@ -143,9 +129,9 @@ class MyDocument: NSDocument {
         debug(.media)
         
         do {
-            try addMedia(url: url, allowedTypes: [.SNAPSHOT])
+            try mm.addMedia(url: url, allowedTypes: [.WORKSPACE])
 
-        } catch let error as VAError {
+        } catch let error as AppError {
 
             throw NSError(error: error)
         }
@@ -154,95 +140,132 @@ class MyDocument: NSDocument {
     //
     // Saving
     //
-    
-    override func write(to url: URL, ofType typeName: String) throws {
+  
+    override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType) async throws {
             
-        debug(.media)
-        
-        if typeName == "vAmiga" {
+        debug(.media, "url = \(url)")
 
-            if let snapshot = emu.amiga.takeSnapshot() {
+        if typeName == "de.dirkwhoffmann.retro.vamiga" {
 
-                do {
-                    try snapshot.writeToFile(url: url)
+            do {
+                // Save the workspace
+                try emu.amiga.saveWorkspace(url: url)
 
-                } catch let error as VAError {
+                // Add a screenshot to the workspace bundle
+                if let image = canvas.screenshot(source: .emulator, cutout: .visible) {
+                
+                    // Convert to target format
+                    let data = image.representation(using: .png)
                     
-                    throw NSError(error: error)
+                    // Save to file
+                    try data?.write(to: url.appendingPathComponent("preview.png"))
+                }
+                
+                // Save a plist file containing the machine properties
+                saveMachineDescription(to: url.appendingPathComponent("machine.plist"))
+                
+                // Update the document's title and save status
+                self.fileURL = url
+                self.windowForSheet?.title = url.deletingPathExtension().lastPathComponent
+                self.updateChangeCount(.changeCleared)
+                
+            } catch let error as AppError {
+                
+                // Swift.print("Error: \(error.what)")
+                throw NSError(error: error)
+            }
+        }
+    }
+    
+    func saveMachineDescription(to url: URL) {
+        
+        var dictionary: [String: Any] = [:]
+
+        let bankMap = BankMap(rawValue: emu.get(.MEM_BANKMAP))
+        let agnusRev = AgnusRevision(rawValue: emu.get(.AGNUS_REVISION))
+        let deniseRev = DeniseRevision(rawValue: emu.get(.DENISE_REVISION))
+        let agnusType = agnusRev == .OCS || agnusRev == .OCS_OLD ? "OCS" : "ECS"
+        let deniseType = deniseRev == .OCS ? "OCS" : "ECS"
+        let model = "Commodore Amiga " + (bankMap == .A500 ? "500" : bankMap == .A1000 ? "1000" : "2000")
+        
+        // Collect some info about the emulated machine
+        dictionary["Model"] = model
+        dictionary["Kickstart"] = String(cString: emu.mem.romTraits.title)
+        dictionary["Agnus"] = agnusType
+        dictionary["Denise"] = deniseType
+        dictionary["Chip"] = emu.get(.MEM_CHIP_RAM)
+        dictionary["Slow"] = emu.get(.MEM_SLOW_RAM)
+        dictionary["Fast"] = emu.get(.MEM_FAST_RAM)
+        dictionary["Version"] = EmulatorProxy.version()
+        do {
+            
+            let data = try PropertyListSerialization.data(fromPropertyList: dictionary, format: .xml, options: 0)
+            try data.write(to: url)
+            
+        } catch { }
+    }
+    
+    //
+    // Handling workspaces
+    //
+    
+    func processWorkspaceFile(url: URL, force: Bool = false) throws {
+        
+        Swift.print("processWorkspaceFile \(url) force: \(force)")
+        
+        // Load workspace
+        try emu.amiga.loadWorkspace(url: url)
+        
+        // Update the document's title and save status
+        self.fileURL = url
+        self.windowForSheet?.title = url.deletingPathExtension().lastPathComponent
+        self.updateChangeCount(.changeCleared)
+        
+        // Scan directory for additional media files
+        let supportedTypes: [String : FileType] =
+        ["adf": .ADF, "adz": .ADZ, "dms": .DMS, "exe": .EXE, "img": .IMG, "hdf": .HDF, "hdz": .HDZ, "st": .ST]
+        let exclude = ["df0", "df1", "df2", "df3", "hd0", "hd1", "hd2", "hd3"]
+
+        let contents = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
+        for file in contents {
+            if !exclude.contains(url.deletingPathExtension().lastPathComponent) {
+                if let type = supportedTypes[file.pathExtension.lowercased()] {
+                    mm.noteNewRecentlyOpenedURL(file, type: type)
                 }
             }
         }
     }
 
     //
-    // Handling media files
+    // Handling snapshots
     //
 
-    func addMedia(url: URL,
-                  allowedTypes types: [FileType] = FileType.all,
-                  df: Int = 0,
-                  hd: Int = 0,
-                  force: Bool = false,
-                  remember: Bool = true) throws {
-        
-        let file = try createMediaFileProxy(from: url, allowedTypes: types)
+    func processSnapshotFile(url: URL, force: Bool = false) throws {
 
-        // Remember the URL if requested
-        if remember {
-
-            switch file.type {
-
-            case .SNAPSHOT:
-                // document.snapshots.append(file)
-                break
-
-            case .ADF, .EADF, .HDF, .EXE, .IMG, .ST:
-                myAppDelegate.noteNewRecentlyInsertedDiskURL(url)
-
-            default:
-                break
-            }
-        }
-
-        try addMedia(proxy: file, df: df, hd: hd, force: force)
+        let file = try createMediaFileProxy(from: url, allowedTypes: [.SNAPSHOT])
+        try processSnapshotFile(file: file, force: force)
     }
     
-    func addMedia(proxy: MediaFileProxy,
-                  df: Int = 0,
-                  hd: Int = 0,
-                  force: Bool = false) throws {
+    func processSnapshotFile(file: MediaFileProxy, force: Bool = false) throws {
 
-        switch proxy.type {
-
-        case .SNAPSHOT:
-
-            try processSnapshotFile(proxy)
-
-        case .SCRIPT:
-
-            console.runScript(script: proxy)
-            break
-
-        case .HDF:
-
-            try attach(hd: hd, file: proxy, force: force)
-            break
-
-        case .ADF, .DMS, .EXE, .EADF, .IMG, .ST:
-
-            try insert(df: df, file: proxy, force: force)
-
-        default:
-            break
-        }
+        try emu.amiga.loadSnapshot(file)
+        snapshots.append(file, size: file.size)
     }
 
-    func processSnapshotFile(_ proxy: MediaFileProxy, force: Bool = false) throws {
+    //
+    // Handling scripts
+    //
 
-        try emu.amiga.loadSnapshot(proxy)
-        snapshots.append(proxy, size: proxy.size)
+    func processScriptFile(url: URL, force: Bool = false) throws {
+        
+        let file = try createMediaFileProxy(from: url, allowedTypes: [.SCRIPT])
+        try processScriptFile(file: file, force: force)
     }
 
+    func processScriptFile(file: MediaFileProxy, force: Bool = false) throws {
+        
+        console.runScript(script: file)
+    }
     
     //
     // Exporting disks
@@ -263,7 +286,7 @@ class MyDocument: NSDocument {
         
         try export(fileProxy: df!, to: url)
         emu.df(nr)!.setFlag(.MODIFIED, value: false)
-        myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: nr)
+        mm.noteNewRecentlyExportedDiskURL(url, df: nr)
         
         debug(.media, "Disk exported successfully")
     }
@@ -284,7 +307,7 @@ class MyDocument: NSDocument {
         try export(fileProxy: dh!, to: url)
 
         hdn.setFlag(.MODIFIED, value: false)
-        myAppDelegate.noteNewRecentlyExportedHdrURL(url, hd: nr)
+        mm.noteNewRecentlyExportedHdrURL(url, hd: nr)
 
         debug(.media, "Hard Drive exported successfully")
     }

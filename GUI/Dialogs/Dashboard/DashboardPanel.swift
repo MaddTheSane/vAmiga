@@ -14,6 +14,7 @@ import Charts
 // SwiftUI Views
 //
 
+@MainActor
 struct TimeSeriesView: View {
     
     @ObservedObject var model: DashboardDataProvider
@@ -176,6 +177,7 @@ class DashboardPanel: NSView {
         model.logScale = logScale
         model.range = range
     }
+    
     var background: Gradient {
         if #available(macOS 14.0, *) {
             return Gradient(colors: [Color(NSColor.controlBackgroundColor),
@@ -184,6 +186,7 @@ class DashboardPanel: NSView {
             return Gradient(colors: [Color.clear, Color.clear])
         }
     }
+    
     var gradients: KeyValuePairs<Int, Gradient> {
         return [ 1: Gradient(colors: [graph1Color.opacity(0.75), graph1Color.opacity(0.25)]),
                  2: Gradient(colors: [graph2Color.opacity(0.75), graph2Color.opacity(0.25)])]
@@ -209,6 +212,8 @@ class DashboardPanel: NSView {
     var host2: NSHostingView<GaugeView>!
     var subview: NSView? { return subviews.isEmpty ? nil : subviews[0] }
     
+    var latest: () -> String = { "" }
+
     required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
@@ -226,9 +231,7 @@ class DashboardPanel: NSView {
         host2 = NSHostingView(rootView: GaugeView(model: model, panel: self))
         switchStyle()
     }
-    
-    var latest: () -> String = { "" }
-    
+        
     override func mouseDown(with event: NSEvent) {
         
         switchStyle()
@@ -270,15 +273,16 @@ class DashboardPanel: NSView {
 // Custom panels
 //
 
+@MainActor
 class ChipRamPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -294,15 +298,16 @@ class ChipRamPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class SlowRamPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -318,15 +323,16 @@ class SlowRamPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class FastRamPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -342,15 +348,16 @@ class FastRamPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class RomPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -366,15 +373,16 @@ class RomPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class CopperDmaPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -391,15 +399,16 @@ class CopperDmaPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class BlitterDmaPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -416,15 +425,16 @@ class BlitterDmaPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class DiskDmaPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -438,15 +448,16 @@ class DiskDmaPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class AudioDmaPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -460,15 +471,16 @@ class AudioDmaPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class SpriteDmaPanel: DashboardPanel {
 
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -482,15 +494,16 @@ class SpriteDmaPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class BitplaneDmaPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -504,15 +517,16 @@ class BitplaneDmaPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class HostLoadPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -527,15 +541,16 @@ class HostLoadPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class HostFpsPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -552,15 +567,16 @@ class HostFpsPanel: DashboardPanel {
     
 }
 
+@MainActor
 class AmigaMhzPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -577,15 +593,16 @@ class AmigaMhzPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class AmigaFpsPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -602,15 +619,16 @@ class AmigaFpsPanel: DashboardPanel {
     
 }
 
+@MainActor
 class CIAAPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+   required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -625,15 +643,16 @@ class CIAAPanel: DashboardPanel {
     }
 }
 
+@MainActor
 class CIABPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()
@@ -648,15 +667,16 @@ class CIABPanel: DashboardPanel {
     }    
 }
 
+@MainActor
 class AudioFillLevelPanel: DashboardPanel {
     
-    @MainActor required init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         super.init(coder: aDecoder)
         setup()
     }
     
-    @MainActor required init(frame frameRect: NSRect) {
+    required init(frame frameRect: NSRect) {
         
         super.init(frame: frameRect)
         setup()

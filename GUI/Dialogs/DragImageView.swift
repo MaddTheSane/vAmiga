@@ -10,6 +10,7 @@
 import Foundation
 import Cocoa
 
+@MainActor
 class DragImageView: NSImageView, NSDraggingSource {
 
     @IBOutlet weak var exporter: NSFilePromiseProviderDelegate!

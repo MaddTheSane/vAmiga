@@ -39,17 +39,17 @@ public func warn(_ msg: String = "",
 }
 
 //
-// Errors
+// Exceptions
 //
 
-class VAError: Error {
+final class AppError: Error {
     
-    var errorCode: ErrorCode
-    var what: String
+    let errorCode: ErrorCode
+    let what: String
 
     init(_ exception: ExceptionWrapper) {
 
-        self.errorCode = exception.errorCode
+        self.errorCode = exception.fault
         self.what = exception.what
     }
     
@@ -62,7 +62,7 @@ class VAError: Error {
 
 extension NSError {
     
-    convenience init(error: VAError) {
+    convenience init(error: AppError) {
         
         self.init(domain: "vAmiga",
                   code: error.errorCode.rawValue,
@@ -82,6 +82,7 @@ enum Failure {
     case cantDetach
     case cantExport(url: URL)
     case cantInsert
+    case cantLaunch
     case cantOpen(url: URL)
     case cantRecord
     case cantRestore
@@ -152,6 +153,10 @@ enum Failure {
             
         case .cantInsert:
             return "Failed to insert disk."
+
+        case .cantLaunch:
+            return "Failed to lauch the emulator." +
+            "An unexpected exception has interrupted the internal startup procedure."
 
         case let .cantOpen(url):
             return "\"\(url.lastPathComponent)\" can't be opened."
@@ -265,7 +270,7 @@ extension MyDocument {
     func showAlert(_ failure: Failure, error: Error,
                    async: Bool = false, window: NSWindow? = nil) {
     
-        if let error = error as? VAError {
+        if let error = error as? AppError {
             showAlert(failure, what: error.what, async:
                         async, window: window)
         } else {
@@ -309,11 +314,33 @@ extension MyDocument {
         return alert.runSheet(for: windowForSheet!)
     }
     
+    func showLaunchAlert(error: Error) {
+             
+        var reason: String
+        if let error = error as? AppError {
+            reason = error.what
+        } else {
+            reason = error.localizedDescription
+        }
+        
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.icon = NSImage(named: "biohazard")
+        alert.messageText = "The emulator failed to launch."
+        alert.informativeText = "An unexpected exception interrupted the startup process. " +
+        "Please report the following error on GitHub:\n\n\(reason)"
+        alert.addButton(withTitle: "Exit")
+        
+        if alert.runSheet(for: windowForSheet!) == .alertFirstButtonReturn {
+            NSApp.terminate(self)
+        }
+    }
+    
     func proceedWithUnsavedFloppyDisks(drives: [FloppyDriveProxy]) -> Bool {
         
         let modified = drives.filter { $0.info.hasModifiedDisk }
 
-        if modified.isEmpty || parent.pref.ejectWithoutAsking {
+        if modified.isEmpty || pref.ejectWithoutAsking {
             return true
         }
         
@@ -340,7 +367,7 @@ extension MyDocument {
         
         let modified = drives.filter { $0.info.hasModifiedDisk }
         
-        if modified.isEmpty || parent.pref.detachWithoutAsking {
+        if modified.isEmpty || pref.detachWithoutAsking {
             return true
         }
         
@@ -387,6 +414,33 @@ extension MyDocument {
 }
 
 extension MyController {
+    
+    func proceedWithUnsavedFloppyDisk(drive: FloppyDriveProxy) -> Bool {
+        return mydocument.proceedWithUnsavedFloppyDisk(drive: drive)
+    }
+
+    func proceedWithUnsavedFloppyDisks() -> Bool {
+        return mydocument.proceedWithUnsavedFloppyDisks()
+    }
+
+    func proceedWithUnsavedHardDisk(drive: HardDriveProxy) -> Bool {
+        return mydocument.proceedWithUnsavedHardDisk(drive: drive)
+    }
+
+    func proceedWithUnsavedHardDisk(drive: Int) -> Bool {
+        return mydocument.proceedWithUnsavedHardDisk(drive: emu.hd(drive)!)
+    }
+
+    func proceedWithUnsavedHardDisks() -> Bool {
+        return mydocument.proceedWithUnsavedHardDisks()
+    }
+    
+    func askToPowerOff() -> Bool {
+        return mydocument.askToPowerOff()
+    }
+}
+
+extension MediaManager {
     
     func proceedWithUnsavedFloppyDisk(drive: FloppyDriveProxy) -> Bool {
         return mydocument.proceedWithUnsavedFloppyDisk(drive: drive)

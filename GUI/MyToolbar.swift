@@ -7,31 +7,48 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class MyToolbar: NSToolbar {
     
-    var amiga: EmulatorProxy { return parent.emu }
+    var amiga: EmulatorProxy { return controller.emu }
     
-    @IBOutlet weak var parent: MyController!
-    @IBOutlet weak var controlPort1: NSPopUpButton!
-    @IBOutlet weak var controlPort2: NSPopUpButton!
+    @IBOutlet weak var controller: MyController!
+
+    // References to toolbar items
     @IBOutlet weak var controlPort1Item: NSToolbarItem!
     @IBOutlet weak var controlPort2Item: NSToolbarItem!
-    @IBOutlet weak var keyboardButton: NSToolbarItem!
+    @IBOutlet weak var keyboardItem: NSToolbarItem!
+    @IBOutlet weak var preferencesItem: NSToolbarItem!
+    @IBOutlet weak var controlsItem: NSToolbarItem!
+
+    // Reference to toolbar item objects
+    @IBOutlet weak var controlPort1: NSPopUpButton!
+    @IBOutlet weak var controlPort2: NSPopUpButton!
     @IBOutlet weak var snapshotSegCtrl: NSSegmentedControl!
+    @IBOutlet weak var screenshotSegCtrl: NSSegmentedControl!
     @IBOutlet weak var controlsSegCtrl: NSSegmentedControl!
 
     override func validateVisibleItems() {
 
         // Disable the keyboard button if the virtual keyboard is open
-        let visible = parent.virtualKeyboard?.window?.isVisible ?? false
-        let view = keyboardButton.view as? NSButton
+        let visible = controller.virtualKeyboard?.window?.isVisible ?? false
+        let view = keyboardItem.view as? NSButton
         view?.isEnabled = !visible
 
+        // Disable the snapshot revert button if no snapshots have been taken
+        snapshotSegCtrl.setEnabled(controller.snapshotCount > 0, forSegment: 1)
+
         // Update input devices
-        parent.gamePadManager.refresh(popup: controlPort1)
-        parent.gamePadManager.refresh(popup: controlPort2)
-        controlPort1.selectItem(withTag: parent.config.gameDevice1)
-        controlPort2.selectItem(withTag: parent.config.gameDevice2)
+        controller.gamePadManager.refresh(popup: controlPort1)
+        controller.gamePadManager.refresh(popup: controlPort2)
+        controlPort1.selectItem(withTag: controller.config.gameDevice1)
+        controlPort2.selectItem(withTag: controller.config.gameDevice2)
+
+        controlPort1Item.menuFormRepresentation = nil
+        controlPort2Item.menuFormRepresentation = nil
+        keyboardItem.menuFormRepresentation = nil
+        preferencesItem.menuFormRepresentation = nil
+        controlsItem.menuFormRepresentation = nil
     }
     
     func updateToolbar() {
@@ -58,87 +75,95 @@ class MyToolbar: NSToolbar {
     // Action methods
     //
     
-    @IBAction func inspectAction(_ sender: NSSegmentedControl) {
+    @IBAction
+    func inspectAction(_ sender: NSSegmentedControl) {
 
         switch sender.selectedSegment {
 
-        case 0: parent.inspectorAction(sender)
-        case 1: parent.dashboardAction(sender)
-        case 2: parent.consoleAction(sender)
+        case 0: controller.inspectorAction(sender)
+        case 1: controller.dashboardAction(sender)
+        case 2: controller.consoleAction(sender)
 
         default:
             fatalError()
         }
     }
     
-    @IBAction func snapshotAction(_ sender: NSSegmentedControl) {
+    @IBAction
+    func snapshotAction(_ sender: NSSegmentedControl) {
         
         switch sender.selectedSegment {
             
-        case 0: parent.takeSnapshotAction(self)
-        case 1: parent.restoreSnapshotAction(self)
-        case 2: parent.browseSnapshotsAction(self)
+        case 0: controller.takeSnapshotAction(self)
+        case 1: controller.restoreSnapshotAction(self)
+        case 2: controller.browseSnapshotsAction(self)
             
         default:
             fatalError()
         }
     }
     
-    @IBAction func screenshotAction(_ sender: NSSegmentedControl) {
+    @IBAction
+    func screenshotAction(_ sender: NSSegmentedControl) {
                 
         switch sender.selectedSegment {
             
-        case 0: parent.takeScreenshotAction(self)
-        case 1: parent.browseScreenshotsAction(self)
+        case 0: controller.takeScreenshotAction(self)
+        case 1: controller.browseScreenshotsAction(self)
             
         default:
             fatalError()
         }
     }
 
-    @IBAction func port1Action(_ sender: Any) {
+    @IBAction
+    func port1Action(_ sender: Any) {
         
         if let popup = sender as? NSPopUpButton {
-            parent.config.gameDevice1 = popup.selectedTag()
+            controller.config.gameDevice1 = popup.selectedTag()
         }
     }
  
-    @IBAction func port2Action(_ sender: Any) {
+    @IBAction
+    func port2Action(_ sender: Any) {
         
         if let popup = sender as? NSPopUpButton {
-            parent.config.gameDevice2 = popup.selectedTag()
+            controller.config.gameDevice2 = popup.selectedTag()
         }
     }
             
-    @IBAction func keyboardAction(_ sender: Any!) {
+    @IBAction
+    func keyboardAction(_ sender: Any!) {
         
-        if parent.virtualKeyboard == nil {
-            parent.virtualKeyboard = VirtualKeyboardController.make(parent: parent)
+        if controller.virtualKeyboard == nil {
+            controller.virtualKeyboard = VirtualKeyboardController.make(parent: controller)
         }
-        if parent.virtualKeyboard?.window?.isVisible == false {
-            parent.virtualKeyboard?.showSheet()
+        if controller.virtualKeyboard?.window?.isVisible == false {
+            controller.virtualKeyboard?.showAsSheet()
         }
     }
     
-    @IBAction func preferencesAction(_ sender: NSSegmentedControl) {
+    @IBAction
+    func preferencesAction(_ sender: NSSegmentedControl) {
 
         switch sender.selectedSegment {
 
-        case 0: parent.preferencesAction(sender)
-        case 1: parent.openConfiguratorAsSheet()
+        case 0: controller.preferencesAction(sender)
+        case 1: controller.openConfiguratorAsSheet()
 
         default:
             fatalError()
         }
     }
 
-    @IBAction func controlsAction(_ sender: NSSegmentedControl) {
+    @IBAction
+    func controlsAction(_ sender: NSSegmentedControl) {
 
         switch sender.selectedSegment {
 
-        case 0: parent.stopAndGoAction(self)
-        case 1: parent.resetAction(self)
-        case 2: parent.powerAction(self)
+        case 0: controller.stopAndGoAction(self)
+        case 1: controller.resetAction(self)
+        case 2: controller.powerAction(self)
 
         default:
             fatalError()

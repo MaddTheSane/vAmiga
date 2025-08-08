@@ -7,9 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-import Darwin
+// import Darwin
 
-class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDelegate, NSTabViewDelegate {
+@MainActor
+class VolumeInspector: DialogController {
         
     @IBOutlet weak var icon: NSImageView!
     @IBOutlet weak var virus: NSImageView!
@@ -34,6 +35,15 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
     @IBOutlet weak var userDirBlockButton: NSButton!
     @IBOutlet weak var dataBlockButton: NSButton!
 
+    @IBOutlet weak var allocImageButton: NSButton!
+    @IBOutlet weak var allocSlider: NSSlider!
+    @IBOutlet weak var allocInfo: NSTextField!
+    @IBOutlet weak var allocGreenButton: NSButton!
+    @IBOutlet weak var allocYellowButton: NSButton!
+    @IBOutlet weak var allocRedButton: NSButton!
+    @IBOutlet weak var allocRectifyInfo: NSTextField!
+    @IBOutlet weak var allocRectifyButton: NSButton!
+
     @IBOutlet weak var diagnoseImageButton: NSButton!
     @IBOutlet weak var diagnoseSlider: NSSlider!
     @IBOutlet weak var diagnoseInfo: NSTextField!
@@ -44,13 +54,14 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
 
     @IBOutlet weak var previewScrollView: NSScrollView!
     @IBOutlet weak var previewTable: NSTableView!
-    // @IBOutlet weak var blockText: NSTextField!
     @IBOutlet weak var blockField: NSTextField!
     @IBOutlet weak var blockStepper: NSStepper!
     @IBOutlet weak var strictButton: NSButton!
     @IBOutlet weak var info1: NSTextField!
     @IBOutlet weak var info2: NSTextField!
             
+    var myDocument: MyDocument { return parent.mydocument! }
+
     struct Palette {
         
         static let white = NSColor.white
@@ -60,20 +71,20 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         static let orange = NSColor(r: 0xff, g: 0xb2, b: 0x66, a: 0xff)
         static let yellow = NSColor(r: 0xff, g: 0xff, b: 0x66, a: 0xff)
         static let green = NSColor(r: 0x66, g: 0xff, b: 0x66, a: 0xff)
+        static let dgreen = NSColor(r: 0x00, g: 0x99, b: 0x00, a: 0xff)
         static let cyan = NSColor(r: 0x66, g: 0xff, b: 0xff, a: 0xff)
         static let blue = NSColor(r: 0x66, g: 0xb2, b: 0xff, a: 0xff)
         static let purple = NSColor(r: 0xb2, g: 0x66, b: 0xff, a: 0xff)
         static let pink = NSColor(r: 0xff, g: 0x66, b: 0xff, a: 0xff)
     }
 
-    var myDocument: MyDocument { return parent.mydocument! }
-
     // The analyzed file system
     var vol: FileSystemProxy!
     
     // Result of the consistency checker
-    var errorReport: FSErrorReport?
-    
+    var erroneousBlocks: [NSNumber] = []
+    var bitMapErrors: [NSNumber] = []
+
     var selection: Int?
     var selectedRow: Int? { return selection == nil ? nil : selection! / 16 }
     var selectedCol: Int? { return selection == nil ? nil : selection! % 16 }
@@ -84,58 +95,86 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
     
     let palette: [FSBlockType: NSColor] = [
         
-        .UNKNOWN_BLOCK: Palette.white,
-        .EMPTY_BLOCK: Palette.gray,
-        .BOOT_BLOCK: Palette.orange,
-        .ROOT_BLOCK: Palette.red,
-        .BITMAP_BLOCK: Palette.purple,
-        .BITMAP_EXT_BLOCK: Palette.pink,
-        .USERDIR_BLOCK: Palette.yellow,
-        .FILEHEADER_BLOCK: Palette.blue,
-        .FILELIST_BLOCK: Palette.cyan,
-        .DATA_BLOCK_OFS: Palette.green,
-        .DATA_BLOCK_FFS: Palette.green
+        .UNKNOWN: Palette.white,
+        .EMPTY: Palette.gray,
+        .BOOT: Palette.orange,
+        .ROOT: Palette.red,
+        .BITMAP: Palette.purple,
+        .BITMAP_EXT: Palette.pink,
+        .USERDIR: Palette.yellow,
+        .FILEHEADER: Palette.blue,
+        .FILELIST: Palette.dgreen, //  Palette.cyan,
+        .DATA_OFS: Palette.green,
+        .DATA_FFS: Palette.green
     ]
 
-    var layoutImage: NSImage? {
+    func layoutImage(size: NSSize) -> NSImage? {
         
-        return createImage(colorize: { (x: Int) -> NSColor in
-            switch vol.getDisplayType(x) {
-            case .UNKNOWN_BLOCK: return Palette.white
-            case .EMPTY_BLOCK: return NSColor.gray
-            case .BOOT_BLOCK: return Palette.orange
-            case .ROOT_BLOCK: return Palette.red
-            case .BITMAP_BLOCK: return Palette.purple
-            case .BITMAP_EXT_BLOCK: return Palette.pink
-            case .USERDIR_BLOCK: return Palette.yellow
-            case .FILEHEADER_BLOCK: return Palette.blue
-            case .FILELIST_BLOCK: return Palette.cyan
-            case .DATA_BLOCK_OFS: return Palette.green
-            case .DATA_BLOCK_FFS: return Palette.green
-            default: fatalError()
+        var data = Data(count: Int(size.width))
+                
+        data.withUnsafeMutableBytes { ptr in
+            if let baseAddress = ptr.baseAddress {
+                vol.createUsageMap(baseAddress, length: Int(size.width))
             }
+        }
+                
+        return createImage(data: data, size: size, colorize: { (x: UInt8) -> NSColor in
+            
+            return palette[FSBlockType(rawValue: Int(x)) ?? .UNKNOWN]!
         })
     }
 
-    var diagnoseImage: NSImage? {
+    func allocImage(size: NSSize) -> NSImage? {
         
-        return createImage(colorize: { (x: Int) -> NSColor in
-            switch vol.diagnoseImageSlice(x) {
+        var data = Data(count: Int(size.width))
+                
+        data.withUnsafeMutableBytes { ptr in
+            if let baseAddress = ptr.baseAddress {
+                vol.createAllocationMap(baseAddress, length: Int(size.width))
+            }
+        }
+        
+        return createImage(data: data, size: size, colorize: { (x: UInt8) -> NSColor in
+            
+            switch x {
             case 0: return Palette.gray
             case 1: return Palette.green
-            case 2: return Palette.red
+            case 2: return Palette.yellow
+            case 3: return Palette.red
             default: fatalError()
             }
         })
     }
     
-    func createImage(colorize: (Int) -> NSColor) -> NSImage? {
+    func diagnoseImage(size: NSSize) -> NSImage? {
+        
+        var data = Data(count: Int(size.width))
+                
+        data.withUnsafeMutableBytes { ptr in
+            if let baseAddress = ptr.baseAddress {
+                vol.createHealthMap(baseAddress, length: Int(size.width))
+            }
+        }
+        
+        return createImage(data: data, size: size, colorize: { (x: UInt8) -> NSColor in
+            
+            switch x {
+            case 0: return Palette.gray
+            case 1: return Palette.green
+            case 2: return Palette.red
+            default: return Palette.white
+            }
+        })
+    }
+ 
+    func createImage(data: Data, size: NSSize, colorize: (UInt8) -> NSColor) -> NSImage? {
+        
+        precondition(data.count == Int(size.width))
         
         // Create image representation in memory
-        let width = 1760
-        let height = 16
-        let size = CGSize(width: width, height: height)
-        let cap = Int(size.width) * Int(size.height)
+        let width = Int(size.width)
+        let height = Int(size.height)
+        let cap = width * height
         let mask = calloc(cap, MemoryLayout<UInt32>.size)!
         let ptr = mask.bindMemory(to: UInt32.self, capacity: cap)
 
@@ -143,7 +182,7 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         for x in 0..<width {
 
             // let color = colors[vol.getDisplayType(x)]!
-            let color = colorize(x)
+            let color = colorize(data[x])
             let ciColor = CIColor(color: color)!
             
             for y in 0...height-1 {
@@ -165,7 +204,7 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         let resizedImage = image?.resizeSharp(width: CGFloat(width), height: CGFloat(height))
         return resizedImage
     }
-    
+      
     //
     // Starting up
     //
@@ -233,15 +272,19 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         blockStepper.maxValue = .greatestFiniteMagnitude
         blockSlider.minValue = 0
         blockSlider.maxValue = Double(vol.numBlocks - 1)
+        allocSlider.minValue = 0
+        allocSlider.maxValue = Double(vol.numBlocks - 1)
         diagnoseSlider.minValue = 0
         diagnoseSlider.maxValue = Double(vol.numBlocks - 1)
 
         // Run a file system check
-        errorReport = vol.check(strict)
-        
+        erroneousBlocks = vol.xrayBlocks
+        bitMapErrors = vol.xrayBitmap
+
         // Compute images
-        updateLayoutImage()
-        updateDiagnoseImage()
+        updateUsageImage()
+        updateAllocImage()
+        updateHealthImage()
         
         update()
     }
@@ -254,12 +297,14 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
           
         updateVolumeInfo()
         updateVirusInfo()
-        updateDiagnoseInfo()
+        updateAllocInfo()
+        updateHealthInfo()
         
         // Update elements
         blockField.stringValue         = String(format: "%d", blockNr)
         blockStepper.integerValue      = blockNr
         blockSlider.integerValue       = blockNr
+        allocSlider.integerValue       = blockNr
         diagnoseSlider.integerValue    = blockNr
         
         // Update the block view table
@@ -267,26 +312,35 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         previewTable.reloadData()
     }
     
-    func updateLayoutImage() {
+    func updateUsageImage() {
              
         let size = NSSize(width: 16, height: 16)
-        bootBlockButton.image = NSImage(color: palette[.BOOT_BLOCK]!, size: size)
-        rootBlockButton.image = NSImage(color: palette[.ROOT_BLOCK]!, size: size)
-        bmBlockButton.image = NSImage(color: palette[.BITMAP_BLOCK]!, size: size)
-        bmExtBlockButton.image = NSImage(color: palette[.BITMAP_EXT_BLOCK]!, size: size)
-        fileListBlockButton.image = NSImage(color: palette[.FILELIST_BLOCK]!, size: size)
-        fileHeaderBlockButton.image = NSImage(color: palette[.FILEHEADER_BLOCK]!, size: size)
-        userDirBlockButton.image = NSImage(color: palette[.USERDIR_BLOCK]!, size: size)
-        dataBlockButton.image = NSImage(color: palette[.DATA_BLOCK_OFS]!, size: size)
-        blockImageButton.image = layoutImage
+        bootBlockButton.image = NSImage(color: palette[.BOOT]!, size: size)
+        rootBlockButton.image = NSImage(color: palette[.ROOT]!, size: size)
+        bmBlockButton.image = NSImage(color: palette[.BITMAP]!, size: size)
+        bmExtBlockButton.image = NSImage(color: palette[.BITMAP_EXT]!, size: size)
+        fileListBlockButton.image = NSImage(color: palette[.FILELIST]!, size: size)
+        fileHeaderBlockButton.image = NSImage(color: palette[.FILEHEADER]!, size: size)
+        userDirBlockButton.image = NSImage(color: palette[.USERDIR]!, size: size)
+        dataBlockButton.image = NSImage(color: palette[.DATA_OFS]!, size: size)
+        blockImageButton.image = layoutImage(size: blockImageButton.bounds.size.scaled(x: 2.0))
     }
-        
-    func updateDiagnoseImage() {
+
+    func updateAllocImage() {
+            
+        let size = NSSize(width: 16, height: 16)
+        allocGreenButton.image = NSImage(color: Palette.green, size: size)
+        allocYellowButton.image = NSImage(color: Palette.yellow, size: size)
+        allocRedButton.image = NSImage(color: Palette.red, size: size)
+        allocImageButton.image = allocImage(size: allocImageButton.bounds.size)
+    }
+
+    func updateHealthImage() {
             
         let size = NSSize(width: 16, height: 16)
         diagnosePassButton.image = NSImage(color: Palette.green, size: size)
         diagnoseFailButton.image = NSImage(color: Palette.red, size: size)
-        diagnoseImageButton.image = diagnoseImage
+        diagnoseImageButton.image = diagnoseImage(size: diagnoseImageButton.bounds.size)
     }
     
     func updateVolumeInfo() {
@@ -319,10 +373,27 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         }
     }
     
-    func updateDiagnoseInfo() {
+    func updateAllocInfo() {
      
-        let total = errorReport?.corruptedBlocks ?? 0
-        
+        // let total = errorReport?.bitmapErrors ?? 0
+        let total = bitMapErrors.count
+
+        if total > 0 {
+            
+            let blocks = total == 1 ? "block" : "blocks"
+            diagnoseInfo.stringValue = "\(total) suspicious \(blocks) found"
+        }
+
+        allocInfo.isHidden = total == 0
+        allocRectifyInfo.isHidden = total == 0
+        allocRectifyButton.isHidden = total == 0
+    }
+    
+    func updateHealthInfo() {
+     
+        // let total = errorReport?.corruptedBlocks ?? 0
+        let total = erroneousBlocks.count
+
         if total > 0 {
             
             let blocks = total == 1 ? "block" : "blocks"
@@ -397,8 +468,8 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
         var type = FSBlockType(rawValue: sender.tag)!
 
         // Make sure we search the correct data block type
-        if type == .DATA_BLOCK_OFS && vol.isFFS { type = .DATA_BLOCK_FFS }
-        if type == .DATA_BLOCK_FFS && vol.isOFS { type = .DATA_BLOCK_OFS }
+        if type == .DATA_OFS && vol.isFFS { type = .DATA_FFS }
+        if type == .DATA_FFS && vol.isOFS { type = .DATA_OFS }
 
         // Goto the next block of the requested type
         let nextBlock = vol.nextBlock(of: type, after: blockNr)
@@ -417,14 +488,44 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
             
     @IBAction func gotoNextCorruptedBlockAction(_ sender: NSButton!) {
 
-        let nextBlock = vol.nextCorruptedBlock(blockNr)
-        if nextBlock != -1 { setBlock(nextBlock) }
+        var low = 0
+        var high = erroneousBlocks.count
+
+        while low < high {
+
+            let mid = (low + high) / 2
+            if erroneousBlocks[mid].intValue > blockNr {
+                high = mid
+            } else {
+                low = mid + 1
+            }
+        }
+
+        if low < erroneousBlocks.count {
+            setBlock(erroneousBlocks[low].intValue)
+        } else if erroneousBlocks.count > 0 {
+            setBlock(erroneousBlocks[0].intValue)
+        }
+    }
+
+    @IBAction func rectifyAction(_ sender: NSButton!) {
+        
+        vol.rectifyAllocationMap()
+        updateAllocImage()
+        update()
     }
 
     @IBAction func strictAction(_ sender: NSButton!) {
-        
-        errorReport = vol.check(strict)
-        updateDiagnoseImage()
+
+        // Examine all blocks
+        vol.xrayBlocks(strict)
+        erroneousBlocks = vol.xrayBlocks
+
+        // Examime the bitmap
+        vol.xrayBitmap(strict)
+        bitMapErrors = vol.xrayBitmap
+
+        updateHealthImage()
         update()
     }
     
@@ -437,6 +538,10 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
             update()
         }
     }
+}
+
+@MainActor
+extension VolumeInspector: NSTableViewDataSource {
     
     func columnNr(_ column: NSTableColumn?) -> Int? {
         
@@ -461,13 +566,17 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
             
         default:
             if let col = columnNr(tableColumn) {
-                
+
                 let byte = vol.readByte(blockNr, offset: 16 * row + col)
                 return String(format: "%02X", byte)
             }
         }
         fatalError()
     }
+}
+
+@MainActor
+extension VolumeInspector: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
 
@@ -494,6 +603,10 @@ class VolumeInspector: DialogController, NSTableViewDataSource, NSTableViewDeleg
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
         return false
     }
+}
+
+@MainActor
+extension VolumeInspector: NSTabViewDelegate {
     
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         

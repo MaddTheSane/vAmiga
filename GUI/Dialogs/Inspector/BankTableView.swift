@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class BankTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     @IBOutlet weak var inspector: Inspector!
@@ -19,14 +20,17 @@ class BankTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     // Data caches
     var bankCache: [Int: MemorySource] = [:]
 
-    override func awakeFromNib() {
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
 
         delegate = self
         dataSource = self
         target = self
         action = #selector(clickAction(_:))
     }
-
+    
     func cache() {
 
         for i in 0 ..< 256 {

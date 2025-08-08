@@ -7,24 +7,26 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 class EventTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
-    var amiga: EmulatorProxy!
 
-    var slotInfo = [EventSlotInfo?](repeating: nil, count: EventSlot.COUNT.rawValue)
+    var slotInfo = [EventSlotInfo?](repeating: nil, count: EventSlotEnum.count())
 
-    override func awakeFromNib() {
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); commonInit() }
+    required init?(coder: NSCoder) { super.init(coder: coder); commonInit() }
+    
+    func commonInit() {
 
-        amiga = inspector.emu
         delegate = self
         dataSource = self
         target = self
     }
-
+    
     private func cache() {
-        for row in 0 ..< EventSlot.COUNT.rawValue {
-            slotInfo[row] = amiga.agnus.cachedSlotInfo(row)
+        for row in 0 ..< EventSlotEnum.count() {
+            slotInfo[row] = inspector.emu.agnus.cachedSlotInfo(row)
         }
     }
 
@@ -36,7 +38,7 @@ class EventTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
 
-        return EventSlot.COUNT.rawValue
+        return EventSlotEnum.count()
     }
     
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {

@@ -9,10 +9,13 @@
 
 import AVFoundation
 
+@MainActor 
 protocol MessageReceiver {
-    func processMessage(_ msg: Message)
+    
+    func process(message: Message)
 }
 
+@MainActor
 class MyController: NSWindowController, MessageReceiver {
     
     var pref: Preferences { return myAppDelegate.pref }
@@ -20,9 +23,16 @@ class MyController: NSWindowController, MessageReceiver {
     // Reference to the connected document
     var mydocument: MyDocument!
     
+    // File panels
+    let myOpenPanel = MyOpenPanel()
+    let mySavePanel = MySavePanel()
+    
     // Amiga proxy (bridge between the Swift frontend and the C++ backend)
     var emu: EmulatorProxy!
     
+    // Media manager (handles the import and export of media files)
+    var mm: MediaManager { return mydocument.mm }
+
     // Auxiliary windows of this emulator instance
     var inspectors: [Inspector] = []
     var dashboards: [Dashboard] = []
@@ -31,8 +41,8 @@ class MyController: NSWindowController, MessageReceiver {
     var configurator: ConfigurationController?
     
     // Snapshot and screenshot browsers
-    var snapshotBrowser: SnapshotDialog?
-    var screenshotBrowser: ScreenshotDialog?
+    var snapshotBrowser: SnapshotViewer?
+    var screenshotBrowser: ScreenshotViewer?
     
     // The current emulator configuration
     var config: Configuration!
@@ -64,7 +74,7 @@ class MyController: NSWindowController, MessageReceiver {
     var info: String? = nil
     var info2: String? = nil
     
-    // Pictograms for being used in NSMenuItems
+    // Pictograms for being used in NSMenuItems (MOVED TO AppDelegate)
     var smallDisk = NSImage(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
     var smallHdr = NSImage(named: "hdrTemplate")!.resize(width: 16.0, height: 16.0)
 
@@ -126,10 +136,10 @@ class MyController: NSWindowController, MessageReceiver {
     var drvCyl: [NSTextField?] = Array(repeating: nil, count: 8)
     var drvIcon: [NSButton?] = Array(repeating: nil, count: 8)
     
-    var initialized = false
-    
-    // Provides the undo manager
-    override open var undoManager: UndoManager? { return metal.undoManager }
+    var initialized: Bool { return mydocument != nil }
+}
+
+extension MyController {
     
     // Indicates if the emulator needs saving
     var needsSaving: Bool {
@@ -148,10 +158,16 @@ class MyController: NSWindowController, MessageReceiver {
     //
     // Initializing
     //
-    
-    override open func awakeFromNib() {
+        
+    override open func windowDidLoad() {
         
         debug(.lifetime)
+        commonInit()
+    }
+    
+    func commonInit() {
+        
+        if initialized { return }
         
         mydocument = document as? MyDocument
         
@@ -161,18 +177,7 @@ class MyController: NSWindowController, MessageReceiver {
         ledSlot = [ ledSlot0, ledSlot1, letSlot2, ledSlot3 ]
         cylSlot = [ cylSlot0, cylSlot1, cylSlot2, cylSlot3 ]
         iconSlot = [ iconSlot0, iconSlot1, iconSlot2, iconSlot3 ]
-    }
-    
-    override open func windowDidLoad() {
-        
-        debug(.lifetime)
-        initialize()
-    }
-    
-    func initialize() {
-        
-        if initialized { return }
-        
+
         // Create keyboard controller
         keyboard = KeyboardController(parent: self)
         assert(keyboard != nil, "Failed to create keyboard controller")
@@ -189,6 +194,9 @@ class MyController: NSWindowController, MessageReceiver {
         // Setup window
         configureWindow()
 
+        // Create speed monitor
+        speedometer = Speedometer()
+        
         // Launch the emulator
         launch()
 
@@ -217,18 +225,23 @@ class MyController: NSWindowController, MessageReceiver {
         }
 
         // Add media file (if provided on startup)
-        if let url = mydocument.launchUrl { try? mydocument.addMedia(url: url) }
+        if let url = mydocument.mediaURL {
+
+            debug(.media, "Media URL = \(url)")
+            
+            do { try mm.addMedia(url: url) } catch {
+                self.showAlert(.cantOpen(url: url), error: error, async: true)
+            }
+        }
 
         // Create speed monitor
-        speedometer = Speedometer()
+        // speedometer = Speedometer()
         
         // Update toolbar
         toolbar.validateVisibleItems()
         
         // Update status bar
         refreshStatusBar()
-        
-        initialized = true
     }
     
     func configureWindow() {
@@ -249,29 +262,42 @@ class MyController: NSWindowController, MessageReceiver {
     }
 
     func launch() {
-
-        // Pass in command line arguments as a RetroShell script
-        var script = ""
-        for arg in myAppDelegate.argv where arg.hasPrefix("-") {
-            script = script + arg.dropFirst() + "\n"
-        }
-        emu?.retroShell.execute(script)
         
-        // Convert 'self' to a void pointer
-        let myself = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        do {
 
-        emu.launch(myself) { (ptr, msg: Message) in
-
-            // Convert void pointer back to 'self'
-            let myself = Unmanaged<MyController>.fromOpaque(ptr!).takeUnretainedValue()
-
-            // Process message in the main thread
-            DispatchQueue.main.async {
-                myself.processMessage(msg)
+            // Pass in command line arguments as a RetroShell script
+            var script = ""
+            for arg in myAppDelegate.argv where arg.hasPrefix("-") {
+                script = script + arg.dropFirst() + "\n"
             }
+            emu?.retroShell.execute(script)
+
+            if BuildSettings.msgCallback {
+                
+                // Convert 'self' to a void pointer
+                let myself = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
+                
+                try emu.launch(myself) { (ptr, msg: Message) in
+                    
+                    // Convert void pointer back to 'self'
+                    let myself = Unmanaged<MyController>.fromOpaque(ptr!).takeUnretainedValue()
+                    
+                    // Process message in the main thread
+                    Task { @MainActor in myself.process(message: msg) }
+                }
+                
+            } else {
+                
+                try emu.launch()
+            }
+            
+        } catch {
+         
+            // Something terrible happened
+            mydocument.showLaunchAlert(error: error)
         }
     }
-
+    
     //
     // Timer and message processing
     //
@@ -292,6 +318,24 @@ class MyController: NSWindowController, MessageReceiver {
 
             updateSpeedometer()
         }
+
+        // Do less times...
+        if frames % 32 == 0 {
+        
+            if pref.closeWithoutAsking {
+                needsSaving = false
+            } else {
+                needsSaving =
+                emu.df0.getFlag(.MODIFIED) ||
+                emu.df1.getFlag(.MODIFIED) ||
+                emu.df2.getFlag(.MODIFIED) ||
+                emu.df3.getFlag(.MODIFIED) ||
+                emu.hd0.getFlag(.MODIFIED) ||
+                emu.hd1.getFlag(.MODIFIED) ||
+                emu.hd2.getFlag(.MODIFIED) ||
+                emu.hd3.getFlag(.MODIFIED)
+            }
+        }
         
         // Do lesser times...
         if frames % 256 == 0 {
@@ -304,9 +348,11 @@ class MyController: NSWindowController, MessageReceiver {
             }
         }
     }
-
-    func processMessage(_ msg: Message) {
-
+    
+    func process(message msg: Message) {
+            
+        MainActor.assertIsolated()
+        
         var value: Int { return Int(msg.value) }
         var nr: Int { return Int(msg.drive.nr) }
         var cyl: Int { return Int(msg.drive.value) }
@@ -331,40 +377,38 @@ class MyController: NSWindowController, MessageReceiver {
         switch msg.type {
                         
         case .CONFIG:
-
             configurator?.refresh()
             refreshStatusBar()
             passToInspector()
             passToDashboard()
 
         case .POWER:
-            
             if value != 0 {
-
-                renderer.canvas.open(delay: 1.5)
+                
+                if let fileUrl = document?.fileURL, let _ = fileUrl {
+                    renderer.canvas.open(delay: 0)
+                } else {
+                    renderer.canvas.open(delay: 1.5)
+                }
                 serialIn = ""
                 serialOut = ""
             }
-
             clearInfo()
             passToInspector()
+            configurator?.refresh()
 
         case .RUN:
-            
-            needsSaving = true
             toolbar.updateToolbar()
             refreshStatusBar()
             clearInfo()
             passToInspector()
-            
+
         case .PAUSE:
             toolbar.updateToolbar()
             refreshStatusBar()
             passToInspector()
             
         case .STEP:
-            
-            needsSaving = true
             clearInfo()
             passToInspector()
             
@@ -374,11 +418,12 @@ class MyController: NSWindowController, MessageReceiver {
 
         case .RSH_CLOSE:
             renderer.console.close(delay: 0.25)
-            
+
         case .RSH_UPDATE:
             renderer.console.isDirty = true
-
-        case .RSH_DEBUGGER:
+            passToInspector()
+            
+        case .RSH_SWITCH:
             break
 
         case .RSH_WAIT:
@@ -387,6 +432,9 @@ class MyController: NSWindowController, MessageReceiver {
         case .RSH_ERROR:
             NSSound.beep()
             renderer.console.isDirty = true
+
+        case .RSH_EXPORT:
+            break;
 
         case .SHUTDOWN:
             shutDown()
@@ -399,7 +447,7 @@ class MyController: NSWindowController, MessageReceiver {
             muted = value != 0
             refreshStatusBar()
 
-        case .WARP, .TRACK:
+        case .EASTER_EGG, .WARP, .TRACK:
             refreshStatusBar()
             
         case .POWER_LED_ON:
@@ -419,7 +467,7 @@ class MyController: NSWindowController, MessageReceiver {
 
         case .OVERCLOCKING:
             speedometer.acceleration = acceleration
-            activityBar.maxValue = 140.0 * acceleration // TODO: REMOVE??
+            activityBar.maxValue = 140.0 * acceleration
             activityBar.warningValue = 77.0 * acceleration 
             activityBar.criticalValue = 105.0 * acceleration
             
@@ -489,7 +537,7 @@ class MyController: NSWindowController, MessageReceiver {
             
         case .DRIVE_WRITE:
             refreshStatusBar(writing: true)
-            
+
         case .DRIVE_LED:
             refreshStatusBar()
             
@@ -507,14 +555,14 @@ class MyController: NSWindowController, MessageReceiver {
         case .DISK_INSERT:
             macAudio.playSound(MacAudio.Sounds.insert, volume: volume, pan: pan)
             refreshStatusBar()
-            
+
         case .DISK_EJECT:
             macAudio.playSound(MacAudio.Sounds.eject, volume: volume, pan: pan)
             refreshStatusBar()
             
         case .DISK_PROTECTED:
             refreshStatusBar()
-
+            
         case .HDC_CONNECT:
 
             if msg.value != 0 {
@@ -529,7 +577,7 @@ class MyController: NSWindowController, MessageReceiver {
                 assignSlots()
                 refreshStatusBar()
             }
-
+            
         case .HDC_STATE:
             refreshStatusBar()
 
@@ -537,8 +585,14 @@ class MyController: NSWindowController, MessageReceiver {
             macAudio.playSound(MacAudio.Sounds.move, volume: volume, pan: pan)
             refreshStatusBar()
 
-        case .HDR_IDLE, .HDR_READ, .HDR_WRITE:
+        case .HDR_IDLE, .HDR_READ:
             refreshStatusBar()
+            
+        case .HDR_WRITE:
+            refreshStatusBar()
+            
+        case .MON_SETTING:
+            renderer.processMessage(msg)
             
         case .CTRL_AMIGA_AMIGA:
             resetAction(self)
@@ -561,12 +615,15 @@ class MyController: NSWindowController, MessageReceiver {
             let ptr = msg.snapshot.snapshot
             let proxy = MediaFileProxy.init(ptr)!
             mydocument.snapshots.append(proxy, size: proxy.size)
-
+            
         case .SNAPSHOT_RESTORED:
-            renderer.flash(steps: 60)
+            renderer.flash(steps: 40)
             hideOrShowDriveMenus()
             assignSlots()
             refreshStatusBar()
+
+        case .WORKSPACE_SAVED, .WORKSPACE_LOADED:
+            break
             
         case .RECORDING_STARTED:
             window?.backgroundColor = .warning

@@ -7,6 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+@MainActor
 extension Canvas {
     
     var texW: CGFloat { return CGFloat(TextureSize.original.width) }
@@ -34,7 +35,7 @@ extension Canvas {
     // Returns the largest visibile texture area (excluding HBLANK and VBLANK)
     var largestVisible: CGRect {
 
-        let pal = amiga.agnus.traits.isPAL
+        let pal = emu.agnus.traits.isPAL
         
         let x1 = 4 * Int(TPP) * VAMIGA.HBLANK.CNT
         let x2 = 4 * Int(TPP) * VAMIGA.PAL.HPOS.CNT
@@ -53,8 +54,12 @@ extension Canvas {
     var visible: CGRect {
 
         // Determine zoom factors
-        var hZoom = renderer.config.hZoom
-        var vZoom = renderer.config.vZoom
+        var hZoom = Float(renderer.config.hZoom) / 1000.0
+        var vZoom = Float(renderer.config.vZoom) / 1000.0
+
+        // Determine offsets
+        let hCenter = Float(renderer.config.hCenter) / 1000.0
+        let vCenter = Float(renderer.config.vCenter) / 1000.0
 
         switch renderer.config.zoom {
 
@@ -106,8 +111,8 @@ extension Canvas {
 
         } else {
             
-            bw = largest.minX + CGFloat(renderer.config.hCenter) * (largest.width - width)
-            bh = largest.minY + CGFloat(renderer.config.vCenter) * (largest.height - height)
+            bw = largest.minX + CGFloat(hCenter) * (largest.width - width)
+            bh = largest.minY + CGFloat(vCenter) * (largest.height - height)
         }
                 
         return CGRect(x: bw, y: bh, width: width, height: height)
@@ -120,7 +125,7 @@ extension Canvas {
     
     func updateTextureRect() {
 
-        if amiga.get(.DMA_DEBUG_ENABLE) != 0 {
+        if emu.get(.DMA_DEBUG_ENABLE) != 0 {
             textureRect = entireNormalized
         } else {
             textureRect = visibleNormalized

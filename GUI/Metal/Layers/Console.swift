@@ -10,15 +10,16 @@
 import Foundation
 import Carbon.HIToolbox
 
+@MainActor
 class Console: Layer {
- 
-    let controller: MyController
-    
+     
     var window: NSWindow { return controller.window! }
     var contentView: NSView { return window.contentView! }
     let scrollView = NSTextView.scrollableTextView()
-    var textView: NSTextView
 
+    var textView: NSTextView
+    var textColor = NSColor.white
+    var backgroundColor = NSColor(r: 0x80, g: 0x80, b: 0x80, a: 0x80)
     var isDirty = false
         
     //
@@ -26,12 +27,10 @@ class Console: Layer {
     //
     
     override init(renderer: Renderer) {
-        
-        controller = renderer.parent
-        
+                
         textView = (scrollView.documentView as? NSTextView)!
         textView.isEditable = false
-        textView.backgroundColor = NSColor(r: 0x80, g: 0x80, b: 0x80, a: 0x80)
+        textView.backgroundColor = backgroundColor
 
         super.init(renderer: renderer)
         
@@ -49,16 +48,51 @@ class Console: Layer {
 
         super.update(frames: frames)
 
-        if isDirty {
+        let colorTable: [Int: (NSColor, NSColor)] = [
+
+            // Commander console
+            0: (NSColor(r: 0xCF, g: 0xCF, b: 0xFF, a: 0xFF),
+                // NSColor(r: 0xEF, g: 0xEF, b: 0xEF, a: 0xFF),
+                NSColor(r: 0x60, g: 0x60, b: 0x60, a: 0xD0)),
+            /*
+            0: (NSColor(r: 0xCF, g: 0xFF, b: 0xCF, a: 0xFF),
+                NSColor(r: 0x30, g: 0x90, b: 0x30, a: 0xD0)),
+             */
             
-            if let text = amiga.retroShell.getText() {
+            // Debugger console
+            1: (NSColor(r: 0xFF, g: 0xDF, b: 0xDF, a: 0xFF),
+                // NSColor(r: 0xEF, g: 0xEF, b: 0xEF, a: 0xFF),
+                NSColor(r: 0x60, g: 0x60, b: 0x60, a: 0xD0)),
+            /*
+            1: (NSColor(r: 0xFF, g: 0xCF, b: 0xCF, a: 0xFF),
+                NSColor(r: 0x90, g: 0x30, b: 0x30, a: 0xD0)),
+            */
+            // Navigator console
+            2: (NSColor(r: 0xDF, g: 0xFF, b: 0xDF, a: 0xFF),
+                // NSColor(r: 0xEF, g: 0xEF, b: 0xEF, a: 0xFF),
+                NSColor(r: 0x60, g: 0x60, b: 0x60, a: 0xD0)),
+            /*
+            2: (NSColor(r: 0xCF, g: 0xCF, b: 0xFF, a: 0xFF),
+                NSColor(r: 0x30, g: 0x30, b: 0x90, a: 0xD0))
+             */
+        ]
+
+        if isDirty {
+
+            let info = emu.retroShell.info
+
+            (textColor, backgroundColor) = colorTable[info.console]!
+            textView.backgroundColor = backgroundColor
+
+            if let text = emu.retroShell.getText() {
 
                 let cursorColor = NSColor(r: 255, g: 255, b: 255, a: 128)
+                // let cursorColor = textColor.withAlphaComponent(0.5)
                 let monoFont = NSFont.monospaced(ofSize: 14, weight: .medium)
-                let cpos = amiga.retroShell.cursorRel - 1
-                
+                let cpos = info.cursorRel - 1 // emu.retroShell.cursorRel - 1
+
                 let attr = [
-                    NSAttributedString.Key.foregroundColor: NSColor.white,
+                    NSAttributedString.Key.foregroundColor: textColor,
                     NSAttributedString.Key.font: monoFont
                 ]
                 let string = NSMutableAttributedString(string: text, attributes: attr)
@@ -86,12 +120,10 @@ class Console: Layer {
     }
         
     override func alphaDidChange() {
-                
-        let a1 = Int(alpha.current * 0xFF)
-        let a2 = Int(alpha.current * 0.8 * 0xFF)
-        textView.textColor = NSColor(r: 0xFF, g: 0xFF, b: 0xFF, a: a1)
-        textView.backgroundColor = NSColor(r: 0x80, g: 0x80, b: 0x80, a: a2)
-        
+
+        textView.textColor = textColor.withAlphaComponent(CGFloat(alpha.current))
+        textView.backgroundColor = backgroundColor.withAlphaComponent(CGFloat(alpha.current * 0.8))
+
         if alpha.current > 0 && scrollView.superview == nil {
             contentView.addSubview(scrollView)
         }
@@ -109,6 +141,10 @@ class Console: Layer {
         
         scrollView.setFrameSize(newSize)
         scrollView.frame.origin = CGPoint(x: origin.x, y: origin.y)
+        
+        let drawableSize = controller.metal.drawableSize
+        emu.set(.HOST_FRAMEBUF_WIDTH, value: Int(drawableSize.width))
+        emu.set(.HOST_FRAMEBUF_HEIGHT, value: Int(drawableSize.height))
     }
     
     func keyDown(with event: NSEvent) {
@@ -119,26 +155,27 @@ class Console: Layer {
 
         switch macKey.keyCode {
 
-        case kVK_ANSI_A where ctrl: amiga.retroShell.pressSpecialKey(.HOME)
-        case kVK_ANSI_E where ctrl: amiga.retroShell.pressSpecialKey(.END)
-        case kVK_ANSI_K where ctrl: amiga.retroShell.pressSpecialKey(.CUT)
-        case kVK_UpArrow: amiga.retroShell.pressSpecialKey(.UP)
-        case kVK_DownArrow: amiga.retroShell.pressSpecialKey(.DOWN)
-        case kVK_LeftArrow: amiga.retroShell.pressSpecialKey(.LEFT)
-        case kVK_RightArrow: amiga.retroShell.pressSpecialKey(.RIGHT)
-        case kVK_Home: amiga.retroShell.pressSpecialKey(.HOME)
-        case kVK_End: amiga.retroShell.pressSpecialKey(.END)
-        case kVK_Delete: amiga.retroShell.pressSpecialKey(.BACKSPACE)
-        case kVK_ForwardDelete: amiga.retroShell.pressSpecialKey(.DEL)
-        case kVK_Return: amiga.retroShell.pressSpecialKey(.RETURN, shift: shift)
-        case kVK_Tab: amiga.retroShell.pressSpecialKey(.TAB)
+        case kVK_ANSI_A where ctrl: emu.retroShell.pressSpecialKey(.HOME, shift: shift)
+        case kVK_ANSI_E where ctrl: emu.retroShell.pressSpecialKey(.END, shift: shift)
+        case kVK_ANSI_K where ctrl: emu.retroShell.pressSpecialKey(.CUT, shift: shift)
+        case kVK_UpArrow: emu.retroShell.pressSpecialKey(.UP, shift: shift)
+        case kVK_DownArrow: emu.retroShell.pressSpecialKey(.DOWN, shift: shift)
+        case kVK_LeftArrow: emu.retroShell.pressSpecialKey(.LEFT, shift: shift)
+        case kVK_RightArrow: emu.retroShell.pressSpecialKey(.RIGHT, shift: shift)
+        case kVK_PageUp: emu.retroShell.pressSpecialKey(.PAGE_UP, shift: shift)
+        case kVK_PageDown: emu.retroShell.pressSpecialKey(.PAGE_DOWN, shift: shift)
+        case kVK_Home: emu.retroShell.pressSpecialKey(.HOME, shift: shift)
+        case kVK_End: emu.retroShell.pressSpecialKey(.END, shift: shift)
+        case kVK_Delete: emu.retroShell.pressSpecialKey(.BACKSPACE, shift: shift)
+        case kVK_ForwardDelete: emu.retroShell.pressSpecialKey(.DEL, shift: shift)
+        case kVK_Return: emu.retroShell.pressSpecialKey(.RETURN, shift: shift)
+        case kVK_Tab: emu.retroShell.pressSpecialKey(.TAB, shift: shift)
         case kVK_Escape: close()
         
         default:
             
             if let c = event.characters?.utf8CString.first {
-                amiga.retroShell.pressKey(c)
-            }
+                emu.retroShell.pressKey(c)              }
         }
         
         isDirty = true
@@ -147,12 +184,12 @@ class Console: Layer {
     func keyUp(with event: NSEvent) {
         
     }
-
+    
     func runScript(script: MediaFileProxy) {
 
         open()
 
-        amiga.retroShell.executeScript(script)
+        emu.retroShell.executeScript(script)
         isDirty = true
     }
 }

@@ -9,6 +9,7 @@
 
 import MetalPerformanceShaders
 
+@MainActor
 class Canvas: Layer {
     
     var mergeFilter: ComputeKernel! { return ressourceManager.mergeFilter }
@@ -175,91 +176,6 @@ class Canvas: Layer {
     }
 
     //
-    // Taking screenshots
-    //
-    
-    func screenshot(source: ScreenshotSource) -> NSImage? {
-
-        switch source {
-            
-        case .emulatorVisible:
-            return screenshot(texture: mergeTexture, rect: visibleNormalized)
-            
-        case .emulatorEntire:
-            return screenshot(texture: mergeTexture, rect: largestVisibleNormalized)
-
-        case .upscaledVisible:
-            return screenshot(texture: upscaledTexture, rect: visibleNormalized)
-            
-        case .upscaledEntire:
-            return screenshot(texture: upscaledTexture, rect: largestVisibleNormalized)
-
-        case .framebuffer:
-            return framebuffer
-        }
-    }
-
-    func screenshot(texture: MTLTexture, rect: CGRect) -> NSImage? {
-
-        blitTexture(texture: texture)
-        return NSImage.make(texture: texture, rect: rect)
-    }
-
-    func blitTexture(texture: MTLTexture) {
-
-        // Use the blitter to copy the texture data back from the GPU
-        let queue = texture.device.makeCommandQueue()!
-        let commandBuffer = queue.makeCommandBuffer()!
-        let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
-        blitEncoder.synchronize(texture: texture, slice: 0, level: 0)
-        blitEncoder.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-    }
-
-    var framebuffer: NSImage? {
-        
-        guard let drawable = renderer.metalLayer.nextDrawable() else { return nil }
-        
-        // Create target texture
-        let texture = device.makeTexture(size: drawable.texture.size, usage: [.shaderRead, .shaderWrite])!
-        
-        // Copy the framebuffer into the texture
-        blitFramebuffer(texture: texture)
-        
-        // Convert the texture into an NSImage
-        let alpha = CGImageAlphaInfo.premultipliedFirst.rawValue
-        let leEn32 = CGBitmapInfo.byteOrder32Little.rawValue
-        let bitmapInfo =  CGBitmapInfo(rawValue: alpha | leEn32)
-        
-        return NSImage.make(texture: texture, bitmapInfo: bitmapInfo)
-    }
-
-    func blitFramebuffer(texture: MTLTexture) {
-
-        guard let drawable = renderer.metalLayer.nextDrawable() else { return }
-        
-        // Use the blitter to copy the framebuffer back from the GPU
-        let queue = renderer.device.makeCommandQueue()!
-        let commandBuffer = queue.makeCommandBuffer()!
-        let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
-        blitEncoder.copy(from: drawable.texture,
-                         sourceSlice: 0,
-                         sourceLevel: 0,
-                         sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
-                         sourceSize: MTLSize(width: texture.width,
-                                             height: texture.height,
-                                             depth: 1),
-                         to: texture,
-                         destinationSlice: 0,
-                         destinationLevel: 0,
-                         destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
-        blitEncoder.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-    }
-
-    //
     // Updating
     //
     
@@ -271,7 +187,7 @@ class Canvas: Layer {
         updateTexture()
 
         // Let the emulator compute the next frame
-        amiga.wakeUp()
+        emu.wakeUp()
     }
 
     func updateTexture() {
@@ -279,15 +195,14 @@ class Canvas: Layer {
         precondition(lfTexture != nil)
         precondition(sfTexture != nil)
 
-        // Get the emulator texture
         var buffer: UnsafePointer<UInt32>!
         var nr = 0
 
         // Prevent the stable texture from changing
-        amiga.videoPort.lockTexture()
+        emu.videoPort.lockTexture()
 
         // Grab the stable texture
-        amiga.videoPort.texture(&buffer, nr: &nr, lof: &currLOF, prevlof: &prevLOF)
+        emu.videoPort.texture(&buffer, nr: &nr, lof: &currLOF, prevlof: &prevLOF)
 
         // Check for duplicated or dropped frames
         if nr != prevNr + 1 {
@@ -304,7 +219,7 @@ class Canvas: Layer {
         }
 
         // Release the texture lock
-        amiga.videoPort.unlockTexture()
+        emu.videoPort.unlockTexture()
     }
 
     //
@@ -405,7 +320,7 @@ class Canvas: Layer {
         if renderer.shaderOptions.scanlines == 1 {
 
             scanlineFilter.apply(commandBuffer: buffer,
-                                 source: mergeTexture,
+                                 source: finalTexture,
                                  target: scanlineTexture,
                                  options: &renderer.shaderOptions,
                                  length: MemoryLayout<ShaderOptions>.stride)
@@ -430,7 +345,7 @@ class Canvas: Layer {
         }
         
         // Setup uniforms
-        fragmentUniforms.alpha = amiga.paused ? 0.5 : alpha.current
+        fragmentUniforms.alpha = emu.paused ? 0.5 : alpha.current
         fragmentUniforms.white = renderer.white.current
         fragmentUniforms.dotMaskHeight = Int32(ressourceManager.dotMask.height)
         fragmentUniforms.dotMaskWidth = Int32(ressourceManager.dotMask.width)
@@ -455,5 +370,156 @@ class Canvas: Layer {
         
         // Render
         quad2D!.drawPrimitives(encoder)
+    }
+}
+
+//
+// Screenshots
+//
+
+extension Canvas {
+        
+    func screenshot(source: ScreenshotSource, cutout: ScreenshotCutout, width: Int? = nil, height: Int? = nil) -> NSImage? {
+        
+        // print("screenshot(source: \(source), cutout: \(cutout), width: \(width), height: \(height)")
+        
+        switch source {
+            
+        case .framebuffer: return framebuffer
+        case .emulator: return screenshot(texture: mergeTexture, cutout: cutout, width: width, height: height)
+        case .upscaler: return screenshot(texture: upscaledTexture, cutout: cutout, width: width, height: height)
+        }
+    }
+    
+    func screenshot(texture: MTLTexture, cutout: ScreenshotCutout, width: Int? = nil, height: Int? = nil) -> NSImage? {
+
+        // print("screenshot(cutout: \(cutout), width: \(width), height: \(height)")
+
+        func region(cgRect rect: CGRect) -> MTLRegion {
+        
+            // Compute scaling factors
+            let w = CGFloat(texture.width)
+            let h = CGFloat(texture.height)
+
+            // Assemble the region
+            let origin = MTLOrigin(x: Int(rect.minX * w), y: Int(rect.minY * h), z: 0)
+            let size = MTLSize(width: Int(rect.width * w), height: Int(rect.height * h), depth: 1)
+            return MTLRegion(origin: origin, size: size)
+        }
+
+        /*
+        func region(cx: Int, cy: Int, width: Int, height: Int) -> MTLRegion {
+        
+            // Assemble the region
+            let origin = MTLOrigin(x: cx - width / 2, y: cy - height / 2, z: 0)
+            let size = MTLSize(width: width, height: height, depth: 1)
+            return MTLRegion(origin: origin, size: size)
+        }
+        */
+        
+        func region(x1: Int, x2: Int, y1: Int, y2: Int) -> MTLRegion {
+        
+            // Revert to the entire texture if a zero rect is given
+            if x1 == x2 || y1 == y2 { return region(cgRect: largestVisibleNormalized) }
+            
+            // Assemble the region
+            let origin = MTLOrigin(x: x1, y: y1, z: 0)
+            let size = MTLSize(width: x2 - x1 + 1, height: y2 - y1 + 1, depth: 1)
+            return MTLRegion(origin: origin, size: size)
+        }
+        
+        switch cutout {
+            
+        case .visible:
+            
+            let mtlreg = region(cgRect: visibleNormalized)
+            return screenshot(texture: texture, region: mtlreg)
+            
+        case .entire:
+            
+            let mtlreg = region(cgRect: largestVisibleNormalized)
+            return screenshot(texture: texture, region: mtlreg)
+            
+        case .automatic, .custom:
+            
+            // Find the uses area inside the emulator texture
+            var x1 = 0, x2 = 0, y1 = 0, y2 = 0
+            emu.videoPort.innerArea(&x1, x2: &x2, y1: &y1, y2: &y2)
+
+            // Compute width and height
+            var w = x2 - x1 + 1, h = y2 - y1 + 1
+
+            // Scale to texture coordinates
+            x1 *= 2; x2 *= 2; w *= 2; y1 *= 4; y2 *= 4; h *= 4
+
+            // Compute the center
+            let cx = Int((x1 + x2) / 2)
+            let cy = Int((y1 + y2) / 2)
+                                
+            // Readjust the rectangle in custom mode
+            if cutout == .custom {
+                
+                x1 = cx - width! / 2; x2 = x1 + width!
+                y1 = cy - height! / 2; y2 = y1 + height!
+            }
+
+            // Apply minimum width and height
+            /*
+            if cutout == .custom { w = 0; h = 0 }
+            if w < width ?? 0 { x1 = cx - width! / 2; x2 = x1 + width! }
+            if h < height ?? 0 { y1 = cy - height! / 2; y2 = y1 + height! }
+            */
+            
+            let mtlreg = region(x1: x1, x2: x2, y1: y1, y2: y2)
+            return screenshot(texture: texture, region: mtlreg)
+        }
+    }
+
+    /*
+    private func screenshot(texture: MTLTexture, rect: CGRect) -> NSImage? {
+
+        texture.blit()
+        return NSImage.make(texture: texture, rect: rect)
+    }
+    */
+    
+    private func screenshot(texture: MTLTexture, region: MTLRegion) -> NSImage? {
+
+        texture.blit()
+        return NSImage.make(texture: texture, region: region)
+    }
+
+    private var framebuffer: NSImage? {
+        
+        guard let drawable = renderer.metalLayer.nextDrawable() else { return nil }
+        
+        // Create target texture
+        let texture = device.makeTexture(size: drawable.texture.size, usage: [.shaderRead, .shaderWrite])!
+        
+        // Use the blitter to copy the framebuffer back from the GPU
+        let queue = renderer.device.makeCommandQueue()!
+        let commandBuffer = queue.makeCommandBuffer()!
+        let blitEncoder = commandBuffer.makeBlitCommandEncoder()!
+        blitEncoder.copy(from: drawable.texture,
+                         sourceSlice: 0,
+                         sourceLevel: 0,
+                         sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                         sourceSize: MTLSize(width: texture.width,
+                                             height: texture.height,
+                                             depth: 1),
+                         to: texture,
+                         destinationSlice: 0,
+                         destinationLevel: 0,
+                         destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
+        blitEncoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+                
+        // Convert the texture into an NSImage
+        let alpha = CGImageAlphaInfo.premultipliedFirst.rawValue
+        let leEn32 = CGBitmapInfo.byteOrder32Little.rawValue
+        let bitmapInfo =  CGBitmapInfo(rawValue: alpha | leEn32)
+        
+        return NSImage.make(texture: texture, bitmapInfo: bitmapInfo)
     }
 }

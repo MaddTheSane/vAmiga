@@ -7,20 +7,23 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
-
+@MainActor
+class DiskExporter: DialogController {
+    
     enum Format {
         
-        static let adf = 0
-        static let hdf = 1
-        static let ext = 2
-        static let img = 3
-        static let ima = 4
-        static let vol = 5
+        static let hdf = 0
+        static let hdz = 1
+        static let adf = 2
+        static let adz = 3
+        static let ext = 4
+        static let img = 5
+        static let ima = 6
+        static let vol = 7
     }
-
+    
     var myDocument: MyDocument { return parent.mydocument! }
-
+    
     @IBOutlet weak var icon: NSImageView!
     @IBOutlet weak var title: NSTextField!
     @IBOutlet weak var info1: NSTextField!
@@ -34,50 +37,58 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     
     // Panel for exporting directories
     var openPanel: NSOpenPanel!
-
+    
     // Reference to the export drive
     var dfn: FloppyDriveProxy?
     var hdn: HardDriveProxy?
-
+    
     // The partition to export
     var partition: Int?
-
+    
     // Number of available partitions
     var numPartitions: Int { return hdf?.hdfInfo.partitions ?? 1 }
-
+    
     // Results of the different decoders
     var hdf: MediaFileProxy?
+    var hdz: MediaFileProxy?
     var adf: MediaFileProxy?
+    var adz: MediaFileProxy?
     var ext: MediaFileProxy?
     var img: MediaFileProxy?
     var vol: FileSystemProxy?
     
     func showSheet(diskDrive nr: Int) {
-                
+        
         dfn = emu.df(nr)
-
+        
         // Run the ADF decoder
         adf = try? MediaFileProxy.make(with: dfn!, type: .ADF)
-
+        
+        // Run the ADZ decoder
+        adz = try? MediaFileProxy.make(with: dfn!, type: .ADZ)
+        
         // Run the extended ADF decoder
         ext = try? MediaFileProxy.make(with: dfn!, type: .EADF)
-
+        
         // Run the DOS decoder
         img = try? MediaFileProxy.make(with: dfn!, type: .IMG)
-
+        
         // Select the export partition
         select(partition: 0)
         
         super.showAsSheet()
     }
-
+    
     func showSheet(hardDrive nr: Int) {
-                
+        
         hdn = emu.hd(nr)
-
+        
         // Run the HDF decoder
         hdf = try? MediaFileProxy.make(with: hdn!, type: .HDF)
-
+        
+        // Run the HDZ decoder
+        hdz = try? MediaFileProxy.make(with: hdn!, type: .HDZ)
+        
         // Select the export partition
         select(partition: numPartitions == 1 ? 0 : nil)
         
@@ -85,21 +96,21 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     }
     
     func select(partition nr: Int?) {
-
+        
         partition = nr
         
         if let hdf, let nr {
-
+            
             // Try to decode the file system from the HDF
             vol = try? FileSystemProxy.make(with: hdf, partition: nr)
-        
+            
         } else if let adf {
-
+            
             // Try to decode the file system from the ADF
             vol = try? FileSystemProxy.make(with: adf)
-
+            
         } else {
-               
+            
             // Exporting to a folder is not possible
             vol = nil
         }
@@ -112,14 +123,14 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
             partitionPopup.addItem(withTitle: title)
             partitionPopup.lastItem?.tag = tag
         }
-
+        
         partitionPopup.autoenablesItems = false
         partitionPopup.removeAllItems()
-
+        
         addItem("Entire disk", tag: -1)
-
+        
         if hdf?.hdfInfo.hasRDB == true {
-
+            
             for i in 1...numPartitions {
                 addItem("Partition \(i)", tag: i - 1)
             }
@@ -136,76 +147,77 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
         
         formatPopup.autoenablesItems = false
         formatPopup.removeAllItems()
-        if adf != nil { addItem("ADF", tag: Format.adf) }
         if hdf != nil { addItem("HDF", tag: Format.hdf) }
+        if hdz != nil { addItem("HDZ", tag: Format.hdz) }
+        if adf != nil { addItem("ADF", tag: Format.adf) }
+        if adz != nil { addItem("ADZ", tag: Format.adz) }
         if ext != nil { addItem("Extended ADF", tag: Format.ext) }
-        if img != nil { addItem("IMG", tag: Format.img) }
-        if img != nil { addItem("IMA", tag: Format.ima) }
+        if img != nil { addItem("IMG", tag: Format.img); addItem("IMA", tag: Format.ima) }
         if vol != nil { addItem("Folder", tag: Format.vol) }
     }
+    
+    override func dialogWillShow() {
         
-    override public func awakeFromNib() {
-
-        super.awakeFromNib()
+        super.dialogWillShow()
+        
         updatePartitionPopup()
         updateFormatPopup()
         update()
     }
-
-    override func windowDidLoad() {
-                    
-    }
-        
+    
     func update() {
-          
+        
         // Update icons
         updateIcon()
-
+        
         // Update disk description
         updateTitleText()
         updateInfo()
     }
     
     func updateIcon() {
-                    
+        
         switch formatPopup.selectedTag() {
-
-        case Format.hdf:
             
-            icon.image = hdf!.icon()
+        case Format.hdf, Format.hdz:
             
-        case Format.adf, Format.ext, Format.img, Format.ima:
+            icon.image =
+            hdf?.icon() ??
+            hdz?.icon() ?? nil
+            
+        case Format.adf, Format.adz, Format.ext, Format.img, Format.ima:
             
             let wp = dfn!.info.hasProtectedDisk
-
+            
             icon.image =
             adf?.icon(protected: wp) ??
+            adz?.icon(protected: wp) ??
             img?.icon(protected: wp) ??
             ext?.icon(protected: wp) ?? nil
-
+            
         case Format.vol:
             
             icon.image = NSImage(named: NSImage.folderName)
-                        
+            
         default:
             
             icon.image = nil
         }
-            
+        
         if icon.image == nil {
             icon.image = NSImage(named: "biohazard")
         }
     }
     
     func updateTitleText() {
-                
+        
         title.stringValue =
         hdf != nil ? "Amiga Hard Drive" :
         adf != nil ? "Amiga Floppy Disk" :
         ext != nil ? "Extended Amiga Disk" :
         img != nil ? "PC Disk" : "Unrecognized device"
     }
-
+    
     func updateInfo() {
         
         if hdf != nil {
@@ -216,9 +228,9 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     }
     
     func updateHardDiskInfo() {
-
+        
         let info = hdf!.hdfInfo
-
+        
         let num = info.partitions
         let s = num == 1 ? "" : "s"
         
@@ -230,7 +242,7 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
             } else {
                 info2.stringValue = "No compatible file system"
             }
-
+            
         } else {
             
             if info.hasRDB {
@@ -239,12 +251,12 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
                 info1.stringValue = "Standard hard drive"
             }
             info2.stringValue = ""
-
+            
         }
     }
-        
+    
     func updateFloppyDiskInfo() {
-
+        
         if let adf {
             info1.stringValue = adf.typeInfo + ", " + adf.layoutInfo
         } else {
@@ -256,7 +268,7 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
             info2.stringValue = "No compatible file system"
         }
     }
-
+    
     //
     // Action methods
     //
@@ -265,9 +277,9 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
         
         update()
     }
-
+    
     @IBAction func partitionAction(_ sender: NSButton!) {
-
+        
         let nr = partitionPopup.selectedTag()
         select(partition: nr >= 0 ? nr : nil)
         updateFormatPopup()
@@ -277,14 +289,16 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     @IBAction func exportAction(_ sender: NSButton!) {
         
         switch formatPopup.selectedTag() {
-
+            
         case Format.hdf: openExportToFilePanel(allowedTypes: ["hdf", "HDF"])
+        case Format.hdz: openExportToFilePanel(allowedTypes: ["hdz", "HDZ"])
         case Format.adf: openExportToFilePanel(allowedTypes: ["adf", "ADF"])
+        case Format.adz: openExportToFilePanel(allowedTypes: ["adz", "ADZ"])
         case Format.ext: openExportToFilePanel(allowedTypes: ["adf", "ADF"])
         case Format.img: openExportToFilePanel(allowedTypes: ["img", "IMG"])
         case Format.ima: openExportToFilePanel(allowedTypes: ["ima", "IMA"])
         case Format.vol: openExportToFolderPanel()
-
+            
         default: fatalError()
         }
     }
@@ -292,16 +306,16 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     //
     // Exporting
     //
-        
+    
     func openExportToFilePanel(allowedTypes: [String]) {
-             
+        
         savePanel = NSSavePanel()
         savePanel.prompt = "Export"
         savePanel.title = "Export"
         savePanel.nameFieldLabel = "Export As:"
         savePanel.nameFieldStringValue = "Untitled." + allowedTypes.first!
         savePanel.canCreateDirectories = true
-
+        
         savePanel.beginSheetModal(for: window!, completionHandler: { result in
             if result == .OK {
                 if let url = self.savePanel.url {
@@ -310,9 +324,9 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
             }
         })
     }
-
+    
     func openExportToFolderPanel() {
-
+        
         openPanel = NSOpenPanel()
         openPanel.prompt = "Export"
         openPanel.title = "Export"
@@ -330,7 +344,7 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     }
     
     func export(url: URL) {
-
+        
         if hdf != nil {
             exportHardDisk(url: url)
         } else {
@@ -340,31 +354,36 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     }
     
     func exportFloppyDisk(url: URL) {
-
+        
         do {
             
             switch formatPopup.selectedTag() {
-
+                
             case Format.adf:
                 
                 debug(.media, "Exporting ADF")
                 try parent.mydocument.export(fileProxy: adf!, to: url)
-
+                
+            case Format.adz:
+                
+                debug(.media, "Exporting ADZ")
+                try parent.mydocument.export(fileProxy: adz!, to: url)
+                
             case Format.ext:
                 
                 debug(.media, "Exporting Extended ADF")
                 try parent.mydocument.export(fileProxy: ext!, to: url)
-
+                
             case Format.img:
                 
                 debug(.media, "Exporting IMG")
                 try parent.mydocument.export(fileProxy: img!, to: url)
-
+                
             case Format.ima:
                 
                 debug(.media, "Exporting IMA")
                 try parent.mydocument.export(fileProxy: img!, to: url)
-
+                
             case Format.vol:
                 
                 debug(.media, "Exporting file system")
@@ -375,10 +394,10 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
             }
             
             dfn!.setFlag(.MODIFIED, value: false)
-            myAppDelegate.noteNewRecentlyExportedDiskURL(url, df: dfn!.info.nr)
+            mm.noteNewRecentlyExportedDiskURL(url, df: dfn!.info.nr)
             
             hide()
-
+            
         } catch {
             parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
         }
@@ -387,33 +406,46 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     func exportHardDisk(url: URL) {
         
         do {
-
+            
             switch formatPopup.selectedTag() {
-
+                
             case Format.hdf:
-
+                
                 if let nr = partition {
-
+                    
                     debug(.media, "Exporting partiton \(nr) to \(url)")
                     try hdf?.writeToFile(url: url, partition: nr)
-
+                    
                 } else {
-
-                    debug(.media, "Exporting entire HDF to \(url)")
+                    
+                    debug(.media, "Exporting entire hard disk to \(url)")
                     try hdf?.writeToFile(url: url)
                 }
-
+                
+            case Format.hdz:
+                
+                if let nr = partition {
+                    
+                    debug(.media, "Exporting partiton \(nr) to \(url)")
+                    try hdz?.writeToFile(url: url, partition: nr)
+                    
+                } else {
+                    
+                    debug(.media, "Exporting entire hard disk to \(url)")
+                    try hdz?.writeToFile(url: url)
+                }
+                
             case Format.vol:
-
+                
                 debug(.media, "Exporting file system")
                 try vol!.export(url: url)
-
+                
             default:
                 fatalError()
             }
-
+            
             hdn!.setFlag(.MODIFIED, value: false)
-            myAppDelegate.noteNewRecentlyExportedHdrURL(url, hd: hdn!.traits.nr)
+            mm.noteNewRecentlyExportedHdrURL(url, hd: hdn!.traits.nr)
             
             hide()
             
@@ -421,23 +453,29 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
             parent.showAlert(.cantExport(url: url), error: error, async: true, window: window)
         }
     }
+}
 
 //
 // Protocols
 //
+
+@MainActor
+extension DiskExporter: NSFilePromiseProviderDelegate {
    
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
         
-        var name: String
-        
+        var name = "Untitled" // vol?.name ?? "Untitled"
+
         switch formatPopup.selectedTag() {
             
-        case Format.hdf: name = "Untitled.hdf"
-        case Format.adf: name = "Untitled.adf"
-        case Format.ext: name = "Untitled.adf"
-        case Format.img: name = "Untitled.img"
-        case Format.ima: name = "Untitled.ima"
-        case Format.vol: name = "Untitled"
+        case Format.hdf: name += ".hdf"
+        case Format.hdz: name += ".hdz"
+        case Format.adf: name += ".adf"
+        case Format.adz: name += ".adz"
+        case Format.ext: name += ".adf"
+        case Format.img: name += ".img"
+        case Format.ima: name += ".ima"
+        case Format.vol: break
             
         default: fatalError()
         }
@@ -447,7 +485,7 @@ class DiskExporter: DialogController, NSFilePromiseProviderDelegate {
     
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, writePromiseTo url: URL, completionHandler: @escaping (Error?) -> Void) {
         
-        export(url: url)
+        Task { @MainActor in export(url: url) }
         completionHandler(nil)
     }
 }

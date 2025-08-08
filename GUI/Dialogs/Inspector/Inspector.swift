@@ -7,7 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-class Inspector: DialogController, NSTabViewDelegate {
+@MainActor
+class Inspector: DialogController {
 
     let fmt4  = MyFormatter(radix: 16, min: 0, max: 0xF)
     let fmt8  = MyFormatter(radix: 16, min: 0, max: 0xFF)
@@ -668,13 +669,20 @@ class Inspector: DialogController, NSTabViewDelegate {
     // Used to determine the items to be refreshed
     private var refreshCnt = 0
 
-    override func showWindow(_ sender: Any?) {
-
-        super.showWindow(self)
+    deinit {
+        debug(.lifetime)
+    }
+    
+    override func dialogWillShow() {
         
+        super.dialogWillShow()
+        
+        // Hide the panel selector
+        panel.tabPosition = .none
+   
         // Enter debug mode
         emu.trackOn()
-        amiga.autoInspectionMask = 0xFF
+        amiga.autoInspectionMask = Int.max
         
         // Adjust window height to match what we see in interface builder
         if let window = self.window {
@@ -688,22 +696,15 @@ class Inspector: DialogController, NSTabViewDelegate {
             window.setFrame(frame, display: true)
         }
         
+        jumpTo(addr: 0)
+    }
+    
+    override func dialogDidShow() {
+        
+        super.dialogDidShow()
         refresh(full: true)
     }
-
-    override func awakeFromNib() {
-
-        super.awakeFromNib()
-        
-        // Hide the panel selector
-        panel.tabPosition = .none
-    }
     
-    deinit {
-        debug(.lifetime)
-    }
-    
-    // Assigns a number formatter to a control
     func assignFormatter(_ formatter: Formatter, _ control: NSControl) {
         
         control.abortEditing()
@@ -723,7 +724,7 @@ class Inspector: DialogController, NSTabViewDelegate {
         isRunning = emu.running
         refreshCnt += 1
     }
-    
+   
     private func refresh(count: Int = 0, full: Bool = false) {
         
         if window?.isVisible == false { return }
@@ -824,7 +825,7 @@ class Inspector: DialogController, NSTabViewDelegate {
             scrollToPC(pc: pc)
 
         case .COPPERBP_REACHED, .COPPERWP_REACHED, .BEAMTRAP_REACHED,
-                .EOF_REACHED, .EOL_REACHED, .MEM_LAYOUT:
+                .EOF_REACHED, .EOL_REACHED, .MEM_LAYOUT, .RSH_UPDATE:
             
             fullRefresh()
             
@@ -845,37 +846,47 @@ class Inspector: DialogController, NSTabViewDelegate {
         cpuInstrView.jumpTo(addr: pc)
     }
 
-    @IBAction func refreshAction(_ sender: Any!) {
+    @IBAction
+    func refreshAction(_ sender: Any!) {
         
         fullRefresh()
     }
     
-    @IBAction func stopAndGoAction(_ sender: NSButton!) {
+    @IBAction
+    func stopAndGoAction(_ sender: NSButton!) {
 
         if let emu = emu {
             if emu.running { emu.pause() } else { try? emu.run() }
         }
     }
 
-    @IBAction func stepIntoAction(_ sender: NSButton!) {
+    @IBAction
+    func stepIntoAction(_ sender: NSButton!) {
 
         emu.stepInto()
     }
     
-    @IBAction func stepOverAction(_ sender: NSButton!) {
+    @IBAction
+    func stepOverAction(_ sender: NSButton!) {
 
         emu.stepOver()
     }
     
-    @IBAction func finishLineAction(_ sender: NSButton!) {
+    @IBAction
+    func finishLineAction(_ sender: NSButton!) {
 
         emu.finishLine()
     }
     
-    @IBAction func finishFrameAction(_ sender: NSButton!) {
+    @IBAction
+    func finishFrameAction(_ sender: NSButton!) {
 
         emu.finishFrame()
     }
+}
+
+@MainActor
+extension Inspector {
     
     override func windowWillClose(_ notification: Notification) {
 
@@ -884,7 +895,6 @@ class Inspector: DialogController, NSTabViewDelegate {
         // Unregister the inspector
         if let index = parent.inspectors.firstIndex(where: { $0 === self }) {
             
-            // print("Removing inspector at index \(index)")
             parent.inspectors.remove(at: index)
         }
 
@@ -896,6 +906,10 @@ class Inspector: DialogController, NSTabViewDelegate {
             amiga.autoInspectionMask = 0
         }
     }
+}
+
+@MainActor
+extension Inspector: NSTabViewDelegate {
 
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         

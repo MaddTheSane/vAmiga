@@ -9,26 +9,28 @@
 
 import Foundation
 
+@MainActor
 class MyDocumentController: NSDocumentController {
     
     override func makeDocument(withContentsOf url: URL,
                                ofType typeName: String) throws -> NSDocument {
         
-        debug(.lifetime)
+        var doc : NSDocument!
         
-        // For media files, attach the file to a new untitled document
-        if typeName.uppercased() != "VAMIGA" {
+        debug(.lifetime, "makeDocument(withContentsOf: \(url), ofType: \(typeName)")
 
-            let doc = try super.makeUntitledDocument(ofType: typeName)
-            
-            if let mydoc = doc as? MyDocument {
-                
-                mydoc.launchUrl = url
-                return mydoc
-            }
-        }
+        if typeName.components(separatedBy: ".").last?.lowercased() != "vamiga" {
         
-        // For snapshot files, follow the standard procedure
-        return try super.makeDocument(withContentsOf: url, ofType: typeName)
+            // For media files, attach the file to a new untitled document
+            doc = try super.makeUntitledDocument(ofType: typeName)
+
+        } else {
+            
+            // For workspaces, follow the standard procedure
+            doc = try super.makeDocument(withContentsOf: url, ofType: typeName)
+        }
+
+        (doc as? MyDocument)?.mediaURL = url
+        return doc
     }
 }
