@@ -127,9 +127,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSInteger numberOfPlaceholders;
 @property (nonatomic, assign) NSInteger currentItemIndex;
 @property (nonatomic, strong, readonly) UIView * __nullable currentItemView;
-@property (nonatomic, strong, readonly) NSArray<UIView*> *indexesForVisibleItems;
+@property (nonatomic, copy, readonly) NSArray<NSNumber*> *indexesForVisibleItems;
 @property (nonatomic, readonly) NSInteger numberOfVisibleItems;
-@property (nonatomic, strong, readonly) NSArray<UIView*> *visibleItemViews;
+@property (nonatomic, copy, readonly) NSArray<UIView*> *visibleItemViews;
 @property (nonatomic, readonly) CGFloat itemWidth;
 @property (nonatomic, strong, readonly) UIView *contentView;
 @property (nonatomic, readonly) CGFloat toggle;

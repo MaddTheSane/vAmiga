@@ -76,9 +76,9 @@
 @interface iCarousel ()
 
 @property (nonatomic, strong) UIView *contentView;
-@property (nonatomic, strong) NSMutableDictionary *itemViews;
-@property (nonatomic, strong) NSMutableSet *itemViewPool;
-@property (nonatomic, strong) NSMutableSet *placeholderViewPool;
+@property (nonatomic, strong) NSMutableDictionary<NSNumber*,id> *itemViews;
+@property (nonatomic, strong) NSMutableSet<UIView*> *itemViewPool;
+@property (nonatomic, strong) NSMutableSet<UIView*> *placeholderViewPool;
 @property (nonatomic, assign) CGFloat previousScrollOffset;
 @property (nonatomic, assign) NSInteger previousItemIndex;
 @property (nonatomic, assign) NSInteger numberOfPlaceholdersToShow;
