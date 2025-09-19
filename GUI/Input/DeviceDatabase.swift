@@ -38,6 +38,16 @@
 // Mapping scheme: HIDEvent -> Item -> Value -> [Actions]
 typealias HIDMapping = [ HIDEvent: [ Int: [ Int: [GamePadAction] ] ] ]
 
+func printHIDMapping(_ mapping: HIDMapping) {
+
+    for (event, keys) in mapping {
+        print("\(event):")
+        for (key, value) in keys {
+            print("  \(key): \(value)")
+        }
+    }
+}
+
 class DeviceDatabase {
 
     // Known devices
@@ -226,69 +236,87 @@ class DeviceDatabase {
             case "a3":  result[.AXIS]![3] = mapAxis(key: pair[0])
             case "a4":  result[.AXIS]![4] = mapAxis(key: pair[0])
             case "a5":  result[.AXIS]![5] = mapAxis(key: pair[0])
-            case "a0~": result[.AXIS]![0] = mapAxisRev(key: pair[0])
-            case "a1~": result[.AXIS]![1] = mapAxisRev(key: pair[0])
-            case "a2~": result[.AXIS]![2] = mapAxisRev(key: pair[0])
-            case "a3~": result[.AXIS]![3] = mapAxisRev(key: pair[0])
-            case "a4~": result[.AXIS]![4] = mapAxisRev(key: pair[0])
-            case "a5~": result[.AXIS]![5] = mapAxisRev(key: pair[0])
-            case "b0":  result[.BUTTON]![1] = mapButton(key: pair[0])
-            case "b1":  result[.BUTTON]![2] = mapButton(key: pair[0])
-            case "b2":  result[.BUTTON]![3] = mapButton(key: pair[0])
-            case "b3":  result[.BUTTON]![4] = mapButton(key: pair[0])
-            case "b4":  result[.BUTTON]![5] = mapButton(key: pair[0])
-            case "b5":  result[.BUTTON]![6] = mapButton(key: pair[0])
-            case "b6":  result[.BUTTON]![7] = mapButton(key: pair[0])
-            case "b7":  result[.BUTTON]![8] = mapButton(key: pair[0])
-            case "b8":  result[.BUTTON]![9] = mapButton(key: pair[0])
-            case "b9":  result[.BUTTON]![10] = mapButton(key: pair[0])
-            case "b10": result[.BUTTON]![11] = mapButton(key: pair[0])
-            case "b11": result[.BUTTON]![12] = mapButton(key: pair[0])
-            case "b12": result[.BUTTON]![13] = mapButton(key: pair[0])
-            case "b13": result[.BUTTON]![14] = mapButton(key: pair[0])
-            case "b14": result[.BUTTON]![15] = mapButton(key: pair[0])
-            case "b15": result[.BUTTON]![16] = mapButton(key: pair[0])
-            case "b16": result[.BUTTON]![17] = mapButton(key: pair[0])
+            case "+a0":  result[.AXIS]![0] = mapAxis(key: pair[0])
+            case "+a1":  result[.AXIS]![1] = mapAxis(key: pair[0])
+            case "+a2":  result[.AXIS]![2] = mapAxis(key: pair[0])
+            case "+a3":  result[.AXIS]![3] = mapAxis(key: pair[0])
+            case "+a4":  result[.AXIS]![4] = mapAxis(key: pair[0])
+            case "+a5":  result[.AXIS]![5] = mapAxis(key: pair[0])
+            case "-a0":  result[.AXIS]![0] = mapAxis(key: pair[0], rev: true)
+            case "-a1":  result[.AXIS]![1] = mapAxis(key: pair[0], rev: true)
+            case "-a2":  result[.AXIS]![2] = mapAxis(key: pair[0], rev: true)
+            case "-a3":  result[.AXIS]![3] = mapAxis(key: pair[0], rev: true)
+            case "-a4":  result[.AXIS]![4] = mapAxis(key: pair[0], rev: true)
+            case "-a5":  result[.AXIS]![5] = mapAxis(key: pair[0], rev: true)
+            case "a0~": result[.AXIS]![0] = mapAxis(key: pair[0], rev: true)
+            case "a1~": result[.AXIS]![1] = mapAxis(key: pair[0], rev: true)
+            case "a2~": result[.AXIS]![2] = mapAxis(key: pair[0], rev: true)
+            case "a3~": result[.AXIS]![3] = mapAxis(key: pair[0], rev: true)
+            case "a4~": result[.AXIS]![4] = mapAxis(key: pair[0], rev: true)
+            case "a5~": result[.AXIS]![5] = mapAxis(key: pair[0], rev: true)
+            case "b0":  result[.BUTTON]![0] = mapButton(key: pair[0])
+            case "b1":  result[.BUTTON]![1] = mapButton(key: pair[0])
+            case "b2":  result[.BUTTON]![2] = mapButton(key: pair[0])
+            case "b3":  result[.BUTTON]![3] = mapButton(key: pair[0])
+            case "b4":  result[.BUTTON]![4] = mapButton(key: pair[0])
+            case "b5":  result[.BUTTON]![5] = mapButton(key: pair[0])
+            case "b6":  result[.BUTTON]![6] = mapButton(key: pair[0])
+            case "b7":  result[.BUTTON]![7] = mapButton(key: pair[0])
+            case "b8":  result[.BUTTON]![8] = mapButton(key: pair[0])
+            case "b9":  result[.BUTTON]![9] = mapButton(key: pair[0])
+            case "b10": result[.BUTTON]![10] = mapButton(key: pair[0])
+            case "b11": result[.BUTTON]![11] = mapButton(key: pair[0])
+            case "b12": result[.BUTTON]![12] = mapButton(key: pair[0])
+            case "b13": result[.BUTTON]![13] = mapButton(key: pair[0])
+            case "b14": result[.BUTTON]![14] = mapButton(key: pair[0])
+            case "b15": result[.BUTTON]![15] = mapButton(key: pair[0])
+            case "b16": result[.BUTTON]![16] = mapButton(key: pair[0])
 
             default:
                 break
             }
         }
 
+        // printHIDMapping(result)
         return result
     }
 
-    private func mapAxis(key: String) -> [Int: [GamePadAction]] {
+    private func mapAxis(key: String, rev: Bool = false) -> [Int: [GamePadAction]] {
+
+        var result: [Int: [GamePadAction]] = [:]
 
         switch (key) {
 
         case "leftx", "rightx":
-            return [-1: [.PULL_LEFT], 0: [.RELEASE_X], 1: [.PULL_RIGHT]]
+            result = [-1: [.PULL_LEFT], 0: [.RELEASE_X], 1: [.PULL_RIGHT]]
         case "lefty", "righty":
-            return [-1: [.PULL_UP], 0: [.RELEASE_Y], 1: [.PULL_DOWN]]
+            result = [-1: [.PULL_UP], 0: [.RELEASE_Y], 1: [.PULL_DOWN]]
+        case "dpup":
+            result = [-1: [.PULL_DOWN], 0: [.RELEASE_Y], 1: [.PULL_UP]]
+        case "dpdown":
+            result = [-1: [.PULL_UP], 0: [.RELEASE_Y], 1: [.PULL_DOWN]]
+        case "dpright":
+            result = [-1: [.PULL_LEFT], 0: [.RELEASE_X], 1: [.PULL_RIGHT]]
+        case "dpleft":
+            result = [-1: [.PULL_RIGHT], 0: [.RELEASE_X], 1: [.PULL_LEFT]]
         default:
-            return [:]
+            break
         }
-    }
 
-    private func mapAxisRev(key: String) -> [Int: [GamePadAction]] {
+        if rev, let left = result[-1], let right = result[1] {
 
-        switch (key) {
-
-        case "leftx", "rightx":
-            return [-1: [.PULL_RIGHT], 0: [.RELEASE_X], 1: [.PULL_LEFT]]
-        case "lefty", "righty":
-            return [-1: [.PULL_DOWN], 0: [.RELEASE_Y], 1: [.PULL_UP]]
-        default:
-            return [:]
+            result[-1] = right
+            result[1]  = left
         }
+
+        return result
     }
 
     private func mapButton(key: String) -> [Int: [GamePadAction]] {
 
         switch (key) {
 
-        case "a", "b", "leftshoulder", "rightshoulder":
+        case "a", "b", "x", "y", "leftshoulder", "rightshoulder":
             return [0: [.RELEASE_FIRE], 1: [.PRESS_FIRE]]
         case "dpdown":
             return [0: [.RELEASE_Y], 1: [.PULL_DOWN]]
