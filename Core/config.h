@@ -15,15 +15,15 @@
 
 // Version number
 static constexpr int VER_MAJOR      = 4;
-static constexpr int VER_MINOR      = 3;
-static constexpr int VER_SUBMINOR   = 2;
-static constexpr int VER_BETA       = 0;
+static constexpr int VER_MINOR      = 4;
+static constexpr int VER_SUBMINOR   = 0;
+static constexpr int VER_BETA       = 4;
 
 // Snapshot version number
 static constexpr int SNP_MAJOR      = 4;
-static constexpr int SNP_MINOR      = 3;
+static constexpr int SNP_MINOR      = 4;
 static constexpr int SNP_SUBMINOR   = 0;
-static constexpr int SNP_BETA       = 0;
+static constexpr int SNP_BETA       = 4;
 
 
 //
@@ -238,8 +238,6 @@ extern debugflag FORCE_FS_WRONG_BSIZE;
 extern debugflag FORCE_FS_WRONG_CAPACITY;
 extern debugflag FORCE_FS_WRONG_DOS_TYPE;
 extern debugflag FORCE_DMS_CANT_CREATE;
-extern debugflag FORCE_RECORDING_ERROR;
-extern debugflag FORCE_NO_FFMPEG;
 extern debugflag FORCE_ZLIB_ERROR;
 
 }

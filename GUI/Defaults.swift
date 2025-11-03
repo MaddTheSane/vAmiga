@@ -15,9 +15,9 @@ import Carbon.HIToolbox
 
 @MainActor
 extension DefaultsProxy {
-
+    
     func resetSearchPaths() {
-
+        
         set("ROM_PATH", UserDefaults.romUrl!.path)
         set("EXT_PATH", UserDefaults.extUrl!.path)
         set("HD0_PATH", UserDefaults.hd0Url!.path)
@@ -25,18 +25,18 @@ extension DefaultsProxy {
         set("HD2_PATH", UserDefaults.hd2Url!.path)
         set("HD3_PATH", UserDefaults.hd3Url!.path)
     }
-
+    
     func load(url: URL) throws {
-
+        
         resetSearchPaths()
-
+        
         let exception = ExceptionWrapper()
         load(url, exception: exception)
         if exception.fault != .OK { throw AppError(exception) }     
-
+        
         debug(.defaults, "Successfully loaded user defaults from \(url)")
     }
-
+    
     func load() {
         
         debug(.defaults, "Loading user defaults")
@@ -61,7 +61,7 @@ extension DefaultsProxy {
         let exception = ExceptionWrapper()
         save(url, exception: exception)
         if exception.fault != .OK { throw AppError(exception) }
-
+        
         debug(.defaults, "Successfully saved user defaults to \(url)")
     }
     
@@ -83,7 +83,7 @@ extension DefaultsProxy {
             warn("Failed to access application support folder")
         }
     }
-
+    
     func register(_ key: String, _ val: String) {
         register(key, value: val)
     }
@@ -165,27 +165,27 @@ extension DefaultsProxy {
     func double(_ key: String) -> Double {
         return (getString(key) as NSString).doubleValue
     }
-
+    
     func register<T: Encodable>(_ key: String, encodable item: T) {
         
         let jsonData = try? JSONEncoder().encode(item)
         let jsonString = jsonData?.base64EncodedString() ?? ""
         register(key, jsonString)
     }
-
+    
     func encode<T: Encodable>(_ key: String, _ item: T) {
         
         let jsonData = try? JSONEncoder().encode(item)
         let jsonString = jsonData?.base64EncodedString() ?? ""
         set(key, jsonString)
     }
-
+    
     func decode<T: Decodable>(_ key: String, _ item: inout T) {
         
         if let jsonString = getString(key) {
-
+            
             if let data = Data(base64Encoded: jsonString) {
-
+                
                 if let decoded = try? JSONDecoder().decode(T.self, from: data) {
                     item = decoded
                 } else {
@@ -210,28 +210,28 @@ extension UserDefaults {
         let folder = try? URL.appSupportFolder("Roms")
         return folder?.appendingPathComponent(name)
     }
-
+    
     static func romUrl(fingerprint: Int) -> URL? {
-
+        
         return romUrl(name: String(format: "%08x", fingerprint) + ".rom")
     }
-
+    
     static func romUrl(crc32: UInt32) -> URL? {
-
+        
         return romUrl(fingerprint: Int(crc32))
     }
-
+    
     static func mediaUrl(name: String) -> URL? {
         
         let folder = try? URL.appSupportFolder("Media")
         return folder?.appendingPathComponent(name)
     }
-
+    
     static func hdUrl(_ n: Int) -> URL? {
         
         return mediaUrl(name: "hd\(n).hdf")
     }
-
+    
     static var romUrl: URL? { return romUrl(name: "rom.bin") }
     static var extUrl: URL? { return romUrl(name: "ext.bin") }
     static var hd0Url: URL? { return hdUrl(0) }
@@ -255,7 +255,7 @@ extension DefaultsProxy {
         registerCapturesUserDefaults()
         registerControlsUserDefaults()
         registerDevicesUserDefaults()
-
+        
         registerChipsetUserDefaults()
         registerMemoryUserDefaults()
         registerPeripheralsUserDefaults()
@@ -267,7 +267,7 @@ extension DefaultsProxy {
 
 @MainActor
 extension Preferences {
-
+    
     func applyUserDefaults() {
         
         debug(.defaults)
@@ -281,9 +281,9 @@ extension Preferences {
 
 @MainActor
 extension Configuration {
-        
-    func applyUserDefaults() {
     
+    func applyUserDefaults() {
+        
         debug(.defaults)
         
         applyHardwareUserDefaults()
@@ -302,19 +302,18 @@ extension Configuration {
 struct Keys {
     
     struct Gen {
-                
-        // Snapshots
-        static let snapshotStorage        = "General.SnapshotStorage"
-        static let autoSnapshots          = "General.AutoSnapshots"
-        static let autoSnapshotInterval   = "General.ScreenshotInterval"
         
         // Fullscreen
         static let keepAspectRatio        = "General.FullscreenKeepAspectRatio"
         static let exitOnEsc              = "General.FullscreenExitOnEsc"
-
+        
+        // Mouse
+        static let retainMouseByClick    = "General.RetainMouseByClick"
+        static let retainMouseByEntering = "General.RetainMouseByEntering"
+        static let releaseMouseByShaking = "General.ReleaseMouseByShaking"
+        
         // Miscellaneous
         static let ejectWithoutAsking     = "General.EjectWithoutAsking"
-        static let detachWithoutAsking    = "General.DetachWithoutAsking"
         static let closeWithoutAsking     = "General.CloseWithoutAsking"
         static let pauseInBackground      = "General.PauseInBackground"
     }
@@ -326,19 +325,18 @@ extension DefaultsProxy {
     func registerGeneralUserDefaults() {
         
         debug(.defaults)
-
-        // Snapshots
-        register(Keys.Gen.snapshotStorage, 512)
-        register(Keys.Gen.autoSnapshots, false)
-        register(Keys.Gen.autoSnapshotInterval, 20)
-                
+        
         // Fullscreen
         register(Keys.Gen.keepAspectRatio, false)
         register(Keys.Gen.exitOnEsc, true)
-
+        
+        // Mouse
+        register(Keys.Gen.retainMouseByClick, true)
+        register(Keys.Gen.retainMouseByEntering, false)
+        register(Keys.Gen.releaseMouseByShaking, true)
+        
         // Misc
         register(Keys.Gen.ejectWithoutAsking, false)
-        register(Keys.Gen.detachWithoutAsking, false)
         register(Keys.Gen.closeWithoutAsking, false)
         register(Keys.Gen.pauseInBackground, false)
     }
@@ -347,15 +345,14 @@ extension DefaultsProxy {
         
         debug(.defaults)
         
-        let keys = [ Keys.Gen.snapshotStorage,
-                     Keys.Gen.autoSnapshots,
-                     Keys.Gen.autoSnapshotInterval,
-                                          
-                     Keys.Gen.keepAspectRatio,
+        let keys = [ Keys.Gen.keepAspectRatio,
                      Keys.Gen.exitOnEsc,
-
+                     
+                     Keys.Gen.retainMouseByClick,
+                     Keys.Gen.retainMouseByEntering,
+                     Keys.Gen.releaseMouseByShaking,
+                     
                      Keys.Gen.ejectWithoutAsking,
-                     Keys.Gen.detachWithoutAsking,
                      Keys.Gen.closeWithoutAsking,
                      Keys.Gen.pauseInBackground
         ]
@@ -366,21 +363,20 @@ extension DefaultsProxy {
 
 @MainActor
 extension Preferences {
-
+    
     func saveGeneralUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        defaults.set(Keys.Gen.snapshotStorage, snapshotStorage)
-        defaults.set(Keys.Gen.autoSnapshots, autoSnapshots)
-        defaults.set(Keys.Gen.autoSnapshotInterval, snapshotInterval)
-                
+        
         defaults.set(Keys.Gen.keepAspectRatio, keepAspectRatio)
         defaults.set(Keys.Gen.exitOnEsc, exitOnEsc)
-
+        
+        defaults.set(Keys.Gen.retainMouseByClick, retainMouseByClick)
+        defaults.set(Keys.Gen.retainMouseByEntering, retainMouseByEntering)
+        defaults.set(Keys.Gen.releaseMouseByShaking, releaseMouseByShaking)
+        
         defaults.set(Keys.Gen.ejectWithoutAsking, ejectWithoutAsking)
-        defaults.set(Keys.Gen.detachWithoutAsking, detachWithoutAsking)
         defaults.set(Keys.Gen.closeWithoutAsking, closeWithoutAsking)
         defaults.set(Keys.Gen.pauseInBackground, pauseInBackground)
         
@@ -392,15 +388,14 @@ extension Preferences {
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        snapshotStorage = defaults.int(Keys.Gen.snapshotStorage)
-        autoSnapshots = defaults.bool(Keys.Gen.autoSnapshots)
-        snapshotInterval = defaults.int(Keys.Gen.autoSnapshotInterval)
-                
         keepAspectRatio = defaults.bool(Keys.Gen.keepAspectRatio)
         exitOnEsc = defaults.bool(Keys.Gen.exitOnEsc)
-
+        
+        retainMouseByClick = defaults.bool(Keys.Gen.retainMouseByClick)
+        retainMouseByEntering = defaults.bool(Keys.Gen.retainMouseByEntering)
+        releaseMouseByShaking = defaults.bool(Keys.Gen.releaseMouseByShaking)
+        
         ejectWithoutAsking = defaults.bool(Keys.Gen.ejectWithoutAsking)
-        detachWithoutAsking = defaults.bool(Keys.Gen.detachWithoutAsking)
         closeWithoutAsking = defaults.bool(Keys.Gen.closeWithoutAsking)
         pauseInBackground = defaults.bool(Keys.Gen.pauseInBackground)
     }
@@ -414,20 +409,17 @@ extension Preferences {
 extension Keys {
     
     struct Cap {
-                
+        
+        // Snapshots
+        static let snapshotCompressor     = "Cap.SnapshotCompressor"
+        static let snapshotAutoDelete     = "Cap.SnapshotAutoDelete"
+        
         // Screenshots
-        static let screenshotFormat       = "General.ScreenshotFormat"
-        static let screenshotSource       = "General.ScreenshotSource"
-        static let screenshotCutout       = "General.ScreenshotCutout"
-        static let screenshotWidth        = "General.ScreenshotWidth"
-        static let screenshotHeight       = "General.ScreenshotHeight"
-
-        // Videos
-        static let ffmpegPath             = "General.ffmpegPath"
-        static let captureSource          = "General.Source"
-        static let bitRate                = "General.BitRate"
-        static let aspectX                = "General.AspectX"
-        static let aspectY                = "General.AspectY"
+        static let screenshotFormat       = "Cap.ScreenshotFormat"
+        static let screenshotSource       = "Cap.ScreenshotSource"
+        static let screenshotCutout       = "Cap.ScreenshotCutout"
+        static let screenshotWidth        = "Cap.ScreenshotWidth"
+        static let screenshotHeight       = "Cap.ScreenshotHeight"
     }
 }
 
@@ -438,36 +430,30 @@ extension DefaultsProxy {
         
         debug(.defaults)
         
+        // Snapshots
+        register(Keys.Cap.snapshotCompressor, Compressor.LZ4.rawValue)
+        register(Keys.Cap.snapshotAutoDelete, true)
+        
         // Screenshots
         register(Keys.Cap.screenshotFormat, NSBitmapImageRep.FileType.png.rawValue)
         register(Keys.Cap.screenshotSource, 0)
         register(Keys.Cap.screenshotCutout, 0)
         register(Keys.Cap.screenshotWidth, 1200)
         register(Keys.Cap.screenshotHeight, 900)
-
-        // Videos
-        register(Keys.Cap.ffmpegPath, "")
-        register(Keys.Cap.captureSource, 0)
-        register(Keys.Cap.bitRate, 2048)
-        register(Keys.Cap.aspectX, 768)
-        register(Keys.Cap.aspectY, 702)
     }
     
     func removeCapturesUserDefaults() {
         
         debug(.defaults)
         
-        let keys = [ Keys.Cap.screenshotFormat,
+        let keys = [ Keys.Cap.snapshotCompressor,
+                     Keys.Cap.snapshotAutoDelete,
+                     
+                     Keys.Cap.screenshotFormat,
                      Keys.Cap.screenshotSource,
                      Keys.Cap.screenshotCutout,
                      Keys.Cap.screenshotWidth,
                      Keys.Cap.screenshotHeight,
-
-                     Keys.Cap.ffmpegPath,
-                     Keys.Cap.captureSource,
-                     Keys.Cap.bitRate,
-                     Keys.Cap.aspectX,
-                     Keys.Cap.aspectY,
         ]
         
         for key in keys { removeKey(key) }
@@ -476,24 +462,21 @@ extension DefaultsProxy {
 
 @MainActor
 extension Preferences {
-
+    
     func saveCapturesUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
+        
+        defaults.set(Keys.Cap.snapshotCompressor, snapshotCompressorIntValue)
+        defaults.set(Keys.Cap.snapshotAutoDelete, snapshotAutoDelete)
         
         defaults.set(Keys.Cap.screenshotFormat, screenshotFormatIntValue)
         defaults.set(Keys.Cap.screenshotSource, screenshotSourceIntValue)
         defaults.set(Keys.Cap.screenshotCutout, screenshotCutoutIntValue)
         defaults.set(Keys.Cap.screenshotWidth, screenshotWidth)
         defaults.set(Keys.Cap.screenshotHeight, screenshotHeight)
-
-        defaults.set(Keys.Cap.ffmpegPath, ffmpegPath)
-        defaults.set(Keys.Cap.captureSource, captureSourceIntValue)
-        defaults.set(Keys.Cap.bitRate, bitRate)
-        defaults.set(Keys.Cap.aspectX, aspectX)
-        defaults.set(Keys.Cap.aspectY, aspectY)
-                
+        
         defaults.save()
     }
     
@@ -501,18 +484,15 @@ extension Preferences {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-                
+        
+        snapshotCompressorIntValue = defaults.int(Keys.Cap.snapshotCompressor)
+        snapshotAutoDelete = defaults.bool(Keys.Cap.snapshotAutoDelete)
+        
         screenshotFormatIntValue = defaults.int(Keys.Cap.screenshotFormat)
         screenshotSourceIntValue = defaults.int(Keys.Cap.screenshotSource)
         screenshotCutoutIntValue = defaults.int(Keys.Cap.screenshotCutout)
         screenshotWidth = defaults.int(Keys.Cap.screenshotWidth)
         screenshotHeight = defaults.int(Keys.Cap.screenshotHeight)
-
-        ffmpegPath = defaults.string(Keys.Cap.ffmpegPath)
-        captureSourceIntValue = defaults.int(Keys.Cap.captureSource)
-        bitRate = defaults.int(Keys.Cap.bitRate)
-        aspectX = defaults.int(Keys.Cap.aspectX)
-        aspectY = defaults.int(Keys.Cap.aspectY)
     }
 }
 
@@ -530,21 +510,8 @@ extension Keys {
         static let joyKeyMap1            = "Controls.JoyKeyMap1"
         static let joyKeyMap2            = "Controls.JoyKeyMap2"
         static let disconnectJoyKeys     = "Controls.DisconnectKeys"
-        
-        // Joysticks
-        static let autofire              = "Controls.Autofire"
-        static let autofireBursts        = "Controls.AutofireBursts"
-        static let autofireBullets       = "Controls.AutofireBullets"
-        static let autofireFrequency     = "Controls.AutofireFrequency"
-        
-        // Mouse
-        static let retainMouseKeyComb    = "Controls.RetainMouseKeyComb"
-        static let retainMouseWithKeys   = "Controls.RetainMouseWithKeys"
-        static let retainMouseByClick    = "Controls.RetainMouseByClick"
-        static let retainMouseByEntering = "Controls.RetainMouseByEntering"
-        static let releaseMouseKeyComb   = "Controls.ReleaseMouseKeyComb"
-        static let releaseMouseWithKeys  = "Controls.ReleaseMouseWithKeys"
-        static let releaseMouseByShaking = "Controls.ReleaseMouseByShaking"
+        static let amigaKeysCombEnable   = "Controls.AmigaKeysCombEnable"
+        static let amigaKeysComb         = "Controls.AmigaKeysComb"
     }
 }
 
@@ -554,9 +521,9 @@ extension DefaultsProxy {
     func registerControlsUserDefaults() {
         
         debug(.defaults)
-
+        
         let emptyMap: [MacKey: Int] = [:]
-
+        
         let stdKeyMap1: [MacKey: Int] = [
             
             MacKey(keyCode: kVK_LeftArrow): GamePadAction.PULL_LEFT.rawValue,
@@ -580,21 +547,8 @@ extension DefaultsProxy {
         register(Keys.Con.joyKeyMap1, encodable: stdKeyMap1)
         register(Keys.Con.joyKeyMap2, encodable: stdKeyMap2)
         register(Keys.Con.disconnectJoyKeys, true)
-        
-        // Joysticks
-        register(Keys.Con.autofire, false)
-        register(Keys.Con.autofireBursts, false)
-        register(Keys.Con.autofireBullets, 3)
-        register(Keys.Con.autofireFrequency, 25)
-
-        // Mouse
-        register(Keys.Con.retainMouseKeyComb, 0)
-        register(Keys.Con.retainMouseWithKeys, true)
-        register(Keys.Con.retainMouseByClick, true)
-        register(Keys.Con.retainMouseByEntering, false)
-        register(Keys.Con.releaseMouseKeyComb, 0)
-        register(Keys.Con.releaseMouseWithKeys, true)
-        register(Keys.Con.releaseMouseByShaking, true)
+        register(Keys.Con.amigaKeysCombEnable, true)
+        register(Keys.Con.amigaKeysComb, 0)
     }
     
     func removeControlsUserDefaults() {
@@ -605,54 +559,33 @@ extension DefaultsProxy {
                      Keys.Con.joyKeyMap1,
                      Keys.Con.joyKeyMap2,
                      Keys.Con.disconnectJoyKeys,
-                     
-                     Keys.Con.autofire,
-                     Keys.Con.autofireBullets,
-                     Keys.Con.autofireFrequency,
-                     
-                     Keys.Con.retainMouseKeyComb,
-                     Keys.Con.retainMouseWithKeys,
-                     Keys.Con.retainMouseByClick,
-                     Keys.Con.retainMouseByEntering,
-                     Keys.Con.releaseMouseKeyComb,
-                     Keys.Con.releaseMouseWithKeys,
-                     Keys.Con.releaseMouseByShaking ]
-
+                     Keys.Con.amigaKeysCombEnable,
+                     Keys.Con.amigaKeysComb ]
+        
         for key in keys { removeKey(key) }
     }
 }
 
 @MainActor
 extension Preferences {
-
-    func saveControlsUserDefaults() {
     
+    func saveControlsUserDefaults() {
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-                
+        
         defaults.encode(Keys.Con.mouseKeyMap, keyMaps[0])
         defaults.encode(Keys.Con.joyKeyMap1, keyMaps[1])
         defaults.encode(Keys.Con.joyKeyMap2, keyMaps[2])
         defaults.set(Keys.Con.disconnectJoyKeys, disconnectJoyKeys)
-
-        defaults.set(Keys.Con.autofire, autofire)
-        defaults.set(Keys.Con.autofireBursts, autofireBursts)
-        defaults.set(Keys.Con.autofireBullets, autofireBullets)
-        defaults.set(Keys.Con.autofireFrequency, autofireFrequency)
-
-        defaults.set(Keys.Con.retainMouseKeyComb, retainMouseKeyComb)
-        defaults.set(Keys.Con.retainMouseWithKeys, retainMouseWithKeys)
-        defaults.set(Keys.Con.retainMouseByClick, retainMouseByClick)
-        defaults.set(Keys.Con.retainMouseByEntering, retainMouseByEntering)
-        defaults.set(Keys.Con.releaseMouseKeyComb, releaseMouseKeyComb)
-        defaults.set(Keys.Con.releaseMouseWithKeys, releaseMouseWithKeys)
-        defaults.set(Keys.Con.releaseMouseByShaking, releaseMouseByShaking)
+        defaults.set(Keys.Con.amigaKeysCombEnable, amigaKeysCombEnable)
+        defaults.set(Keys.Con.amigaKeysComb, amigaKeysComb)
         
         defaults.save()
     }
     
     func applyControlsUserDefaults() {
-           
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
@@ -660,19 +593,8 @@ extension Preferences {
         defaults.decode(Keys.Con.joyKeyMap1, &keyMaps[1])
         defaults.decode(Keys.Con.joyKeyMap2, &keyMaps[2])
         disconnectJoyKeys = defaults.bool(Keys.Con.disconnectJoyKeys)
-        
-        autofire = defaults.bool(Keys.Con.autofire)
-        autofireBursts = defaults.bool(Keys.Con.autofireBursts)
-        autofireBullets = defaults.int(Keys.Con.autofireBullets)
-        autofireFrequency = defaults.int(Keys.Con.autofireFrequency)
-
-        retainMouseKeyComb = defaults.int(Keys.Con.retainMouseKeyComb)
-        retainMouseWithKeys = defaults.bool(Keys.Con.retainMouseWithKeys)
-        retainMouseByClick = defaults.bool(Keys.Con.retainMouseByClick)
-        retainMouseByEntering = defaults.bool(Keys.Con.retainMouseByEntering)
-        releaseMouseKeyComb = defaults.int(Keys.Con.releaseMouseKeyComb)
-        releaseMouseWithKeys = defaults.bool(Keys.Con.releaseMouseWithKeys)
-        releaseMouseByShaking = defaults.bool(Keys.Con.releaseMouseByShaking)
+        amigaKeysCombEnable = defaults.bool(Keys.Con.amigaKeysCombEnable)
+        amigaKeysComb = defaults.int(Keys.Con.amigaKeysComb)
     }
 }
 
@@ -684,7 +606,7 @@ extension Preferences {
 extension Keys {
     
     struct Dev {
-
+        
         static let schemes            = "Devices.Schemes"
     }
 }
@@ -693,27 +615,27 @@ extension Keys {
 extension DefaultsProxy {
     
     func registerDevicesUserDefaults() {
-
+        
     }
     
     func removeDevicesUserDefaults() {
-
+        
     }
 }
 
 @MainActor
 extension Preferences {
-
-    func saveDevicesUserDefaults() {
     
+    func saveDevicesUserDefaults() {
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-                        
+        
         defaults.save()
     }
     
     func applyDevicesUserDefaults() {
-           
+        
         debug(.defaults)
     }
 }
@@ -724,40 +646,42 @@ extension Preferences {
 
 @MainActor
 extension Configuration {
-
+    
     func saveRomUserDefaults() throws {
-
+        
         debug(.defaults)
-
+        
+        guard let emu = emu else { return }
+        
         let defaults = EmulatorProxy.defaults!
         let fm = FileManager.default
         var url: URL?
-
+        
         emu.suspend()
-
+        
         defaults.set(.MEM_EXT_START, extStart)
         defaults.save()
         
         do {
-
+            
             // Kickstart
             url = UserDefaults.romUrl
             if url == nil { throw AppError(.FILE_CANT_WRITE) }
             try? fm.removeItem(at: url!)
             if emu.mem.info.hasRom { try emu.mem.saveRom(url!) }
-
+            
             // Kickstart extension
             url = UserDefaults.extUrl
             if url == nil { throw AppError(.FILE_CANT_WRITE) }
             try? fm.removeItem(at: url!)
             if emu.mem.info.hasExt { try emu.mem.saveExt(url!) }
-
+            
         } catch {
-
+            
             emu.resume()
             throw error
         }
-
+        
         emu.resume()
     }
 }
@@ -768,15 +692,15 @@ extension Configuration {
 
 @MainActor
 extension DefaultsProxy {
-
+    
     func registerHardwareUserDefaults() {
-
+        
         registerChipsetUserDefaults()
         registerMemoryUserDefaults()
     }
-
+    
     func removeHardwareUserDefaults() {
-
+        
         removeChipsetUserDefaults()
         removeMemoryUserDefaults()
     }
@@ -784,15 +708,15 @@ extension DefaultsProxy {
 
 @MainActor
 extension Configuration {
-
+    
     func applyHardwareUserDefaults() {
-
+        
         applyChipsetUserDefaults()
         applyMemoryUserDefaults()
     }
-
+    
     func saveHardwareUserDefaults() {
-
+        
         saveChipsetUserDefaults()
         saveMemoryUserDefaults()
     }
@@ -806,15 +730,15 @@ extension Configuration {
 extension DefaultsProxy {
     
     func registerChipsetUserDefaults() {
-    
+        
         debug(.defaults)
         // No GUI related items in this sections
     }
-
+    
     func removeChipsetUserDefaults() {
-
+        
         debug(.defaults)
-
+        
         remove(.AMIGA_VIDEO_FORMAT)
         remove(.CPU_REVISION)
         remove(.CPU_OVERCLOCKING)
@@ -827,14 +751,14 @@ extension DefaultsProxy {
 
 @MainActor
 extension Configuration {
-
+    
     func applyChipsetUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         machineType = defaults.get(.AMIGA_VIDEO_FORMAT)
         cpuRev = defaults.get(.CPU_REVISION)
         cpuSpeed = defaults.get(.CPU_OVERCLOCKING)
@@ -843,16 +767,16 @@ extension Configuration {
         ciaRev = defaults.get(.CIA_REVISION)
         rtClock = defaults.get(.RTC_MODEL)
         
-        emu.resume()
+        emu?.resume()
     }
-
+    
     func saveChipsetUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         defaults.set(.AMIGA_VIDEO_FORMAT, machineType)
         defaults.set(.CPU_REVISION, cpuRev)
         defaults.set(.CPU_OVERCLOCKING, cpuSpeed)
@@ -861,8 +785,8 @@ extension Configuration {
         defaults.set(.CIA_REVISION, [0,1], ciaRev)
         defaults.set(.RTC_MODEL, rtClock)
         defaults.save()
-
-        emu.resume()
+        
+        emu?.resume()
     }
 }
 
@@ -874,7 +798,7 @@ extension Configuration {
 extension DefaultsProxy {
     
     func registerMemoryUserDefaults() {
-    
+        
         debug(.defaults)
         // No GUI related items in this sections
     }
@@ -882,7 +806,7 @@ extension DefaultsProxy {
     func removeMemoryUserDefaults() {
         
         debug(.defaults)
-
+        
         remove(.MEM_CHIP_RAM)
         remove(.MEM_SLOW_RAM)
         remove(.MEM_FAST_RAM)
@@ -894,13 +818,13 @@ extension DefaultsProxy {
 
 @MainActor
 extension Configuration {
-
+    
     func saveMemoryUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
+        emu?.suspend()
         
         defaults.set(.MEM_CHIP_RAM, chipRam)
         defaults.set(.MEM_SLOW_RAM, slowRam)
@@ -910,24 +834,24 @@ extension Configuration {
         defaults.set(.MEM_UNMAPPING_TYPE, unmappingType)
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
     
     func applyMemoryUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         chipRam = defaults.get(.MEM_CHIP_RAM)
         slowRam = defaults.get(.MEM_SLOW_RAM)
         fastRam = defaults.get(.MEM_FAST_RAM)
         ramInitPattern = defaults.get(.MEM_RAM_INIT_PATTERN)
         bankMap = defaults.get(.MEM_BANKMAP)
         unmappingType = defaults.get(.MEM_UNMAPPING_TYPE)
-
-        emu.resume()
+        
+        emu?.resume()
     }
 }
 
@@ -939,7 +863,7 @@ extension Configuration {
 extension Keys {
     
     struct Per {
-
+        
         // Ports
         static let gameDevice1        = "Peripherals.GameDevice1"
         static let gameDevice2        = "Peripherals.GameDevice2"
@@ -950,14 +874,14 @@ extension Keys {
 extension DefaultsProxy {
     
     func registerPeripheralsUserDefaults() {
-
+        
         debug(.defaults)
         
         // Port assignments
         register(Keys.Per.gameDevice1, 0)
         register(Keys.Per.gameDevice2, -1)
     }
-
+    
     func removePeripheralsUserDefaults() {
         
         debug(.defaults)
@@ -977,16 +901,16 @@ extension DefaultsProxy {
         removeKey(Keys.Per.gameDevice2)
     }
 }
- 
+
 @MainActor
 extension Configuration {
-
+    
     func savePeripheralsUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
+        
+        emu?.suspend()
         
         defaults.set(.DRIVE_CONNECT, 0, df0Connected)
         defaults.set(.DRIVE_CONNECT, 1, df1Connected)
@@ -997,82 +921,82 @@ extension Configuration {
         defaults.set(.DRIVE_TYPE, 1, df1Type)
         defaults.set(.DRIVE_TYPE, 2, df2Type)
         defaults.set(.DRIVE_TYPE, 3, df3Type)
-
+        
         defaults.set(.DRIVE_RPM, 0, df0Rpm)
         defaults.set(.DRIVE_RPM, 1, df1Rpm)
         defaults.set(.DRIVE_RPM, 2, df2Rpm)
         defaults.set(.DRIVE_RPM, 3, df3Rpm)
-
+        
         defaults.set(.HDC_CONNECT, 0, hd0Connected)
         defaults.set(.HDC_CONNECT, 1, hd1Connected)
         defaults.set(.HDC_CONNECT, 2, hd2Connected)
         defaults.set(.HDC_CONNECT, 3, hd3Connected)
-
+        
         defaults.set(.HDR_TYPE, 0, hd0Type)
         defaults.set(.HDR_TYPE, 1, hd1Type)
         defaults.set(.HDR_TYPE, 2, hd2Type)
         defaults.set(.HDR_TYPE, 3, hd3Type)
-
+        
         defaults.set(.SER_DEVICE, serialDevice)
         defaults.set(.SRV_PORT, ServerType.SER.rawValue, serialDevicePort)
-
+        
         defaults.set(.JOY_AUTOFIRE, [0, 1], autofire)
         defaults.set(.JOY_AUTOFIRE_BURSTS, [0, 1], autofireBursts)
         defaults.set(.JOY_AUTOFIRE_BULLETS, [0, 1], autofireBullets)
         defaults.set(.JOY_AUTOFIRE_DELAY, [0, 1], autofireDelay)
-
+        
         defaults.set(Keys.Per.gameDevice1, gameDevice1)
         defaults.set(Keys.Per.gameDevice2, gameDevice2)
-
+        
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
-
+    
     func applyPeripheralsUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         df0Connected = defaults.get(.DRIVE_CONNECT, 0) != 0
         df1Connected = defaults.get(.DRIVE_CONNECT, 1) != 0
         df2Connected = defaults.get(.DRIVE_CONNECT, 2) != 0
         df3Connected = defaults.get(.DRIVE_CONNECT, 3) != 0
-
+        
         df0Type = defaults.get(.DRIVE_TYPE, 0)
         df1Type = defaults.get(.DRIVE_TYPE, 1)
         df2Type = defaults.get(.DRIVE_TYPE, 2)
         df3Type = defaults.get(.DRIVE_TYPE, 3)
-
+        
         df0Rpm = defaults.get(.DRIVE_RPM, 0)
         df1Rpm = defaults.get(.DRIVE_RPM, 1)
         df2Rpm = defaults.get(.DRIVE_RPM, 2)
         df3Rpm = defaults.get(.DRIVE_RPM, 3)
-
+        
         hd0Connected = defaults.get(.HDC_CONNECT, 0) != 0
         hd1Connected = defaults.get(.HDC_CONNECT, 1) != 0
         hd2Connected = defaults.get(.HDC_CONNECT, 2) != 0
         hd3Connected = defaults.get(.HDC_CONNECT, 3) != 0
-
+        
         hd0Type = defaults.get(.HDR_TYPE, 0)
         hd1Type = defaults.get(.HDR_TYPE, 1)
         hd2Type = defaults.get(.HDR_TYPE, 2)
         hd3Type = defaults.get(.HDR_TYPE, 3)
-
+        
         serialDevice = defaults.get(.SER_DEVICE)
         serialDevicePort = defaults.get(.SRV_PORT, ServerType.SER.rawValue)
-
+        
         gameDevice1 = defaults.int(Keys.Per.gameDevice1)
         gameDevice2 = defaults.int(Keys.Per.gameDevice2)
-
+        
         autofire = defaults.get(.JOY_AUTOFIRE, 0) != 0
         autofireBursts = defaults.get(.JOY_AUTOFIRE_BURSTS, 0) != 0
         autofireBullets = defaults.get(.JOY_AUTOFIRE_BULLETS, 0)
         autofireDelay = defaults.get(.JOY_AUTOFIRE_DELAY, 0)
-
-        emu.resume()
+        
+        emu?.resume()
     }
 }
 
@@ -1082,17 +1006,17 @@ extension Configuration {
 
 @MainActor
 extension DefaultsProxy {
-
+    
     func registerPerformanceUserDefaults() {
-
+        
         debug(.defaults)
         // No GUI related items in this sections
     }
-
+    
     func removePerformanceUserDefaults() {
-
+        
         debug(.defaults)
-
+        
         remove(.AMIGA_WARP_MODE)
         remove(.AMIGA_WARP_BOOT)
         remove(.AMIGA_VSYNC)
@@ -1105,20 +1029,19 @@ extension DefaultsProxy {
         remove(.CIA_IDLE_SLEEP, [0, 1])
         remove(.AUD_FASTPATH)
         remove(.AMIGA_WS_COMPRESSION)
-        remove(.AMIGA_SNAP_COMPRESSOR)
     }
 }
 
 @MainActor
 extension Configuration {
-
+    
     func applyPerformanceUserDefaults() {
-
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         warpBoot = defaults.get(.AMIGA_WARP_BOOT)
         warpMode = defaults.get(.AMIGA_WARP_MODE)
         speedBoost = defaults.get(.AMIGA_SPEED_BOOST)
@@ -1128,18 +1051,17 @@ extension Configuration {
         ciaIdleSleep = defaults.get(.CIA_IDLE_SLEEP) != 0
         audioFastPath = defaults.get(.AUD_FASTPATH) != 0
         wsCompressor = defaults.get(.AMIGA_WS_COMPRESSION)
-        snapCompressor = defaults.get(.AMIGA_SNAP_COMPRESSOR)
-
-        emu.resume()
+        
+        emu?.resume()
     }
-
+    
     func savePerformanceUserDefaults() {
-
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         defaults.set(.AMIGA_WARP_MODE, warpMode)
         defaults.set(.AMIGA_WARP_BOOT, warpBoot)
         defaults.set(.AMIGA_VSYNC, vsync)
@@ -1149,10 +1071,9 @@ extension Configuration {
         defaults.set(.CIA_IDLE_SLEEP, [0,1], ciaIdleSleep)
         defaults.set(.AUD_FASTPATH, audioFastPath)
         defaults.set(.AMIGA_WS_COMPRESSION, wsCompressor)
-        defaults.set(.AMIGA_SNAP_COMPRESSOR, snapCompressor)
         defaults.save()
-
-        emu.resume()
+        
+        emu?.resume()
     }
 }
 
@@ -1164,7 +1085,7 @@ extension Configuration {
 extension DefaultsProxy {
     
     func registerCompatibilityUserDefaults() {
-
+        
         debug(.defaults)
         // No GUI related items in this sections
     }
@@ -1192,13 +1113,13 @@ extension DefaultsProxy {
 
 @MainActor
 extension Configuration {
-
+    
     func saveCompatibilityUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
+        emu?.suspend()
         
         defaults.set(.BLITTER_ACCURACY, blitterAccuracy)
         defaults.set(.AGNUS_PTR_DROPS, ptrDrops)
@@ -1216,15 +1137,15 @@ extension Configuration {
         defaults.set(.MEM_SLOW_RAM_MIRROR, slowRamMirror)
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
-
+    
     func applyCompatibilityUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
+        emu?.suspend()
         
         blitterAccuracy = defaults.get(.BLITTER_ACCURACY)
         ptrDrops = defaults.get(.AGNUS_PTR_DROPS) != 0
@@ -1240,8 +1161,8 @@ extension Configuration {
         clxPlfPlf = defaults.get(.DENISE_CLX_PLF_PLF) != 0
         slowRamDelay = defaults.get(.MEM_SLOW_RAM_DELAY) != 0
         slowRamMirror = defaults.get(.MEM_SLOW_RAM_MIRROR) != 0
-
-        emu.resume()
+        
+        emu?.resume()
     }
 }
 
@@ -1253,7 +1174,7 @@ extension Configuration {
 extension DefaultsProxy {
     
     func registerAudioUserDefaults() {
-
+        
         debug(.defaults)
         // No GUI related items in this sections
     }
@@ -1261,7 +1182,7 @@ extension DefaultsProxy {
     func removeAudioUserDefaults() {
         
         debug(.defaults)
-            
+        
         remove(.DRIVE_PAN, [0, 1, 2, 3])
         remove(.HDR_PAN, [0, 1, 2, 3])
         remove(.AUD_PAN0)
@@ -1292,8 +1213,8 @@ extension Configuration {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
+        
+        emu?.suspend()
         
         defaults.set(.AUD_VOL0, vol0)
         defaults.set(.AUD_VOL1, vol1)
@@ -1321,39 +1242,39 @@ extension Configuration {
         defaults.set(.AUD_SAMPLING_METHOD, samplingMethod)
         defaults.set(.AUD_BUFFER_SIZE, audioBufferSize)
         defaults.set(.AUD_ASR, asr)
-
+        
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
     
     func applyAudioUserDefaults() {
         
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         vol0 = defaults.get(.AUD_VOL0)
         vol1 = defaults.get(.AUD_VOL1)
         vol2 = defaults.get(.AUD_VOL2)
         vol3 = defaults.get(.AUD_VOL3)
-
+        
         pan0 = defaults.get(.AUD_PAN0)
         pan1 = defaults.get(.AUD_PAN1)
         pan2 = defaults.get(.AUD_PAN2)
         pan3 = defaults.get(.AUD_PAN3)
-
+        
         df0Pan = defaults.get(.DRIVE_PAN, 0)
         df1Pan = defaults.get(.DRIVE_PAN, 1)
         df2Pan = defaults.get(.DRIVE_PAN, 2)
         df3Pan = defaults.get(.DRIVE_PAN, 3)
-
+        
         hd0Pan = defaults.get(.HDR_PAN, 0)
         hd1Pan = defaults.get(.HDR_PAN, 1)
         hd2Pan = defaults.get(.HDR_PAN, 2)
         hd3Pan = defaults.get(.HDR_PAN, 3)
-
+        
         volL = defaults.get(.AUD_VOLL)
         volR = defaults.get(.AUD_VOLR)
         stepVolume = defaults.get(.DRIVE_STEP_VOLUME, 0)
@@ -1363,10 +1284,10 @@ extension Configuration {
         filterType = defaults.get(.AUD_FILTER_TYPE)
         
         samplingMethod = defaults.get(.AUD_SAMPLING_METHOD)
-        audioBufferSize = defaults.get(.AUD_BUFFER_SIZE, audioBufferSize)
-        asr = defaults.get(.AUD_ASR, asr)
-
-        emu.resume()
+        audioBufferSize = defaults.get(.AUD_BUFFER_SIZE)
+        asr = defaults.get(.AUD_ASR)
+        
+        emu?.resume()
     }
 }
 
@@ -1378,36 +1299,36 @@ extension Configuration {
 extension Keys {
     
     struct Vid {
-
+        
         /*
-        // Geometry
-        static let zoom               = "Geometry.Zoom"
-        static let hZoom              = "Geometry.HZoom"
-        static let vZoom              = "Geometry.VZoom"
-        static let center             = "Geometry.Center"
-        static let hCenter            = "Geometry.HCenter"
-        static let vCenter            = "Geometry.VCenter"
-
-        // Shaders
-        static let enhancer           = "Shaders.Enhancer"
-        static let upscaler           = "Shaders.Upscaler"
-        static let blur               = "Shaders.Blur"
-        static let blurRadius         = "Shaders.BlurRadius"
-        static let bloom              = "Shaders.Bloom"
-        static let bloomRadius        = "Shaders.BloonRadius"
-        static let bloomBrightness    = "Shaders.BloomBrightness"
-        static let bloomWeight        = "Shaders.BloomWeight"
-        static let flicker            = "Shaders.Flicker"
-        static let flickerWeight      = "Shaders.FlickerWeight"
-        static let dotMask            = "Shaders.DotMask"
-        static let dotMaskBrightness  = "Shaders.DotMaskBrightness"
-        static let scanlines          = "Shaders.Scanlines"
-        static let scanlineBrightness = "Shaders.ScanlineBrightness"
-        static let scanlineWeight     = "Shaders.ScanlineWeight"
-        static let disalignment       = "Shaders.Disalignment"
-        static let disalignmentH      = "Shaders.DisalignmentH"
-        static let disalignmentV      = "Shaders.DisalignmentV"
-        */
+         // Geometry
+         static let zoom               = "Geometry.Zoom"
+         static let hZoom              = "Geometry.HZoom"
+         static let vZoom              = "Geometry.VZoom"
+         static let center             = "Geometry.Center"
+         static let hCenter            = "Geometry.HCenter"
+         static let vCenter            = "Geometry.VCenter"
+         
+         // Shaders
+         static let enhancer           = "Shaders.Enhancer"
+         static let upscaler           = "Shaders.Upscaler"
+         static let blur               = "Shaders.Blur"
+         static let blurRadius         = "Shaders.BlurRadius"
+         static let bloom              = "Shaders.Bloom"
+         static let bloomRadius        = "Shaders.BloonRadius"
+         static let bloomBrightness    = "Shaders.BloomBrightness"
+         static let bloomWeight        = "Shaders.BloomWeight"
+         static let flicker            = "Shaders.Flicker"
+         static let flickerWeight      = "Shaders.FlickerWeight"
+         static let dotMask            = "Shaders.DotMask"
+         static let dotMaskBrightness  = "Shaders.DotMaskBrightness"
+         static let scanlines          = "Shaders.Scanlines"
+         static let scanlineBrightness = "Shaders.ScanlineBrightness"
+         static let scanlineWeight     = "Shaders.ScanlineWeight"
+         static let disalignment       = "Shaders.Disalignment"
+         static let disalignmentH      = "Shaders.DisalignmentH"
+         static let disalignmentV      = "Shaders.DisalignmentV"
+         */
     }
 }
 
@@ -1415,34 +1336,34 @@ extension Keys {
 extension DefaultsProxy {
     
     func registerVideoUserDefaults() {
-
+        
         debug(.defaults)
         
         registerColorUserDefaults()
         registerGeometryUserDefaults()
         registerShaderUserDefaults()
     }
-
+    
     func registerColorUserDefaults() {
         
         debug(.defaults)
         // No GUI related keys in this category
     }
-
+    
     func registerGeometryUserDefaults() {
-
+        
         debug(.defaults)
         // No GUI related keys in this category
     }
     
     func registerShaderUserDefaults() {
-
+        
         debug(.defaults)
         // No GUI related keys in this category
     }
     
     func removeVideoUserDefaults() {
-
+        
         debug(.defaults)
         
         removeColorUserDefaults()
@@ -1451,17 +1372,17 @@ extension DefaultsProxy {
     }
     
     func removeColorUserDefaults() {
-
+        
         debug(.defaults)
-
+        
         remove(.MON_PALETTE)
         remove(.MON_BRIGHTNESS)
         remove(.MON_CONTRAST)
         remove(.MON_SATURATION)
     }
-
+    
     func removeGeometryUserDefaults() {
-
+        
         debug(.defaults)
         
         remove(.MON_CENTER)
@@ -1473,7 +1394,7 @@ extension DefaultsProxy {
     }
     
     func removeShaderUserDefaults() {
-
+        
         debug(.defaults)
         
         remove(.MON_ENHANCER)
@@ -1499,63 +1420,63 @@ extension DefaultsProxy {
 
 @MainActor
 extension Configuration {
-
+    
     func saveVideoUserDefaults() {
         
         debug(.defaults)
-
-        emu.suspend()
-
+        
+        emu?.suspend()
+        
         saveColorUserDefaults()
         saveGeometryUserDefaults()
         saveShaderUserDefaults()
-
-        emu.resume()
+        
+        emu?.resume()
     }
     
     func saveColorUserDefaults() {
-
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
+        emu?.suspend()
         
         defaults.set(.MON_PALETTE, palette)
         defaults.set(.MON_BRIGHTNESS, brightness)
         defaults.set(.MON_CONTRAST, contrast)
         defaults.set(.MON_SATURATION, saturation)
-
+        
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
     
     func saveGeometryUserDefaults() {
-
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
-                
+        emu?.suspend()
+        
         defaults.set(.MON_ZOOM, Int(zoom))
         defaults.set(.MON_HZOOM, Int(hZoom))
         defaults.set(.MON_VZOOM, Int(vZoom))
         defaults.set(.MON_CENTER, Int(center))
         defaults.set(.MON_HCENTER, Int(hCenter))
         defaults.set(.MON_VCENTER, Int(vCenter))
-
+        
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
-  
+    
     func saveShaderUserDefaults() {
-
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
-                        
+        emu?.suspend()
+        
         defaults.set(.MON_ENHANCER, enhancer)
         defaults.set(.MON_UPSCALER, upscaler)
         defaults.set(.MON_BLUR, blur)
@@ -1577,7 +1498,7 @@ extension Configuration {
         
         defaults.save()
         
-        emu.resume()
+        emu?.resume()
     }
     
     func applyVideoUserDefaults() {
@@ -1590,44 +1511,44 @@ extension Configuration {
     }
     
     func applyColorUserDefaults() {
-    
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
+        emu?.suspend()
         
         palette = defaults.get(.MON_PALETTE)
         brightness = defaults.get(.MON_BRIGHTNESS)
         contrast = defaults.get(.MON_CONTRAST)
         saturation = defaults.get(.MON_SATURATION)
-
-        emu.resume()
+        
+        emu?.resume()
     }
-
-    func applyGeometryUserDefaults() {
     
+    func applyGeometryUserDefaults() {
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
-          
+        emu?.suspend()
+        
         zoom = defaults.get(.MON_ZOOM)
         hZoom = defaults.get(.MON_HZOOM)
         vZoom = defaults.get(.MON_VZOOM)
         center = defaults.get(.MON_CENTER)
         hCenter = defaults.get(.MON_HCENTER)
         vCenter = defaults.get(.MON_VCENTER)
-
-        emu.resume()
+        
+        emu?.resume()
     }
-
-    func applyShaderUserDefaults() {
     
+    func applyShaderUserDefaults() {
+        
         debug(.defaults)
         let defaults = EmulatorProxy.defaults!
         
-        emu.suspend()
-                        
+        emu?.suspend()
+        
         enhancer = defaults.get(.MON_ENHANCER)
         upscaler = defaults.get(.MON_UPSCALER)
         blur = defaults.get(.MON_BLUR)
@@ -1647,6 +1568,6 @@ extension Configuration {
         disalignmentH = defaults.get(.MON_DISALIGNMENT_H)
         disalignmentV = defaults.get(.MON_DISALIGNMENT_V)
         
-        emu.resume()
+        emu?.resume()
     }
 }

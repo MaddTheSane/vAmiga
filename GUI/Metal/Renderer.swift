@@ -33,7 +33,7 @@ class Renderer: NSObject, MTKViewDelegate {
     
     var prefs: Preferences { return parent.pref }
     var config: Configuration { return parent.config }
-    var amiga: EmulatorProxy { return parent.emu }
+    var emu: EmulatorProxy? { return parent.emu }
 
     // Number of drawn frames since power up
     var frames: Int64 = 0
@@ -62,6 +62,7 @@ class Renderer: NSObject, MTKViewDelegate {
     
     var metalLayer: CAMetalLayer! = nil
     var splashScreen: SplashScreen! = nil
+    var onboarding: Onboarding! = nil
     var canvas: Canvas! = nil
     var console: Console! = nil
     var dropZone: DropZone! = nil
@@ -148,23 +149,7 @@ class Renderer: NSObject, MTKViewDelegate {
         ressourceManager.buildDepthBuffer()
     }
 
-    var recordingRect: CGRect {
-
-        var result: CGRect
-
-        switch prefs.captureSource {
-
-        case .visible:  result = canvas.textureRectAbs
-        case .entire:   result = canvas.entire
-        }
-
-        // Make sure the screen dimensions are even
-        if Int(result.size.width) % 2 == 1 { result.size.width -= 1 }
-        if Int(result.size.height) % 2 == 1 { result.size.height -= 1 }
-
-        return result
-    }
-
+ 
     //
     //  Drawing
     //
@@ -203,12 +188,13 @@ class Renderer: NSObject, MTKViewDelegate {
             
             // Process all pending messages
             var msg = Message()
-            while amiga.amiga.getMessage(&msg) {
+            while emu?.amiga.getMessage(&msg) == true {
                 parent.process(message: msg)
             }
         }
         
         splashScreen.update(frames: frames)
+        onboarding.update(frames: frames)
         dropZone.update(frames: frames)
         console.update(frames: frames)
         canvas.update(frames: frames)
@@ -235,15 +221,15 @@ class Renderer: NSObject, MTKViewDelegate {
                 if [50, 60, 100, 120, 200, 240].contains(newfps) {
 
                     fps = newfps
-                    amiga.set(.HOST_REFRESH_RATE, value: Int(fps))
-                    debug(.vsync, "New GPU frame rate: \(amiga.get(.HOST_REFRESH_RATE))")
+                    emu?.set(.HOST_REFRESH_RATE, value: Int(fps))
+                    debug(.vsync, "New GPU frame rate: \(fps)")
                 }
             }
         }
     }
     
-    func processMessage(_ msg: Message) {
-        
+    func process(message msg: Message) {
+
         let option = Option(rawValue: Int(msg.value))!
 
         switch msg.type {
@@ -295,8 +281,9 @@ class Renderer: NSObject, MTKViewDelegate {
         // Render the scene
         if canvas.isTransparent { splashScreen.render(encoder) }
         if canvas.isVisible { canvas.render(encoder) }
+
         encoder.endEncoding()
-        
+
         // Commit the command buffer
         buffer.addCompletedHandler { @Sendable [weak self] buffer in
 

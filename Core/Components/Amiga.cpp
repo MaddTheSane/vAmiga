@@ -159,9 +159,6 @@ Amiga::getOption(Opt option) const
         case Opt::AMIGA_VSYNC:           return (i64)config.vsync;
         case Opt::AMIGA_SPEED_BOOST:     return (i64)config.speedBoost;
         case Opt::AMIGA_RUN_AHEAD:       return (i64)config.runAhead;
-        case Opt::AMIGA_SNAP_AUTO:       return (i64)config.autoSnapshots;
-        case Opt::AMIGA_SNAP_DELAY:      return (i64)config.snapshotDelay;
-        case Opt::AMIGA_SNAP_COMPRESSOR: return (i64)config.snapshotCompressor;
         case Opt::AMIGA_WS_COMPRESSION:  return (i64)config.compressWorkspaces;
 
         default:
@@ -209,25 +206,7 @@ Amiga::checkOption(Opt opt, i64 value)
                 throw AppError(Fault::OPT_INV_ARG, "-7...7");
             }
             return;
-            
-        case Opt::AMIGA_SNAP_AUTO:
-            
-            return;
-            
-        case Opt::AMIGA_SNAP_DELAY:
-            
-            if (value < 10 || value > 3600) {
-                throw AppError(Fault::OPT_INV_ARG, "10...3600");
-            }
-            return;
-            
-        case Opt::AMIGA_SNAP_COMPRESSOR:
-            
-            if (!CompressorEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, CompressorEnum::keyList());
-            }
-            return;
-            
+
         case Opt::AMIGA_WS_COMPRESSION:
 
             return;
@@ -274,23 +253,6 @@ Amiga::setOption(Opt option, i64 value)
         case Opt::AMIGA_RUN_AHEAD:
             
             config.runAhead = isize(value);
-            return;
-            
-        case Opt::AMIGA_SNAP_AUTO:
-            
-            config.autoSnapshots = bool(value);
-            scheduleNextSnpEvent();
-            return;
-            
-        case Opt::AMIGA_SNAP_DELAY:
-            
-            config.snapshotDelay = isize(value);
-            scheduleNextSnpEvent();
-            return;
-            
-        case Opt::AMIGA_SNAP_COMPRESSOR:
-            
-            config.snapshotCompressor = Compressor(value);
             return;
 
         case Opt::AMIGA_WS_COMPRESSION:
@@ -416,7 +378,7 @@ Amiga::saveWorkspace(const fs::path &path)
     ss << "\n";
 
     // Dump the current config
-    exportConfig(ss, false, { Class::Host} );
+    exportConfig(ss, false, { Class::Host } );
 
     // Export ROMs
     ss << "\n# ROMs\n\n";
@@ -459,7 +421,6 @@ Amiga::initWorkspace()
 {
     /* This function is called at the beginning of a workspace script */
     
-    // Power off the Amiga to make it configurable
     emulator.powerOff();
 }
 
@@ -467,11 +428,8 @@ void
 Amiga::activateWorkspace()
 {
     /* This function is called at the end of a workspace script */
-     
-    // Power on the Amiga
+
     emulator.run();
-    
-    // Inform the GUI
     msgQueue.put(Msg::WORKSPACE_LOADED);
 }
 
@@ -733,6 +691,23 @@ Amiga::_dump(Category category, std::ostream &os) const
         os << std::endl;
     }
 
+    if (category == Category::Checksums) {
+
+        for (auto &c : subComponents) {
+
+            os << tab(c->objectName());
+            os << hex(c->checksum(false))  << "  " << dec(c->size()) << " bytes";
+            os << std::endl;
+
+            for (auto &cc : c->subComponents) {
+
+                os << tab(cc->objectName());
+                os << hex(cc->checksum(true)) << "  " << dec(cc->size()) << " bytes";
+                os << std::endl;
+            }
+        }
+    }
+    
     if (category == Category::Current) {
 
         auto dmacon = agnus.dmacon;
@@ -1136,22 +1111,38 @@ Amiga::clearFlag(u32 flag)
 }
 
 MediaFile *
-Amiga::takeSnapshot()
+Amiga::takeSnapshot(Compressor compressor, isize delay, bool repeat)
 {
-    Snapshot *result;
-    
+    if (delay != 0) {
+
+        i64 payload = (i64)compressor << 24 | repeat << 16 | delay;
+        agnus.scheduleRel<SLOT_SNP>(Amiga::sec(delay), SNP_TAKE, payload);
+        return nullptr;
+    }
+
     // Take the snapshot
-   result = new Snapshot(*this);
-    
+    Snapshot *result = new Snapshot(*this);
+
     // Compress the snapshot if requested
-    result->compress(config.snapshotCompressor);
-    
+    result->compress(compressor);
+
     return result;
 }
 
 void
 Amiga::serviceSnpEvent(EventID eventId)
 {
+    // Ignore the run-ahead instance
+    if (objid != 0) { agnus.cancel<SLOT_SNP>(); return; }
+
+    // Take snapshot and hand it over to the GUI
+    auto *snapshot = takeSnapshot(Compressor(agnus.data[SLOT_SNP] >> 24));
+    msgQueue.put( Message { .type = Msg::SNAPSHOT_TAKEN, .snapshot = { snapshot } } );
+
+    // Schedule the next event
+    scheduleNextSnpEvent();
+
+    /*
     // Check for the main instance (ignore the run-ahead instance)
     if (objid == 0) {
 
@@ -1161,16 +1152,17 @@ Amiga::serviceSnpEvent(EventID eventId)
 
     // Schedule the next event
     scheduleNextSnpEvent();
+    */
 }
 
 void
 Amiga::scheduleNextSnpEvent()
 {
-    auto snapshots = emulator.get(Opt::AMIGA_SNAP_AUTO);
-    auto delay = emulator.get(Opt::AMIGA_SNAP_DELAY);
+    auto repeat = bool(agnus.data[SLOT_SNP] >> 16 & 0xFF);
+    auto delay = double(agnus.data[SLOT_SNP] & 0xFFFF);
 
-    if (snapshots) {
-        agnus.scheduleRel<SLOT_SNP>(SEC(double(delay)), SNP_TAKE);
+    if (repeat) {
+        agnus.scheduleRel<SLOT_SNP>(Amiga::sec(delay), SNP_TAKE, agnus.data[SLOT_SNP]);
     } else {
         agnus.cancel<SLOT_SNP>();
     }
@@ -1185,13 +1177,8 @@ Amiga::loadSnapshot(const fs::path &path)
 void
 Amiga::loadSnapshot(const MediaFile &file)
 {
-    const Snapshot &snapshot = dynamic_cast<const Snapshot &>(file);
-    loadSnapshot(snapshot);
-}
+    const Snapshot &snap = dynamic_cast<const Snapshot &>(file);
 
-void
-Amiga::loadSnapshot(const Snapshot &snap)
-{
     // Make a copy so we can modify the snapshot
     Snapshot snapshot(snap);
     

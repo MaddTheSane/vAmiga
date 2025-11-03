@@ -48,7 +48,6 @@ using namespace vamiga;
 @class RemoteManagerProxy;
 @class RetroShellProxy;
 @class RtcProxy;
-@class RecorderProxy;
 @class SerialPortProxy;
 @class VideoPortProxy;
 
@@ -199,7 +198,6 @@ NSString *EventSlotName(EventSlot slot);
     RemoteManagerProxy *remoteManager;
     RetroShellProxy *retroShell;
     RtcProxy *rtc;
-    RecorderProxy *recorder;
     SerialPortProxy *serialPort;
     VideoPortProxy *videoPort;
 }
@@ -235,7 +233,6 @@ NSString *EventSlotName(EventSlot slot);
 @property (readonly, strong) RemoteManagerProxy *remoteManager;
 @property (readonly, strong) RetroShellProxy *retroShell;
 @property (readonly, strong) RtcProxy *rtc;
-@property (readonly, strong) RecorderProxy *recorder;
 @property (readonly, strong) SerialPortProxy *serialPort;
 @property (readonly, strong) VideoPortProxy *videoPort;
 
@@ -404,17 +401,15 @@ NSString *EventSlotName(EventSlot slot);
 @property (readonly) AmigaInfo info;
 @property (readonly) AmigaInfo cachedInfo;
 @property NSInteger autoInspectionMask;
+@property (readonly) NSString *stateString;
 
-- (MediaFileProxy *) takeSnapshot;
+- (MediaFileProxy *) takeSnapshot:(Compressor)compressor;
 - (void)loadSnapshot:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadSnapshotFromUrl:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (void)saveSnapshotToUrl:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
 - (void)loadWorkspace:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (void)saveWorkspace:(NSURL *)url exception:(ExceptionWrapper *)ex;
-
-
-@property (readonly) NSString *stateString;
 
 - (BOOL) getMessage:(Message *)msg;
 
@@ -575,35 +570,6 @@ NSString *EventSlotName(EventSlot slot);
 
 
 //
-// Recorder
-//
-
-@interface RecorderProxy : Proxy { }
-
-@property (readonly) RecorderConfig config;
-@property NSString *path;
-- (NSString *)findFFmpeg:(NSInteger)nr;
-@property (readonly) BOOL hasFFmpeg;
-@property (readonly) BOOL recording;
-@property (readonly) double duration;
-/*
-@property (readonly) NSInteger frameRate;
-@property (readonly) NSInteger bitRate;
-@property (readonly) NSInteger sampleRate;
-*/
-
-- (void)startRecording:(NSRect)rect
-               bitRate:(NSInteger)rate
-               aspectX:(NSInteger)aspectX
-               aspectY:(NSInteger)aspectY
-             exception:(ExceptionWrapper *)ex;
-- (void)stopRecording;
-- (BOOL)exportAs:(NSString *)path;
-
-@end
-
-
-//
 // Paula
 //
 
@@ -703,6 +669,9 @@ NSString *EventSlotName(EventSlot slot);
 //
 
 @interface JoystickProxy : CoreComponentProxy { }
+
+@property (readonly) JoystickInfo info;
+@property (readonly) JoystickInfo cachedInfo;
 
 - (void)trigger:(GamePadAction)event;
 
@@ -872,7 +841,6 @@ NSString *EventSlotName(EventSlot slot);
 @interface RetroShellProxy : Proxy { }
 
 @property (readonly) RetroShellInfo info;
-// @property (readonly) NSInteger cursorRel;
 
 - (NSString *)getText;
 - (void)pressKey:(char)c;
@@ -924,7 +892,7 @@ NSString *EventSlotName(EventSlot slot);
 + (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithFile:(NSString *)path type:(FileType)t exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len type:(FileType)t exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy;
++ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy compressor:(Compressor)c;
 + (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
 + (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;

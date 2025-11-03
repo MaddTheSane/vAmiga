@@ -15,7 +15,7 @@ class KeyboardController: NSObject {
     // var myAppDelegate: MyAppDelegate { return NSApp.delegate as! MyAppDelegate }
     var parent: MyController!
 
-    var keyboard: KeyboardProxy { return parent.emu.keyboard }
+    var keyboard: KeyboardProxy? { return parent.emu?.keyboard }
     var renderer: Renderer { return parent.renderer }
     var pref: Preferences { return parent.pref }
         
@@ -26,8 +26,11 @@ class KeyboardController: NSObject {
     var leftCommand = false, rightCommand = false
     var capsLock    = false
 
+    // Remembers the state of the two virtual Amiga keys
+    var leftAmiga   = false, rightAmiga   = false
+
     // Remembers the warp mode when caps lock is pressed
-    var oldWarpMode: WarpMode?
+    var oldWarpMode: Warp?
 
     // Mapping from Unicode scalars to keycodes (used for auto-typing)
     var symKeyMap: [UnicodeScalar: UInt16] = [:]
@@ -55,6 +58,8 @@ class KeyboardController: NSObject {
     
     func keyDown(with event: NSEvent) {
 
+        print("keyDown: \(event)")
+
         // Intercept if the console is open
         if renderer.console.isVisible { renderer.console.keyDown(with: event); return }
                 
@@ -77,6 +82,8 @@ class KeyboardController: NSObject {
     
     func keyUp(with event: NSEvent) {
 
+        print("keyUp: \(event)")
+
         // Intercept if the console is open
         if renderer.console.isVisible { renderer.console.keyUp(with: event); return }
 
@@ -85,11 +92,14 @@ class KeyboardController: NSObject {
     
     func flagsChanged(with event: NSEvent) {
 
+        var cmd: Bool { event.modifierFlags.contains(.command) }
+
+        // print("flagsChanged: \(event)")
         // Intercept if the console is open
         if renderer.console.isVisible { return }
 
         // Check for a mouse controlling key combination
-        if parent.metal.checkForMouseKeys(with: event) { return }
+        // if parent.metal.checkForMouseKeys(with: event) { return }
 
         // Determine the pressed or released key
         switch Int(event.keyCode) {
@@ -112,21 +122,23 @@ class KeyboardController: NSObject {
             
         case kVK_Option:
             leftOption = event.modifierFlags.contains(.option) ? !leftOption : false
-            leftOption ? keyDown(with: MacKey.option) : keyUp(with: MacKey.option)
+            if leftOption {
+                leftAmiga = cmd && pref.amigaKeysCombEnable && pref.amigaKeysComb == 0
+                leftAmiga ? keyDown(with: MacKey.command) : keyDown(with: MacKey.option)
+            } else {
+                leftAmiga ? keyUp(with: MacKey.command) : keyUp(with: MacKey.option)
+                leftAmiga = false
+            }
 
         case kVK_RightOption:
             rightOption = event.modifierFlags.contains(.option) ? !rightOption : false
-            rightOption ? keyDown(with: MacKey.rightOption) : keyUp(with: MacKey.rightOption)
-            
-        case kVK_Command where myAppDelegate.mapLeftCmdKey:
-            leftCommand = event.modifierFlags.contains(.command) ? !leftCommand : false
-            myApp.disableCmdKey = leftCommand
-            leftCommand ? keyDown(with: MacKey.command) : keyUp(with: MacKey.command)
-            
-        case kVK_RightCommand where myAppDelegate.mapRightCmdKey:
-            rightCommand = event.modifierFlags.contains(.command) ? !rightCommand : false
-            myApp.disableCmdKey = rightCommand
-            rightCommand ? keyDown(with: MacKey.rightCommand) : keyUp(with: MacKey.rightCommand)
+            if rightOption {
+                rightAmiga = cmd && pref.amigaKeysCombEnable && pref.amigaKeysComb == 0
+                rightAmiga ? keyDown(with: MacKey.rightCommand) : keyDown(with: MacKey.rightOption)
+            } else {
+                rightAmiga ? keyUp(with: MacKey.rightCommand) : keyUp(with: MacKey.rightOption)
+                rightAmiga = false
+            }
 
         case kVK_CapsLock where myAppDelegate.mapCapsLockWarp:
             capsLock = event.modifierFlags.contains(.capsLock)
@@ -136,8 +148,15 @@ class KeyboardController: NSObject {
             break
         }
     }
-    
+
     func keyDown(with macKey: MacKey) {
+
+        /*
+        if macKey == .command { print("keyDown: command") }
+        if macKey == .option { print("keyDown: option") }
+        if macKey == .rightCommand { print("keyDown: rightCommand") }
+        if macKey == .rightOption { print("keyDown: rightOption") }
+        */
 
         // Check if this key is used to emulate a game device
         if parent.gamePad1?.processKeyDownEvent(macKey: macKey) == true {
@@ -147,11 +166,18 @@ class KeyboardController: NSObject {
             if pref.disconnectJoyKeys { return }
         }
 
-        if let amigaKey = macKey.amigaKeyCode { keyboard.press(amigaKey) }
+        if let amigaKey = macKey.amigaKeyCode { keyboard?.press(amigaKey) }
         parent.virtualKeyboard?.refreshIfVisible()
     }
     
     func keyUp(with macKey: MacKey) {
+
+        /*
+        if macKey == .command { print("keyUp: command") }
+        if macKey == .option { print("keyUp: option") }
+        if macKey == .rightCommand { print("keyUp: rightCommand") }
+        if macKey == .rightOption { print("keyUp: rightOption") }
+        */
 
         // Check if this key is used to emulate a game device
         if parent.gamePad1?.processKeyUpEvent(macKey: macKey) == true {
@@ -161,34 +187,34 @@ class KeyboardController: NSObject {
             if pref.disconnectJoyKeys { return }
         }
 
-        if let amigaKey = macKey.amigaKeyCode { keyboard.release(amigaKey) }
+        if let amigaKey = macKey.amigaKeyCode { keyboard?.release(amigaKey) }
         parent.virtualKeyboard?.refreshIfVisible()
     }
 
     func keyDown(with keyCode: UInt16) {
 
         let macKey = MacKey(keyCode: keyCode)
-        if let amigaKey = macKey.amigaKeyCode { keyboard.press(amigaKey) }
+        if let amigaKey = macKey.amigaKeyCode { keyboard?.press(amigaKey) }
         parent.virtualKeyboard?.refreshIfVisible()
     }
 
     func keyUp(with keyCode: UInt16) {
 
         let macKey = MacKey(keyCode: keyCode)
-        if let amigaKey = macKey.amigaKeyCode { keyboard.release(amigaKey) }
+        if let amigaKey = macKey.amigaKeyCode { keyboard?.release(amigaKey) }
         parent.virtualKeyboard?.refreshIfVisible()
     }
 
     func capsLockDown() {
 
-        oldWarpMode = WarpMode(rawValue: parent.config.warpMode)
-        parent.config.warpMode = WarpMode.ALWAYS.rawValue
+        oldWarpMode = Warp(rawValue: parent.config.warpMode)
+        parent.config.warpMode = Warp.ALWAYS.rawValue
     }
 
     func capsLockUp() {
 
         if let oldWarpMode = oldWarpMode {
-            if parent.config.warpMode == WarpMode.ALWAYS.rawValue {
+            if parent.config.warpMode == Warp.ALWAYS.rawValue {
                 parent.config.warpMode = oldWarpMode.rawValue
             }
         }
@@ -213,14 +239,14 @@ class KeyboardController: NSObject {
 
         func pressShift() {
             if !shift {
-                keyboard.press(MacKey.shift.amigaKeyCode!, delay: delay)
+                keyboard?.press(MacKey.shift.amigaKeyCode!, delay: delay)
                 delay += delta
                 shift = true
             }
         }
         func releaseShift() {
             if shift {
-                keyboard.release(MacKey.shift.amigaKeyCode!, delay: delay)
+                keyboard?.release(MacKey.shift.amigaKeyCode!, delay: delay)
                 delay += delta
                 shift = false
             }
@@ -233,9 +259,9 @@ class KeyboardController: NSObject {
                 if let amigaKeyCode = MacKey(keyCode: keyCode).amigaKeyCode {
 
                     releaseShift()
-                    keyboard.press(amigaKeyCode, delay: delay)
+                    keyboard?.press(amigaKeyCode, delay: delay)
                     delay += delta
-                    keyboard.release(amigaKeyCode, delay: delay)
+                    keyboard?.release(amigaKeyCode, delay: delay)
                     delay += delta
                     continue
                 }
@@ -245,9 +271,9 @@ class KeyboardController: NSObject {
                 if let amigaKeyCode = MacKey(keyCode: keyCode).amigaKeyCode {
 
                     pressShift()
-                    keyboard.press(amigaKeyCode, delay: delay)
+                    keyboard?.press(amigaKeyCode, delay: delay)
                     delay += delta
-                    keyboard.release(amigaKeyCode)
+                    keyboard?.release(amigaKeyCode)
                     delay += delta
                     continue
                 }

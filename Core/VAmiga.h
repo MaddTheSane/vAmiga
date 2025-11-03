@@ -11,6 +11,7 @@
 
 #include "VAmigaTypes.h"
 #include "Error.h"
+#include "MediaFile.h"
 
 namespace vamiga {
 
@@ -38,9 +39,10 @@ public:
 class AmigaAPI : public API {
 
     friend class VAmiga;
-    class Amiga *amiga = nullptr;
     
 public:
+
+    class Amiga *amiga = nullptr;
     
     /// @name Analyzing the emulator
     /// @{
@@ -61,24 +63,58 @@ public:
      */
     void dump(Category category, std::ostream &os) const;
 
+
     /// @}
-    /// @name Managing workspaces and snapshots
+    /// @name Accessing the message queue
     /// @{
 
+    /** @brief  Reads a message from the message queue
+     *
+     *  @param  msg    The returned message (if any)
+     *  @return True if a message could be read, false if the queue was empty
+     */
+    bool getMsg(Message &msg);
+
+
+    /// @}
+    /// @name Working with workspaces and snapshots
+    /// @{
+
+    /** @brief  Loads a workspace.
+     *
+     *  @param  path    Path to a workspace folder
+     */
+    void loadWorkspace(const fs::path &path);
+
+    /** @brief  Saves a workspace to disk.
+     *
+     *  @param  path    Destination path
+     */
+    void saveWorkspace(const fs::path &path) const;
+
     /** @brief  Takes a snapshot
+     *
+     *  @param  compressor   The snapshot compression method
+     *  @param  delay              Optional delay in seconds
+     *  @param  repeat            if true, snapshots are taken continuously
      *
      *  @return A pointer to the created Snapshot object.
      *
      *  @note   The function transfers the ownership to the caller. It is
      *          his responsibility of the caller to free the object.
      */
-    class MediaFile *takeSnapshot();
+    MediaFile *takeSnapshot(Compressor compressor, isize delay = 0, bool repeat = false);
 
-    /** @brief  Loads a snapshot into the emulator.
+    /** @brief  Loads a snapshot.
      *
-     *  @param  snapshot    Reference to a snapshot.
+     *  @param  snapshot    Reference to a snapshot
      */
     void loadSnapshot(const MediaFile &snapshot);
+
+    /** @brief  Loads a snapshot
+     *
+     *  @param  path    Source path
+     */
     void loadSnapshot(const fs::path &path);
     
     /** @brief  Saves a snapshot to disk.
@@ -86,12 +122,7 @@ public:
      *  @param  path    Destination path
      */
     void saveSnapshot(const fs::path &path) const;
-    
-    /** @brief  Experimental
-     */
-    void loadWorkspace(const fs::path &path);
-    void saveWorkspace(const fs::path &path) const;
-    
+
     
     /// @}
     /// @name Auto-inspecting components
@@ -118,8 +149,6 @@ public:
     void setAutoInspectionMask(u64 mask);
     
     /// @}
-    
-    bool getMsg(Message &msg);
 };
 
 
@@ -130,9 +159,10 @@ public:
 class DmaDebuggerAPI : public API {
 
     friend class VAmiga;
-    class DmaDebugger *dmaDebugger = nullptr;
-
+    
 public:
+
+    class DmaDebugger *dmaDebugger = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -147,9 +177,10 @@ public:
 class LogicAnalyzerAPI : public API {
 
     friend class VAmiga;
-    class LogicAnalyzer *logicAnalyzer = nullptr;
-
+    
 public:
+
+    class LogicAnalyzer *logicAnalyzer = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -164,9 +195,10 @@ public:
 class BlitterAPI : public API {
 
     friend class VAmiga;
-    class Blitter *blitter = nullptr;
-
+    
 public:
+
+    class Blitter *blitter = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -181,9 +213,10 @@ public:
 class CopperAPI : public API {
 
     friend class VAmiga;
-    class Copper *copper = nullptr;
-
+    
 public:
+
+    class Copper *copper = nullptr;
 
     /** @brief  Returns the component's current state.
      */
@@ -218,9 +251,10 @@ public:
 class AgnusAPI : public API {
 
     friend class VAmiga;
-    class Agnus *agnus = nullptr;
-
+    
 public:
+
+    class Agnus *agnus = nullptr;
     
     CopperAPI copper;
     BlitterAPI blitter;
@@ -253,9 +287,10 @@ public:
 class CIAAPI : public API {
 
     friend class VAmiga;
-    class CIA *cia = nullptr;
-
+    
 public:
+
+    class CIA *cia = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -281,9 +316,10 @@ namespace moira { class Guards; class Debugger; }
 class GuardsAPI : public API {
 
     friend class VAmiga;
-    class GuardList *guards = nullptr;
-
+    
 public:
+
+    class GuardList *guards = nullptr;
     
     /** @brief  Returns the number of guards in the guard list.
      */
@@ -363,9 +399,10 @@ public:
 class CPUDebuggerAPI : public API {
 
     friend class VAmiga;
-    class CPU *cpu = nullptr;
-
+    
 public:
+
+    class CPU *cpu = nullptr;
 
     /** @brief  Returns the number of instructions in the record buffer.
      *  @note   The record buffer is only filled in track mode. To save
@@ -399,9 +436,10 @@ public:
 class CPUAPI : public API {
 
     friend class VAmiga;
-    class CPU *cpu = nullptr;
-
+    
 public:
+
+    class CPU *cpu = nullptr;
 
     CPUDebuggerAPI debugger;
     GuardsAPI breakpoints;
@@ -420,9 +458,10 @@ public:
 class DeniseAPI : public API {
 
     friend class VAmiga;
-    class Denise *denise = nullptr;
-
+    
 public:
+
+    class Denise *denise = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -442,9 +481,10 @@ public:
 class MemoryDebuggerAPI : public API {
 
     friend class VAmiga;
-    class Memory *mem = nullptr;
-
+    
 public:
+
+    class Memory *mem = nullptr;
     
     /// @name Debugging memory
     /// @{
@@ -470,9 +510,10 @@ public:
 class MemoryAPI : public API {
 
     friend class VAmiga;
-    class Memory *mem = nullptr;
-
+    
 public:
+
+    class Memory *mem = nullptr;
     
     MemoryDebuggerAPI debugger;
 
@@ -540,10 +581,11 @@ public:
 class AudioChannelAPI : public API {
 
     friend class VAmiga;
-    class Paula *paula = nullptr;
     isize channel = 0;
-
+    
 public:
+
+    class Paula *paula = nullptr;
     
     AudioChannelAPI(isize channel) : API(), channel(channel) { }
 
@@ -556,9 +598,10 @@ public:
 class DiskControllerAPI : public API {
 
     friend class VAmiga;
-    class DiskController *diskController = nullptr;
-
+    
 public:
+
+    class DiskController *diskController = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -573,9 +616,10 @@ public:
 class UARTAPI : public API {
 
     friend class VAmiga;
-    class UART *uart = nullptr;
-
+    
 public:
+
+    class UART *uart = nullptr;
     
     /** @brief  Returns the component's current state.
      */
@@ -586,9 +630,10 @@ public:
 class PaulaAPI : public API {
 
     friend class VAmiga;
-    class Paula *paula = nullptr;
-
+    
 public:
+
+    class Paula *paula = nullptr;
     
     AudioChannelAPI audioChannel0 = AudioChannelAPI(0);
     AudioChannelAPI audioChannel1 = AudioChannelAPI(1);
@@ -610,9 +655,10 @@ public:
 class RTCAPI : public API {
 
     friend class VAmiga;
-    class RTC *rtc = nullptr;
-
+    
 public:
+
+    class RTC *rtc = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -637,9 +683,10 @@ public:
 class FloppyDriveAPI : public API {
 
     friend class VAmiga;
-    class FloppyDrive *drive = nullptr;
-
+    
 public:
+
+    class FloppyDrive *drive = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -708,9 +755,10 @@ public:
 class HdControllerAPI : public API {
 
     friend class VAmiga;
-    class HdController *controller = nullptr;
-
+    
 public:
+
+    class HdController *controller = nullptr;
     
     /** @brief  Provides details about the controller
      */
@@ -729,9 +777,10 @@ public:
 class HardDriveAPI : public API {
 
     friend class VAmiga;
-    class HardDrive *drive = nullptr;
-
+    
 public:
+
+    class HardDrive *drive = nullptr;
     
     HdControllerAPI controller;
 
@@ -819,9 +868,10 @@ public:
 class JoystickAPI : public API {
 
     friend class VAmiga;
-    class Joystick *joystick = nullptr;
-
+    
 public:
+
+    class Joystick *joystick = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -845,9 +895,10 @@ public:
 class KeyboardAPI : public API {
 
     friend class VAmiga;
-    class Keyboard *keyboard = nullptr;
-
+    
 public:
+
+    class Keyboard *keyboard = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -900,18 +951,31 @@ public:
 class MouseAPI : public API {
 
     friend class VAmiga;
-    class Mouse *mouse = nullptr;
-
+    
 public:
+
+    class Mouse *mouse = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
     const MouseConfig &getConfig() const;
 
-    /** @brief  Returns the component's current state.
+    /** Moves the mouse
+     *  @param x    New absolute horizontal coordinate
+     *  @param y    New absolute vertical coordinate
      */
-    // const MouseInfo &getInfo() const;
-    // const MouseInfo &getCachedInfo() const;
+    void setXY(double x, double y);
+
+    /** Moves the mouse
+     *  @param dx       Relative horizontal mouse movement
+     *  @param dy       Relative vertical mouse movement
+     */
+    void setDxDy(double dx, double dy);
+
+    /** Triggers a mouse button event
+     *  @param action   The triggered event
+     */
+    void trigger(GamePadAction action);
 
     /** Feeds a coordinate into the shake detector.
      *
@@ -936,23 +1000,6 @@ public:
      *  @return     true iff a shaking mouse has been detected.
      */
     bool detectShakeDxDy(double dx, double dy);
-
-    /** Moves the mouse
-     *  @param x    New absolute horizontal coordinate
-     *  @param y    New absolute vertical coordinate
-     */
-    void setXY(double x, double y);
-
-    /** Moves the mouse
-     *  @param dx       Relative horizontal mouse movement
-     *  @param dy       Relative vertical mouse movement
-     */
-    void setDxDy(double dx, double dy);
-
-    /** Triggers a mouse button event
-     *  @param action   The triggered event
-     */
-    void trigger(GamePadAction action);
 };
 
 
@@ -968,9 +1015,10 @@ public:
 class AudioPortAPI : public API {
 
     friend class VAmiga;
-    class AudioPort *port = nullptr;
-
+    
 public:
+
+    class AudioPort *port = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -1039,9 +1087,10 @@ public:
 class ControlPortAPI : public API {
 
     friend class VAmiga;
-    class ControlPort *controlPort = nullptr;
-
+    
 public:
+
+    class ControlPort *controlPort = nullptr;
     
     JoystickAPI joystick;
     MouseAPI mouse;
@@ -1060,9 +1109,10 @@ public:
 class SerialPortAPI : public API {
 
     friend class VAmiga;
-    class SerialPort *serialPort = nullptr;
-
+    
 public:
+
+    class SerialPort *serialPort = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -1085,9 +1135,10 @@ public:
 class VideoPortAPI : public API {
 
     friend class VAmiga;
-    class VideoPort *videoPort = nullptr;
-
+    
 public:
+
+    class VideoPort *videoPort = nullptr;
     
     /** @brief  Returns the component's current configuration.
      */
@@ -1144,9 +1195,10 @@ public:
 class MsgQueueAPI : public API {
 
     friend class VAmiga;
-    class MsgQueue *msgQueue = nullptr;
-
+    
 public:
+
+    class MsgQueue *msgQueue = nullptr;
 
     /** @brief  Locks the message queue
      */
@@ -1176,9 +1228,10 @@ public:
 class DebuggerAPI : public API {
 
     friend class VAmiga;
-    class Debugger *debugger = nullptr;
-
+    
 public:
+
+    class Debugger *debugger = nullptr;
     
     /** @brief  Returns a string representations for a portion of memory.
      */
@@ -1222,9 +1275,10 @@ public:
 class DefaultsAPI : public API {
 
     friend class VAmiga;
-    class Defaults *defaults = nullptr;
-
+    
 public:
+
+    class Defaults *defaults = nullptr;
     
     DefaultsAPI(Defaults *defaults) : defaults(defaults) { }
 
@@ -1427,9 +1481,10 @@ public:
 class RetroShellAPI : public API {
 
     friend class VAmiga;
-    class RetroShell *retroShell = nullptr;
-
+    
 public:
+
+    class RetroShell *retroShell = nullptr;
     
     /// @name Querying the console
     /// @{
@@ -1515,80 +1570,16 @@ public:
 
 
 //
-// Misc (Recorder)
-//
-
-class RecorderAPI : public API {
-
-    friend class VAmiga;
-    class Recorder *recorder = nullptr;
-
-public:
-    
-    /** @brief  Returns the component's configuration.
-     */
-    const RecorderConfig &getConfig() const;
-
-    /** @brief  Returns the component's current state.
-     */
-    // const RecorderInfo &getInfo() const;
-    // const RecorderInfo &getCachedInfo() const;
-
-    const std::vector<fs::path> &paths() const;
-    bool hasFFmpeg() const;
-
-    /** @brief  Returns the path to the FFmpeg executable.
-     */
-    const fs::path getExecPath() const;
-
-    /** @brief  Sets the path to the FFmpeg executable.
-     */
-    void setExecPath(const fs::path &path);
-
-    // INTEGRATE INTO RecorderInfo, RecorderConfig
-    double getDuration() const;
-    /*
-    isize getFrameRate() const;
-    isize getBitRate() const;
-    isize getSampleRate() const;
-    */
-    bool isRecording() const;
-
-    /** @brief  Starts the recorder.
-     *  @param  x1      Horizontal start coordinate of the recorded area
-     *  @param  y1      Vertical start coordinate of the recorded area
-     *  @param  x2      Horizontal end coordinate of the recorded area
-     *  @param  y2      Vertical stop coordinate of the recorded area
-     *  @param  bitRate To be removed
-     *  @param  aspectX To be removed
-     *  @param  aspectY To be removed
-     */
-    void startRecording(isize x1, isize y1, isize x2, isize y2,
-                        isize bitRate,
-                        isize aspectX, isize aspectY);
-
-    /** @brief  Interrupts a recording in progress.
-     */
-    void stopRecording();
-
-    /** @brief  Exports the recorded video to a file.
-     *  @param  path    The export destination.
-     *  @return true on success.
-     */
-    bool exportAs(const fs::path &path);
-};
-
-
-//
 // Misc (RemoteManager)
 //
 
 class RemoteManagerAPI : public API {
 
     friend class VAmiga;
-    class RemoteManager *remoteManager = nullptr;
-
+    
 public:
+
+    class RemoteManager *remoteManager = nullptr;
     
     /// @name Analyzing the emulator
     /// @{
@@ -1638,7 +1629,6 @@ public:
     GuardsAPI copperBreakpoints; // TODO: Move inside AgnusAPI
     MsgQueueAPI msgQueue;
     DebuggerAPI debugger; // TODO: No longer needed? It's not 'wired'
-    RecorderAPI recorder;
     RemoteManagerAPI remoteManager;
     RetroShellAPI retroShell;
 

@@ -36,9 +36,9 @@ void
 CommanderConsole::summary()
 {
     std::stringstream ss;
-
+    
     // ss << "RetroShell Commander" << std::endl << std::endl;
-
+    
     ss << "Model   Chip    Slow    Fast    Agnus   Denise  ROM" << std::endl;
     ss << std::setw(8) << std::left << BankMapEnum::key(BankMap(amiga.get(Opt::MEM_BANKMAP)));
     ss << std::setw(8) << std::left << (std::to_string(amiga.get(Opt::MEM_CHIP_RAM)) + " MB");
@@ -47,7 +47,7 @@ CommanderConsole::summary()
     ss << std::setw(8) << std::left << (agnus.isECS() ? "ECS" : "OCS");
     ss << std::setw(8) << std::left << (denise.isECS() ? "ECS" : "OCS");
     ss << mem.getRomTraits().title << std::endl;
-
+    
     *this << vspace{1};
     string line;
     while(std::getline(ss, line)) { *this << "    " << line << '\n'; }
@@ -73,37 +73,6 @@ CommanderConsole::initCommands(RSCommand &root)
     Console::initCommands(root);
 
     //
-    // Console management
-    //
-
-    /*
-    root.add({
-
-        .tokens = { "." },
-        .chelp  = { "Switch to the next console" },
-        .flags  = rs::hidden,
-
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
-            retroShell.enterDebugger();
-        }
-    });
-
-    root.add({
-
-        .tokens = { ".." },
-        .chelp  = { "Switch to the previous console" },
-        .flags  = rs::hidden,
-
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
-            retroShell.enterNavigator();
-        }
-    });
-    */
-
-    
-    //
     // Workspace management
     //
     
@@ -124,7 +93,7 @@ CommanderConsole::initCommands(RSCommand &root)
             amiga.initWorkspace();
         }
     });
-
+    
     root.add({
         
         .tokens = { "workspace activate" },
@@ -135,48 +104,43 @@ CommanderConsole::initCommands(RSCommand &root)
             amiga.activateWorkspace();
         }
     });
-
+    
     
     //
     // Regression tester
     //
     
     RSCommand::currentGroup = "Regression testing";
-    
+
+    auto cmd = registerComponent(amiga.regressionTester, releaseBuild ? rs::hidden : 0);
+
     root.add({
         
-        .tokens = { "regression" },
-        .ghelp  = { "Runs the regression tester" },
-        .flags  = releaseBuild ? rs::hidden : 0
-    });
-
-    root.add({
-
         .tokens = { "regression", "setup" },
         .ghelp  = { "Initializes the test environment" },
     });
-
+    
     for (auto &it : ConfigSchemeEnum::elements()) {
-
+        
         root.add({
-
+            
             .tokens = { "regression", "setup", ConfigSchemeEnum::key(it) },
             .chelp  = { ConfigSchemeEnum::help(it) },
             .args   = {
                 { .name = { "rom", "ROM file" }, .flags = rs::keyval | rs::opt },
                 { .name = { "ext", "Extension ROM file" }, .flags = rs::keyval | rs::opt }
             },
-            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
-                auto rom = args.contains("rom") ? host.makeAbsolute(args.at("rom")) : "";
-                auto ext = args.contains("ext") ? host.makeAbsolute(args.at("ext")) : "";
-
-                amiga.regressionTester.prepare(ConfigScheme(values[0]), rom, ext);
-                emulator.set(ConfigScheme(values[0]));
-            }, .payload = { isize(it) }
+                .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+                    
+                    auto rom = args.contains("rom") ? host.makeAbsolute(args.at("rom")) : "";
+                    auto ext = args.contains("ext") ? host.makeAbsolute(args.at("ext")) : "";
+                    
+                    amiga.regressionTester.prepare(ConfigScheme(values[0]), rom, ext);
+                    emulator.set(ConfigScheme(values[0]));
+                }, .payload = { isize(it) }
         });
     }
-
+    
     root.add({
         
         .tokens = { "regression", "run" },
@@ -224,18 +188,18 @@ CommanderConsole::initCommands(RSCommand &root)
             { .name = { "y1", "Lower y coordinate" }, .flags = rs::keyval },
             { .name = { "y2", "Upper y coordinate" }, .flags = rs::keyval }
         },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            isize x1 = parseNum(args.at("x1"));
-            isize y1 = parseNum(args.at("y1"));
-            isize x2 = parseNum(args.at("x2"));
-            isize y2 = parseNum(args.at("y2"));
-
-            amiga.regressionTester.x1 = x1;
-            amiga.regressionTester.y1 = y1;
-            amiga.regressionTester.x2 = x2;
-            amiga.regressionTester.y2 = y2;
-        }
+            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+                
+                isize x1 = parseNum(args.at("x1"));
+                isize y1 = parseNum(args.at("y1"));
+                isize x2 = parseNum(args.at("x2"));
+                isize y2 = parseNum(args.at("y2"));
+                
+                amiga.regressionTester.x1 = x1;
+                amiga.regressionTester.y1 = y1;
+                amiga.regressionTester.x2 = x2;
+                amiga.regressionTester.y2 = y2;
+            }
     });
     
     root.add({
@@ -261,7 +225,7 @@ CommanderConsole::initCommands(RSCommand &root)
     // Components (Amiga)
     //
     
-    auto cmd = registerComponent(amiga);
+    cmd = registerComponent(amiga);
     
     root.add({
         
@@ -279,7 +243,7 @@ CommanderConsole::initCommands(RSCommand &root)
         .chelp  = { "Switches the Amiga on or off" },
         .args   = { { .name = { "onoff", "Power switch state" }, .key = "{ on | off }" } },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
+            
             parseOnOff(args.at("onoff")) ? emulator.run() : emulator.powerOff();
         }
     });
@@ -289,31 +253,31 @@ CommanderConsole::initCommands(RSCommand &root)
         .tokens = { cmd, "reset" },
         .chelp  = { "Performs a hard reset" },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
+            
             amiga.hardReset();
         }
     });
-
+    
     root.add({
-
+        
         .tokens = { cmd, "init" },
         .ghelp  = { "Initializes the Amiga with a predefined scheme" },
     });
-
+    
     for (auto &it : ConfigSchemeEnum::elements()) {
-
+        
         root.add({
-
+            
             .tokens = { cmd, "init", ConfigSchemeEnum::key(it) },
             .chelp  = { ConfigSchemeEnum::help(it) },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
+                
                 emulator.set(ConfigScheme(values[0]));
             }, .payload = { isize(it) }
         });
     }
-
-
+    
+    
     //
     // Components (Memory)
     //
@@ -344,7 +308,7 @@ CommanderConsole::initCommands(RSCommand &root)
         .chelp  = { "Installs an extension Rom" },
         .args   = { { .name = { "path", "File path" } } },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-
+            
             auto path = host.makeAbsolute(args.at("path"));
             mem.loadExt(path);
         }
@@ -358,11 +322,11 @@ CommanderConsole::initCommands(RSCommand &root)
             { .name = { "path", "File path" } },
             { .name = { "address", "Target memory address" } },
         },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            auto path = host.makeAbsolute(args.at("path"));
-            mem.debugger.load(path, parseAddr(args.at("address")));
-        }
+            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+                
+                auto path = host.makeAbsolute(args.at("path"));
+                mem.debugger.load(path, parseAddr(args.at("address")));
+            }
     });
     
     root.add({
@@ -398,17 +362,17 @@ CommanderConsole::initCommands(RSCommand &root)
     root.add({
         
         .tokens = { cmd, "save", "bin" },
-        .chelp  = { "Loads a chunk of memory" },
+        .chelp  = { "Saves a chunk of memory" },
         .args   = {
             { .name = { "path", "File path" } },
             { .name = { "address", "Memory address" } },
             { .name = { "count", "Number of bytes" } },
         },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            fs::path path(args.at("path"));
-            mem.debugger.save(path, parseAddr(args.at("address")), parseNum(args.at("count")));
-        }
+            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+                
+                fs::path path(args.at("path"));
+                mem.debugger.save(path, parseAddr(args.at("address")), parseNum(args.at("count")));
+            }
     });
     
     
@@ -468,11 +432,11 @@ CommanderConsole::initCommands(RSCommand &root)
     //
     
     /*
-    cmd = registerComponent(hd0con);
-    cmd = registerComponent(hd1con);
-    cmd = registerComponent(hd2con);
-    cmd = registerComponent(hd3con);
-    */
+     cmd = registerComponent(hd0con);
+     cmd = registerComponent(hd1con);
+     cmd = registerComponent(hd2con);
+     cmd = registerComponent(hd3con);
+     */
     
     
     //
@@ -552,21 +516,21 @@ CommanderConsole::initCommands(RSCommand &root)
     //
     // Peripherals (Joystick)
     //
-
+    
     root.add({
-
+        
         .tokens = { "joystick[n]" },
         .ghelp  = { "Joystick n" },
         .chelp  = { "Commands: joystick1, joystick2" }
     });
-
+    
     for (isize i = 0; i <= 1; i++) {
         
-        if (i == 0) cmd = registerComponent(controlPort1.joystick, true);
-        if (i == 1) cmd = registerComponent(controlPort2.joystick, true);
+        if (i == 0) cmd = registerComponent(controlPort1.joystick, rs::shadowed);
+        if (i == 1) cmd = registerComponent(controlPort2.joystick, rs::shadowed);
 
         root.add({
-                 
+            
             .tokens = { cmd, "press" },
             .chelp  = { "Presses a joystick button" },
             .args   = { { .name = { "button", "Button number" } } },
@@ -574,7 +538,7 @@ CommanderConsole::initCommands(RSCommand &root)
                 
                 auto &port = (values[0] == 0) ? amiga.controlPort1 : amiga.controlPort2;
                 auto nr = parseNum(args.at("button"));
-
+                
                 switch (nr) {
                         
                     case 1: port.joystick.trigger(GamePadAction::PRESS_FIRE); break;
@@ -596,7 +560,7 @@ CommanderConsole::initCommands(RSCommand &root)
                 
                 auto &port = (values[0] == 0) ? amiga.controlPort1 : amiga.controlPort2;
                 auto nr = parseNum(args.at("button"));
-
+                
                 switch (nr) {
                         
                     case 1: port.joystick.trigger(GamePadAction::RELEASE_FIRE); break;
@@ -698,18 +662,18 @@ CommanderConsole::initCommands(RSCommand &root)
     //
     // Peripherals (Mouse)
     //
-
+    
     root.add({
-
+        
         .tokens = { "mouse[n]" },
         .ghelp  = { "Mouse n" },
         .chelp  = { "Commands: mouse1, mouse2" }
     });
-
+    
     for (isize i = 0; i <= 1; i++) {
         
-        if (i == 0) cmd = registerComponent(controlPort1.mouse, true);
-        if (i == 1) cmd = registerComponent(controlPort2.mouse, true);
+        if (i == 0) cmd = registerComponent(controlPort1.mouse, rs::shadowed);
+        if (i == 1) cmd = registerComponent(controlPort2.mouse, rs::shadowed);
 
         root.add({
             
@@ -758,17 +722,17 @@ CommanderConsole::initCommands(RSCommand &root)
     //
     // Peripherals (Df0, Df1, Df2, Df3)
     //
-
+    
     root.add({
-
+        
         .tokens = { "df[n]" },
         .ghelp  = { "Floppy drive n" },
         .chelp  = { "Commands: df0, df1, df2, df3" }
     });
-
+    
     for (isize i = 0; i <= 3; i++) {
         
-        cmd = registerComponent(*df[i], true);
+        cmd = registerComponent(*df[i], rs::shadowed);
 
         if (i >= 1 && i <= 3) {
             
@@ -813,12 +777,12 @@ CommanderConsole::initCommands(RSCommand &root)
             .args   = {
                 { .name = { "path", "File path" } }
             },
-            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                
-                auto path = host.makeAbsolute(args.at("path"));
-                amiga.df[values[0]]->swapDisk(path);
-                
-            }, .payload = {i}
+                .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+                    
+                    auto path = host.makeAbsolute(args.at("path"));
+                    amiga.df[values[0]]->swapDisk(path);
+                    
+                }, .payload = {i}
         });
         
         root.add({
@@ -831,7 +795,7 @@ CommanderConsole::initCommands(RSCommand &root)
                 
             }, .payload = {i}
         });
- 
+        
         root.add({
             
             .tokens = { cmd, "unprotect" },
@@ -848,17 +812,17 @@ CommanderConsole::initCommands(RSCommand &root)
     //
     // Peripherals (Hd0, Hd1, Hd2, Hd3)
     //
-
+    
     root.add({
-
+        
         .tokens = { "hd[n]" },
         .ghelp  = { "Hard drive n" },
         .chelp  = { "Commands: hd0, hd1, hd2, hd3" }
     });
-
+    
     for (isize i = 0; i <= 3; i++) {
         
-        cmd = registerComponent(*hd[i], true);
+        cmd = registerComponent(*hd[i], rs::shadowed);
 
         root.add({
             
@@ -888,10 +852,10 @@ CommanderConsole::initCommands(RSCommand &root)
             .chelp  = { "Attaches a hard drive image" },
             .args   = { { .name = { "path", "Hard drive image file" } } },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                                
+                
                 // Make sure the hard-drive controller board is plugged in
                 emulator.set(Opt::HDC_CONNECT, true, values);
-
+                
                 // Connect the drive
                 auto path = host.makeAbsolute(args.at("path"));
                 amiga.hd[values[0]]->init(path);
@@ -908,15 +872,15 @@ CommanderConsole::initCommands(RSCommand &root)
                 { .name = { "heads", "Number of drive heads" }, .flags = rs::keyval },
                 { .name = { "sectors", "Number of sectors per cylinder" }, .flags = rs::keyval },
             },
-            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                
-                auto c = util::parseNum(args.at("cylinders"));
-                auto h = util::parseNum(args.at("heads"));
-                auto s = util::parseNum(args.at("sectors"));
-
-                amiga.hd[values[0]]->changeGeometry(c, h, s);
-                
-            }, .payload = {i}
+                .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+                    
+                    auto c = util::parseNum(args.at("cylinders"));
+                    auto h = util::parseNum(args.at("heads"));
+                    auto s = util::parseNum(args.at("sectors"));
+                    
+                    amiga.hd[values[0]]->changeGeometry(c, h, s);
+                    
+                }, .payload = {i}
         });
         
         root.add({
@@ -929,7 +893,7 @@ CommanderConsole::initCommands(RSCommand &root)
                 
             }, .payload = {i}
         });
- 
+        
         root.add({
             
             .tokens = { cmd, "unprotect" },
@@ -1074,9 +1038,9 @@ CommanderConsole::initCommands(RSCommand &root)
         .tokens = { cmd, "disconnect" },
         .chelp  = { "Disconnects a client" },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                 
-                 remoteManager.rshServer.disconnect();
-             }
+            
+            remoteManager.rshServer.disconnect();
+        }
     });
     
     cmd = registerComponent(remoteManager.promServer);

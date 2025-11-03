@@ -1408,7 +1408,35 @@ JoystickAPI::trigger(GamePadAction event)
 // Peripherals (Mouse)
 //
 
-bool 
+const MouseConfig &
+MouseAPI::getConfig() const
+{
+    VAMIGA_PUBLIC
+    return mouse->getConfig();
+}
+
+void
+MouseAPI::setXY(double x, double y)
+{
+    VAMIGA_PUBLIC
+    emu->put(Command(Cmd::MOUSE_MOVE_ABS, CoordCmd { .port = mouse->objid, .x = x, .y = y }));
+}
+
+void
+MouseAPI::setDxDy(double dx, double dy)
+{
+    VAMIGA_PUBLIC
+    emu->put(Command(Cmd::MOUSE_MOVE_REL, CoordCmd { .port = mouse->objid, .x = dx, .y = dy }));
+}
+
+void
+MouseAPI::trigger(GamePadAction action)
+{
+    VAMIGA_PUBLIC
+    emu->put(Command(Cmd::MOUSE_BUTTON, GamePadCmd { .port = mouse->objid, .action = action }));
+}
+
+bool
 MouseAPI::detectShakeXY(double x, double y)
 {
     VAMIGA_PUBLIC
@@ -1422,26 +1450,6 @@ MouseAPI::detectShakeDxDy(double dx, double dy)
     return mouse->detectShakeDxDy(dx, dy);
 }
 
-void 
-MouseAPI::setXY(double x, double y)
-{
-    VAMIGA_PUBLIC
-    emu->put(Command(Cmd::MOUSE_MOVE_ABS, CoordCmd { .port = mouse->objid, .x = x, .y = y }));
-}
-
-void 
-MouseAPI::setDxDy(double dx, double dy)
-{
-    VAMIGA_PUBLIC
-    emu->put(Command(Cmd::MOUSE_MOVE_REL, CoordCmd { .port = mouse->objid, .x = dx, .y = dy }));
-}
-
-void 
-MouseAPI::trigger(GamePadAction action)
-{
-    VAMIGA_PUBLIC
-    emu->put(Command(Cmd::MOUSE_BUTTON, GamePadCmd { .port = mouse->objid, .action = action }));
-}
 
 //
 // Misc (MsgQueue)
@@ -1664,92 +1672,6 @@ DefaultsAPI::remove(Opt option, std::vector <isize> objids)
 
 
 //
-// RecorderAPI
-//
-
-const RecorderConfig &
-RecorderAPI::getConfig() const
-{
-    VAMIGA_PUBLIC
-    return recorder->getConfig();
-}
-
-/*
-const RecorderInfo &
-RecorderAPI::getInfo() const
-{
-    VAMIGA_PUBLIC
-    return recorder->getInfo();
-}
-
-const RecorderInfo &
-RecorderAPI::getCachedInfo() const
-{
-    VAMIGA_PUBLIC
-    return recorder->getCachedInfo();
-}
-*/
-
-double RecorderAPI::getDuration() const { VAMIGA_PUBLIC_SUSPEND return recorder->getDuration().asSeconds(); }
-/*
-isize RecorderAPI::getFrameRate() const { VAMIGA_PUBLIC VAMIGA_SUSPEND return recorder->getFrameRate(); }
-isize RecorderAPI::getBitRate() const { VAMIGA_PUBLIC VAMIGA_SUSPEND return recorder->getBitRate(); }
-isize RecorderAPI::getSampleRate() const { VAMIGA_PUBLIC VAMIGA_SUSPEND return recorder->getSampleRate(); }
-*/
-bool RecorderAPI::isRecording() const { VAMIGA_PUBLIC_SUSPEND return recorder->isRecording(); }
-
-const std::vector<fs::path> &
-RecorderAPI::paths() const
-{
-    VAMIGA_PUBLIC
-    return FFmpeg::paths;
-}
-
-bool 
-RecorderAPI::hasFFmpeg() const
-{
-    VAMIGA_PUBLIC
-    return FFmpeg::available();
-}
-
-const fs::path
-RecorderAPI::getExecPath() const
-{
-    VAMIGA_PUBLIC
-    return FFmpeg::getExecPath();
-}
-
-void RecorderAPI::setExecPath(const fs::path &path)
-{
-    VAMIGA_PUBLIC
-    FFmpeg::setExecPath(path);
-}
-
-void
-RecorderAPI::startRecording(isize x1, isize y1, isize x2, isize y2,
-                            isize bitRate,
-                            isize aspectX, isize aspectY)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    recorder->startRecording(x1, y1, x2, y2, bitRate, aspectX, aspectY);
-}
-
-void
-RecorderAPI::stopRecording()
-{
-    VAMIGA_PUBLIC_SUSPEND
-    recorder->stopRecording();
-}
-
-bool
-RecorderAPI::exportAs(const fs::path &path)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    return recorder->exportAs(path);
-}
-
-
-//
 // RemoteManagerAPI
 //
 
@@ -1768,6 +1690,7 @@ RemoteManagerAPI::getCachedInfo() const
 }
 
 
+//
 // RetroShellAPI
 //
 
@@ -2023,9 +1946,6 @@ VAmiga::VAmiga() {
 
     msgQueue.emu = emu;
     msgQueue.msgQueue = &emu->main.msgQueue;
-
-    recorder.emu = emu;
-    recorder.recorder = &emu->main.denise.screenRecorder;
 
     remoteManager.emu = emu;
     remoteManager.remoteManager = &emu->main.remoteManager;
@@ -2339,13 +2259,27 @@ VAmiga::put(const Command &cmd)
 //
 
 MediaFile *
-AmigaAPI::takeSnapshot()
+AmigaAPI::takeSnapshot(Compressor compressor, isize delay, bool repeat)
 {
     VAMIGA_PUBLIC_SUSPEND
-    return amiga->takeSnapshot();
+    return amiga->takeSnapshot(compressor, delay, repeat);
 }
 
-void 
+void
+AmigaAPI::loadWorkspace(const fs::path &path)
+{
+    VAMIGA_PUBLIC_SUSPEND
+    amiga->loadWorkspace(path);
+}
+
+void
+AmigaAPI::saveWorkspace(const fs::path &path) const
+{
+    VAMIGA_PUBLIC_SUSPEND
+    amiga->saveWorkspace(path);
+}
+
+void
 AmigaAPI::loadSnapshot(const MediaFile &snapshot)
 {
     VAMIGA_PUBLIC_SUSPEND
@@ -2383,20 +2317,6 @@ AmigaAPI::saveSnapshot(const fs::path &path) const
     VAMIGA_PUBLIC_SUSPEND
     amiga->saveSnapshot(path);
     
-}
-
-void
-AmigaAPI::loadWorkspace(const fs::path &path)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    amiga->loadWorkspace(path);
-}
-
-void
-AmigaAPI::saveWorkspace(const fs::path &path) const
-{
-    VAMIGA_PUBLIC_SUSPEND
-    amiga->saveWorkspace(path);
 }
 
 u64

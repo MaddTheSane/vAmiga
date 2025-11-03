@@ -89,11 +89,8 @@ enum Failure {
     case cantRun
     case cantSaveRoms
     case cantWriteThrough
-    case noFFmpegFound(exec: String)
-    case noFFmpegInstalled
     case noMetalSupport
-    case recorderAborted
-    case recorderSandboxed(exec: String)
+    case unsupportedOSVersion
     case unknown
 
     var alertStyle: NSAlert.Style {
@@ -101,6 +98,7 @@ enum Failure {
         switch self {
             
         case .noMetalSupport: return .critical
+        case .unsupportedOSVersion: return .critical
 
         default: return .warning
         }
@@ -110,13 +108,8 @@ enum Failure {
         
         switch self {
             
-        case .cantRecord: return NSImage(named: "FFmpegIcon")!
         case .cantRun: return NSImage(named: "pref_transparent")!
-        case .noFFmpegFound: return NSImage(named: "FFmpegIcon")!
-        case .noFFmpegInstalled: return NSImage(named: "FFmpegIcon")!
         case .noMetalSupport: return NSImage(named: "metal")!
-        case .recorderAborted: return NSImage(named: "mp4")!
-        case .recorderSandboxed: return NSImage(named: "FFmpegIcon")!
 
         default: return nil
         }
@@ -175,21 +168,12 @@ enum Failure {
             
         case .cantWriteThrough:
             return "Unable to enable write-through mode."
-            
-        case .noFFmpegFound:
-            return "Unable to locate FFmpeg."
-            
-        case .noFFmpegInstalled:
-            return "Screen recording requires FFmpeg to be installed."
 
         case .noMetalSupport:
             return "No suitable GPU hardware found."
-            
-        case .recorderAborted:
-            return "Screen recording has been aborted."
-            
-        case .recorderSandboxed:
-            return "The selected screen recorder is unavailable."
+
+        case .unsupportedOSVersion:
+            return "Incompatible macOS version."
 
         default:
             return ""
@@ -199,24 +183,13 @@ enum Failure {
     var explanation: String {
         
         switch self {
-            
-        case let .noFFmpegFound(exec): return
-            "\"\(exec)\" not found."
 
-        case .noFFmpegInstalled: return
-            "Visit FFmpeg.org for installation instructions."
-            
         case .noMetalSupport: return
             "The emulator can only run on machines supporting the Metal graphics " +
             "technology (2012 models and above)."
-            
-        case .recorderAborted: return
-            "Failed to write to the FFmpeg pipes."
-        
-        case let .recorderSandboxed(exec): return
-            "The emulator is running as a sandboxed application and has no " +
-            "permission to access file \"\(exec)\"" +
-            "Please copy the file to the Applications folder."
+
+        case .unsupportedOSVersion: return
+            "The emulator is not yet compatible with macOS Tahoe."
             
         default:
             return ""
@@ -358,7 +331,8 @@ extension MyDocument {
     }
             
     func proceedWithUnsavedFloppyDisks() -> Bool {
-        
+
+        guard let emu = emu else { return true }
         let drives = [emu.df0!, emu.df1!, emu.df2!, emu.df3!]
         return proceedWithUnsavedFloppyDisks(drives: drives)
     }
@@ -367,7 +341,7 @@ extension MyDocument {
         
         let modified = drives.filter { $0.info.hasModifiedDisk }
         
-        if modified.isEmpty || pref.detachWithoutAsking {
+        if modified.isEmpty || pref.ejectWithoutAsking {
             return true
         }
         
@@ -385,15 +359,18 @@ extension MyDocument {
     }
     
     func proceedWithUnsavedHardDisks() -> Bool {
-        
+
+        guard let emu = emu else { return true }
         let drives = [emu.hd0!, emu.hd1!, emu.hd2!, emu.hd3!]
         return proceedWithUnsavedHardDisks(drives: drives)
     }
     
     func askToPowerOff() -> Bool {
-        
+
+        guard let emu = emu else { return true }
+
         if emu.poweredOn {
-            
+
             let alert = NSAlert()
             
             alert.alertStyle = .informational
@@ -428,6 +405,7 @@ extension MyController {
     }
 
     func proceedWithUnsavedHardDisk(drive: Int) -> Bool {
+        guard let emu = emu else { return true }
         return mydocument.proceedWithUnsavedHardDisk(drive: emu.hd(drive)!)
     }
 
@@ -455,6 +433,7 @@ extension MediaManager {
     }
 
     func proceedWithUnsavedHardDisk(drive: Int) -> Bool {
+        guard let emu = emu else { return true }
         return mydocument.proceedWithUnsavedHardDisk(drive: emu.hd(drive)!)
     }
 

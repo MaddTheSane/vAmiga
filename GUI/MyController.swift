@@ -7,8 +7,6 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-import AVFoundation
-
 @MainActor 
 protocol MessageReceiver {
     
@@ -22,23 +20,24 @@ class MyController: NSWindowController, MessageReceiver {
     
     // Reference to the connected document
     var mydocument: MyDocument!
+    var initialized: Bool { return mydocument != nil }
     
     // File panels
     let myOpenPanel = MyOpenPanel()
     let mySavePanel = MySavePanel()
     
-    // Amiga proxy (bridge between the Swift frontend and the C++ backend)
-    var emu: EmulatorProxy!
+    // Emulator proxy (bridge between the Swift frontend and the C++ backend)
+    var emu: EmulatorProxy? { return mydocument.emu }
     
     // Media manager (handles the import and export of media files)
     var mm: MediaManager { return mydocument.mm }
-
+    
     // Auxiliary windows of this emulator instance
     var inspectors: [Inspector] = []
     var dashboards: [Dashboard] = []
     
-    // Configuration panel of this emulator instance
-    var configurator: ConfigurationController?
+    // Settings panel
+    var settings: SettingsWindowController? { myAppDelegate.settingsController }
     
     // Snapshot and screenshot browsers
     var snapshotBrowser: SnapshotViewer?
@@ -60,10 +59,13 @@ class MyController: NSWindowController, MessageReceiver {
     
     // Virtual keyboard
     var virtualKeyboard: VirtualKeyboardController?
-        
+    
     // Speedometer to measure clock frequence and frames per second
-    var speedometer: Speedometer!
-
+    var speedometer = Speedometer()
+    
+    // Indicates if the CPU is halted
+    var jammed: Bool { emu?.cpu.info.halt ?? false }
+    
     // Remembers if audio is muted
     var muted = false
     
@@ -71,13 +73,14 @@ class MyController: NSWindowController, MessageReceiver {
     var statusBar = true
     
     // Information message shown in the status bar
-    var info: String? = nil
-    var info2: String? = nil
+    var infoText: String?
+    var infoText2: String?
     
-    // Pictograms for being used in NSMenuItems (MOVED TO AppDelegate)
-    var smallDisk = NSImage(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
-    var smallHdr = NSImage(named: "hdrTemplate")!.resize(width: 16.0, height: 16.0)
-
+    // Pictograms for being used in NSMenuItems (MOVE TO AppDelegate)
+    static let iconSize = CGSize(width: 16, height: 16)
+    var smallDisk = NSImage(named: "diskTemplate")!.resize(size: iconSize)
+    var smallHdr = NSImage(named: "hdrTemplate")!.resize(size: iconSize)
+    
     // Serial input and output
     var serialIn = ""
     var serialOut = ""
@@ -111,8 +114,6 @@ class MyController: NSWindowController, MessageReceiver {
     
     @IBOutlet weak var haltIcon: NSButton!
     @IBOutlet weak var trackIcon: NSButton!
-    @IBOutlet weak var cmdLeftIcon: NSButton!
-    @IBOutlet weak var cmdRightIcon: NSButton!
     @IBOutlet weak var serverIcon: NSButton!
     @IBOutlet weak var muteIcon: NSButton!
     
@@ -121,22 +122,20 @@ class MyController: NSWindowController, MessageReceiver {
     @IBOutlet weak var activityInfo: NSTextField!
     @IBOutlet weak var activityBar: NSLevelIndicator!
     @IBOutlet weak var speedStepper: NSStepper!
-
+    
     // Toolbar
-    @IBOutlet weak var toolbar: MyToolbar!
+    var toolbar: MyToolbar { (window?.toolbar as? MyToolbar)! }
     
     // Quick-access references
     var ledSlot: [NSButton]!
     var cylSlot: [NSTextField]!
     var iconSlot: [NSButton]!
-
+    
     // Slot assignments
     var drv: [Int?] = Array(repeating: nil, count: 8)
     var drvLED: [NSButton?] = Array(repeating: nil, count: 8)
     var drvCyl: [NSTextField?] = Array(repeating: nil, count: 8)
     var drvIcon: [NSButton?] = Array(repeating: nil, count: 8)
-    
-    var initialized: Bool { return mydocument != nil }
 }
 
 extension MyController {
@@ -158,26 +157,28 @@ extension MyController {
     //
     // Initializing
     //
-        
+    
     override open func windowDidLoad() {
         
-        debug(.lifetime)
-        commonInit()
+        if !initialized { commonInit() }
     }
     
     func commonInit() {
         
-        if initialized { return }
+        debug(.lifetime)
+        assert(!initialized, "Double-initialization of MyController")
         
         mydocument = document as? MyDocument
-        
         config = Configuration(with: self)
         macAudio = MacAudio(with: self)
         
         ledSlot = [ ledSlot0, ledSlot1, letSlot2, ledSlot3 ]
         cylSlot = [ cylSlot0, cylSlot1, cylSlot2, cylSlot3 ]
         iconSlot = [ iconSlot0, iconSlot1, iconSlot2, iconSlot3 ]
-
+        
+        // Create toolbar
+        window?.toolbar = MyToolbar(controller: self)
+        
         // Create keyboard controller
         keyboard = KeyboardController(parent: self)
         assert(keyboard != nil, "Failed to create keyboard controller")
@@ -190,52 +191,33 @@ extension MyController {
         renderer = Renderer(view: metal,
                             device: MTLCreateSystemDefaultDevice()!,
                             controller: self)
-
+        
         // Setup window
         configureWindow()
-
-        // Create speed monitor
-        speedometer = Speedometer()
         
         // Launch the emulator
         launch()
-
+        
         // Apply all GUI related user defaults
         pref.applyUserDefaults()
         config.applyUserDefaults()
-
-        do {
-            // Switch the Amiga on
-            emu.powerOn()
         
+        do {
+            
+            // Press the virtual power switch
+            emu?.powerOn()
+            
             // Start emulation
-            try emu.run()
+            try emu?.run()
             
         } catch {
             
-            // Switch the Amiga off
-            emu.powerOff()
+            // Switch off
+            emu?.powerOff()
             
-            // Open the Rom dialog after a small delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-                
-                self.openConfiguratorAsSheet(tab: "Roms")
-                self.configurator!.installAros()
-            }
+            // Open the onboarding agent
+            renderer.onboarding.open(delay: 1.0)
         }
-
-        // Add media file (if provided on startup)
-        if let url = mydocument.mediaURL {
-
-            debug(.media, "Media URL = \(url)")
-            
-            do { try mm.addMedia(url: url) } catch {
-                self.showAlert(.cantOpen(url: url), error: error, async: true)
-            }
-        }
-
-        // Create speed monitor
-        // speedometer = Speedometer()
         
         // Update toolbar
         toolbar.validateVisibleItems()
@@ -251,33 +233,36 @@ extension MyController {
         window?.setContentBorderThickness(32.0, for: .minY)
         statusBar = true
         
-        // Adjust size and enable auto-save for window coordinates
+        // Adjust size
+        // autoResizeWindow(self)
         adjustWindowSize()
         window?.windowController?.shouldCascadeWindows = false // true ?!
-        let name = NSWindow.FrameAutosaveName("dirkwhoffmann.de.vAmiga.window")
-        window?.setFrameAutosaveName(name)
+        
+        // Enable auto-save for window coordinates
+        // let name = NSWindow.FrameAutosaveName("dirkwhoffmann.de.vAmiga.window")
+        // window?.setFrameAutosaveName(name)
         
         // Enable fullscreen mode
         window?.collectionBehavior = .fullScreenPrimary
     }
-
+    
     func launch() {
         
         do {
-
+            
             // Pass in command line arguments as a RetroShell script
             var script = ""
             for arg in myAppDelegate.argv where arg.hasPrefix("-") {
                 script = script + arg.dropFirst() + "\n"
             }
             emu?.retroShell.execute(script)
-
+            
             if BuildSettings.msgCallback {
                 
                 // Convert 'self' to a void pointer
                 let myself = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())
                 
-                try emu.launch(myself) { (ptr, msg: Message) in
+                try emu?.launch(myself) { (ptr, msg: Message) in
                     
                     // Convert void pointer back to 'self'
                     let myself = Unmanaged<MyController>.fromOpaque(ptr!).takeUnretainedValue()
@@ -288,11 +273,11 @@ extension MyController {
                 
             } else {
                 
-                try emu.launch()
+                try emu?.launch()
             }
             
         } catch {
-         
+            
             // Something terrible happened
             mydocument.showLaunchAlert(error: error)
         }
@@ -303,25 +288,27 @@ extension MyController {
     //
     
     func update(frames: Int64) {
-
+        
+        guard let emu = emu else { return }
+        
         if frames % 5 == 0 {
-
+            
             // Animate the inspectors
             for inspector in inspectors { inspector.continuousRefresh() }
-
+            
             // Animate the dashboards
             for dashboard in dashboards { dashboard.continuousRefresh() }
         }
         
         // Do less times...
         if frames % 16 == 0 {
-
+            
             updateSpeedometer()
         }
-
+        
         // Do less times...
         if frames % 32 == 0 {
-        
+            
             if pref.closeWithoutAsking {
                 needsSaving = false
             } else {
@@ -350,9 +337,10 @@ extension MyController {
     }
     
     func process(message msg: Message) {
-            
+        
         MainActor.assertIsolated()
         
+        guard let emu = emu else { return }
         var value: Int { return Int(msg.value) }
         var nr: Int { return Int(msg.drive.nr) }
         var cyl: Int { return Int(msg.drive.value) }
@@ -363,79 +351,69 @@ extension MyController {
         var pan: Int { return Int(msg.drive.pan) }
         var acceleration: Double { return Double(msg.value == 0 ? 1 : msg.value) }
         var pos: String { return "(\(emu.amiga.info.vpos),\(emu.amiga.info.hpos))" }
-        
-        func passToInspector() {
-            for inspector in inspectors { inspector.processMessage(msg) }
-        }
-        func passToDashboard() {
-            for dashboard in dashboards { dashboard.processMessage(msg) }
-        }
-        
-        // Only proceed if the proxy object is still alive
-        guard let emu else { return }
-        
-        switch msg.type {
-                        
-        case .CONFIG:
-            configurator?.refresh()
-            refreshStatusBar()
-            passToInspector()
-            passToDashboard()
 
+        switch msg.type {
+            
+        case .CONFIG:
+            
+            refreshStatusBar()
+            settings?.refresh()
+            
         case .POWER:
+            
             if value != 0 {
                 
-                if let fileUrl = document?.fileURL, let _ = fileUrl {
-                    renderer.canvas.open(delay: 0)
-                } else {
-                    renderer.canvas.open(delay: 1.5)
+                let delay = document?.fileURL != nil ? 1.5 : 1.5
+                renderer.canvas.open(delay: delay)
+                
+                if let url = mydocument.launchURL {
+                    
+                    try? mm.mount(url: url, options: [.remember, .force])
+                    mydocument.launchURL = nil
                 }
+                
+                virtualKeyboard = nil
                 serialIn = ""
                 serialOut = ""
             }
+            
             clearInfo()
-            passToInspector()
-            configurator?.refresh()
-
+            settings?.refresh()
+            
         case .RUN:
             toolbar.updateToolbar()
             refreshStatusBar()
             clearInfo()
-            passToInspector()
 
         case .PAUSE:
             toolbar.updateToolbar()
             refreshStatusBar()
-            passToInspector()
-            
+
         case .STEP:
             clearInfo()
-            passToInspector()
-            
+
         case .RESET:
             clearInfo()
-            passToInspector()
 
         case .RSH_CLOSE:
             renderer.console.close(delay: 0.25)
-
+            
         case .RSH_UPDATE:
             renderer.console.isDirty = true
-            passToInspector()
-            
+
         case .RSH_SWITCH:
             break
-
+            
         case .RSH_WAIT:
             renderer.console.isDirty = true
-
+            
         case .RSH_ERROR:
             NSSound.beep()
             renderer.console.isDirty = true
-
+            
         case .RSH_EXPORT:
             break;
-
+            
         case .SHUTDOWN:
             shutDown()
             
@@ -446,7 +424,7 @@ extension MyController {
         case .MUTE:
             muted = value != 0
             refreshStatusBar()
-
+            
         case .EASTER_EGG, .WARP, .TRACK:
             refreshStatusBar()
             
@@ -458,77 +436,77 @@ extension MyController {
             
         case .POWER_LED_OFF:
             powerLED.image = NSImage(named: "ledGrey")
-                        
+            
         case .DMA_DEBUG:
             msg.value != 0 ? renderer.zoomTextureOut() : renderer.zoomTextureIn()
-
+            
         case .VIDEO_FORMAT:
             renderer.canvas.updateTextureRect()
-
+            
         case .OVERCLOCKING:
             speedometer.acceleration = acceleration
             activityBar.maxValue = 140.0 * acceleration
-            activityBar.warningValue = 77.0 * acceleration 
+            activityBar.warningValue = 77.0 * acceleration
             activityBar.criticalValue = 105.0 * acceleration
             
         case .COPPERBP_UPDATED, .COPPERWP_UPDATED, .GUARD_UPDATED:
-            passToInspector()
-            
+            break
+
         case .BREAKPOINT_REACHED:
             setInfo("Breakpoint reached", "Interrupted at address \(pcHex)")
             
         case .WATCHPOINT_REACHED:
             setInfo("Watchpoint reached", "Interrupted at address \(pcHex)")
-
+            
         case .CATCHPOINT_REACHED:
             let name = emu.cpu.vectorName(vector)!
             setInfo("Exception vector catched", "Caught vector \(vector) (\(name))")
-
+            
         case .COPPERBP_REACHED:
             setInfo("Copper breakpoint reached", "Interrupted at address \(pcHex)")
-
+            
         case .COPPERWP_REACHED:
             setInfo("Copper watchpoint reached", "Interrupted at address \(pcHex)")
-
+            
         case .SWTRAP_REACHED:
             setInfo("Software trap reached at address \(pc)", "Interrupted at address \(pcHex)")
-
+            
         case .BEAMTRAP_REACHED:
             setInfo("Beamtrap reached", "Interrupted at location \(pos)")
-
+            
         case .EOF_REACHED:
             setInfo("End of frame reached", "Interrupted at location \(pos)")
-
+            
         case .EOL_REACHED:
             setInfo("End of line reached", "Interrupted at location \(pos)")
-
+            
         case .CPU_HALT:
             refreshStatusBar()
-                        
+            
         case .VIEWPORT:
             renderer.canvas.updateTextureRect(hstrt: Int(msg.viewport.hstrt),
                                               vstrt: Int(msg.viewport.vstrt),
                                               hstop: Int(msg.viewport.hstop),
                                               vstop: Int(msg.viewport.vstop))
-
-        case .MEM_LAYOUT:
-            passToInspector()
             
+        case .MEM_LAYOUT:
+                break
+
         case .DRIVE_CONNECT:
-
+            
             if msg.value != 0 {
-
+                
                 hideOrShowDriveMenus()
                 assignSlots()
                 refreshStatusBar()
-
+                
             } else {
-
+                
                 hideOrShowDriveMenus()
                 assignSlots()
                 refreshStatusBar()
             }
-
+            
         case .DRIVE_SELECT:
             refreshStatusBar(writing: nil)
             
@@ -537,13 +515,13 @@ extension MyController {
             
         case .DRIVE_WRITE:
             refreshStatusBar(writing: true)
-
+            
         case .DRIVE_LED:
             refreshStatusBar()
             
         case .DRIVE_MOTOR:
             refreshStatusBar()
-
+            
         case .DRIVE_STEP:
             macAudio.playSound(MacAudio.Sounds.step, volume: volume, pan: pan)
             refreshStatusBar(drive: nr, cylinder: cyl)
@@ -555,7 +533,7 @@ extension MyController {
         case .DISK_INSERT:
             macAudio.playSound(MacAudio.Sounds.insert, volume: volume, pan: pan)
             refreshStatusBar()
-
+            
         case .DISK_EJECT:
             macAudio.playSound(MacAudio.Sounds.eject, volume: volume, pan: pan)
             refreshStatusBar()
@@ -564,15 +542,15 @@ extension MyController {
             refreshStatusBar()
             
         case .HDC_CONNECT:
-
+            
             if msg.value != 0 {
-
+                
                 hideOrShowDriveMenus()
                 assignSlots()
                 refreshStatusBar()
-
+                
             } else {
-
+                
                 hideOrShowDriveMenus()
                 assignSlots()
                 refreshStatusBar()
@@ -580,11 +558,11 @@ extension MyController {
             
         case .HDC_STATE:
             refreshStatusBar()
-
+            
         case .HDR_STEP:
             macAudio.playSound(MacAudio.Sounds.move, volume: volume, pan: pan)
             refreshStatusBar()
-
+            
         case .HDR_IDLE, .HDR_READ:
             refreshStatusBar()
             
@@ -592,7 +570,7 @@ extension MyController {
             refreshStatusBar()
             
         case .MON_SETTING:
-            renderer.processMessage(msg)
+            renderer.process(message: msg)
             
         case .CTRL_AMIGA_AMIGA:
             resetAction(self)
@@ -603,42 +581,29 @@ extension MyController {
                 serialIn += String(UnicodeScalar(UInt8(c)))
                 c = emu.serialPort.readIncomingPrintableByte()
             }
-
+            
         case .SER_OUT:
             var c = emu.serialPort.readOutgoingPrintableByte()
             while c != -1 {
                 serialOut += String(UnicodeScalar(UInt8(c)))
                 c = emu.serialPort.readOutgoingPrintableByte()
             }
-
+            
         case .SNAPSHOT_TAKEN:
             let ptr = msg.snapshot.snapshot
             let proxy = MediaFileProxy.init(ptr)!
-            mydocument.snapshots.append(proxy, size: proxy.size)
+            if !mydocument.appendSnapshot(file: proxy) {
+                NSSound.beep()
+            }
             
         case .SNAPSHOT_RESTORED:
             renderer.flash(steps: 40)
             hideOrShowDriveMenus()
             assignSlots()
             refreshStatusBar()
-
+            
         case .WORKSPACE_SAVED, .WORKSPACE_LOADED:
             break
-            
-        case .RECORDING_STARTED:
-            window?.backgroundColor = .warning
-            window?.styleMask.remove(.resizable)
-            refreshStatusBar()
-            
-        case .RECORDING_STOPPED:
-            window?.backgroundColor = .windowBackgroundColor
-            window?.styleMask.insert(.resizable)
-            refreshStatusBar()
-            exportVideoAction(self)
-
-        case .RECORDING_ABORTED:
-            refreshStatusBar()
-            showAlert(.recorderAborted)
             
         case .SHAKING:
             metal.lastShake = DispatchTime(uptimeNanoseconds: 0)
@@ -651,26 +616,30 @@ extension MyController {
             
         case .SRV_RECEIVE, .SRV_SEND:
             break
-
+            
         case .ALARM:
             debug(.events, "Received Alarm \(msg.value)")
-
+            
         default:
             warn("Unknown message: \(msg)")
             fatalError()
         }
+        
+        // Pass message to all open auxiliary panels
+        for inspector in inspectors { inspector.processMessage(msg) }
+        for dashboard in dashboards { dashboard.processMessage(msg) }
     }
     
     func setInfo(_ text: String?, _ text2: String? = nil) {
         
-        info = text
-        info2 = text2
+        infoText = text
+        infoText2 = text2
         refreshStatusBar()
     }
     
     func clearInfo() {
         
-        info = nil
-        info2 = nil
+        infoText = nil
+        infoText2 = nil
     }
 }

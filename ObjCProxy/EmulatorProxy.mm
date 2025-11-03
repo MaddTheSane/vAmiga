@@ -866,108 +866,6 @@ NSString *EventSlotName(EventSlot slot)
 
 
 //
-// Recorder
-//
-
-@implementation RecorderProxy
-
-- (RecorderAPI *)recorder
-{
-    return (RecorderAPI *)obj;
-}
-
-- (RecorderConfig)config
-{
-    return [self recorder]->getConfig();
-}
-
-- (NSString *)path
-{
-    auto path = [self recorder]->getExecPath(); // FFmpeg::getExecPath();
-    return @(path.c_str());
-}
-
-- (void)setPath:(NSString *)path
-{
-    if ([path length] == 0) {
-        [self recorder]->setExecPath("");
-    } else {
-        [self recorder]->setExecPath([path fileSystemRepresentation]);
-    }
-}
-
-- (NSString *)findFFmpeg:(NSInteger)nr
-{
-    auto &paths = [self recorder]->paths();
-
-    if (nr < (NSInteger)paths.size()) {
-        return @(paths[nr].c_str());
-    } else {
-        return nil;
-    }
-}
-
-- (BOOL)hasFFmpeg
-{
-    return [self recorder]->hasFFmpeg();
-}
-
-- (BOOL)recording
-{
-    return [self recorder]->isRecording();
-}
-
-- (double)duration
-{
-    return [self recorder]->getDuration();
-}
-
-/*
-- (NSInteger)frameRate
-{
-    return [self recorder]->getFrameRate();
-}
-
-- (NSInteger)bitRate
-{
-    return [self recorder]->getBitRate();
-}
-
-- (NSInteger)sampleRate
-{
-    return [self recorder]->getSampleRate();
-}
-*/
-
-- (void)startRecording:(NSRect)rect
-               bitRate:(NSInteger)rate
-               aspectX:(NSInteger)aspectX
-               aspectY:(NSInteger)aspectY
-             exception:(ExceptionWrapper *)ex
-{
-    auto x1 = isize(rect.origin.x);
-    auto y1 = isize(rect.origin.y);
-    auto x2 = isize(x1 + (int)rect.size.width);
-    auto y2 = isize(y1 + (int)rect.size.height);
-    
-    try { return [self recorder]->startRecording(x1, y1, x2, y2, rate, aspectX, aspectY); }
-    catch (AppError &error) { [ex save:error]; }
-}
-
-- (void)stopRecording
-{
-    [self recorder]->stopRecording();
-}
-
-- (BOOL)exportAs:(NSString *)path
-{
-    return [self recorder]->exportAs([path fileSystemRepresentation]);
-}
-
-@end
-
-
-//
 // Paula proxy
 //
 
@@ -1051,16 +949,6 @@ NSString *EventSlotName(EventSlot slot)
     return (MouseAPI *)obj;
 }
 
-- (BOOL)detectShakeAbs:(NSPoint)pos
-{
-    return [self mouse]->detectShakeXY(pos.x, pos.y);
-}
-
-- (BOOL)detectShakeRel:(NSPoint)pos
-{
-    return [self mouse]->detectShakeDxDy(pos.x, pos.y);
-}
-
 - (void)setXY:(NSPoint)pos
 {
     [self mouse]->setXY(pos.x, pos.y);
@@ -1076,6 +964,16 @@ NSString *EventSlotName(EventSlot slot)
     [self mouse]->trigger(event);
 }
 
+- (BOOL)detectShakeAbs:(NSPoint)pos
+{
+    return [self mouse]->detectShakeXY(pos.x, pos.y);
+}
+
+- (BOOL)detectShakeRel:(NSPoint)pos
+{
+    return [self mouse]->detectShakeDxDy(pos.x, pos.y);
+}
+
 @end
 
 
@@ -1088,6 +986,16 @@ NSString *EventSlotName(EventSlot slot)
 - (JoystickAPI *)joystick
 {
     return (JoystickAPI *)obj;
+}
+
+- (JoystickInfo)info
+{
+    return [self joystick]->getInfo();
+}
+
+- (JoystickInfo)cachedInfo
+{
+    return [self joystick]->getCachedInfo();
 }
 
 - (void)trigger:(GamePadAction)event
@@ -1558,12 +1466,12 @@ NSString *EventSlotName(EventSlot slot)
 
 - (FSBlockType)blockType:(NSInteger)blockNr
 {
-    return [self fs]->typeof((u32)blockNr);
+    return [self fs]->typeOf((u32)blockNr);
 }
 
 - (FSItemType)itemType:(NSInteger)blockNr pos:(NSInteger)pos
 {
-    return [self fs]->typeof((u32)blockNr, pos);
+    return [self fs]->typeOf((u32)blockNr, pos);
 }
 
 - (NSInteger)xrayBlocks:(BOOL)strict
@@ -1709,13 +1617,6 @@ NSString *EventSlotName(EventSlot slot)
     return [self shell]->getInfo();
 }
 
-/*
--(NSInteger)cursorRel
-{
-    return [self shell]->cursorRel();
-}
-*/
-
 -(NSString *)getText
 {
     const char *str = [self shell]->text();
@@ -1794,10 +1695,10 @@ NSString *EventSlotName(EventSlot slot)
     catch (AppError &error) { [ex save:error]; return nil; }
 }
 
-+ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy
++ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy compressor:(Compressor)c
 {
     auto amiga = (VAmiga *)proxy->obj;
-    return [self make:amiga->amiga.takeSnapshot()];
+    return [self make:amiga->amiga.takeSnapshot(c)];
 }
 
 + (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy
@@ -2255,15 +2156,22 @@ NSString *EventSlotName(EventSlot slot)
     return [self amiga]->setAutoInspectionMask(u64(mask));
 }
 
-- (MediaFileProxy *)takeSnapshot
+- (NSString *)stateString
+{
+    std::stringstream ss;
+    [self amiga]->dump(Category::Trace, ss);
+    return @(ss.str().c_str());
+}
+
+- (MediaFileProxy *) takeSnapshot:(Compressor)compressor
 {
     try {
-        
-        MediaFile *file = [self amiga]->takeSnapshot();
-        return [MediaFileProxy make:file];
-        
+
+        MediaFile *snapshot = [self amiga]->takeSnapshot(compressor);
+        return [MediaFileProxy make:snapshot];
+
     } catch (AppError &error) {
-        
+
         return nil;
     }
 }
@@ -2296,13 +2204,6 @@ NSString *EventSlotName(EventSlot slot)
 {
     try { [self amiga]->saveWorkspace([url fileSystemRepresentation]); }
     catch (AppError &error) { [ex save:error]; }
-}
-
-- (NSString *)stateString
-{
-    std::stringstream ss;
-    [self amiga]->dump(Category::Trace, ss);
-    return @(ss.str().c_str());
 }
 
 - (BOOL)getMessage:(Message *)msg
@@ -2350,7 +2251,6 @@ NSString *EventSlotName(EventSlot slot)
 @synthesize retroShell;
 @synthesize rtc;
 @synthesize serialPort;
-@synthesize recorder;
 @synthesize videoPort;
 @synthesize watchpoints;
 
@@ -2393,7 +2293,6 @@ NSString *EventSlotName(EventSlot slot)
     paula = [[PaulaProxy alloc] initWith:&vamiga->paula];
     retroShell = [[RetroShellProxy alloc] initWith:&vamiga->retroShell];
     rtc = [[RtcProxy alloc] initWith:&vamiga->rtc];
-    recorder = [[RecorderProxy alloc] initWith:&vamiga->recorder];
     remoteManager = [[RemoteManagerProxy alloc] initWith:&vamiga->remoteManager];
     serialPort = [[SerialPortProxy alloc] initWith:&vamiga->serialPort];
     videoPort = [[VideoPortProxy alloc] initWith:&vamiga->videoPort];

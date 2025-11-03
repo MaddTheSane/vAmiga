@@ -10,12 +10,12 @@
 @MainActor
 extension MyController {
     
-    var snapshotCount: Int { return mydocument!.snapshots.count }
+    var snapshotCount: Int { return mydocument.snapshots.count }
     
     func restoreSnapshot(item: Int) throws {
         
         if let snapshot = mydocument.snapshots.element(at: item) {
-            try emu.amiga.loadSnapshot(snapshot)
+            try emu?.amiga.loadSnapshot(snapshot)
         }
     }
     

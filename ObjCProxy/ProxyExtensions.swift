@@ -189,7 +189,6 @@ extension MediaFileProxy {
         case .ADF, .ADZ, .EADF, .IMG:
 
             let info = floppyDiskInfo
-            print("info = \(info)")
             name = (info.density == .HD ? "hd" : "dd") +
             (type == .IMG ? "_dos" : info.dos == .NODOS ? "_other" : "_adf")
 
@@ -519,15 +518,6 @@ extension FileSystemProxy {
     }
 }
 
-extension RecorderProxy {
-    
-    func startRecording(rect: NSRect, rate: Int, ax: Int, ay: Int) throws {
-        
-        let exception = ExceptionWrapper()
-        startRecording(rect, bitRate: rate, aspectX: ax, aspectY: ay, exception: exception)
-        if exception.fault != .OK { throw AppError(exception) }
-    }
-}
 
 //
 // Other extensions
