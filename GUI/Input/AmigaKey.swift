@@ -450,7 +450,7 @@ extension AmigaKey {
 
         // Get a background image
         let (image, tint) = bgImage(style: style, layout: layout)
-        guard let image = image else { return nil }
+        guard let image else { return nil }
         
         // Get the keycap label
         let label = self.label[layout] ?? self.label[.generic]!

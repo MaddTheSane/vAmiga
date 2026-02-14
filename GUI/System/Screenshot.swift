@@ -114,7 +114,7 @@ class Screenshot: CustomStringConvertible {
     
     static func url(forItem item: Int) -> URL? {
         
-        guard let folder = folder else { return nil }
+        guard let folder else { return nil }
 
         let types: [NSBitmapImageRep.FileType] = [ .tiff, .bmp, .gif, .jpeg, .png ]
         let url = folder.appendingPathComponent(String(format: "%03d", item))

@@ -192,7 +192,7 @@ extension URL {
         case "tiff": return .tiff
         case "bmp": return .bmp
         case "gif": return .gif
-        case "jpg", "jpeg": return .jpeg
+        case "jpg", "jpeg", "jpe": return .jpeg
         case "png": return .png
         default: return nil
         }

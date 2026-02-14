@@ -53,7 +53,7 @@ extension MetalView {
 
         let options: NSTrackingArea.Options = [ .activeInKeyWindow, .mouseEnteredAndExited ]
         
-        if let trackingArea = trackingArea {
+        if let trackingArea {
             removeTrackingArea(trackingArea)
         }
         trackingArea = NSTrackingArea(rect: self.bounds, options: options, owner: self, userInfo: nil)
