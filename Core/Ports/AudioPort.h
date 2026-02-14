@@ -11,14 +11,12 @@
 
 #include "AudioPortTypes.h"
 #include "SubComponent.h"
-#include "Animated.h"
 #include "AudioStream.h"
 #include "AudioFilter.h"
-#include "Chrono.h"
 #include "Sampler.h"
 #include "SampleRateDetector.h"
-
-namespace vamiga {
+#include "utl/chrono.h"
+#include "utl/wrappers.h"
 
 /* Architecture of the audio pipeline
  *
@@ -42,7 +40,9 @@ namespace vamiga {
  *           -----------------------------------------------------
  */
 
-class AudioPort final : public SubComponent, public Inspectable<AudioPortInfo, AudioPortStats>  {
+namespace vamiga {
+
+class AudioPort final : public SubComponent {
 
     friend class AudioFilter;
     friend class Paula;
@@ -75,6 +75,17 @@ class AudioPort final : public SubComponent, public Inspectable<AudioPortInfo, A
 
     // Current configuration
     AudioPortConfig config = { };
+
+public:
+
+    // Result of the latest inspection
+    utl::Memorized<AudioPortInfo> info;
+    utl::Memorized<AudioPortMetrics> metrics;
+
+private:
+
+    // Internal metrics
+    AudioPortMetrics stats = {};
     
     // Current sample rate
     double sampleRate = 44100.0;
@@ -87,7 +98,7 @@ class AudioPort final : public SubComponent, public Inspectable<AudioPortInfo, A
     double fraction = 0.0;
 
     // Time stamp of the last write pointer alignment
-    util::Time lastAlignment = util::Time::now();
+    utl::Time lastAlignment = utl::Time::now();
     
     // Channel volumes
     float vol[4] = { };
@@ -96,8 +107,8 @@ class AudioPort final : public SubComponent, public Inspectable<AudioPortInfo, A
     float pan[4] = { };
 
     // Master volumes (fadable)
-    util::Animated<float> volL;
-    util::Animated<float> volR;
+    utl::Animated<float> volL;
+    utl::Animated<float> volR;
 
     // Used to determine if Msg::MUTE should be send
     bool wasMuted = false;
@@ -217,13 +228,13 @@ public:
 
     
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(AudioPortInfo &result) const override;
-    void cacheStats(AudioPortStats &result) const override;
+    AudioPortInfo cacheInfo() const;
+    AudioPortMetrics cacheMetrics() const;
 
 
     //

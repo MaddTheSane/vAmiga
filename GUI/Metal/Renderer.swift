@@ -216,13 +216,13 @@ class Renderer: NSObject, MTKViewDelegate {
             let newfps = Int(round(Double(interval) / elapsed))
             if newfps != fps {
 
-                debug(.vsync, "Measured GPU frame rate: \(newfps)")
+                loginfo(.vsync, "Measured GPU frame rate: \(newfps)")
 
                 if [50, 60, 100, 120, 200, 240].contains(newfps) {
 
                     fps = newfps
                     emu?.set(.HOST_REFRESH_RATE, value: Int(fps))
-                    debug(.vsync, "New GPU frame rate: \(fps)")
+                    loginfo(.vsync, "New GPU frame rate: \(fps)")
                 }
             }
         }
@@ -261,8 +261,8 @@ class Renderer: NSObject, MTKViewDelegate {
     
     func draw(in view: MTKView) {
         
-        MainActor.assertIsolated("Not isolated!!")
-        
+        MainActor.assertIsolated("Not isolated!")
+
         frames += 1
         update(frames: frames)
 

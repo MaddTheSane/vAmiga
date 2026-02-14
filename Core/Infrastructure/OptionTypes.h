@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Infrastructure/Reflection.h"
+#include "BasicTypes.h"
 
 namespace vamiga {
 
@@ -168,6 +168,10 @@ enum class Opt : long
     SER_DEVICE,
     SER_VERBOSE,
     
+    // MIDI
+    MIDI_DEVICE_OUT,
+    MIDI_DEVICE_IN,
+
     // Blitter
     BLITTER_ACCURACY,
     
@@ -212,13 +216,13 @@ enum class Opt : long
     DIAG_BOARD,
     
     // Remote servers
+    SRV_ENABLE,
     SRV_PORT,
     SRV_PROTOCOL,
-    SRV_AUTORUN,
     SRV_VERBOSE
 };
 
-struct OptEnum : Reflection<OptEnum, Opt>
+struct OptEnum : Reflectable<OptEnum, Opt>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = long(Opt::SRV_VERBOSE);
@@ -357,7 +361,10 @@ struct OptEnum : Reflection<OptEnum, Opt>
                 
             case Opt::SER_DEVICE:                return "SER.DEVICE";
             case Opt::SER_VERBOSE:               return "SER.VERBOSE";
-                
+            
+            case Opt::MIDI_DEVICE_OUT:           return "MIDI_DEVICE_OUT";
+            case Opt::MIDI_DEVICE_IN:            return "MIDI_DEVICE_IN";
+
             case Opt::BLITTER_ACCURACY:          return "BLITTER.ACCURACY";
                 
             case Opt::CIA_REVISION:              return "CIA.REVISION";
@@ -394,10 +401,10 @@ struct OptEnum : Reflection<OptEnum, Opt>
                 
             case Opt::DIAG_BOARD:                return "DIAG_BOARD";
                 
-            case Opt::SRV_PORT:                  return "SRV.PORT";
-            case Opt::SRV_PROTOCOL:              return "SRV.PROTOCOL";
-            case Opt::SRV_AUTORUN:               return "SRV.AUTORUN";
-            case Opt::SRV_VERBOSE:               return "SRV.VERBOSE";
+            case Opt::SRV_ENABLE:               return "SRV.ENABLE";
+            case Opt::SRV_PORT:                 return "SRV.PORT";
+            case Opt::SRV_PROTOCOL:             return "SRV.PROTOCOL";
+            case Opt::SRV_VERBOSE:              return "SRV.VERBOSE";
         }
         return "???";
     }
@@ -536,7 +543,10 @@ struct OptEnum : Reflection<OptEnum, Opt>
                 
             case Opt::SER_DEVICE:                return "Serial device type";
             case Opt::SER_VERBOSE:               return "Verbose";
-                
+            
+            case Opt::MIDI_DEVICE_OUT:           return "MIDI output device";
+            case Opt::MIDI_DEVICE_IN:            return "MIDI input device";
+
             case Opt::BLITTER_ACCURACY:          return "Blitter accuracy level";
                 
             case Opt::CIA_REVISION:              return "Chip revision";
@@ -573,10 +583,10 @@ struct OptEnum : Reflection<OptEnum, Opt>
                 
             case Opt::DIAG_BOARD:                return "Diagnose board";
                 
-            case Opt::SRV_PORT:                  return "Server port";
-            case Opt::SRV_PROTOCOL:              return "Server protocol";
-            case Opt::SRV_AUTORUN:               return "Auto run";
-            case Opt::SRV_VERBOSE:               return "Verbose mode";
+            case Opt::SRV_ENABLE:            return "Server enable status";
+            case Opt::SRV_PORT:              return "Server port";
+            case Opt::SRV_PROTOCOL:          return "Server protocol";
+            case Opt::SRV_VERBOSE:           return "Verbose mode";
         }
         return "???";
     }

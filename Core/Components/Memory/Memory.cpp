@@ -11,7 +11,6 @@
 #include "Memory.h"
 #include "Emulator.h"
 #include "Agnus.h"
-#include "Checksum.h"
 #include "CIA.h"
 #include "CPU.h"
 #include "Denise.h"
@@ -22,6 +21,8 @@
 #include "RTC.h"
 #include "ZorroManager.h"
 #include "RomDatabase.h"
+#include "MediaError.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
@@ -31,11 +32,15 @@ Memory::Memory(Amiga& ref) : SubComponent(ref)
 
         &debugger
     };
+
+    info.bind([this] { return cacheInfo(); } );
 }
 
 void
 Memory::_dump(Category category, std::ostream &os) const
 {
+    using namespace utl;
+
     if (category == Category::Config) {
         
         dumpConfig(os);
@@ -47,27 +52,27 @@ Memory::_dump(Category category, std::ostream &os) const
         auto womTraits = getWomTraits();
         auto extTraits = getExtTraits();
 
-        os << util::tab("Rom");
-        os << util::hex(romTraits.crc) << " (CRC32)  ";
+        os << tab("Rom");
+        os << hex(romTraits.crc) << " (CRC32)  ";
         os << romTraits.title << " " << romTraits.released << std::endl;
-        os << util::tab("Wom");
-        os << util::hex(womTraits.crc) << " (CRC32)  ";
+        os << tab("Wom");
+        os << hex(womTraits.crc) << " (CRC32)  ";
         os << womTraits.title << " " << womTraits.released << std::endl;
-        os << util::tab("Extended Rom");
-        os << util::hex(extTraits.crc) << " (CRC32)  ";
+        os << tab("Extended Rom");
+        os << hex(extTraits.crc) << " (CRC32)  ";
         os << extTraits.title << " " << extTraits.released << std::endl;
-        os << util::tab("Chip Ram");
-        os << util::hex(util::crc32(chip, config.chipSize)) << " (CRC32)  " << std::endl;
-        os << util::tab("Slow Ram");
-        os << util::hex(util::crc32(slow, config.slowSize)) << " (CRC32)  " << std::endl;
-        os << util::tab("Fast Ram");
-        os << util::hex(util::crc32(fast, config.fastSize)) << " (CRC32)  " << std::endl;
+        os << tab("Chip Ram");
+        os << hex(Hashable::crc32(chip, config.chipSize)) << " (CRC32)  " << std::endl;
+        os << tab("Slow Ram");
+        os << hex(Hashable::crc32(slow, config.slowSize)) << " (CRC32)  " << std::endl;
+        os << tab("Fast Ram");
+        os << hex(Hashable::crc32(fast, config.fastSize)) << " (CRC32)  " << std::endl;
 
         os << std::endl;
-        os << util::tab("Data bus");
-        os << util::hex(dataBus) << std::endl;
-        os << util::tab("Wom is locked");
-        os << util::bol(womIsLocked) << std::endl;
+        os << tab("Data bus");
+        os << hex(dataBus) << std::endl;
+        os << tab("Wom is locked");
+        os << bol(womIsLocked) << std::endl;
     }
     
     if (category == Category::BankMap) {
@@ -82,8 +87,8 @@ Memory::_dump(Category category, std::ostream &os) const
             if (oldsrc != newsrc) {
                 
                 os << "        ";
-                os << util::hex((u8)(oldi)) << "0000" << " - ";
-                os << util::hex((u8)(i - 1)) << "ffff : ";
+                os << hex((u8)(oldi)) << "0000" << " - ";
+                os << hex((u8)(i - 1)) << "ffff : ";
                 os << MemSrcEnum::key(oldsrc) << std::endl;
 
                 oldsrc = newsrc;
@@ -98,19 +103,19 @@ Memory::_initialize()
 {    
     if (auto romPath = Emulator::defaults.getRaw("ROM_PATH"); romPath != "") {
 
-        debug(CNF_DEBUG, "Trying to load Rom from %s...\n", romPath.c_str());
+        loginfo(CNF_DEBUG, "Trying to load Rom from %s...\n", romPath.c_str());
         
         try { loadRom(romPath); } catch (std::exception& e) {
-            debug(CNF_DEBUG, "Error: %s\n", e.what());
+            loginfo(CNF_DEBUG, "Error: %s\n", e.what());
         }
     }
     
     if (auto extPath = Emulator::defaults.getRaw("EXT_PATH"); extPath != "") {
 
-        debug(CNF_DEBUG, "Trying to load extension Rom from %s...\n", extPath.c_str());
+        loginfo(CNF_DEBUG, "Trying to load extension Rom from %s...\n", extPath.c_str());
         
         try { loadExt(extPath); } catch (std::exception& e) {
-            debug(CNF_DEBUG, "Error: %s\n", e.what());
+            loginfo(CNF_DEBUG, "Error: %s\n", e.what());
         }
     }
 }
@@ -144,40 +149,40 @@ Memory::checkOption(Opt opt, i64 value)
         case Opt::MEM_CHIP_RAM:
 
             if (!isPoweredOff()) {
-                throw AppError(Fault::OPT_LOCKED);
+                throw CoreError(CoreError::OPT_LOCKED);
             }
             if (value != 256 && value != 512 && value != 1024 && value != 2048) {
-                throw AppError(Fault::OPT_INV_ARG, "256, 512, 1024, 2048");
+                throw CoreError(CoreError::OPT_INV_ARG, "256, 512, 1024, 2048");
             }
             return;
 
         case Opt::MEM_SLOW_RAM:
 
             if (!isPoweredOff()) {
-                throw AppError(Fault::OPT_LOCKED);
+                throw CoreError(CoreError::OPT_LOCKED);
             }
             if ((value % 256) != 0 || value > 1536) {
-                throw AppError(Fault::OPT_INV_ARG, "0, 256, 512, ..., 1536");
+                throw CoreError(CoreError::OPT_INV_ARG, "0, 256, 512, ..., 1536");
             }
             return;
 
         case Opt::MEM_FAST_RAM:
 
             if (!isPoweredOff()) {
-                throw AppError(Fault::OPT_LOCKED);
+                throw CoreError(CoreError::OPT_LOCKED);
             }
             if ((value % 64) != 0 || value > 8192) {
-                throw AppError(Fault::OPT_INV_ARG, "0, 64, 128, ..., 8192");
+                throw CoreError(CoreError::OPT_INV_ARG, "0, 64, 128, ..., 8192");
             }
             return;
 
         case Opt::MEM_EXT_START:
 
             if (!isPoweredOff()) {
-                throw AppError(Fault::OPT_LOCKED);
+                throw CoreError(CoreError::OPT_LOCKED);
             }
             if (value != 0xE0 && value != 0xF0) {
-                throw AppError(Fault::OPT_INV_ARG, "E0, F0");
+                throw CoreError(CoreError::OPT_INV_ARG, "E0, F0");
             }
             return;
 
@@ -190,26 +195,26 @@ Memory::checkOption(Opt opt, i64 value)
         case Opt::MEM_BANKMAP:
 
             if (!BankMapEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, BankMapEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, BankMapEnum::keyList());
             }
             return;
 
         case Opt::MEM_UNMAPPING_TYPE:
 
             if (!UnmappedMemoryEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, UnmappedMemoryEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, UnmappedMemoryEnum::keyList());
             }
             return;
 
         case Opt::MEM_RAM_INIT_PATTERN:
 
             if (!RamInitPatternEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, RamInitPatternEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, RamInitPatternEnum::keyList());
             }
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -297,7 +302,7 @@ Memory::_didReset(bool hard)
     updateMemSrcTables();
 
     // Initialize statistical counters
-    clearStats();
+    metrics.clear();
 }
 
 void
@@ -382,12 +387,12 @@ Memory::operator << (SerReader &worker)
     << fastSize;
 
     // Check the integrity of the new values before allocating memory
-    if (romSize > KB(512)) throw AppError(Fault::SNAP_CORRUPTED);
-    if (womSize > KB(256)) throw AppError(Fault::SNAP_CORRUPTED);
-    if (extSize > KB(512)) throw AppError(Fault::SNAP_CORRUPTED);
-    if (chipSize > MB(2)) throw AppError(Fault::SNAP_CORRUPTED);
-    if (slowSize > KB(1792)) throw AppError(Fault::SNAP_CORRUPTED);
-    if (fastSize > MB(8)) throw AppError(Fault::SNAP_CORRUPTED);
+    if (romSize > KB(512)) throw MediaError(MediaError::SNAP_CORRUPTED);
+    if (womSize > KB(256)) throw MediaError(MediaError::SNAP_CORRUPTED);
+    if (extSize > KB(512)) throw MediaError(MediaError::SNAP_CORRUPTED);
+    if (chipSize > MB(2)) throw MediaError(MediaError::SNAP_CORRUPTED);
+    if (slowSize > KB(1792)) throw MediaError(MediaError::SNAP_CORRUPTED);
+    if (fastSize > MB(8)) throw MediaError(MediaError::SNAP_CORRUPTED);
 
     // Allocate ROM space
     if (config.saveRoms) {
@@ -442,26 +447,27 @@ Memory::operator << (SerWriter &worker)
     worker.copy(fast, fastSize);
 }
 
-void
-Memory::cacheInfo(MemInfo &result) const
+MemInfo
+Memory::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        result.hasRom = hasRom();
-        result.hasWom = hasWom();
-        result.hasExt = hasExt();
-        result.hasBootRom = hasBootRom();
-        result.hasKickRom = hasKickRom();
-        result.womLock = womIsLocked;
-        
-        result.romMask = romMask;
-        result.womMask = womMask;
-        result.extMask = extMask;
-        result.chipMask = chipMask;
-        
-        for (isize i = 0; i < 256; i++) result.cpuMemSrc[i] = cpuMemSrc[i];
-        for (isize i = 0; i < 256; i++) result.agnusMemSrc[i] = agnusMemSrc[i];
-    }
+    MemInfo info;
+
+    info.hasRom = hasRom();
+    info.hasWom = hasWom();
+    info.hasExt = hasExt();
+    info.hasBootRom = hasBootRom();
+    info.hasKickRom = hasKickRom();
+    info.womLock = womIsLocked;
+
+    info.romMask = romMask;
+    info.womMask = womMask;
+    info.extMask = extMask;
+    info.chipMask = chipMask;
+
+    for (isize i = 0; i < 256; i++) info.cpuMemSrc[i] = cpuMemSrc[i];
+    for (isize i = 0; i < 256; i++) info.agnusMemSrc[i] = agnusMemSrc[i];
+
+    return info;
 }
 
 void
@@ -472,17 +478,17 @@ Memory::_isReady() const
     bool hasRom = traits.crc != 0;
     bool hasAros = traits.vendor == RomVendor::AROS;
 
-    if (!hasRom || FORCE_ROM_MISSING) {
-        throw AppError(Fault::ROM_MISSING);
+    if (!hasRom || force::ROM_MISSING) {
+        throw CoreError(CoreError::ROM_MISSING);
     }
-    if (!chip || FORCE_CHIP_RAM_MISSING) {
-        throw AppError(Fault::CHIP_RAM_MISSING);
+    if (!chip || force::CHIP_RAM_MISSING) {
+        throw CoreError(CoreError::CHIP_RAM_MISSING);
     }
-    if ((hasAros && !ext) || FORCE_AROS_NO_EXTROM) {
-        throw AppError(Fault::AROS_NO_EXTROM);
+    if ((hasAros && !ext) || force::AROS_NO_EXTROM) {
+        throw CoreError(CoreError::AROS_NO_EXTROM);
     }
-    if ((hasAros && ramSize() < MB(1)) || FORCE_AROS_RAM_LIMIT) {
-        throw AppError(Fault::AROS_RAM_LIMIT);
+    if ((hasAros && ramSize() < MB(1)) || force::AROS_RAM_LIMIT) {
+        throw CoreError(CoreError::AROS_RAM_LIMIT);
     }
 }
 
@@ -490,32 +496,34 @@ void
 Memory::updateStats()
 {
     const double w = 0.5;
-    
-    stats.chipReads.accumulated =
-    w * stats.chipReads.accumulated + (1.0 - w) * stats.chipReads.raw;
-    stats.chipWrites.accumulated =
-    w * stats.chipWrites.accumulated + (1.0 - w) * stats.chipWrites.raw;
-    stats.slowReads.accumulated =
-    w * stats.slowReads.accumulated + (1.0 - w) * stats.slowReads.raw;
-    stats.slowWrites.accumulated =
-    w * stats.slowWrites.accumulated + (1.0 - w) * stats.slowWrites.raw;
-    stats.fastReads.accumulated =
-    w * stats.fastReads.accumulated + (1.0 - w) * stats.fastReads.raw;
-    stats.fastWrites.accumulated =
-    w * stats.fastWrites.accumulated + (1.0 - w) * stats.fastWrites.raw;
-    stats.kickReads.accumulated =
-    w * stats.kickReads.accumulated + (1.0 - w) * stats.kickReads.raw;
-    stats.kickWrites.accumulated =
-    w * stats.kickWrites.accumulated + (1.0 - w) * stats.kickWrites.raw;
 
-    stats.chipReads.raw = 0;
-    stats.chipWrites.raw = 0;
-    stats.slowReads.raw = 0;
-    stats.slowWrites.raw = 0;
-    stats.fastReads.raw = 0;
-    stats.fastWrites.raw = 0;
-    stats.kickReads.raw = 0;
-    stats.kickWrites.raw = 0;
+    MemMetrics &_metrics = metrics.value;
+
+    _metrics.chipReads.accumulated =
+    w * _metrics.chipReads.accumulated + (1.0 - w) * _metrics.chipReads.raw;
+    _metrics.chipWrites.accumulated =
+    w * _metrics.chipWrites.accumulated + (1.0 - w) * _metrics.chipWrites.raw;
+    _metrics.slowReads.accumulated =
+    w * _metrics.slowReads.accumulated + (1.0 - w) * _metrics.slowReads.raw;
+    _metrics.slowWrites.accumulated =
+    w * _metrics.slowWrites.accumulated + (1.0 - w) * _metrics.slowWrites.raw;
+    _metrics.fastReads.accumulated =
+    w * _metrics.fastReads.accumulated + (1.0 - w) * _metrics.fastReads.raw;
+    _metrics.fastWrites.accumulated =
+    w * _metrics.fastWrites.accumulated + (1.0 - w) * _metrics.fastWrites.raw;
+    _metrics.kickReads.accumulated =
+    w * _metrics.kickReads.accumulated + (1.0 - w) * _metrics.kickReads.raw;
+    _metrics.kickWrites.accumulated =
+    w * _metrics.kickWrites.accumulated + (1.0 - w) * _metrics.kickWrites.raw;
+
+    _metrics.chipReads.raw = 0;
+    _metrics.chipWrites.raw = 0;
+    _metrics.slowReads.raw = 0;
+    _metrics.slowWrites.raw = 0;
+    _metrics.fastReads.raw = 0;
+    _metrics.fastWrites.raw = 0;
+    _metrics.kickReads.raw = 0;
+    _metrics.kickWrites.raw = 0;
 }
 
 void
@@ -639,59 +647,51 @@ Memory::getRomTraits(u32 crc)
 const RomTraits &
 Memory::getRomTraits() const
 {
-    return getRomTraits(util::crc32(rom, config.romSize));
+    return getRomTraits(Hashable::crc32(rom, config.romSize));
 }
 
 const RomTraits &
 Memory::getWomTraits() const
 {
-    return getRomTraits(util::crc32(wom, config.womSize));
+    return getRomTraits(Hashable::crc32(wom, config.womSize));
 }
 
 const RomTraits &
 Memory::getExtTraits() const
 {
-    return getRomTraits(util::crc32(ext, config.extSize));
+    return getRomTraits(Hashable::crc32(ext, config.extSize));
 }
 
 u32
 Memory::romFingerprint() const
 {
-    return util::crc32(rom, config.romSize);
+    return Hashable::crc32(rom, config.romSize);
 }
 
 u32
 Memory::extFingerprint() const
 {
-    return util::crc32(ext, config.extSize);
+    return Hashable::crc32(ext, config.extSize);
 }
 
 void
-Memory::loadRom(MediaFile &file)
+Memory::loadRom(RomFile &file)
 {
-    try {
+    // Decrypt Rom
+    if (file.isEncrypted()) file.decrypt();
 
-        auto &romFile = dynamic_cast<RomFile &>(file);
+    // Allocate memory
+    allocRom((i32)file.data.size);
 
-        // Decrypt Rom
-        if (romFile.isEncrypted()) romFile.decrypt();
+    // Load Rom
+    file.copy(rom);
 
-        // Allocate memory
-        allocRom((i32)romFile.data.size);
+    // Add a Wom if a Boot Rom is installed instead of a Kickstart Rom
+    hasBootRom() ? (void)allocWom(KB(256)) : deleteWom();
 
-        // Load Rom
-        romFile.flash(rom);
+    // Remove extended Rom (if any)
+    deleteExt();
 
-        // Add a Wom if a Boot Rom is installed instead of a Kickstart Rom
-        hasBootRom() ? (void)allocWom(KB(256)) : deleteWom();
-
-        // Remove extended Rom (if any)
-        deleteExt();
-
-    } catch (...) {
-
-        throw AppError(Fault::FILE_TYPE_MISMATCH);
-    }
 }
 
 void
@@ -709,22 +709,13 @@ Memory::loadRom(const u8 *buf, isize len)
 }
 
 void
-Memory::loadExt(MediaFile &file)
+Memory::loadExt(RomFile &file)
 {
-    try {
+    // Allocate memory
+    allocExt((i32)file.data.size);
 
-        RomFile &extFile = dynamic_cast<RomFile &>(file);
-
-        // Allocate memory
-        allocExt((i32)extFile.data.size);
-
-        // Load Rom
-        file.flash(ext);
-
-    } catch (...) {
-
-        throw AppError(Fault::FILE_TYPE_MISMATCH);
-    }
+    // Load Rom
+    file.copy(ext);
 }
 
 void
@@ -744,7 +735,7 @@ Memory::loadExt(const u8 *buf, isize len)
 void
 Memory::saveRom(const fs::path &path) const
 {
-    if (rom == nullptr) throw AppError(Fault::ROM_MISSING);
+    if (rom == nullptr) throw CoreError(CoreError::ROM_MISSING);
 
     RomFile file(rom, config.romSize);
     file.writeToFile(path);
@@ -753,7 +744,7 @@ Memory::saveRom(const fs::path &path) const
 void
 Memory::saveWom(const fs::path &path) const
 {
-    if (wom == nullptr) throw AppError(Fault::ROM_MISSING);
+    if (wom == nullptr) throw CoreError(CoreError::ROM_MISSING);
 
     RomFile file(wom, config.womSize);
     file.writeToFile(path);
@@ -762,7 +753,7 @@ Memory::saveWom(const fs::path &path) const
 void
 Memory::saveExt(const fs::path &path) const
 {
-    if (ext == nullptr) throw AppError(Fault::ROM_MISSING);
+    if (ext == nullptr) throw CoreError(CoreError::ROM_MISSING);
 
     RomFile file(ext, config.extSize);
     file.writeToFile(path);
@@ -797,7 +788,7 @@ Memory::patchExpansionLib()
                     return;
                 }
             }
-            warn("patchExpansionLib: Can't find patch location\n");
+            logwarn("patchExpansionLib: Can't find patch location\n");
             break;
         }
 
@@ -1094,7 +1085,7 @@ Memory::peek8 <Accessor::CPU, MemSrc::CHIP> (u32 addr)
 
     dataBus = READ_CHIP_8(addr);
 
-    stats.chipReads.raw++;
+    metrics.value.chipReads.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
 
@@ -1109,7 +1100,7 @@ Memory::peek16 <Accessor::CPU, MemSrc::CHIP> (u32 addr)
 
     dataBus = READ_CHIP_16(addr);
 
-    stats.chipReads.raw++;
+    metrics.value.chipReads.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
     
@@ -1130,7 +1121,7 @@ Memory::peek8 <Accessor::CPU, MemSrc::SLOW> (u32 addr)
 
     dataBus = READ_SLOW_8(addr);
 
-    stats.slowReads.raw++;
+    metrics.value.slowReads.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
     
@@ -1145,7 +1136,7 @@ Memory::peek16 <Accessor::CPU, MemSrc::SLOW> (u32 addr)
     
     dataBus = READ_SLOW_16(addr);
 
-    stats.slowReads.raw++;
+    metrics.value.slowReads.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
     
@@ -1163,7 +1154,7 @@ Memory::peek8 <Accessor::CPU, MemSrc::FAST> (u32 addr)
 {
     ASSERT_FAST_ADDR(addr);
     
-    stats.fastReads.raw++;
+    metrics.value.fastReads.raw++;
     return READ_FAST_8(addr);
 }
 
@@ -1176,7 +1167,7 @@ Memory::peek16 <Accessor::CPU, MemSrc::FAST> (u32 addr)
     
     ASSERT_FAST_ADDR(addr);
     
-    stats.fastReads.raw++;
+    metrics.value.fastReads.raw++;
     return READ_FAST_16(addr);
 }
 
@@ -1286,7 +1277,8 @@ Memory::peek8 <Accessor::CPU, MemSrc::AUTOCONF> (u32 addr)
     ASSERT_AUTO_ADDR(addr);
     
     // Experimental code to match UAE output (for debugging)
-    if (MIMIC_UAE) {
+    if constexpr (debug::MIMIC_UAE) {
+
         if (fastRamSize() == 0) {
             dataBus = (addr & 0b10) ? 0xE8 : 0x02;
             return (u8)dataBus;
@@ -1343,7 +1335,7 @@ Memory::peek8 <Accessor::CPU, MemSrc::ROM> (u32 addr)
 {
     ASSERT_ROM_ADDR(addr);
     
-    stats.kickReads.raw++;
+    metrics.value.kickReads.raw++;
     return READ_ROM_8(addr);
 }
 
@@ -1352,7 +1344,7 @@ Memory::peek16 <Accessor::CPU, MemSrc::ROM> (u32 addr)
 {
     ASSERT_ROM_ADDR(addr);
     
-    stats.kickReads.raw++;
+    metrics.value.kickReads.raw++;
     return READ_ROM_16(addr);
 }
 
@@ -1367,7 +1359,7 @@ Memory::peek8 <Accessor::CPU, MemSrc::WOM> (u32 addr)
 {
     ASSERT_WOM_ADDR(addr);
     
-    stats.kickReads.raw++;
+    metrics.value.kickReads.raw++;
     return READ_WOM_8(addr);
 }
 
@@ -1376,7 +1368,7 @@ Memory::peek16 <Accessor::CPU, MemSrc::WOM> (u32 addr)
 {
     ASSERT_WOM_ADDR(addr);
     
-    stats.kickReads.raw++;
+    metrics.value.kickReads.raw++;
     return READ_WOM_16(addr);
 }
 
@@ -1391,7 +1383,7 @@ Memory::peek8 <Accessor::CPU, MemSrc::EXT> (u32 addr)
 {
     ASSERT_EXT_ADDR(addr);
     
-    stats.kickReads.raw++;
+    metrics.value.kickReads.raw++;
     return READ_EXT_8(addr);
 }
 
@@ -1400,7 +1392,7 @@ Memory::peek16 <Accessor::CPU, MemSrc::EXT> (u32 addr)
 {
     ASSERT_EXT_ADDR(addr);
     
-    stats.kickReads.raw++;
+    metrics.value.kickReads.raw++;
     return READ_EXT_16(addr);
 }
 
@@ -1619,14 +1611,14 @@ Memory::spypeek8 <Accessor::AGNUS> (u32 addr) const
 template <> void
 Memory::poke8 <Accessor::CPU, MemSrc::NONE> (u32 addr, u8 value)
 {
-    trace(MEM_DEBUG, "poke8(%x [NONE], %x)\n", addr, value);
+    logdebug(MEM_DEBUG, "poke8(%x [NONE], %x)\n", addr, value);
     dataBus = value;
 }
 
 template <> void
 Memory::poke16 <Accessor::CPU, MemSrc::NONE> (u32 addr, u16 value)
 {
-    trace(MEM_DEBUG, "poke16 <CPU> (%x [NONE], %x)\n", addr, value);
+    logdebug(MEM_DEBUG, "poke16 <CPU> (%x [NONE], %x)\n", addr, value);
     dataBus = value;
 }
 
@@ -1635,9 +1627,9 @@ Memory::poke8 <Accessor::CPU, MemSrc::CHIP> (u32 addr, u8 value)
 {
     ASSERT_CHIP_ADDR(addr);
     
-    if (BLT_MEM_GUARD) {
+    if constexpr (debug::BLT_MEM_GUARD) {
         if (blitter.checkMemguard(addr & mem.chipMask)) {
-            trace(true, "CPU(8) OVERWRITES BLITTER AT ADDR %x\n", addr);
+            logdebug(BLT_MEM_GUARD, "CPU(8) OVERWRITES BLITTER AT ADDR %x\n", addr);
         }
     }
 
@@ -1645,7 +1637,7 @@ Memory::poke8 <Accessor::CPU, MemSrc::CHIP> (u32 addr, u8 value)
     
     dataBus = value;
 
-    stats.chipWrites.raw++;
+    metrics.value.chipWrites.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
 
@@ -1657,9 +1649,9 @@ Memory::poke16 <Accessor::CPU, MemSrc::CHIP> (u32 addr, u16 value)
 {
     ASSERT_CHIP_ADDR(addr);
     
-    if (BLT_MEM_GUARD) {
+    if constexpr (debug::BLT_MEM_GUARD) {
         if (blitter.checkMemguard(addr & mem.chipMask)) {
-            trace(true, "CPU(16) OVERWRITES BLITTER AT ADDR %x\n", addr);
+            logdebug(BLT_MEM_GUARD, "CPU(16) OVERWRITES BLITTER AT ADDR %x\n", addr);
         }
     }
 
@@ -1667,7 +1659,7 @@ Memory::poke16 <Accessor::CPU, MemSrc::CHIP> (u32 addr, u16 value)
     
     dataBus = value;
 
-    stats.chipWrites.raw++;
+    metrics.value.chipWrites.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
 
@@ -1683,7 +1675,7 @@ Memory::poke8 <Accessor::CPU, MemSrc::SLOW> (u32 addr, u8 value)
     
     dataBus = value;
 
-    stats.slowWrites.raw++;
+    metrics.value.slowWrites.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
     
@@ -1699,7 +1691,7 @@ Memory::poke16 <Accessor::CPU, MemSrc::SLOW> (u32 addr, u16 value)
     
     dataBus = value;
 
-    stats.slowWrites.raw++;
+    metrics.value.slowWrites.raw++;
     agnus.busAddr[agnus.pos.h] = addr;
     agnus.busData[agnus.pos.h] = dataBus;
     
@@ -1711,7 +1703,7 @@ Memory::poke8 <Accessor::CPU, MemSrc::FAST> (u32 addr, u8 value)
 {
     ASSERT_FAST_ADDR(addr);
     
-    stats.fastWrites.raw++;
+    metrics.value.fastWrites.raw++;
     WRITE_FAST_8(addr, value);
 }
 
@@ -1720,7 +1712,7 @@ Memory::poke16 <Accessor::CPU, MemSrc::FAST> (u32 addr, u16 value)
 {
     ASSERT_FAST_ADDR(addr);
     
-    stats.fastWrites.raw++;
+    metrics.value.fastWrites.raw++;
     WRITE_FAST_16(addr, value);
 }
 
@@ -1842,11 +1834,11 @@ Memory::poke8 <Accessor::CPU, MemSrc::ROM> (u32 addr, u8 value)
 {
     ASSERT_ROM_ADDR(addr);
     
-    stats.kickWrites.raw++;
-    
+    metrics.value.kickWrites.raw++;
+
     // On Amigas with a WOM, writing into ROM space locks the WOM
     if (hasWom() && !womIsLocked) {
-        debug(MEM_DEBUG, "Locking WOM\n");
+        loginfo(MEM_DEBUG, "Locking WOM\n");
         womIsLocked = true;
         updateMemSrcTables();
     }
@@ -1863,7 +1855,7 @@ Memory::poke8 <Accessor::CPU, MemSrc::WOM> (u32 addr, u8 value)
 {
     ASSERT_WOM_ADDR(addr);
     
-    stats.kickWrites.raw++;
+    metrics.value.kickWrites.raw++;
     if (!womIsLocked) WRITE_WOM_8(addr, value);
 }
 
@@ -1872,7 +1864,7 @@ Memory::poke16 <Accessor::CPU, MemSrc::WOM> (u32 addr, u16 value)
 {
     ASSERT_WOM_ADDR(addr);
 
-    stats.kickWrites.raw++;
+    metrics.value.kickWrites.raw++;
     if (!womIsLocked) WRITE_WOM_16(addr, value);
 }
 
@@ -1880,14 +1872,14 @@ template <> void
 Memory::poke8 <Accessor::CPU, MemSrc::EXT> (u32 addr, u8 value)
 {
     ASSERT_EXT_ADDR(addr);
-    stats.kickWrites.raw++;
+    metrics.value.kickWrites.raw++;
 }
 
 template <> void
 Memory::poke16 <Accessor::CPU, MemSrc::EXT> (u32 addr, u16 value)
 {
     ASSERT_EXT_ADDR(addr);
-    stats.kickWrites.raw++;
+    metrics.value.kickWrites.raw++;
 }
 
 template<> void
@@ -1955,7 +1947,7 @@ Memory::poke16 <Accessor::CPU> (u32 addr, u16 value)
 template <> void
 Memory::poke16 <Accessor::AGNUS, MemSrc::NONE> (u32 addr, u16 value)
 {
-    trace(MEM_DEBUG, "poke16 <AGNUS> (%x [NONE], %x)\n", addr, value);
+    logdebug(MEM_DEBUG, "poke16 <AGNUS> (%x [NONE], %x)\n", addr, value);
     dataBus = value;
 }
 
@@ -2206,7 +2198,7 @@ Memory::peekCustom16(u32 addr)
 
     }
 
-    trace(OCSREG_DEBUG, "peekCustom16(%X [%s]) = %X\n", addr, MemoryDebugger::regName(addr), result);
+    logdebug(OCSREG_DEBUG, "peekCustom16(%X [%s]) = %X\n", addr, MemoryDebugger::regName(addr), result);
 
     dataBus = result;
     return result;
@@ -2283,9 +2275,9 @@ template <Accessor s> void
 Memory::pokeCustom16(u32 addr, u16 value)
 {
     if ((addr & 0xFFF) == 0x30) {
-        trace(OCSREG_DEBUG, "pokeCustom16(SERDAT, '%c')\n", (char)value);
+        logdebug(OCSREG_DEBUG, "pokeCustom16(SERDAT, '%c')\n", (char)value);
     } else {
-        trace(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, MemoryDebugger::regName(addr), value);
+        logdebug(OCSREG_DEBUG, "pokeCustom16(%X [%s], %X)\n", addr, MemoryDebugger::regName(addr), value);
     }
 
     dataBus = value;
@@ -2705,10 +2697,10 @@ Memory::pokeCustom16(u32 addr, u16 value)
     }
     
     if (addr <= 0x1E) {
-        trace(INVREG_DEBUG,
+        logdebug(INVREG_DEBUG,
               "pokeCustom16(%X [%s]): READ-ONLY\n", addr, MemoryDebugger::regName(addr));
     } else {
-        trace(INVREG_DEBUG,
+        logdebug(INVREG_DEBUG,
               "pokeCustom16(%X [%s]): NON-OCS\n", addr, MemoryDebugger::regName(addr));
     }
 }

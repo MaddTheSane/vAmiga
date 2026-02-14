@@ -255,7 +255,7 @@ class Configuration {
         didSet {
 
             // Try to connect the device (may disconnect the other device)
-            gamePadManager.connect(slot: gameDevice1, port: 1)
+            gamePadManager.connect(slot: gameDevice1, port: 0)
 
             // Avoid double mappings
             if gameDevice1 != -1 && gameDevice1 == gameDevice2 {
@@ -270,7 +270,7 @@ class Configuration {
         didSet {
 
             // Try to connect the device (may disconnect the other device)
-            gamePadManager.connect(slot: gameDevice2, port: 2)
+            gamePadManager.connect(slot: gameDevice2, port: 1)
 
             // Avoid double mappings
             if gameDevice2 != -1 && gameDevice2 == gameDevice1 {
@@ -642,6 +642,51 @@ class Configuration {
         set { emu?.set(.MON_DISALIGNMENT_V, value: newValue) }
     }
 
+    //
+    // Servers
+    //
+
+    var rshServerEnable: Bool {
+        get { return emu?.get(.SRV_ENABLE, id: 0) != 0 }
+        set { emu?.set(.SRV_ENABLE, id: 0, enable: newValue ) }
+    }
+    var rshServerPort: Int {
+        get { return emu?.get(.SRV_PORT, id: 0) ?? 0 }
+        set { emu?.set(.SRV_PORT, id: 0, value: newValue ) }
+    }
+    var rpcServerEnable: Bool {
+        get { return emu?.get(.SRV_ENABLE, id: 1) != 0 }
+        set { emu?.set(.SRV_ENABLE, id: 1, enable: newValue ) }
+    }
+    var rpcServerPort: Int {
+        get { return emu?.get(.SRV_PORT, id: 1) ?? 0 }
+        set { emu?.set(.SRV_PORT, id: 1, value: newValue ) }
+    }
+    var gdbServerEnable: Bool {
+        get { return emu?.get(.SRV_ENABLE, id: 2) != 0 }
+        set { emu?.set(.SRV_ENABLE, id: 2, enable: newValue ) }
+    }
+    var gdbServerPort: Int {
+        get { return emu?.get(.SRV_PORT, id: 2) ?? 0 }
+        set { emu?.set(.SRV_PORT, id: 2, value: newValue ) }
+    }
+    var promServerEnable: Bool {
+        get { return emu?.get(.SRV_ENABLE, id: 3) != 0 }
+        set { emu?.set(.SRV_ENABLE, id: 3, enable: newValue ) }
+    }
+    var promServerPort: Int {
+        get { return emu?.get(.SRV_PORT, id: 3) ?? 0 }
+        set { emu?.set(.SRV_PORT, id: 3, value: newValue ) }
+    }
+    var serServerEnable: Bool {
+        get { return emu?.get(.SRV_ENABLE, id: 4) != 0 }
+        set { emu?.set(.SRV_ENABLE, id: 4, enable: newValue ) }
+    }
+    var serServerPort: Int {
+        get { return emu?.get(.SRV_PORT, id: 4) ?? 0 }
+        set { emu?.set(.SRV_PORT, id: 4, value: newValue ) }
+    }
+
     init(with controller: MyController) { parent = controller }
 
     func revertTo(model: Int) {
@@ -657,6 +702,7 @@ class Configuration {
             deniseRev = DeniseRevision.OCS.rawValue
             rtClock = RTCRevision.NONE.rawValue
             bankMap = BankMap.A500.rawValue
+            hd0Connected = false
 
         case 1:
 
@@ -665,7 +711,8 @@ class Configuration {
             deniseRev = DeniseRevision.OCS.rawValue
             rtClock = RTCRevision.NONE.rawValue
             bankMap = BankMap.A1000.rawValue
-
+            hd0Connected = false
+            
         case 2:
 
             // Amiga 2000
@@ -673,7 +720,8 @@ class Configuration {
             deniseRev = DeniseRevision.OCS.rawValue
             rtClock = RTCRevision.OKI.rawValue
             bankMap = BankMap.A2000B.rawValue
-
+            hd0Connected = true
+            
         case 3:
 
             // Amiga 500+
@@ -681,6 +729,7 @@ class Configuration {
             deniseRev = DeniseRevision.ECS.rawValue
             rtClock = RTCRevision.OKI.rawValue
             bankMap = BankMap.A500.rawValue
+            hd0Connected = false
 
         default:
             fatalError()

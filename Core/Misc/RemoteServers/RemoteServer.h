@@ -10,10 +10,12 @@
 #pragma once
 
 #include "RemoteServerTypes.h"
+#include "ServerError.h"
 #include "SubComponent.h"
 #include "Socket.h"
 #include "Thread.h"
 #include <thread>
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
@@ -23,30 +25,39 @@ class RemoteServer : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "SerServer",
-        .description    = "Serial Port Server",
-        .shell          = "server serial"
-    }, {
         .name           = "RshServer",
         .description    = "Remote Shell Server",
-        .shell          = "server rshell"
+        .shell          = "server rsh"
+    }, {
+        .name           = "RpcServer",
+        .description    = "RPC Remote Server",
+        .shell          = "server rpc"
+    }, {
+        .name           = "GdbServer",
+        .description    = "GDB Remote Server",
+        .shell          = "server gdb"
     }, {
         .name           = "PromServer",
         .description    = "Prometheus Server",
         .shell          = "server prom"
     }, {
-        .name           = "GdbServer",
-        .description    = "GDB Remote Server",
-        .shell          = "server gdb"
+        .name           = "SerServer",
+        .description    = "Serial Port Server",
+        .shell          = "server ser"
     }};
 
     Options options = {
 
+        Opt::SRV_ENABLE,
         Opt::SRV_PORT,
         Opt::SRV_PROTOCOL,
-        Opt::SRV_AUTORUN,
         Opt::SRV_VERBOSE
     };
+
+public:
+
+    // Result of the latest inspection
+    utl::Backed<RemoteServerInfo> info;
 
 protected:
     
@@ -66,7 +77,7 @@ protected:
     
 public:
     
-    using SubComponent::SubComponent;
+    RemoteServer(Amiga& ref, isize id);
     ~RemoteServer() { shutDownServer(); }
     void shutDownServer();
     
@@ -106,9 +117,9 @@ protected:
 
         worker
 
+        << config.enable
         << config.port
         << config.protocol
-        << config.autoRun
         << config.verbose;
 
     };
@@ -135,12 +146,22 @@ public:
 
 
     //
+    // Analyzing
+    //
+
+public:
+
+    RemoteServerInfo cacheInfo() const;
+
+
+    //
     // Examining state
     //
     
 public:
 
     bool isOff() const { return state == SrvState::OFF; }
+    bool isWaiting() const { return state == SrvState::WAITING; }
     bool isStarting() const { return state == SrvState::STARTING; }
     bool isListening() const { return state == SrvState::LISTENING; }
     bool isConnected() const { return state == SrvState::CONNECTED; }
@@ -152,16 +173,16 @@ public:
     // Starting and stopping the server
     //
     
-public:
+private: // public:
 
     // Launch the remote server
-    virtual void start() throws;
+    virtual void start();
 
     // Shuts down the remote server
-    virtual void stop() throws;
+    virtual void stop();
 
     // Disconnects the client
-    virtual void disconnect() throws = 0;
+    virtual void disconnect() = 0;
 
 protected:
 
@@ -170,8 +191,8 @@ protected:
     
 private:
     
-    // Used by the launch daemon to determine if actions should be taken
-    virtual bool shouldRun() { return true; }
+    // Indicates if the server is ready to launch
+    virtual bool canRun() = 0; // { return true; }
 
 
     //
@@ -181,7 +202,7 @@ private:
 protected:
 
     // The main thread function
-    virtual void main() throws = 0;
+    virtual void main() = 0;
 
     // Reports an error to the GUI
     void handleError(const char *description);

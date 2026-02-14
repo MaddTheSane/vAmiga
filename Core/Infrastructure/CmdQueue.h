@@ -11,17 +11,17 @@
 
 #include "CmdQueueTypes.h"
 #include "CoreObject.h"
-#include "Synchronizable.h"
-#include "RingBuffer.h"
+#include "utl/concurrency.h"
+#include "utl/storage.h"
 #include <atomic>
 
 namespace vamiga {
 
 /// Command queue
-class CmdQueue final : CoreObject, Synchronizable {
+class CmdQueue final : public CoreObject, Synchronizable {
 
     /// Ring buffer storing all pending commands
-    util::RingBuffer <Command, 256> queue;
+    utl::RingBuffer <Command, 256> queue;
 
 public:
     

@@ -9,22 +9,36 @@
 
 #include "config.h"
 #include "CoreObject.h"
+#include <format>
 #include <iostream>
 
 namespace vamiga {
 
-isize
-CoreObject::verbosity = 3;
+string
+CoreObject::prefix(LogLevel level, const std::source_location &loc) const
+{
+    const isize verbosity = 2;
+
+    switch (verbosity) {
+
+        case 0:  return "";
+        case 1:  return std::format("{}: ", objectName());
+
+        default:
+            return std::format("{}:{}: ", objectName(), loc.line());
+    }
+}
 
 void
-CoreObject::prefix(isize level, const char *component, isize line) const
+CoreObject::dump(Category category, std::ostream &ss) const
 {
-    if (level == 1) {
-        fprintf(stderr, "%s: ", component);
-    }
-    if (level >= 2) {
-        fprintf(stderr, "%s:%ld ", component, line);
-    }
+    _dump(category, ss);
+}
+
+void
+CoreObject::dump(Category category) const
+{
+    dump(category, std::cout);
 }
 
 }

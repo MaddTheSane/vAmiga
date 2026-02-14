@@ -10,18 +10,21 @@
 #include "config.h"
 #include "SerServer.h"
 #include "Amiga.h"
-#include "IOUtils.h"
 #include "RetroShell.h"
 #include "SerialPort.h"
 #include "Thread.h"
 #include "UART.h"
+#include "MidiManager.h"
+#include "SerialPortTypes.h"
+#include "utl/io.h"
+#include "utl/support/Strings.h"
 
 namespace vamiga {
 
 void
 SerServer::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     RemoteServer::_dump(category, os);
     
@@ -41,7 +44,7 @@ SerServer::_dump(Category category, std::ostream &os) const
 }
 
 bool
-SerServer::shouldRun()
+SerServer::canRun()
 {
     return SerialPortDevice(serialPort.getOption(Opt::SER_DEVICE)) == SerialPortDevice::NULLMODEM;
 }
@@ -53,7 +56,7 @@ SerServer::doReceive()
     receivedBytes += (isize)result.size();
     
     if (config.verbose) {
-        retroShell << "R: " << util::makePrintable(result) << "\n";
+        retroShell << "R: " << utl::makePrintable(result) << "\n";
     }
 
     return result;
@@ -66,7 +69,7 @@ SerServer::doSend(const string &packet)
     connection.send(packet);
     
     if (config.verbose) {
-        retroShell << "T: " << util::makePrintable(packet) << "\n";
+        retroShell << "T: " << utl::makePrintable(packet) << "\n";
     }
 }
 
@@ -89,7 +92,7 @@ SerServer::processIncomingByte(u8 byte)
     } else {
 
         lostBytes++;
-        debug(SRV_DEBUG, "Buffer overflow\n");
+        loginfo(SRV_DEBUG, "Buffer overflow\n");
     }
 }
 
@@ -119,14 +122,30 @@ void
 SerServer::serviceSerEvent()
 {
     assert(agnus.id[SLOT_SER] == SER_RECEIVE);
-    
-    if (buffer.isEmpty()) {
+
+// Check if we're in MIDI mode
+    if (serialPort.getConfig().device == SerialPortDevice::MIDI) {
         
+        // Handle MIDI input
+        uint8_t midiByte;
+        if (amiga.midiManager.receiveByte(&midiByte)) {
+            uart.receiveShiftReg = midiByte;
+            uart.copyFromReceiveShiftRegister();
+        }
+        
+        // Keep checking for more MIDI data
+        scheduleNextEvent();
+        return;
+    }
+
+    // Original SerServer code for null modem
+    if (buffer.isEmpty()) {
+
         // Enter buffering mode if we run dry
         buffering = true;
 
     } else if (buffering) {
-        
+
         // Exit buffering mode if now new symbols came in for quite a while
         if (++skippedTransmissions > 8) buffering = false;
 
@@ -138,7 +157,7 @@ SerServer::serviceSerEvent()
         processedBytes++;
         skippedTransmissions = 0;
     }
-    
+
     scheduleNextEvent();
 }
 
@@ -153,7 +172,7 @@ SerServer::scheduleNextEvent()
     // If the pulseWidth is extremely low, fallback to a default value
     if (pulseWidth < 40) {
         
-        debug(SRV_DEBUG, "Very low SERPER value\n");
+        loginfo(SRV_DEBUG, "Very low SERPER value\n");
         pulseWidth = 12000;
     }
     

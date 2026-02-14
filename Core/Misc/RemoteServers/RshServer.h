@@ -10,10 +10,11 @@
 #pragma once
 
 #include "SocketServer.h"
+#include "Console.h"
 
 namespace vamiga {
 
-class RshServer final : public SocketServer {
+class RshServer final : public SocketServer, public ConsoleDelegate {
 
 public:
     
@@ -32,28 +33,36 @@ public:
     
 private:
 
+    void _initialize() override;
     void _dump(Category category, std::ostream &os) const override;
-
 
     //
     // Methods from RemoteServer
     //
 
-public:
-
-    // bool shouldRun() override { return true; }
+    virtual bool canRun() override { return true; }
 
 
     //
     // Methods from SocketServer
     //
 
-    
-    string doReceive() throws override;
-    void doProcess(const string &packet) throws override;
-    void doSend(const string &packet)throws  override;
+    string doReceive() override;
+    void doProcess(const string &packet) override;
+    void doSend(const string &packet) override;
     void didStart() override;
     void didConnect() override;
+
+
+    //
+    // Methods from ConsoleDelegate
+    //
+
+    void didActivate() override;
+    void didDeactivate() override;
+    void willExecute(const InputLine &input) override;
+    void didExecute(const InputLine &input, std::stringstream &ss) override;
+    void didExecute(const InputLine &input, std::stringstream &ss, std::exception &e) override;
 };
 
 }

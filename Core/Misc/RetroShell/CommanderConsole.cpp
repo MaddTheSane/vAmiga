@@ -21,17 +21,33 @@ CommanderConsole::_pause()
 }
 
 string
-CommanderConsole::getPrompt()
+CommanderConsole::prompt()
 {
     return "vAmiga% ";
 }
 
 void
-CommanderConsole::welcome()
+CommanderConsole::didActivate()
 {
-    Console::welcome();
+    if (!activated) {
+
+        *this << "RetroShell " << Amiga::build() << '\n';
+        *this << '\n';
+        *this << "Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de" << '\n';
+        *this << "https://github.com/dirkwhoffmann/vamiga" << '\n';
+        *this << '\n';
+    }
+
+    activated = true;
 }
 
+void
+CommanderConsole::didDeactivate()
+{
+
+}
+
+/*
 void
 CommanderConsole::summary()
 {
@@ -54,23 +70,36 @@ CommanderConsole::summary()
     // *this << ss;
     *this << vspace{1};
 }
-
-void
-CommanderConsole::printHelp(isize tab)
-{
-    Console::printHelp(tab);
-}
-
-void
-CommanderConsole::pressReturn(bool shift)
-{
-    Console::pressReturn(shift);
-}
+*/
 
 void
 CommanderConsole::initCommands(RSCommand &root)
 {
     Console::initCommands(root);
+
+
+    //
+    // Empty command
+    //
+
+    root.add({
+
+        .tokens = { "return" },
+        .chelp  = { "Print status information" },
+        .flags  = rs::hidden,
+        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+
+            os << "Model   Chip    Slow    Fast    Agnus   Denise  ROM" << std::endl;
+            os << std::setw(8) << std::left << BankMapEnum::key(BankMap(amiga.get(Opt::MEM_BANKMAP)));
+            os << std::setw(8) << std::left << (std::to_string(amiga.get(Opt::MEM_CHIP_RAM)) + " MB");
+            os << std::setw(8) << std::left << (std::to_string(amiga.get(Opt::MEM_SLOW_RAM)) + " MB");
+            os << std::setw(8) << std::left << (std::to_string(amiga.get(Opt::MEM_FAST_RAM)) + " MB");
+            os << std::setw(8) << std::left << (agnus.isECS() ? "ECS" : "OCS");
+            os << std::setw(8) << std::left << (denise.isECS() ? "ECS" : "OCS");
+            os << mem.getRomTraits().title << std::endl;
+        }
+    });
+
 
     //
     // Workspace management
@@ -546,7 +575,7 @@ CommanderConsole::initCommands(RSCommand &root)
                     case 3: port.joystick.trigger(GamePadAction::PRESS_FIRE3); break;
                         
                     default:
-                        throw AppError(Fault::OPT_INV_ARG, "1...3");
+                        throw CoreError(CoreError::OPT_INV_ARG, "1...3");
                 }
             }, .payload = {i}
         });
@@ -568,7 +597,7 @@ CommanderConsole::initCommands(RSCommand &root)
                     case 3: port.joystick.trigger(GamePadAction::RELEASE_FIRE3); break;
                         
                     default:
-                        throw AppError(Fault::OPT_INV_ARG, "1...3");
+                        throw CoreError(CoreError::OPT_INV_ARG, "1...3");
                 }
             }, .payload = {i}
         });
@@ -874,9 +903,9 @@ CommanderConsole::initCommands(RSCommand &root)
             },
                 .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                     
-                    auto c = util::parseNum(args.at("cylinders"));
-                    auto h = util::parseNum(args.at("heads"));
-                    auto s = util::parseNum(args.at("sectors"));
+                    auto c = utl::parseNum(args.at("cylinders"));
+                    auto h = utl::parseNum(args.at("heads"));
+                    auto s = utl::parseNum(args.at("sectors"));
                     
                     amiga.hd[values[0]]->changeGeometry(c, h, s);
                     
@@ -1005,98 +1034,15 @@ CommanderConsole::initCommands(RSCommand &root)
         .chelp  = { "Displays a server status summary" },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
             
-            dump(os, remoteManager, Category::Status);
+            dump(os, remoteManager, Category::State);
         }
     });
-    
-    cmd = registerComponent(remoteManager.serServer);
     
     cmd = registerComponent(remoteManager.rshServer);
-    
-    root.add({
-        
-        .tokens = { cmd, "start" },
-        .chelp  = { "Starts the retro shell server" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.rshServer.start();
-        }
-    });
-    
-    root.add({
-        
-        .tokens = { cmd, "stop" },
-        .chelp  = { "Stops the retro shell server" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.rshServer.stop();
-        }
-    });
-    
-    root.add({
-        
-        .tokens = { cmd, "disconnect" },
-        .chelp  = { "Disconnects a client" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.rshServer.disconnect();
-        }
-    });
-    
-    cmd = registerComponent(remoteManager.promServer);
-    
-    root.add({
-        
-        .tokens = { cmd, "start" },
-        .chelp  = { "Starts the Prometheus server" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.promServer.start();
-        }
-    });
-    
-    root.add({
-        
-        .tokens = { cmd, "stop" },
-        .chelp  = { "Stops the Prometheus server" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.promServer.stop();
-        }
-    });
-    
-    root.add({
-        
-        .tokens = { cmd, "disconnect" },
-        .chelp  = { "Disconnects a client" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.promServer.disconnect();
-        }
-    });
-    
+    cmd = registerComponent(remoteManager.rpcServer);
     cmd = registerComponent(remoteManager.gdbServer);
-    
-    root.add({
-        
-        .tokens = { cmd, "attach" },
-        .chelp  = { "Attaches the GDB server to a process" },
-        .args   = { { .name = { "process", "Process number" } } },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.gdbServer.attach(args.at("process"));
-        }
-    });
-    
-    root.add({
-        
-        .tokens = { cmd, "detach" },
-        .chelp  = { "Detaches the GDB server from a process" },
-        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-            
-            remoteManager.gdbServer.detach();
-        }
-    });
+    cmd = registerComponent(remoteManager.promServer);
+    cmd = registerComponent(remoteManager.serServer);
 }
 
 }

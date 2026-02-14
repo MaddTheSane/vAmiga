@@ -9,10 +9,12 @@
 
 #pragma once
 
-#include "MediaFileTypes.h"
+#include "DeviceTypes.h"
 #include "Aliases.h"
 
 namespace vamiga {
+
+using namespace retro::vault;
 
 //
 // Enumerations
@@ -24,7 +26,7 @@ enum class DiskFlags
     MODIFIED   = 2
 };
 
-struct DiskFlagsEnum : Reflection<DiskFlagsEnum, DiskFlags>
+struct DiskFlagsEnum : Reflectable<DiskFlagsEnum, DiskFlags>
 {
     static constexpr long minVal = 1;
     static constexpr long maxVal = long(DiskFlags::MODIFIED);
@@ -54,12 +56,13 @@ struct DiskFlagsEnum : Reflection<DiskFlagsEnum, DiskFlags>
 // Structures
 //
 
-typedef struct
+struct DriveHead
 {
-    Cylinder cylinder;
-    Head head;
+    CylNr cylinder;
+    HeadNr head;
     isize offset;
-}
-DriveHead;
+
+    isize track() const { return 2 * cylinder + head; }
+};
 
 }

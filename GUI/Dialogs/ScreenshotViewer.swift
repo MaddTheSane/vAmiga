@@ -36,8 +36,8 @@ class ScreenshotViewer: DialogController {
     var empty: Bool { return screenshots.count == 0 }
     
     func loadScreenshots() {
-        
-        debug(.media)
+
+        loginfo(.media)
         
         for url in Screenshot.allFiles {
             if let screenshot = Screenshot(fromUrl: url) {
@@ -45,24 +45,28 @@ class ScreenshotViewer: DialogController {
             }
         }
         
-        debug(.media, "\(screenshots.count) screenshots loaded")
+        loginfo(.media, "\(screenshots.count) screenshots loaded")
     }
     
     func saveScreenshots() throws {
         
-        debug(.media)
-        
+        loginfo(.media)
+
         Screenshot.deleteFolder()
         for n in 0 ..< screenshots.count {
             try? screenshots[n].save()
         }
-        
-        debug(.media, "All screenshots saved")
+
+        loginfo(.media, "All screenshots saved")
     }
     
     override func dialogWillShow() {
         
         super.dialogWillShow()
+        
+        // leftButton.image = Symbol.get(.arrowLeft, size: 16)
+        // deleteButton.image = Symbol.get(.trash, size: 16)
+        // rightButton.image = Symbol.get(.arrowLeft, size: 16)
         loadScreenshots()
     }
     
@@ -88,8 +92,7 @@ class ScreenshotViewer: DialogController {
         leftButton.isEnabled = currentItem > 0
         rightButton.isEnabled = currentItem >= 0 && currentItem < lastItem
         itemLabel.stringValue = "\(currentItem + 1) / \(screenshots.count)"
-        
-        deleteButton.image = NSImage(named: "trashTemplate")
+
         deleteButton.isHidden = empty
         leftButton.isHidden = empty
         rightButton.isHidden = empty

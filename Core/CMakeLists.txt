@@ -26,10 +26,10 @@ else()
 endif()
 
 # Add the emulator library
-add_library(VACore VAmiga.cpp config.cpp)
+add_library(VACore VAmiga.cpp debug.cpp)
 
 # Add the headless app
-add_executable(VAHeadless Headless.cpp config.cpp)
+add_executable(VAHeadless Headless.cpp debug.cpp)
 target_link_libraries(VAHeadless VACore)
 
 # Specify compile options
@@ -59,20 +59,20 @@ endif()
 target_include_directories(VACore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Add subdirectories
+add_subdirectory(utlib)
 add_subdirectory(Infrastructure)
 add_subdirectory(Components)
-add_subdirectory(FileSystems)
 add_subdirectory(Media)
 add_subdirectory(Misc)
 add_subdirectory(Peripherals)
 add_subdirectory(Ports)
+add_subdirectory(RetroVault)
 add_subdirectory(ThirdParty)
-add_subdirectory(Utilities)
 
 # Add libraries
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(VACore xdms Threads::Threads)
+target_link_libraries(VACore utlib xdms Threads::Threads)
 
 # Link zlib if available
 if(ZLIB_FOUND)
@@ -81,8 +81,8 @@ if(ZLIB_FOUND)
   target_compile_definitions(VACore PUBLIC USE_ZLIB=1)  # Optional define for conditional compilation
 endif()
 
-target_link_libraries(VACore lz4)
-target_link_libraries(VAHeadless lz4)
+#target_link_libraries(VACore lz4)
+#target_link_libraries(VAHeadless lz4)
 
 # Add tests
 add_test(NAME SelfTest1 COMMAND VAHeadless --verbose --footprint)

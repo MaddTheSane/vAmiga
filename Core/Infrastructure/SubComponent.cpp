@@ -69,10 +69,10 @@ SubComponent::isRunAheadInstance() const
     return amiga.isRunAheadInstance();
 }
 
-void
-SubComponent::prefix(isize level, const char *component, isize line) const
+string
+SubComponent::prefix(LogLevel level, const std::source_location &loc) const
 {
-    amiga.prefix(level, component, line);
+    return amiga.prefix(level, loc);
 }
 
 }

@@ -12,6 +12,8 @@
 
 namespace vamiga {
 
+using namespace utl;
+
 void
 MsgQueue::setListener(const void *listener, Callback *callback)
 {
@@ -65,7 +67,7 @@ MsgQueue::put(const Message &msg)
 
         SYNCHRONIZED
 
-        debug(MSG_DEBUG, "%s [%llx]\n", MsgEnum::key(msg.type), msg.value);
+        loginfo(MSG_DEBUG, "%s [%llx]\n", MsgEnum::key(msg.type), msg.value);
 
         if (listener) {
 
@@ -83,7 +85,7 @@ MsgQueue::put(const Message &msg)
                     queue.write(msg);
                 }
             } else {
-                    warn("Message lost: %s [%llx]\n", MsgEnum::key(msg.type), msg.value);
+                logwarn("Message lost: %s [%llx]\n", MsgEnum::key(msg.type), msg.value);
             }
         }
     }

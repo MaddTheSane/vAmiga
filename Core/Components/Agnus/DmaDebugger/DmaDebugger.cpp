@@ -10,12 +10,13 @@
 #include "config.h"
 #include "DmaDebugger.h"
 #include "Amiga.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
 DmaDebugger::DmaDebugger(Amiga &ref) : SubComponent(ref)
 {
-    
+    info.bind([this] { return cacheInfo(); } );
 }
 
 void
@@ -23,7 +24,7 @@ DmaDebugger::_dump(Category category, std::ostream &os) const
 {
     auto print = [&]() {
 
-        using namespace util;
+        using namespace utl;
 
         for (int i = 0; i < beamtraps.elements(); i++) {
 
@@ -98,7 +99,7 @@ DmaDebugger::checkOption(Opt opt, i64 value)
         case Opt::DMA_DEBUG_MODE:
 
             if (!DmaDisplayModeEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, DmaDisplayModeEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, DmaDisplayModeEnum::keyList());
             }
             return;
             
@@ -123,7 +124,7 @@ DmaDebugger::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -279,36 +280,37 @@ DmaDebugger::setOption(Opt option, i64 value)
     }
 }
 
-void
-DmaDebugger::cacheInfo(DmaDebuggerInfo &result) const
+DmaDebuggerInfo
+DmaDebugger::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        result.visualizeCopper = config.visualize[isize(DmaChannel::COPPER)];
-        result.visualizeBlitter = config.visualize[isize(DmaChannel::BLITTER)];
-        result.visualizeDisk = config.visualize[isize(DmaChannel::DISK)];
-        result.visualizeAudio = config.visualize[isize(DmaChannel::AUDIO)];
-        result.visualizeSprites = config.visualize[isize(DmaChannel::SPRITE)];
-        result.visualizeBitplanes = config.visualize[isize(DmaChannel::BITPLANE)];
-        result.visualizeCpu = config.visualize[isize(DmaChannel::CPU)];
-        result.visualizeRefresh = config.visualize[isize(DmaChannel::REFRESH)];
-        
-        getColor(DmaChannel::COPPER, result.copperColor);
-        getColor(DmaChannel::BLITTER, result.blitterColor);
-        getColor(DmaChannel::DISK, result.diskColor);
-        getColor(DmaChannel::AUDIO, result.audioColor);
-        getColor(DmaChannel::SPRITE, result.spriteColor);
-        getColor(DmaChannel::BITPLANE, result.bitplaneColor);
-        getColor(DmaChannel::CPU, result.cpuColor);
-        getColor(DmaChannel::REFRESH, result.refreshColor);
-    }
+    DmaDebuggerInfo info;
+
+    info.visualizeCopper = config.visualize[isize(DmaChannel::COPPER)];
+    info.visualizeBlitter = config.visualize[isize(DmaChannel::BLITTER)];
+    info.visualizeDisk = config.visualize[isize(DmaChannel::DISK)];
+    info.visualizeAudio = config.visualize[isize(DmaChannel::AUDIO)];
+    info.visualizeSprites = config.visualize[isize(DmaChannel::SPRITE)];
+    info.visualizeBitplanes = config.visualize[isize(DmaChannel::BITPLANE)];
+    info.visualizeCpu = config.visualize[isize(DmaChannel::CPU)];
+    info.visualizeRefresh = config.visualize[isize(DmaChannel::REFRESH)];
+
+    getColor(DmaChannel::COPPER, info.copperColor);
+    getColor(DmaChannel::BLITTER, info.blitterColor);
+    getColor(DmaChannel::DISK, info.diskColor);
+    getColor(DmaChannel::AUDIO, info.audioColor);
+    getColor(DmaChannel::SPRITE, info.spriteColor);
+    getColor(DmaChannel::BITPLANE, info.bitplaneColor);
+    getColor(DmaChannel::CPU, info.cpuColor);
+    getColor(DmaChannel::REFRESH, info.refreshColor);
+
+    return info;
 }
 
 void
 DmaDebugger::getColor(DmaChannel channel, double *rgb) const
 {
-    assert_enum(DmaChannel, channel);
-    
+    DmaChannelEnum::validate(channel);
+
     RgbColor color = RgbColor(config.debugColor[isize(channel)]);
     rgb[0] = color.r;
     rgb[1] = color.g;
@@ -318,7 +320,7 @@ DmaDebugger::getColor(DmaChannel channel, double *rgb) const
 void
 DmaDebugger::setColor(BusOwner owner, u32 rgba)
 {
-    assert_enum(BusOwner, owner);
+    BusOwnerEnum::key(owner);
 
     // Compute the color variants used for drawing
     RgbColor color = RgbColor(rgba);

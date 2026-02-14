@@ -10,8 +10,8 @@
 #include "config.h"
 #include "ControlPort.h"
 #include "CmdQueue.h"
-#include "IOUtils.h"
 #include "Paula.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
@@ -23,36 +23,39 @@ ControlPort::ControlPort(Amiga& ref, isize nr) : SubComponent(ref, nr)
         &mouse,
         &joystick
     };
+
+    info.bind([this] { return cacheInfo(); } );
 }
 
-void 
-ControlPort::cacheInfo(ControlPortInfo &info) const
+ControlPortInfo
+ControlPort::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        info.joydat = joydat();
-        
-        // Extract pin values from joydat value
-        bool x0 = GET_BIT(info.joydat, 0);
-        bool x1 = GET_BIT(info.joydat, 1);
-        bool y0 = GET_BIT(info.joydat, 8);
-        bool y1 = GET_BIT(info.joydat, 9);
-        info.m0v = y0 ^ !y1;
-        info.m0h = x0 ^ !x1;
-        info.m1v = !y1;
-        info.m1h = !x1;
-        
-        info.potgo = paula.potgo;
-        info.potgor = paula.peekPOTGOR();
-        info.potdat = (objid == 0) ? paula.peekPOTxDAT<0>() : paula.peekPOTxDAT<1>();
-    }
+    ControlPortInfo info;
+
+    info.joydat = joydat();
+
+    // Extract pin values from joydat value
+    bool x0 = GET_BIT(info.joydat, 0);
+    bool x1 = GET_BIT(info.joydat, 1);
+    bool y0 = GET_BIT(info.joydat, 8);
+    bool y1 = GET_BIT(info.joydat, 9);
+    info.m0v = y0 ^ !y1;
+    info.m0h = x0 ^ !x1;
+    info.m1v = !y1;
+    info.m1h = !x1;
+
+    info.potgo = paula.potgo;
+    info.potgor = paula.peekPOTGOR();
+    info.potdat = (objid == 0) ? paula.peekPOTxDAT<0>() : paula.peekPOTxDAT<1>();
+    
+    return info;
 }
 
 void
 ControlPort::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-    
+    using namespace utl;
+
     if (category == Category::State) {
         
         os << tab("Control port");

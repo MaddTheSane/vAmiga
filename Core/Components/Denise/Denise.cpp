@@ -12,7 +12,6 @@
 #include "Denise.h"
 #include "Agnus.h"
 #include "Amiga.h"
-#include "IOUtils.h"
 
 namespace vamiga {
 
@@ -22,6 +21,8 @@ Denise::Denise(Amiga& ref) : SubComponent(ref)
         
         &pixelEngine,
     };
+
+    info.bind([this] { return cacheInfo(); } );
 }
 
 void
@@ -63,7 +64,7 @@ Denise::checkOption(Opt opt, i64 value)
         case Opt::DENISE_REVISION:
 
             if (!DeniseRevEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, DeniseRevEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, DeniseRevEnum::keyList());
             }
             return;
 
@@ -80,7 +81,7 @@ Denise::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -259,7 +260,7 @@ Denise::drawOdd(Pixel offset)
             case Resolution::LORES:
 
                 // Synthesize two lores pixels
-                assert(pixel + 1 < isizeof(dBuffer));
+                assert(pixel + 1 < isize(sizeof(dBuffer)));
                 dBuffer[pixel] = (dBuffer[pixel] & 0b101010) | index;
                 pixel++;
                 dBuffer[pixel] = (dBuffer[pixel] & 0b101010) | index;
@@ -269,7 +270,7 @@ Denise::drawOdd(Pixel offset)
             case Resolution::HIRES:
 
                 // Synthesize one hires pixel
-                assert(pixel < isizeof(dBuffer));
+                assert(pixel < isize(sizeof(dBuffer)));
                 dBuffer[pixel] = (dBuffer[pixel] & 0b101010) | index;
                 pixel++;
                 break;
@@ -277,7 +278,7 @@ Denise::drawOdd(Pixel offset)
             case Resolution::SHRES:
 
                 // Synthesize a superHires pixel
-                assert(pixel < isizeof(dBuffer));
+                assert(pixel < isize(sizeof(dBuffer)));
                 if (i % 2 == 0) {
                     dBuffer[pixel] = u8((dBuffer[pixel] & 0b111011) | index << 2);
                 } else {
@@ -324,7 +325,7 @@ Denise::drawEven(Pixel offset)
             case Resolution::LORES:
 
                 // Synthesize s lores pixel
-                assert(pixel + 1 < isizeof(dBuffer));
+                assert(pixel + 1 < isize(sizeof(dBuffer)));
                 dBuffer[pixel] = (dBuffer[pixel] & 0b010101) | index;
                 pixel++;
                 dBuffer[pixel] = (dBuffer[pixel] & 0b010101) | index;
@@ -334,7 +335,7 @@ Denise::drawEven(Pixel offset)
             case Resolution::HIRES:
 
                 // Synthesize a hires pixel
-                assert(pixel < isizeof(dBuffer));
+                assert(pixel < isize(sizeof(dBuffer)));
                 dBuffer[pixel] = (dBuffer[pixel] & 0b010101) | index;
                 pixel++;
                 break;
@@ -342,7 +343,7 @@ Denise::drawEven(Pixel offset)
             case Resolution::SHRES:
 
                 // Synthesize a superHires pixel
-                assert(pixel < isizeof(dBuffer));
+                assert(pixel < isize(sizeof(dBuffer)));
                 if (i % 2 == 0) {
                     dBuffer[pixel] = u8((dBuffer[pixel] & 0b110111) | index << 2);
                 } else {
@@ -363,7 +364,7 @@ Denise::drawEven(Pixel offset)
 template <Resolution mode> void
 Denise::drawBoth(Pixel offset)
 {
-    if (BPL_ON_STEROIDS) {
+    if constexpr (debug::BPL_ON_STEROIDS) {
 
         drawOdd <mode> (offset);
         drawEven <mode> (offset);
@@ -396,7 +397,7 @@ Denise::drawBoth(Pixel offset)
             case Resolution::LORES:
 
                 // Synthesize s lores pixel
-                assert(pixel + 1 < isizeof(dBuffer));
+                assert(pixel + 1 < isize(sizeof(dBuffer)));
                 dBuffer[pixel] = index;
                 pixel++;
                 dBuffer[pixel] = index;
@@ -406,7 +407,7 @@ Denise::drawBoth(Pixel offset)
             case Resolution::HIRES:
 
                 // Synthesize a hires pixel
-                assert(pixel < isizeof(dBuffer));
+                assert(pixel < isize(sizeof(dBuffer)));
                 dBuffer[pixel] = index;
                 pixel++;
                 break;
@@ -414,7 +415,7 @@ Denise::drawBoth(Pixel offset)
             case Resolution::SHRES:
 
                 // Synthesize a superHires pixel
-                assert(pixel < isizeof(dBuffer));
+                assert(pixel < isize(sizeof(dBuffer)));
                 if (i % 2 == 0) {
                     dBuffer[pixel] = u8(index << 2);
                 } else {
@@ -527,7 +528,7 @@ Denise::translate()
     // Wipe out some bitplane data if requested
     if (config.hiddenBitplanes) {
 
-        for (isize i = 0; i < isizeof(dBuffer); i++) {
+        for (usize i = 0; i < sizeof(dBuffer); i++) {
             dBuffer[i] &= ~config.hiddenBitplanes;
         }
     }
@@ -889,8 +890,8 @@ Denise::drawSpritePair(Pixel hstrt, Pixel hstop, Pixel strt1, Pixel strt2)
     constexpr isize sprite1 = 2 * pair;
     constexpr isize sprite2 = 2 * pair + 1;
 
-    assert(hstrt <= isizeof(mBuffer));
-    assert(hstop <= isizeof(mBuffer));
+    assert(hstrt <= isize(sizeof(mBuffer)));
+    assert(hstop <= isize(sizeof(mBuffer)));
 
     bool armed1 = GET_BIT(armed, sprite1);
     bool armed2 = GET_BIT(armed, sprite2);
@@ -1012,7 +1013,7 @@ Denise::updateBorderColor()
     } else {
         borderColor = 0;  // Background color
     }
-    if (BORDER_DEBUG) {
+    if constexpr (debug::BORDER_DEBUG) {
         borderColor = 65; // Debug color
     }
 }
@@ -1028,9 +1029,9 @@ Denise::updateBorderBuffer()
     auto hf = hflop;
 
     // Print some debug info if requested
-    if (DIW_DEBUG) {
+    if constexpr (debug::DIW_DEBUG) {
 
-        trace(true, "updateBorderBuffer (%ld,%ld)\n", hstrt, hstop);
+        logdebug(DIW_DEBUG, "updateBorderBuffer (%ld,%ld)\n", hstrt, hstop);
         diwChanges.dump();
     }
 
@@ -1043,7 +1044,7 @@ Denise::updateBorderBuffer()
     // Initialize trigger position (position of first register change if any)
     auto trigger = diwChanges.trigger();
 
-    for (isize i = 0; i < isizeof(bBuffer); i++) {
+    for (isize i = 0; i < isize(sizeof(bBuffer)); i++) {
 
         // Update comparison values if needed
         if (i == trigger) {
@@ -1058,13 +1059,13 @@ Denise::updateBorderBuffer()
                     case Reg::DIWSTRT:
 
                         hstrt = r.value;
-                        trace(DIW_DEBUG, "hstrt -> %ld (%lx)\n", hstrt, hstrt);
+                        logdebug(DIW_DEBUG, "hstrt -> %ld (%lx)\n", hstrt, hstrt);
                         break;
 
                     case Reg::DIWSTOP:
 
                         hstop = r.value;
-                        trace(DIW_DEBUG, "hstop -> %ld (%lx)\n", hstop, hstop);
+                        logdebug(DIW_DEBUG, "hstop -> %ld (%lx)\n", hstop, hstop);
                         break;
 
                     default:
@@ -1079,12 +1080,12 @@ Denise::updateBorderBuffer()
         // Set or clear the horizontal DIW flipflop
         if (counter == hstrt) {
 
-            trace(DIW_DEBUG, "hflop -> 1 at %ld (%lx)\n", counter, counter);
+            logdebug(DIW_DEBUG, "hflop -> 1 at %ld (%lx)\n", counter, counter);
             hf = true;
         }
         if (counter == hstop) {
 
-            trace(DIW_DEBUG, "hflop -> 0 at %ld (%lx)\n", counter, counter);
+            logdebug(DIW_DEBUG, "hflop -> 0 at %ld (%lx)\n", counter, counter);
             hf = false;
         }
 
@@ -1153,14 +1154,14 @@ Denise::checkS2SCollisions(Pixel start, Pixel end)
         if ((z & comp01) && (z & comp45)) SET_BIT(clxdat, 10);
         if ((z & comp01) && (z & comp23)) SET_BIT(clxdat, 9);
         
-        if (CLX_DEBUG) {
+        if constexpr (debug::CLX_DEBUG) {
             
-            if ((z & comp45) && (z & comp67)) trace(true, "Coll: 45 and 67\n");
-            if ((z & comp23) && (z & comp67)) trace(true, "Coll: 23 and 67\n");
-            if ((z & comp23) && (z & comp45)) trace(true, "Coll: 23 and 45\n");
-            if ((z & comp01) && (z & comp67)) trace(true, "Coll: 01 and 67\n");
-            if ((z & comp01) && (z & comp45)) trace(true, "Coll: 01 and 45\n");
-            if ((z & comp01) && (z & comp23)) trace(true, "Coll: 01 and 23\n");
+            if ((z & comp45) && (z & comp67)) logdebug(CLX_DEBUG, "Coll: 45 and 67\n");
+            if ((z & comp23) && (z & comp67)) logdebug(CLX_DEBUG, "Coll: 23 and 67\n");
+            if ((z & comp23) && (z & comp45)) logdebug(CLX_DEBUG, "Coll: 23 and 45\n");
+            if ((z & comp01) && (z & comp67)) logdebug(CLX_DEBUG, "Coll: 01 and 67\n");
+            if ((z & comp01) && (z & comp45)) logdebug(CLX_DEBUG, "Coll: 01 and 45\n");
+            if ((z & comp01) && (z & comp23)) logdebug(CLX_DEBUG, "Coll: 01 and 23\n");
         }
     }
 }
@@ -1189,7 +1190,7 @@ Denise::checkS2PCollisions(Pixel start, Pixel end)
         // Check for a collision with playfield 2
         if ((dBuffer[pos] & enabled2) == compare2) {
             
-            trace(CLX_DEBUG, "S%d collides with PF2\n", x);
+            logdebug(CLX_DEBUG, "S%d collides with PF2\n", x);
             SET_BIT(clxdat, 5 + (x / 2));
 
         } else {
@@ -1204,7 +1205,7 @@ Denise::checkS2PCollisions(Pixel start, Pixel end)
         // Check for a collision with playfield 1
         if ((dBuffer[pos] & enabled1) == compare1) {
             
-            trace(CLX_DEBUG, "S%d collides with PF1\n", x);
+            logdebug(CLX_DEBUG, "S%d collides with PF1\n", x);
             SET_BIT(clxdat, 1 + (x / 2));
         }
     }

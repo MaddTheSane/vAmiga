@@ -11,9 +11,10 @@
 
 #include "ThreadTypes.h"
 #include "CoreComponent.h"
-#include "Concurrency.h"
-#include "Chrono.h"
-#include "Wakeable.h"
+#include "utl/chrono.h"
+#include "utl/concurrency.h"
+#include <thread>
+#include <latch>
 
 namespace vamiga {
 
@@ -22,7 +23,7 @@ namespace vamiga {
  *  execution in the middle of frame. This happens when a breakpoint or
  *  watchpoint is hit, or when the CPU halts due to the execution of a jamming
  *  instruction */
-typedef AppException StateChangeException;
+typedef GenericException<long> StateChangeException;
 
 /** Implements the emulator's state model.
  *  This class is one of the base classes of the Emulator class and provides
@@ -43,9 +44,9 @@ protected:
     std::latch initLatch {1};
 
     // Synchronization mutex
-    mutable util::ReentrantMutex lock;
-    mutable util::ReentrantMutex suspensionLock;
-    
+    mutable ReentrantMutex lock;
+    mutable ReentrantMutex suspensionLock;
+
     // Warp and track state
     u8 warp = 0;
     u8 track = 0;
@@ -56,11 +57,11 @@ protected:
     isize statsCounter = 0;
 
     // Time stamps
-    util::Time baseTime;
+    utl::Time baseTime;
     
     // Clocks for measuring the CPU load
-    util::Clock nonstopClock;
-    util::Clock loadClock;
+    utl::Clock nonstopClock;
+    utl::Clock loadClock;
 
     // Statistical information (CPU load, frames per second, thread resyncs)
     double cpuLoad = 0.0;
@@ -68,7 +69,7 @@ protected:
     isize resyncs = 0;
 
     // Debug clocks
-    util::Clock wakeupClock;
+    utl::Clock wakeupClock;
 
     
     //
@@ -174,7 +175,7 @@ public:
 
     void powerOn();
     void powerOff();
-    void run() throws;
+    void run(); // Throws
     void pause();
     void halt();
 
@@ -197,7 +198,7 @@ public:
 private:
 
     // Returns if the emulator is ready to runs, throws an exception otherwise
-    virtual void isReady() throws = 0;
+    virtual void isReady() = 0;
 
 
     //

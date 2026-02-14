@@ -9,7 +9,8 @@
 
 #pragma once
 
-#include "Infrastructure/Reflection.h"
+#include "BasicTypes.h"
+#include "RemoteServerTypes.h"
 
 namespace vamiga {
 
@@ -19,25 +20,27 @@ namespace vamiga {
 
 enum class ServerType : long
 {
-    SER,
     RSH,
+    RPC,
+    GDB,
     PROM,
-    GDB
+    SER
 };
 
-struct ServerTypeEnum : Reflection<ServerTypeEnum, ServerType>
+struct ServerTypeEnum : Reflectable<ServerTypeEnum, ServerType>
 {
     static constexpr long minVal = 0;
-    static constexpr long maxVal = long(ServerType::GDB);
-    
+    static constexpr long maxVal = long(ServerType::SER);
+
     static const char *_key(ServerType value)
     {
         switch (value) {
                 
-            case ServerType::SER:    return "SER";
             case ServerType::RSH:    return "RSH";
-            case ServerType::PROM:   return "PROM";
+            case ServerType::RPC:    return "RPC";
             case ServerType::GDB:    return "GDB";
+            case ServerType::PROM:   return "PROM";
+            case ServerType::SER:    return "SER";
         }
         return "???";
     }
@@ -45,10 +48,11 @@ struct ServerTypeEnum : Reflection<ServerTypeEnum, ServerType>
     {
         switch (value) {
                 
-            case ServerType::SER:    return "Serial port server";
             case ServerType::RSH:    return "Remote shell server";
-            case ServerType::PROM:   return "Prometheus server";
+            case ServerType::RPC:    return "JSON RPC server";
             case ServerType::GDB:    return "Debug server";
+            case ServerType::PROM:   return "Prometheus server";
+            case ServerType::SER:    return "Serial port server";
         }
         return "???";
     }
@@ -61,10 +65,11 @@ struct ServerTypeEnum : Reflection<ServerTypeEnum, ServerType>
 
 typedef struct
 {
-    isize numLaunching;
-    isize numListening;
-    isize numConnected;
-    isize numErroneous;
+    RemoteServerInfo rshInfo;
+    RemoteServerInfo rpcInfo;
+    RemoteServerInfo gdbInfo;
+    RemoteServerInfo promInfo;
+    RemoteServerInfo serInfo;
 }
 RemoteManagerInfo;
 

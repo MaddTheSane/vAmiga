@@ -13,6 +13,11 @@
 
 namespace vamiga {
 
+LogicAnalyzer::LogicAnalyzer(Amiga& ref) : SubComponent(ref)
+{
+    info.bind([this] { return cacheInfo(); } );
+};
+
 void
 LogicAnalyzer::_pause()
 {
@@ -28,27 +33,26 @@ LogicAnalyzer::_didReset(bool hard)
 void
 LogicAnalyzer::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-
     if (category == Category::Config) {
         
         dumpConfig(os);
     }
 }
 
-void
-LogicAnalyzer::cacheInfo(LogicAnalyzerInfo &info) const
+LogicAnalyzerInfo
+LogicAnalyzer::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        info.busOwner = agnus.busOwner;
-        info.addrBus = agnus.busAddr;
-        info.dataBus = agnus.busData;
-        
-        for (isize i = 0; i < 4; i++) {
-            info.channel[i] = record[i];
-        }
+    LogicAnalyzerInfo info;
+
+    info.busOwner = agnus.busOwner;
+    info.addrBus = agnus.busAddr;
+    info.dataBus = agnus.busData;
+
+    for (isize i = 0; i < 4; i++) {
+        info.channel[i] = record[i];
     }
+
+    return info;
 }
 
 i64
@@ -81,7 +85,7 @@ LogicAnalyzer::checkOption(Opt opt, i64 value)
         case Opt::LA_PROBE3:
 
             if (!ProbeEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, ProbeEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, ProbeEnum::keyList());
             }
             
         case Opt::LA_ADDR0:
@@ -92,7 +96,7 @@ LogicAnalyzer::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 

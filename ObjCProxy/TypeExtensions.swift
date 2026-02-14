@@ -7,18 +7,31 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+// 'retro::vault' namespace
+typealias Diameter = retro.vault.Diameter
+typealias Density = retro.vault.Density
+typealias ImageType = retro.vault.ImageType
+typealias ImageFormat = retro.vault.ImageFormat
+
+// 'retro::vault::amiga' namespace
+typealias BootBlockId = retro.vault.amiga.BootBlockId
+typealias FSBlockError = retro.vault.amiga.FSBlockError
+typealias FSBlockType = retro.vault.amiga.FSBlockType
+typealias FSItemType = retro.vault.amiga.FSItemType
+typealias FSFormat = retro.vault.amiga.FSFormat
+
+// 'vamiga' namespace
 typealias Accessor = vamiga.Accessor
 typealias AmigaInfo = vamiga.AmigaInfo
 typealias AgnusInfo = vamiga.AgnusInfo
 typealias AgnusRevision = vamiga.AgnusRevision
-typealias AgnusStats = vamiga.AgnusStats
+typealias AgnusStats = vamiga.AgnusMetrics
 typealias BankMap = vamiga.BankMap
 typealias BlitterInfo = vamiga.BlitterInfo
-typealias BootBlockId = vamiga.BootBlockId
 typealias CIAInfo = vamiga.CIAInfo
 typealias CIARevision = vamiga.CIARev
-typealias CIAStats = vamiga.CIAStats
-typealias Compressor = vamiga.Compressor
+typealias CIAStats = vamiga.CIAMetrics
+typealias Compressor = utl.Compressor
 typealias ControlPortDevice = vamiga.ControlPortDevice
 typealias ControlPortInfo = vamiga.ControlPortInfo
 typealias CopperInfo = vamiga.CopperInfo
@@ -29,27 +42,22 @@ typealias DasmSyntax = vamiga.DasmSyntax
 typealias DeniseInfo = vamiga.DeniseInfo
 typealias DeniseRevision = vamiga.DeniseRev
 typealias DiskControllerInfo = vamiga.DiskControllerInfo
-typealias ErrorCode = vamiga.Fault
 typealias EventSlot = vamiga.EventSlot
 typealias EventSlotEnum = vamiga.EventSlotEnum
 typealias EventSlotInfo = vamiga.EventSlotInfo
-typealias FileType = vamiga.FileType
 typealias FloppyDriveInfo = vamiga.FloppyDriveInfo
 typealias FloppyDriveType = vamiga.FloppyDriveType
-typealias FSBlockError = vamiga.FSBlockError
-typealias FSBlockType = vamiga.FSBlockType
-typealias FSItemType = vamiga.FSItemType
-typealias FSVolumeType = vamiga.FSFormat
 typealias GamePadAction = vamiga.GamePadAction
 typealias HardDriveInfo = vamiga.HardDriveInfo
 typealias MemorySource = vamiga.MemSrc
 typealias MemInfo = vamiga.MemInfo
-typealias MemStats = vamiga.MemStats
+typealias MemStats = vamiga.MemMetrics
 typealias Message = vamiga.Message
 typealias Option = vamiga.Opt
 typealias Palette = vamiga.Palette
 typealias PaulaInfo = vamiga.PaulaInfo
 typealias Probe = vamiga.Probe
+typealias RemoteServerInfo = vamiga.RemoteServerInfo
 typealias RomTraits = vamiga.RomTraits
 typealias RTCRevision = vamiga.RTCRevision
 typealias SamplingMethod = vamiga.SamplingMethod
@@ -57,6 +65,7 @@ typealias SerialPortDevice = vamiga.SerialPortDevice
 typealias SerialPortInfo = vamiga.SerialPortInfo
 typealias ServerType = vamiga.ServerType
 typealias SpriteInfo = vamiga.SpriteInfo
+typealias SrvState = vamiga.SrvState
 typealias StateMachineInfo = vamiga.StateMachineInfo
 typealias UARTInfo = vamiga.UARTInfo
 typealias VideoFormat = vamiga.TV
@@ -102,22 +111,7 @@ extension EventSlot: CustomStringConvertible {
     public var description: String { return EventSlotName(self) }
 }
 
-extension FileType {
-
-    init?(url: URL?) {
-        self = url == nil ? .UNKNOWN : AnyFileProxy.type(of: url)
-    }
-
-    static var all: [FileType] {
-        return [ .WORKSPACE, .SNAPSHOT, .SCRIPT, .ADF, .ADZ, .EADF, .HDF, .HDZ, .IMG, .DMS, .EXE, .ST, .DIR ]
-    }
-
-    static var draggable: [FileType] {
-        return [ .WORKSPACE, .SNAPSHOT, .SCRIPT, .ADF, .ADZ, .EADF, .HDF, .HDZ, .IMG, .DMS, .EXE, .ST, .DIR ]
-    }
-}
-
-extension FSVolumeType: CustomStringConvertible {
+extension FSFormat: CustomStringConvertible {
 
     public var description: String {
         

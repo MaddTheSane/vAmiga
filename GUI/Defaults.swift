@@ -32,14 +32,14 @@ extension DefaultsProxy {
         
         let exception = ExceptionWrapper()
         load(url, exception: exception)
-        if exception.fault != .OK { throw AppError(exception) }     
+        if exception.fault != 0 { throw AppError(exception) }     
         
-        debug(.defaults, "Successfully loaded user defaults from \(url)")
+        loginfo(.defaults, "Successfully loaded user defaults from \(url)")
     }
     
     func load() {
         
-        debug(.defaults, "Loading user defaults")
+        loginfo(.defaults, "Loading user defaults")
         
         do {
             let folder = try URL.appSupportFolder()
@@ -60,14 +60,14 @@ extension DefaultsProxy {
         
         let exception = ExceptionWrapper()
         save(url, exception: exception)
-        if exception.fault != .OK { throw AppError(exception) }
+        if exception.fault != 0 { throw AppError(exception) }
         
-        debug(.defaults, "Successfully saved user defaults to \(url)")
+        loginfo(.defaults, "Successfully saved user defaults to \(url)")
     }
     
     func save() {
         
-        debug(.defaults, "Saving user defaults")
+        loginfo(.defaults, "Saving user defaults")
         
         do {
             let folder = try URL.appSupportFolder()
@@ -249,7 +249,7 @@ extension DefaultsProxy {
     
     func registerUserDefaults() {
         
-        debug(.defaults, "Registering user defaults")
+        loginfo(.defaults, "Registering user defaults")
         
         registerGeneralUserDefaults()
         registerCapturesUserDefaults()
@@ -270,7 +270,7 @@ extension Preferences {
     
     func applyUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         applyGeneralUserDefaults()
         applyCapturesUserDefaults()
@@ -284,7 +284,7 @@ extension Configuration {
     
     func applyUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         applyHardwareUserDefaults()
         applyPeripheralsUserDefaults()
@@ -324,7 +324,7 @@ extension DefaultsProxy {
     
     func registerGeneralUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         // Fullscreen
         register(Keys.Gen.keepAspectRatio, false)
@@ -343,7 +343,7 @@ extension DefaultsProxy {
     
     func removeGeneralUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         let keys = [ Keys.Gen.keepAspectRatio,
                      Keys.Gen.exitOnEsc,
@@ -366,7 +366,7 @@ extension Preferences {
     
     func saveGeneralUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         defaults.set(Keys.Gen.keepAspectRatio, keepAspectRatio)
@@ -385,7 +385,7 @@ extension Preferences {
     
     func applyGeneralUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         keepAspectRatio = defaults.bool(Keys.Gen.keepAspectRatio)
@@ -428,7 +428,7 @@ extension DefaultsProxy {
     
     func registerCapturesUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         // Snapshots
         register(Keys.Cap.snapshotCompressor, Compressor.LZ4.rawValue)
@@ -444,7 +444,7 @@ extension DefaultsProxy {
     
     func removeCapturesUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         let keys = [ Keys.Cap.snapshotCompressor,
                      Keys.Cap.snapshotAutoDelete,
@@ -465,7 +465,7 @@ extension Preferences {
     
     func saveCapturesUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         defaults.set(Keys.Cap.snapshotCompressor, snapshotCompressorIntValue)
@@ -482,7 +482,7 @@ extension Preferences {
     
     func applyCapturesUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         snapshotCompressorIntValue = defaults.int(Keys.Cap.snapshotCompressor)
@@ -520,7 +520,7 @@ extension DefaultsProxy {
     
     func registerControlsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         let emptyMap: [MacKey: Int] = [:]
         
@@ -553,7 +553,7 @@ extension DefaultsProxy {
     
     func removeControlsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         let keys = [ Keys.Con.mouseKeyMap,
                      Keys.Con.joyKeyMap1,
@@ -571,7 +571,7 @@ extension Preferences {
     
     func saveControlsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         defaults.encode(Keys.Con.mouseKeyMap, keyMaps[0])
@@ -586,7 +586,7 @@ extension Preferences {
     
     func applyControlsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         defaults.decode(Keys.Con.mouseKeyMap, &keyMaps[0])
@@ -628,7 +628,7 @@ extension Preferences {
     
     func saveDevicesUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         defaults.save()
@@ -636,7 +636,7 @@ extension Preferences {
     
     func applyDevicesUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
     }
 }
 
@@ -649,7 +649,7 @@ extension Configuration {
     
     func saveRomUserDefaults() throws {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         guard let emu = emu else { return }
         
@@ -666,13 +666,15 @@ extension Configuration {
             
             // Kickstart
             url = UserDefaults.romUrl
-            if url == nil { throw AppError(.FILE_CANT_WRITE) }
+            // if url == nil { throw AppError(.FILE_CANT_WRITE) }
+            if url == nil { throw AppError("Failed to save Kickstart ROM to app support folder") }
             try? fm.removeItem(at: url!)
             if emu.mem.info.hasRom { try emu.mem.saveRom(url!) }
             
             // Kickstart extension
             url = UserDefaults.extUrl
-            if url == nil { throw AppError(.FILE_CANT_WRITE) }
+            // if url == nil { throw AppError(.FILE_CANT_WRITE) }
+            if url == nil { throw AppError("Failed to save Extension ROM to app support folder") }
             try? fm.removeItem(at: url!)
             if emu.mem.info.hasExt { try emu.mem.saveExt(url!) }
             
@@ -731,13 +733,13 @@ extension DefaultsProxy {
     
     func registerChipsetUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related items in this sections
     }
     
     func removeChipsetUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.AMIGA_VIDEO_FORMAT)
         remove(.CPU_REVISION)
@@ -754,7 +756,7 @@ extension Configuration {
     
     func applyChipsetUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -772,7 +774,7 @@ extension Configuration {
     
     func saveChipsetUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -799,13 +801,13 @@ extension DefaultsProxy {
     
     func registerMemoryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related items in this sections
     }
     
     func removeMemoryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.MEM_CHIP_RAM)
         remove(.MEM_SLOW_RAM)
@@ -821,7 +823,7 @@ extension Configuration {
     
     func saveMemoryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -839,7 +841,7 @@ extension Configuration {
     
     func applyMemoryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -875,7 +877,7 @@ extension DefaultsProxy {
     
     func registerPeripheralsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         // Port assignments
         register(Keys.Per.gameDevice1, 0)
@@ -884,7 +886,7 @@ extension DefaultsProxy {
     
     func removePeripheralsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.DRIVE_CONNECT, [0, 1, 2, 3])
         remove(.DRIVE_TYPE, [0, 1, 2, 3])
@@ -907,7 +909,7 @@ extension Configuration {
     
     func savePeripheralsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -955,7 +957,7 @@ extension Configuration {
     
     func applyPeripheralsUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1009,13 +1011,13 @@ extension DefaultsProxy {
     
     func registerPerformanceUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related items in this sections
     }
     
     func removePerformanceUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.AMIGA_WARP_MODE)
         remove(.AMIGA_WARP_BOOT)
@@ -1037,7 +1039,7 @@ extension Configuration {
     
     func applyPerformanceUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1057,7 +1059,7 @@ extension Configuration {
     
     func savePerformanceUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1086,13 +1088,13 @@ extension DefaultsProxy {
     
     func registerCompatibilityUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related items in this sections
     }
     
     func removeCompatibilityUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.BLITTER_ACCURACY)
         remove(.AGNUS_PTR_DROPS)
@@ -1116,7 +1118,7 @@ extension Configuration {
     
     func saveCompatibilityUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1142,7 +1144,7 @@ extension Configuration {
     
     func applyCompatibilityUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1175,13 +1177,13 @@ extension DefaultsProxy {
     
     func registerAudioUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related items in this sections
     }
     
     func removeAudioUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.DRIVE_PAN, [0, 1, 2, 3])
         remove(.HDR_PAN, [0, 1, 2, 3])
@@ -1211,7 +1213,7 @@ extension Configuration {
     
     func saveAudioUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1250,7 +1252,7 @@ extension Configuration {
     
     func applyAudioUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1337,7 +1339,7 @@ extension DefaultsProxy {
     
     func registerVideoUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         registerColorUserDefaults()
         registerGeometryUserDefaults()
@@ -1346,25 +1348,25 @@ extension DefaultsProxy {
     
     func registerColorUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related keys in this category
     }
     
     func registerGeometryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related keys in this category
     }
     
     func registerShaderUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         // No GUI related keys in this category
     }
     
     func removeVideoUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         removeColorUserDefaults()
         removeGeometryUserDefaults()
@@ -1373,7 +1375,7 @@ extension DefaultsProxy {
     
     func removeColorUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.MON_PALETTE)
         remove(.MON_BRIGHTNESS)
@@ -1383,7 +1385,7 @@ extension DefaultsProxy {
     
     func removeGeometryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.MON_CENTER)
         remove(.MON_HCENTER)
@@ -1395,7 +1397,7 @@ extension DefaultsProxy {
     
     func removeShaderUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         remove(.MON_ENHANCER)
         remove(.MON_UPSCALER)
@@ -1423,7 +1425,7 @@ extension Configuration {
     
     func saveVideoUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         emu?.suspend()
         
@@ -1436,7 +1438,7 @@ extension Configuration {
     
     func saveColorUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1453,7 +1455,7 @@ extension Configuration {
     
     func saveGeometryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1472,7 +1474,7 @@ extension Configuration {
     
     func saveShaderUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1503,7 +1505,7 @@ extension Configuration {
     
     func applyVideoUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         
         applyColorUserDefaults()
         applyGeometryUserDefaults()
@@ -1512,7 +1514,7 @@ extension Configuration {
     
     func applyColorUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1527,7 +1529,7 @@ extension Configuration {
     
     func applyGeometryUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1544,7 +1546,7 @@ extension Configuration {
     
     func applyShaderUserDefaults() {
         
-        debug(.defaults)
+        loginfo(.defaults)
         let defaults = EmulatorProxy.defaults!
         
         emu?.suspend()
@@ -1569,5 +1571,101 @@ extension Configuration {
         disalignmentV = defaults.get(.MON_DISALIGNMENT_V)
         
         emu?.resume()
+    }
+}
+
+//
+// User defaults (Server)
+//
+
+@MainActor
+extension Keys {
+
+    struct Ser {
+
+        static let rshConnect       = "Server.Rsh.Connect"
+        static let rshPort          = "Server.Rsh.Port"
+        static let rpcConnect       = "Server.Rpc.Connect"
+        static let rpcPort          = "Server.Rpc.Port"
+        static let gdbConnect       = "Server.Gdb.Connect"
+        static let gdbPort          = "Server.Gdb.Port"
+        static let promConnect      = "Server.Prom.Connect"
+        static let promPort         = "Server.Prom.Port"
+        static let serConnect       = "Server.Ser.Connect"
+        static let serPort          = "Server.Ser.Port"
+    }
+}
+
+@MainActor
+extension DefaultsProxy {
+
+    func registerServerUserDefaults() {
+
+        loginfo(.defaults)
+        // No GUI related items in this sections    }
+    }
+
+    func removeServerUserDefaults() {
+
+        loginfo(.defaults)
+
+        remove(.SRV_ENABLE, [0, 1, 2, 3, 4])
+        remove(.SRV_PORT, [0, 1, 2, 3, 4])
+    }
+}
+
+@MainActor
+extension Configuration {
+
+    func saveServerUserDefaults() {
+
+        loginfo(.defaults)
+
+        if let emu = emu {
+
+            emu.suspend()
+
+            let defaults = EmulatorProxy.defaults!
+
+            defaults.set(.SRV_ENABLE, 0, rshServerEnable)
+            defaults.set(.SRV_PORT, 0, rshServerPort)
+            defaults.set(.SRV_ENABLE, 1, rpcServerEnable)
+            defaults.set(.SRV_PORT, 1, rpcServerPort)
+            defaults.set(.SRV_ENABLE, 2, gdbServerEnable)
+            defaults.set(.SRV_PORT, 2, gdbServerPort)
+            defaults.set(.SRV_ENABLE, 3, promServerEnable)
+            defaults.set(.SRV_PORT, 3, promServerPort)
+            defaults.set(.SRV_ENABLE, 4, serServerEnable)
+            defaults.set(.SRV_PORT, 4, serServerPort)
+
+            defaults.save()
+
+            emu.resume()
+        }
+    }
+
+    func applyServerUserDefaults() {
+
+        loginfo(.defaults)
+
+        if let emu = emu {
+
+            emu.suspend()
+
+            let defaults = EmulatorProxy.defaults!
+
+            rshServerEnable = defaults.get(.SRV_ENABLE, 0) != 0
+            rshServerPort = defaults.get(.SRV_PORT, 0)
+            rpcServerEnable = defaults.get(.SRV_ENABLE, 1) != 0
+            rpcServerPort = defaults.get(.SRV_PORT, 1)
+            gdbServerEnable = defaults.get(.SRV_ENABLE, 2) != 0
+            gdbServerPort = defaults.get(.SRV_PORT, 2)
+            promServerEnable = defaults.get(.SRV_ENABLE, 3) != 0
+            promServerPort = defaults.get(.SRV_PORT, 3)
+            serServerEnable = defaults.get(.SRV_ENABLE, 4) != 0
+            serServerPort = defaults.get(.SRV_PORT, 4)
+
+            emu.resume()
+        }
     }
 }

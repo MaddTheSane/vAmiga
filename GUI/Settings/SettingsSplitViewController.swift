@@ -36,6 +36,7 @@ class SettingsSplitViewController: NSSplitViewController {
     lazy var performanceVC = instantiate("Performance") as! PerformanceSettingsViewController
     lazy var audioVC = instantiate("Audio") as! AudioSettingsViewController
     lazy var videoVC = instantiate("Video") as! VideoSettingsViewController
+    lazy var serverVC = instantiate("Server") as! ServerSettingsViewController
 
     var current: SettingsViewController?
 
@@ -83,6 +84,7 @@ class SettingsSplitViewController: NSSplitViewController {
         case "Compatibility":   current = compatibilityVC
         case "Audio":           current = audioVC
         case "Video":           current = videoVC
+        case "Server":          current = serverVC
 
         default:            fatalError()
         }
@@ -98,26 +100,22 @@ class SettingsSplitViewController: NSSplitViewController {
 
     override func keyDown(with event: NSEvent) {
 
-        print("keyDown: \(event)")
         current?.keyDown(with: event)
     }
 
     override func flagsChanged(with event: NSEvent) {
 
-        print("flagsChanged: \(event)")
         current?.flagsChanged(with: event)
     }
 
     @IBAction func presetAction(_ sender: NSPopUpButton) {
 
-        print("presetAction")
         current?.preset(tag: sender.selectedTag())
         current?.refresh()
     }
 
     @IBAction func saveAction(_ sender: Any) {
 
-        print("saveAction")
         current?.save()
         current?.refresh()
     }

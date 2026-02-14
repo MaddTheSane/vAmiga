@@ -11,10 +11,11 @@
 #include "AudioPort.h"
 #include "Emulator.h"
 #include "CIA.h"
-#include "IOUtils.h"
 #include "MsgQueue.h"
 #include <cmath>
 #include <algorithm>
+#include "utl/io.h"
+#include "utl/support.h"
 
 namespace vamiga {
 
@@ -25,13 +26,16 @@ AudioPort::AudioPort(Amiga& ref, isize objid) : SubComponent(ref, objid)
         &filter,
         &detector
     };
+
+    info.bind([this] { return cacheInfo(); } );
+    metrics.bind([this] { return cacheMetrics(); } );
 }
 
 void
 AudioPort::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-    
+    using namespace utl;
+
     if (category == Category::Config) {
         
         dumpConfig(os);
@@ -131,7 +135,7 @@ AudioPort::_unfocus()
 void
 AudioPort::clear()
 {
-    debug(AUDBUF_DEBUG, "Clearing the audio sample buffer\n");
+    loginfo(AUDBUF_DEBUG, "Clearing the audio sample buffer\n");
 
     // Wipe out the ringbuffer
     stream.wipeOut();
@@ -187,14 +191,14 @@ AudioPort::checkOption(Opt opt, i64 value)
         case Opt::AUD_BUFFER_SIZE:
 
             if (value < 512 || value > 65536) {
-                throw AppError(Fault::OPT_INV_ARG, "512 ... 65536");
+                throw CoreError(CoreError::OPT_INV_ARG, "512 ... 65536");
             }
             return;
             
         case Opt::AUD_SAMPLING_METHOD:
 
             if (!SamplingMethodEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, SamplingMethodEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, SamplingMethodEnum::keyList());
             }
             return;
             
@@ -204,7 +208,7 @@ AudioPort::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -279,28 +283,36 @@ AudioPort::setSampleRate(double hz)
     if (hz != 0.0) {
 
         sampleRate = hz;
-        trace(AUD_DEBUG, "setSampleRate(%.2f)\n", sampleRate);
+        logdebug(AUD_DEBUG, "setSampleRate(%.2f)\n", sampleRate);
 
     } else {
 
         sampleRate = detector.sampleRate();
-        trace(AUD_DEBUG, "setSampleRate(%.2f) (predicted)\n", sampleRate);
+        logdebug(AUD_DEBUG, "setSampleRate(%.2f) (predicted)\n", sampleRate);
     }
 
     // Inform the audio filter about the new sample rate
     filter.setup(sampleRate);
 }
 
-void
-AudioPort::cacheInfo(AudioPortInfo &result) const
+AudioPortInfo
+AudioPort::cacheInfo() const
 {
-    result.isMuted = isMuted();
+    AudioPortInfo info;
+
+    info.isMuted = isMuted();
+
+    return info;
 }
 
-void
-AudioPort::cacheStats(AudioPortStats &result) const
+AudioPortMetrics
+AudioPort::cacheMetrics() const
 {
+    AudioPortMetrics result = stats;
+
     result.fillLevel = stream.fillLevel();
+
+    return result;
 }
 
 void
@@ -376,7 +388,7 @@ AudioPort::updateSampleRateCorrection()
     // Smooth it out
     sampleRateCorrection = (sampleRateCorrection * 0.75) + (correction * 0.25);
     
-    debug(AUDBUF_DEBUG, "ASR correction: %.0f Hz (fill: %.2f)\n",
+    loginfo(AUDBUF_DEBUG, "ASR correction: %.0f Hz (fill: %.2f)\n",
           sampleRateCorrection, stream.fillLevel());
 }
 
@@ -493,18 +505,21 @@ AudioPort::handleBufferUnderflow()
     stream.alignWritePtr();
 
     // Determine the elapsed seconds since the last pointer adjustment
-    auto elapsedTime = util::Time::now() - lastAlignment;
-    lastAlignment = util::Time::now();
+    auto elapsedTime = utl::Time::now() - lastAlignment;
+    lastAlignment = utl::Time::now();
     
     // Adjust the sample rate if the emulator runs under normal conditions
     if (emulator.isRunning() && !emulator.isWarping()) {
 
         stats.bufferUnderflows++;
-        debug(AUDBUF_DEBUG, "Audio buffer underflow after %f seconds\n", elapsedTime.asSeconds());
+        loginfo(AUDBUF_DEBUG, "Audio buffer underflow after %f seconds\n", elapsedTime.asSeconds());
 
         // Adjust the sample rate
         setSampleRate(host.getConfig().sampleRate);
-        debug(AUDBUF_DEBUG, "New sample rate = %.2f\n", sampleRate);
+        loginfo(AUDBUF_DEBUG, "New sample rate = %.2f\n", sampleRate);
+
+        // Inform the GUI
+        msgQueue.put(Msg::AUDBUF_UNDERFLOW, elapsedTime.asMilliseconds());
     }
 }
 
@@ -515,25 +530,28 @@ AudioPort::handleBufferOverflow()
     stream.alignWritePtr();
 
     // Determine the number of elapsed seconds since the last adjustment
-    auto elapsedTime = util::Time::now() - lastAlignment;
-    lastAlignment = util::Time::now();
+    auto elapsedTime = utl::Time::now() - lastAlignment;
+    lastAlignment = utl::Time::now();
 
     // Adjust the sample rate if the emulator runs under normal conditions
     if (emulator.isRunning() && !emulator.isWarping()) {
 
         stats.bufferOverflows++;
-        debug(AUDBUF_DEBUG, "Audio buffer overflow after %f seconds\n", elapsedTime.asSeconds());
+        loginfo(AUDBUF_DEBUG, "Audio buffer overflow after %f seconds\n", elapsedTime.asSeconds());
 
         // Adjust the sample rate
         setSampleRate(host.getConfig().sampleRate);
-        debug(AUDBUF_DEBUG, "New sample rate = %.2f\n", sampleRate);
+        loginfo(AUDBUF_DEBUG, "New sample rate = %.2f\n", sampleRate);
+
+        // Inform the GUI
+        msgQueue.put(Msg::AUDBUF_OVERFLOW, elapsedTime.asMilliseconds());
     }
 }
 
 void
 AudioPort::ignoreNextUnderOrOverflow()
 {
-    lastAlignment = util::Time::now();
+    lastAlignment = utl::Time::now();
 }
 
 isize

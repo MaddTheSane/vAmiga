@@ -13,9 +13,11 @@
 #include "CPU.h"
 #include "Agnus.h"
 #include "Amiga.h"
-#include "IOUtils.h"
 #include "Memory.h"
 #include "MsgQueue.h"
+#include "utl/support.h"
+#include "utl/io.h"
+
 
 //
 // Moira
@@ -97,7 +99,7 @@ Moira::read16OnReset(u32 addr) const
 void
 Moira::write8(u32 addr, u8 val) const
 {
-    if (XFILES) {
+    if constexpr (debug::XFILES) {
         if (addr - reg.pc < 5) xfiles("write8 close to PC %x\n", reg.pc);
     }
     mem.poke8 <Accessor::CPU> (addr, val);
@@ -106,7 +108,7 @@ Moira::write8(u32 addr, u8 val) const
 void
 Moira::write16(u32 addr, u16 val) const
 {
-    if (XFILES) {
+    if constexpr (debug::XFILES) {
         if (addr - reg.pc < 5) xfiles("write16 close to PC %x\n", reg.pc);
     }
     mem.poke16 <Accessor::CPU> (addr, val);
@@ -216,7 +218,7 @@ Moira::cpuDidHalt()
 void
 Moira::willInterrupt(u8 level)
 {
-    debug(INT_DEBUG, "Executing level %d IRQ\n", level);
+    loginfo(INT_DEBUG, "Executing level %d IRQ\n", level);
 }
 
 void
@@ -225,7 +227,7 @@ Moira::didJumpToVector(int nr, u32 addr)
     bool isIrqException = nr >= 24 && nr <= 31;
 
     if (isIrqException) {
-        trace(INT_DEBUG, "Exception %d: Changing PC to %x\n", nr, addr);
+        logdebug(INT_DEBUG, "Exception %d: Changing PC to %x\n", nr, addr);
     }
 }
 
@@ -282,7 +284,7 @@ namespace vamiga {
 
 CPU::CPU(Amiga& ref) : moira::Moira(ref)
 {
-    
+    info.bind([this] { return cacheInfo(); } );
 }
 
 i64
@@ -310,28 +312,28 @@ CPU::checkOption(Opt opt, i64 value)
         case Opt::CPU_REVISION:
 
             if (!CPURevEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, CPURevEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, CPURevEnum::keyList());
             }
             return;
 
         case Opt::CPU_DASM_REVISION:
 
             if (!DasmRevEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, DasmRevEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, DasmRevEnum::keyList());
             }
             return;
 
         case Opt::CPU_DASM_SYNTAX:
 
             if (!DasmSyntaxEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, DasmSyntaxEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, DasmSyntaxEnum::keyList());
             }
             return;
 
         case Opt::CPU_DASM_NUMBERS:
 
             if (!DasmNumbersEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, DasmNumbersEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, DasmNumbersEnum::keyList());
             }
             return;
 
@@ -341,7 +343,7 @@ CPU::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -448,51 +450,54 @@ CPU::_didReset(bool hard)
     }
 }
 
-void
-CPU::cacheInfo(CPUInfo &info) const
+CPUInfo
+CPU::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        info.clock = clock;
+    CPUInfo info;
 
-        info.pc0 = getPC0() & 0xFFFFFF;
-        info.ird = getIRD();
-        info.irc = getIRC();
-        
-        for (int i = 0; i < 8; i++) {
-            info.d[i] = getD(i);
-            info.a[i] = getA(i);
-        }
-        info.isp = getISP();
-        info.usp = getUSP();
-        info.msp = getMSP();
-        info.vbr = getVBR();
-        info.sr = getSR();
-        info.sfc = (u8)getSFC();
-        info.dfc = (u8)getDFC();
-        info.cacr = (u8)getCACR();
-        info.caar = (u8)getCAAR();
-        info.ipl = (u8)getIPL();
-        info.fc = (u8)readFC(); // TODO
-        
-        info.halt = isHalted();
+    info.clock = clock;
+
+    info.pc0 = getPC0() & 0xFFFFFF;
+    info.ird = getIRD();
+    info.irc = getIRC();
+
+    for (int i = 0; i < 8; i++) {
+        info.d[i] = getD(i);
+        info.a[i] = getA(i);
     }
+    info.isp = getISP();
+    info.usp = getUSP();
+    info.msp = getMSP();
+    info.vbr = getVBR();
+    info.sr = getSR();
+    info.sfc = (u8)getSFC();
+    info.dfc = (u8)getDFC();
+    info.cacr = (u8)getCACR();
+    info.caar = (u8)getCAAR();
+    info.ipl = (u8)getIPL();
+    info.fc = (u8)readFC();
+
+    info.halt = isHalted();
+
+    return info;
 }
 
 void
 CPU::_dump(Category category, std::ostream &os) const
 {
+    using namespace utl;
+
     auto print = [&](const string &name, const GuardList &guards) {
 
         for (int i = 0; i < guards.elements(); i++) {
 
             auto bp = *guards.guardNr(i);
 
-            os << util::tab(name + " " + std::to_string(i));
-            os << util::hex(bp.addr);
+            os << tab(name + " " + std::to_string(i));
+            os << hex(bp.addr);
 
             if (!bp.enabled) os << " (Disabled)";
-            else if (bp.ignore) os << " (Disabled for " << util::dec(bp.ignore) << " hits)";
+            else if (bp.ignore) os << " (Disabled for " << dec(bp.ignore) << " hits)";
             os << std::endl;
         }
     };
@@ -504,40 +509,40 @@ CPU::_dump(Category category, std::ostream &os) const
 
     if (category == Category::Registers) {
         
-        os << util::tab("PC");
-        os << util::hex(reg.pc0) << std::endl;
+        os << tab("PC");
+        os << hex(reg.pc0) << std::endl;
         os << std::endl;
         
-        os << util::tab("ISP");
-        os << util::hex(reg.isp) << std::endl;
-        os << util::tab("USP");
-        os << util::hex(reg.usp) << std::endl;
-        os << util::tab("IRC");
-        os << util::hex(queue.irc) << std::endl;
-        os << util::tab("IRD");
-        os << util::hex(queue.ird) << std::endl;
+        os << tab("ISP");
+        os << hex(reg.isp) << std::endl;
+        os << tab("USP");
+        os << hex(reg.usp) << std::endl;
+        os << tab("IRC");
+        os << hex(queue.irc) << std::endl;
+        os << tab("IRD");
+        os << hex(queue.ird) << std::endl;
         os << std::endl;
         
-        os << util::tab("D0 - D3");
-        os << util::hex(reg.d[0]) << ' ' << util::hex(reg.d[1]) << ' ';
-        os << util::hex(reg.d[2]) << ' ' << util::hex(reg.d[3]) << ' ' << std::endl;
-        os << util::tab("D4 - D7");
-        os << util::hex(reg.d[4]) << ' ' << util::hex(reg.d[5]) << ' ';
-        os << util::hex(reg.d[6]) << ' ' << util::hex(reg.d[7]) << ' ' << std::endl;
-        os << util::tab("A0 - A3");
-        os << util::hex(reg.a[0]) << ' ' << util::hex(reg.a[1]) << ' ';
-        os << util::hex(reg.a[2]) << ' ' << util::hex(reg.a[3]) << ' ' << std::endl;
-        os << util::tab("A4 - A7");
-        os << util::hex(reg.a[4]) << ' ' << util::hex(reg.a[5]) << ' ';
-        os << util::hex(reg.a[6]) << ' ' << util::hex(reg.a[7]) << ' ' << std::endl;
+        os << tab("D0 - D3");
+        os << hex(reg.d[0]) << ' ' << hex(reg.d[1]) << ' ';
+        os << hex(reg.d[2]) << ' ' << hex(reg.d[3]) << ' ' << std::endl;
+        os << tab("D4 - D7");
+        os << hex(reg.d[4]) << ' ' << hex(reg.d[5]) << ' ';
+        os << hex(reg.d[6]) << ' ' << hex(reg.d[7]) << ' ' << std::endl;
+        os << tab("A0 - A3");
+        os << hex(reg.a[0]) << ' ' << hex(reg.a[1]) << ' ';
+        os << hex(reg.a[2]) << ' ' << hex(reg.a[3]) << ' ' << std::endl;
+        os << tab("A4 - A7");
+        os << hex(reg.a[4]) << ' ' << hex(reg.a[5]) << ' ';
+        os << hex(reg.a[6]) << ' ' << hex(reg.a[7]) << ' ' << std::endl;
         os << std::endl;
         
-        os << util::tab("Flags");
+        os << tab("Flags");
         os << (reg.sr.t1 ? 'T' : 't');
         os << (reg.sr.t0 ? 'T' : 't');
         os << (reg.sr.s ? 'S' : 's');
         os << (reg.sr.m ? 'M' : 'm') << "-";
-        os << "<" << util::dec(reg.sr.ipl) << ">---";
+        os << "<" << dec(reg.sr.ipl) << ">---";
         os << (reg.sr.x ? 'X' : 'x');
         os << (reg.sr.n ? 'N' : 'n');
         os << (reg.sr.z ? 'Z' : 'z');
@@ -547,35 +552,35 @@ CPU::_dump(Category category, std::ostream &os) const
 
     if (category == Category::State) {
 
-        os << util::tab("Clock");
-        os << util::dec(clock) << std::endl;
-        os << util::tab("Flags");
-        os << util::hex((u16)flags) << std::endl;
+        os << tab("Clock");
+        os << dec(clock) << std::endl;
+        os << tab("Flags");
+        os << hex((u16)flags) << std::endl;
 
         if (flags) {
 
             using namespace moira::State;
             
             os << std::endl;
-            if (flags & HALTED)    os << util::tab("") << "HALTED" << std::endl;
-            if (flags & STOPPED)   os << util::tab("") << "STOPPED" << std::endl;
-            if (flags & LOOPING)   os << util::tab("") << "LOOPING" << std::endl;
-            if (flags & LOGGING)   os << util::tab("") << "LOGGING" << std::endl;
-            if (flags & CHECK_IRQ) os << util::tab("") << "CHECK_IRQ" << std::endl;
-            if (flags & TRACE_EXC) os << util::tab("") << "TRACE_EXC" << std::endl;
-            if (flags & TRACING)   os << util::tab("") << "TRACING" << std::endl;
-            if (flags & CHECK_BP)  os << util::tab("") << "CHECK_BP" << std::endl;
-            if (flags & CHECK_WP)  os << util::tab("") << "CHECK_WP" << std::endl;
-            if (flags & CHECK_CP)  os << util::tab("") << "CHECK_CP" << std::endl;
+            if (flags & HALTED)    os << tab("") << "HALTED" << std::endl;
+            if (flags & STOPPED)   os << tab("") << "STOPPED" << std::endl;
+            if (flags & LOOPING)   os << tab("") << "LOOPING" << std::endl;
+            if (flags & LOGGING)   os << tab("") << "LOGGING" << std::endl;
+            if (flags & CHECK_IRQ) os << tab("") << "CHECK_IRQ" << std::endl;
+            if (flags & TRACE_EXC) os << tab("") << "TRACE_EXC" << std::endl;
+            if (flags & TRACING)   os << tab("") << "TRACING" << std::endl;
+            if (flags & CHECK_BP)  os << tab("") << "CHECK_BP" << std::endl;
+            if (flags & CHECK_WP)  os << tab("") << "CHECK_WP" << std::endl;
+            if (flags & CHECK_CP)  os << tab("") << "CHECK_CP" << std::endl;
             os << std::endl;
         }
 
-        os << util::tab("Read buffer");
-        os << util::hex(readBuffer) << std::endl;
-        os << util::tab("Write buffer");
-        os << util::hex(readBuffer) << std::endl;
-        os << util::tab("Last exception");
-        os << util::dec(exception);
+        os << tab("Read buffer");
+        os << hex(readBuffer) << std::endl;
+        os << tab("Write buffer");
+        os << hex(readBuffer) << std::endl;
+        os << tab("Last exception");
+        os << dec(exception);
     }
     
     if (category == Category::Breakpoints) {
@@ -605,8 +610,8 @@ CPU::_dump(Category category, std::ostream &os) const
                 auto wp = debugger.catchpoints.guardNr(i);
                 auto nr = "Catchpoint " + std::to_string(i);
 
-                os << util::tab(nr);
-                os << "Vector " << util::dec(wp->addr);
+                os << tab(nr);
+                os << "Vector " << dec(wp->addr);
                 os << " (" << cpu.debugger.vectorName(u8(wp->addr)) << ")";
                 if (!wp->enabled) os << " (Disabled)";
                 else if (wp->ignore) os << " (Disabled for " << wp->ignore << " hits)";
@@ -625,8 +630,8 @@ CPU::_dump(Category category, std::ostream &os) const
 
             for (auto &trap : debugger.swTraps.traps) {
 
-                os << util::tab("0x" + util::hexstr <4> (trap.first));
-                os << "Replaced by 0x" << util::hexstr <4> (trap.second.instruction);
+                os << tab("0x" + hexstr <4> (trap.first));
+                os << "Replaced by 0x" << hexstr <4> (trap.second.instruction);
                 os << std::endl;
             }
 
@@ -640,14 +645,14 @@ CPU::_dump(Category category, std::ostream &os) const
 void
 CPU::_trackOn()
 {
-    debug(RUN_DEBUG, "Enabling debug mode\n");
+    loginfo(RUN_DEBUG, "Enabling debug mode\n");
     debugger.enableLogging();
 }
 
 void
 CPU::_trackOff()
 {
-    debug(RUN_DEBUG, "Disabling debug mode\n");
+    loginfo(RUN_DEBUG, "Disabling debug mode\n");
     debugger.disableLogging();
 }
 

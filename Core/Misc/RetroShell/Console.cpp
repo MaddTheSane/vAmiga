@@ -9,17 +9,42 @@
 
 #include "config.h"
 #include "Console.h"
+#include "RSError.h"
 #include "Emulator.h"
-#include "Parser.h"
 #include "Option.h"
 #include <istream>
 #include <sstream>
 #include <string>
+#include "utl/support.h"
 
 namespace vamiga {
 
-HistoryBuffer
-Console::historyBuffer;
+HistoryBuffer Console::historyBuffer;
+
+void
+Console::willExecute(const InputLine &input)
+{
+    // Echo the command if it came from somewhere else
+    if (!input.isUserCommand()) { *this << input.input << '\n'; }
+}
+
+void
+Console::didExecute(const InputLine& input, std::stringstream &ss)
+{
+    if (ss.peek() != EOF) {
+        *this << vdelim << ss.str() << vdelim;
+    }
+}
+
+void
+Console::didExecute(const InputLine& input, std::stringstream &ss, std::exception &exc)
+{
+    describe(ss, exc, input.id, input.input);
+
+    if (ss.peek() != EOF) {
+        *this << vdelim << ss.str() << vdelim;
+    }
+}
 
 void
 HistoryBuffer::up(string &input, isize &cursor)
@@ -62,14 +87,16 @@ Console::_initialize()
     
     // Initialize the text storage
     clear();
+
+    // Register as delegate to receive command output
+    delegates.push_back(this);
 }
 
 Console&
 Console::operator<<(char value)
 {
     storage << value;
-    remoteManager.rshServer << value;
-    
+
     if (serialPort.getConfig().device == SerialPortDevice::COMMANDER) {
         
         serialPort << value;
@@ -82,7 +109,6 @@ Console&
 Console::operator<<(const string& value)
 {
     storage << value;
-    remoteManager.rshServer << value;
     
     if (serialPort.getConfig().device == SerialPortDevice::COMMANDER) {
         
@@ -144,7 +170,7 @@ Console::operator<<(unsigned long long value)
 Console &
 Console::operator<<(const std::vector<string> &vec)
 {
-    *this << util::concat(vec);
+    *this << utl::concat(vec);
     return *this;
 }
 
@@ -182,23 +208,6 @@ Console::operator<<(const vspace &value)
     return *this;
 }
 
-void
-Console::welcome()
-{
-    storage << "RetroShell ";
-    remoteManager.rshServer << "vAmiga RetroShell Remote Server ";
-    *this << Amiga::build() << '\n';
-    *this << '\n';
-    
-    *this << "Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de" << '\n';
-    *this << "https://github.com/dirkwhoffmann/vAmiga" << '\n';
-    *this << '\n';
-    
-    // *this << "    " << description() << " console" << "\n\n";
-    
-    printHelp(0);
-}
-
 const char *
 Console::text()
 {
@@ -222,7 +231,6 @@ Console::tab(isize pos)
         
         std::string fill(count, ' ');
         storage << fill;
-        remoteManager.rshServer << fill;
         needsDisplay();
     }
 }
@@ -252,39 +260,16 @@ Console::isEmpty()
     return storage.isCleared();
 }
 
-bool 
+bool
 Console::lastLineIsEmpty()
 {
     return storage.lastLineIsEmpty();
 }
 
 void
-Console::printHelp(isize tab)
-{
-    *this << vspace{1};
-    
-    if constexpr (vAmigaDOS) {
-        
-        storage << "Type 'help' or press 'Tab' twice for help.\n";
-        storage << "Press 'Shift+Tab' to switch consoles.";
-        
-    } else {
-        
-        *this << "RetroShell " << description() << " " << Amiga::version() << "\n\n";
-        storage << string(tab + 4, ' ') << "Type 'help' or press 'Tab' twice for help.\n";
-        storage << string(tab + 4, ' ') << "Press 'Shift+Tab' to switch consoles.";
-    }
-    
-    remoteManager.rshServer << "Type 'help' for help.\n";
-    
-    *this << vspace{1};
-}
-
-void
 Console::press(RSKey key, bool shift)
 {
-    assert_enum(RSKey, key);
-    // assert(ipos >= 0 && ipos < historyLength());
+    RSKeyEnum::validate(key);
     assert(cursor >= 0 && cursor <= inputLength());
     
     switch(key) {
@@ -435,25 +420,18 @@ Console::cursorRel()
 void
 Console::pressReturn(bool shift)
 {
-    if (input.empty()) {
-        
-        retroShell.asyncExec("helpstring");
-        
-    } else {
-        
+    if (!input.empty()) {
+
         // Add the command to the text storage
         *this << input << '\n';
-        
-        // Remember the command
-        // historyBuffer.add(input);
-        
-        // Feed the command into the command queue
-        retroShell.asyncExec(input);
-        
-        // Clear the input line
-        input = "";
-        cursor = 0;
     }
+
+    // Feed the command into the command queue
+    retroShell.asyncExec(input);
+
+    // Clear the input line
+    input = "";
+    cursor = 0;
 }
 
 Tokens
@@ -526,7 +504,7 @@ Console::autoComplete(const string& userInput)
     autoComplete(tokens);
     
     // Recreate the command string
-    string result = util::concat(tokens);
+    string result = utl::concat(tokens);
     
     // Add a space if the command has been fully completed ...
     if (auto cmd = getRoot().seek(tokens); cmd && !tokens.empty()) {
@@ -560,8 +538,8 @@ Console::parse(const RSCommand &cmd, const Tokens &args)
     std::vector<string> std;
     
     // Check if a command handler is present
-    if (!cmd.callback)  { throw TooFewArgumentsError(cmd.fullName); }
-    
+    if (!cmd.callback) { throw RSError(RSError::TOO_MANY_ARGUMENTS, cmd.fullName); }
+
     // Sort input tokens by type
     for (usize i = 0; i < args.size(); i++) {
         
@@ -598,7 +576,7 @@ Console::parse(const RSCommand &cmd, const Tokens &args)
                 }
             }
             if (!found && descr.isRequired()){
-                throw util::ParseError("Missing flag " + keyStr);
+                throw RSError(RSError::MISSING_FLAG, keyStr);
             }
             continue;
         }
@@ -622,7 +600,7 @@ Console::parse(const RSCommand &cmd, const Tokens &args)
                 }
             }
             if (!found && descr.isRequired()) {
-                throw util::ParseError("Missing key-value pair " + descr.keyValueStr());
+                throw RSError(RSError::MISSING_KEY_VALUE, descr.keyValueStr());
             }
             continue;
         }
@@ -637,7 +615,7 @@ Console::parse(const RSCommand &cmd, const Tokens &args)
                 
             } else if (descr.isRequired()) {
                 
-                throw TooFewArgumentsError(cmd.fullName);
+                throw RSError(RSError::TOO_FEW_ARGUMENTS, cmd.fullName);
             }
             continue;
         }
@@ -646,38 +624,38 @@ Console::parse(const RSCommand &cmd, const Tokens &args)
     }
     
     // Print some debug information
-    for (auto &it : map) debug(RSH_DEBUG, "arg['%s']='%s'\n", it.first.c_str(), it.second.c_str());
+    for (auto &it : map) loginfo(RSH_DEBUG, "arg['%s']='%s'\n", it.first.c_str(), it.second.c_str());
     
     // Check for invalid or extra arguments
-    if (!flags.empty()) { throw UnknownFlagError(flags.front()); }
-    if (!keyVal.empty()) { throw UnknownKeyValueError(keyVal.front()); }
-    if (!std.empty()) { throw TooManyArgumentsError(cmd.fullName); }
-    
+    if (!flags.empty()) { throw RSError(RSError::UNKNOWN_FLAG, flags.front()); }
+    if (!keyVal.empty()) { throw RSError(RSError::UNKNOWN_KEY_VALUE, keyVal.front()); }
+    if (!std.empty()) { throw RSError(RSError::TOO_MANY_ARGUMENTS, cmd.fullName); }
+
     return map;
 }
 
 bool
 Console::isBool(const string &argv) const
 {
-    return util::isBool(argv);
+    return utl::isBool(argv);
 }
 
 bool
 Console::isOnOff(const string  &argv) const
 {
-    return util::isOnOff(argv);
+    return utl::isOnOff(argv);
 }
 
 long
 Console::isNum(const string &argv) const
 {
-    return util::isNum(argv);
+    return utl::isNum(argv);
 }
 
 bool
 Console::parseBool(const string &argv) const
 {
-    return util::parseBool(argv);
+    return utl::parseBool(argv);
 }
 
 bool
@@ -702,7 +680,7 @@ Console::parseBool(const Arguments &argv, const string &key, long fallback) cons
 bool
 Console::parseOnOff(const string &argv) const
 {
-    return util::parseOnOff(argv);
+    return utl::parseOnOff(argv);
 }
 
 bool
@@ -727,7 +705,7 @@ Console::parseOnOff(const Arguments &argv, const string &key) const
 long
 Console::parseNum(const string &argv) const
 {
-    return util::parseNum(argv);
+    return utl::parseNum(argv);
 }
 
 long
@@ -777,7 +755,7 @@ Console::parseAddr(const Arguments &argv, const string &key, long fallback) cons
 string
 Console::parseSeq(const string &argv) const
 {
-    return util::parseSeq(argv);
+    return utl::parseSeq(argv);
 }
 
 string
@@ -787,51 +765,49 @@ Console::parseSeq(const string &argv, const string &fallback) const
 }
 
 void
-Console::exec(const string& userInput, bool verbose)
+Console::exec(const InputLine& cmd)
 {
-    // Split the command string
-    Tokens tokens = split(userInput);
-    
-    // Skip empty lines
-    if (tokens.empty()) return;
-    
-    // Remove the 'try' keyword
-    if (tokens.front() == "try") tokens.erase(tokens.begin());
-    
-    // Process the command
-    exec(tokens, verbose);
-}
+    std::stringstream ss;
 
-void
-Console::exec(const Tokens &argv, bool verbose)
-{
-    // Tokens args = argv;
-    
-    // In 'verbose' mode, print the token list
-    if (verbose) *this << argv << '\n';
-    
-    // Skip empty lines
-    if (argv.empty()) return;
-    
-    // Find the command in the command tree
-    if (auto [cmd, args] = seekCommand(argv); cmd) {
-        
-        // Check if a command has been found
-        if (cmd == nullptr || cmd == &root) throw util::ParseError(argv[0]);
-        
+    // Skip empty script lines
+    if (cmd.isScriptCommand() && cmd.input.empty()) return;
+
+    // Inform the delegates
+    for (auto &delegate: delegates) delegate->willExecute(cmd);
+
+    try {
+
+        // Split the command string
+        Tokens tokens = split(cmd.input);
+
+        // Remove the 'try' keyword
+        if (!tokens.empty() && tokens.front() == "try") tokens.erase(tokens.begin());
+
+        // Reroute empty commands to the hidden "return" command
+        if (tokens.empty()) tokens = { "return" };
+
+        // Find the command in the command tree
+        auto [c, args] = seekCommand(tokens);
+
+        // Only proceed if a command has been found
+        if (c == &root) throw RSError(RSError::SYNTAX_ERROR, tokens[0]);
+
         // Parse arguments
-        Arguments parsedArgs = parse(*cmd, args);
-        
+        Arguments parsedArgs = parse(*c, args);
+
         // Call the command handler
-        std::stringstream ss;
-        cmd->callback(ss, parsedArgs, cmd->payload);
-        
-        // Dump the output to the console
-        if (ss.peek() != EOF) { *this << vdelim << ss << vdelim; }
-        
-    } else {
-        
-        throw util::ParseError(util::concat(argv));
+        c->callback(ss, parsedArgs, c->payload);
+
+        // Dispatch output
+        for (auto &delegate: delegates) delegate->didExecute(cmd, ss);
+
+    } catch (std::exception &err) {
+
+        // Dispatch error message
+        for (auto &delegate: delegates) delegate->didExecute(cmd, ss, err);
+
+        // Rethrow exception
+        throw;
     }
 }
 
@@ -869,8 +845,11 @@ Console::describe(std::ostream &ss, const std::exception &e, isize line, const s
     if (line) {
         ss << "Line " << line << ": " << cmd << '\n';
     }
+    ss << e.what();
+
     // ss << "Error: ";
-    
+
+    /*
     if (auto err = dynamic_cast<const TooFewArgumentsError *>(&e)) {
         
         ss << err->what() << ": Too few arguments.";
@@ -895,31 +874,31 @@ Console::describe(std::ostream &ss, const std::exception &e, isize line, const s
         ss << '\n';
         return;
     }
-    if (auto err = dynamic_cast<const util::EnumParseError *>(&e)) {
+    if (auto err = dynamic_cast<const utl::EnumParseError *>(&e)) {
         
         ss << err->token << " is not a valid key." << '\n';
         ss << "Expected: " << err->expected << '\n';
         return;
     }
-    if (auto err = dynamic_cast<const util::ParseNumError *>(&e)) {
+    if (auto err = dynamic_cast<const utl::ParseNumError *>(&e)) {
         
         ss << err->token << " is not a number.";
         ss << '\n';
         return;
     }
-    if (auto err = dynamic_cast<const util::ParseBoolError *>(&e)) {
+    if (auto err = dynamic_cast<const utl::ParseBoolError *>(&e)) {
         
         ss << err->token << " must be true or false.";
         ss << '\n';
         return;
     }
-    if (auto err = dynamic_cast<const util::ParseOnOffError *>(&e)) {
+    if (auto err = dynamic_cast<const utl::ParseOnOffError *>(&e)) {
         
         ss << "'" << err->token << "' must be on or off.";
         ss << '\n';
         return;
     }
-    if (auto err = dynamic_cast<const util::ParseError *>(&e)) {
+    if (auto err = dynamic_cast<const utl::ParseError *>(&e)) {
         
         if (auto what = string(err->what()); !what.empty()) {
             ss << err->what() << ": ";
@@ -927,14 +906,15 @@ Console::describe(std::ostream &ss, const std::exception &e, isize line, const s
         ss << "Syntax error\n";
         return;
     }
-    if (auto err = dynamic_cast<const AppError *>(&e)) {
+    if (auto err = dynamic_cast<const CoreError *>(&e)) {
         
         ss << err->what();
         ss << '\n';
         return;
     }
-    
+
     ss << e.what();
+     */
 }
 
 void
@@ -980,31 +960,7 @@ Console::initCommands(RSCommand &root)
     //
     
     {   RSCommand::currentGroup = "Shell commands";
-        
-        root.add({
-            
-            .tokens = { "welcome" },
-            .chelp  = { "Prints the welcome message" },
-            .flags  = rs::hidden,
-            
-            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                
-                welcome();
-            }
-        });
-        
-        root.add({
-            
-            .tokens = { "helpstring" },
-            .chelp  = { "Prints how to get help" },
-            .flags  = rs::hidden,
-            
-            .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                
-                printHelp(0);
-            }
-        });
-        
+
         root.add({
             
             .tokens = { "commander" },
@@ -1014,6 +970,10 @@ Console::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 retroShell.enterCommander();
+
+                os << "RetroShell Commander" << " " << Amiga::version() << "\n\n";
+                os << string(4, ' ') << "Type 'help' or press 'Tab' twice for help.\n";
+                os << string(4, ' ') << "Press 'Shift+Tab' to switch consoles.\n";
             }
         });
         
@@ -1116,7 +1076,7 @@ Console::initCommands(RSCommand &root)
                 
                 auto path = host.makeAbsolute(args.at("path"));
                 auto stream = std::ifstream(path);
-                if (!stream.is_open()) throw AppError(Fault::FILE_NOT_FOUND, path);
+                if (!stream.is_open()) throw IOError(IOError::FILE_NOT_FOUND, path);
                 retroShell.asyncExecScript(stream);
             }
         });

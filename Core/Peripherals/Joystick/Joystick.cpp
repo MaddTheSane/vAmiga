@@ -10,24 +10,26 @@
 #include "config.h"
 #include "Joystick.h"
 #include "Amiga.h"
-#include "IOUtils.h"
+#include "utl/io.h"
+#include <sstream>
 
 namespace vamiga {
 
 Joystick::Joystick(Amiga& ref, ControlPort& pref) : SubComponent(ref, pref.objid), port(pref)
 {
-
+    info.bind([this] { return cacheInfo(); } );
 };
 
-void
-Joystick::cacheInfo(JoystickInfo &result) const
+JoystickInfo
+Joystick::cacheInfo() const
 {
-    {   SYNCHRONIZED
+    JoystickInfo info;
 
-        result.button = button;
-        result.axisX = axisX;
-        result.axisY = axisY;
-    }
+    info.button = button;
+    info.axisX  = axisX;
+    info.axisY  = axisY;
+
+    return info;
 }
 
 i64
@@ -58,7 +60,7 @@ Joystick::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -95,7 +97,7 @@ Joystick::setOption(Opt option, i64 value)
 void
 Joystick::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     if (category == Category::Config) {
 
@@ -124,7 +126,7 @@ Joystick::_didLoad()
 void
 Joystick::setButton(bool value)
 {
-    trace(PRT_DEBUG, "Button = %d\n", value);
+    logdebug(PRT_DEBUG, "Button = %d\n", value);
     button = value;
 }
 
@@ -137,7 +139,7 @@ Joystick::isAutofiring()
 void
 Joystick::startAutofire()
 {
-    trace(PRT_DEBUG, "startAutofire()\n");
+    logdebug(PRT_DEBUG, "startAutofire()\n");
 
     // Load magazine
     reload(config.autofireBursts ? config.autofireBullets : INT_MAX);
@@ -152,7 +154,7 @@ Joystick::startAutofire()
 void
 Joystick::stopAutofire()
 {
-    trace(PRT_DEBUG, "stopAutofire()\n");
+    logdebug(PRT_DEBUG, "stopAutofire()\n");
 
     // Release button and empty the bullet counter
     setButton(false);
@@ -198,7 +200,7 @@ Joystick::changePra(u8 &pra) const
 u16
 Joystick::joydat() const
 {
-    // debug("joydat\n");
+    // loginfo("joydat\n");
 
     u16 result = 0;
 
@@ -229,9 +231,9 @@ Joystick::ciapa() const
 void
 Joystick::trigger(GamePadAction event)
 {
-    assert_enum(GamePadAction, event);
+    GamePadActionEnum::validate(event);
 
-    debug(PRT_DEBUG, "trigger(%s)\n", GamePadActionEnum::key(event));
+    loginfo(PRT_DEBUG, "trigger(%s)\n", GamePadActionEnum::key(event));
 
     switch (event) {
 

@@ -11,6 +11,7 @@
 #include "Emulator.h"
 #include "Amiga.h"
 #include "CmdQueue.h"
+#include "utl/io.h"
 #include <algorithm>
 
 namespace vamiga {
@@ -30,7 +31,8 @@ Emulator::defaults;
 
 Emulator::Emulator()
 {
-
+    info.bind([this] { return cacheInfo(); } );
+    metrics.bind([this] { return cacheMetrics(); } );
 }
 
 Emulator::~Emulator()
@@ -41,7 +43,7 @@ Emulator::~Emulator()
 void
 Emulator::launch(const void *listener, Callback *func)
 {
-    if (FORCE_LAUNCH_ERROR) throw AppError(Fault::LAUNCH);
+    if (force::LAUNCH_ERROR) throw CoreError(CoreError::LAUNCH);
 
     // Connect the listener to the message queue of the main instance
     if (listener && func) { main.msgQueue.setListener(listener, func); }
@@ -56,10 +58,10 @@ Emulator::launch(const void *listener, Callback *func)
 void
 Emulator::initialize()
 {
-    baseTime = util::Time::now();
+    baseTime = utl::Time::now();
 
     // Make sure this function is only called once
-    if (isInitialized()) throw AppError(Fault::LAUNCH, "The emulator is already initialized.");
+    if (isInitialized()) throw CoreError(CoreError::LAUNCH, "The emulator is already initialized.");
 
     // Initialize all components
     main.initialize();
@@ -81,14 +83,22 @@ Emulator::initialize()
 void
 Emulator::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     if (category == Category::Debug) {
 
-        for (const auto &i : DebugFlagEnum::elements()) {
+        auto cs = getChannels();
+        std::sort(cs.begin(), cs.end(),
+                  [](const auto& a, const auto& b) { return a.name < b.name; });
 
-            os << tab(DebugFlagEnum::key(i));
-            os << dec(getDebugVariable(DebugFlag(i))) << std::endl;
+        for (auto c : cs) {
+
+            os << tab(c.name);
+            if (c.level.has_value()) {
+                os << LogLevelEnum::key(*c.level) << std::endl;
+            } else {
+                os << "-" << std::endl;
+            }
         }
     }
     
@@ -99,25 +109,26 @@ Emulator::_dump(Category category, std::ostream &os) const
 
     if (category == Category::RunAhead) {
 
-         auto &pos = main.agnus.pos;
-         auto &rua = ahead.agnus.pos;
+        auto &pos = main.agnus.pos;
+        auto &rua = ahead.agnus.pos;
+        auto metr = metrics.current();
 
-         os << "Primary instance:" << std::endl << std::endl;
+        os << "Primary instance:" << std::endl << std::endl;
 
-         os << tab("Frame");
-         os << dec(pos.frame) << std::endl;
-         os << tab("Beam");
-         os << "(" << dec(pos.v) << "," << dec(pos.h) << ")" << std::endl;
+        os << tab("Frame");
+        os << dec(pos.frame) << std::endl;
+        os << tab("Beam");
+        os << "(" << dec(pos.v) << "," << dec(pos.h) << ")" << std::endl;
 
-         os << "Run-ahead instance:" << std::endl << std::endl;
+        os << "Run-ahead instance:" << std::endl << std::endl;
 
-         os << tab("Clone nr");
-         os << dec(stats.clones) << std::endl;
-         os << tab("Frame");
-         os << dec(rua.frame) << std::endl;
-         os << tab("Beam");
-         os << " (" << dec(rua.v) << "," << dec(rua.h) << ")" << std::endl;
-     }
+        os << tab("Clone nr");
+        os << dec(metr.clones) << std::endl;
+        os << tab("Frame");
+        os << dec(rua.frame) << std::endl;
+        os << tab("Beam");
+        os << " (" << dec(rua.v) << "," << dec(rua.h) << ")" << std::endl;
+    }
     
     if (category == Category::State) {
 
@@ -137,30 +148,33 @@ Emulator::_dump(Category category, std::ostream &os) const
     }
 }
 
-void
-Emulator::cacheInfo(EmulatorInfo &result) const
+EmulatorInfo
+Emulator::cacheInfo() const
 {
-    {   SYNCHRONIZED
+    EmulatorInfo info;
 
-        result.state = state;
-        result.powered = isPoweredOn();
-        result.paused = isPaused();
-        result.running = isRunning();
-        result.suspended = isSuspended();
-        result.warping = isWarping();
-        result.tracking = isTracking();
-    }
+    info.state = state;
+    info.powered = isPoweredOn();
+    info.paused = isPaused();
+    info.running = isRunning();
+    info.suspended = isSuspended();
+    info.warping = isWarping();
+    info.tracking = isTracking();
+
+    return info;
 }
 
-void
-Emulator::cacheStats(EmulatorStats &result) const
+EmulatorMetrics
+Emulator::cacheMetrics() const
 {
-    {   SYNCHRONIZED
+    EmulatorMetrics stats;
 
-        result.cpuLoad = cpuLoad;
-        result.fps = fps;
-        result.resyncs = resyncs;
-    }
+    stats.cpuLoad = cpuLoad;
+    stats.fps     = fps;
+    stats.resyncs = resyncs;
+    stats.clones  = clones;
+
+    return stats;
 }
 
 i64
@@ -257,7 +271,7 @@ Emulator::missingFrames() const
     if (config.vsync) return 1;
 
     // Compute the elapsed time
-    auto elapsed = util::Time::now() - baseTime;
+    auto elapsed = utl::Time::now() - baseTime;
 
     // Compute which frame should be reached by now
     auto target = elapsed.asNanoseconds() * i64(main.refreshRate()) / 1000000000;
@@ -279,7 +293,7 @@ Emulator::computeFrame()
             main.computeFrame();
 
             // Recreate the run-ahead instance if necessary
-            if (isDirty || RUA_ON_STEROIDS) recreateRunAheadInstance();
+            if (isDirty || debug::RUA_ON_STEROIDS) recreateRunAheadInstance();
 
             // Run the runahead instance
             ahead.computeFrame();
@@ -306,15 +320,18 @@ Emulator::isReady()
 void
 Emulator::cloneRunAheadInstance()
 {
-    stats.clones++;
+    clones++;
 
     // Recreate the runahead instance from scratch
     ahead = main; isDirty = false;
 
-    if (RUA_CHECKSUM && ahead != main) {
+    if constexpr (debug::RUA_CHECKSUM) {
 
-        main.diff(ahead);
-        fatal("Corrupted run-ahead clone detected");
+        if (ahead != main) {
+            
+            main.diff(ahead);
+            fatal("Corrupted run-ahead clone detected");
+        }
     }
 }
 
@@ -326,16 +343,16 @@ Emulator::recreateRunAheadInstance()
     auto &config = main.getConfig();
 
     // Clone the main instance
-    if (RUA_DEBUG) {
-        util::StopWatch watch("Run-ahead: Clone");
+    if constexpr (debug::RUA_DEBUG) {
+        utl::StopWatch watch("Run-ahead: Clone");
         cloneRunAheadInstance();
     } else {
         cloneRunAheadInstance();
     }
 
     // Advance to the proper frame
-    if (RUA_DEBUG) {
-        util::StopWatch watch("Run-ahead: Fast-forward");
+    if constexpr (debug::RUA_DEBUG) {
+        utl::StopWatch watch("Run-ahead: Fast-forward");
         ahead.fastForward(config.runAhead - 1);
     } else {
         ahead.fastForward(config.runAhead - 1);
@@ -412,12 +429,13 @@ Emulator::put(const Command &cmd)
     cmdQueue.put(cmd);
 }
 
+/*
 int
 Emulator::getDebugVariable(DebugFlag flag)
 {
 #ifdef NDEBUG
     
-    throw AppError(Fault::OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
+    throw CoreError(CoreError::OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
     
 #else
     
@@ -536,7 +554,7 @@ Emulator::getDebugVariable(DebugFlag flag)
         case DebugFlag::GDB_DEBUG:        return GDB_DEBUG;
             
         default:
-            throw AppError(Fault::OPT_UNSUPPORTED,
+            throw CoreError(CoreError::OPT_UNSUPPORTED,
                         "Unhandled debug variable: " + string(DebugFlagEnum::key(flag)));
     }
     
@@ -548,7 +566,7 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
 {
 #ifdef NDEBUG
     
-    throw AppError(Fault::OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
+    throw CoreError(CoreError::OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
 
 #else
     
@@ -686,11 +704,12 @@ Emulator::setDebugVariable(DebugFlag flag, bool val)
         case DebugFlag::GDB_DEBUG:        GDB_DEBUG = val; break;
             
         default:
-            throw AppError(Fault::OPT_UNSUPPORTED,
+            throw CoreError(CoreError::OPT_UNSUPPORTED,
                         "Unhandled debug variable: " + string(DebugFlagEnum::key(flag)));
     }
     
 #endif
 }
+*/
 
 }

@@ -15,6 +15,8 @@
 #import <MetalKit/MetalKit.h>
 
 using namespace vamiga;
+using namespace retro::vault;
+using namespace retro::vault::amiga;
 
 //
 // Forward declarations
@@ -33,15 +35,17 @@ using namespace vamiga;
 @class DiskControllerProxy;
 @class DiskFileProxy;
 @class DmaDebuggerProxy;
+@class FloppyDiskImageProxy;
 @class FloppyDriveProxy;
 @class GuardsProxy;
+@class HardDiskImageProxy;
 @class HardDriveProxy;
 @class HdControllerProxy;
 @class JoystickProxy;
 @class KeyboardProxy;
 @class LogicAnalyzerProxy;
-@class MediaFileProxy;
 @class MemProxy;
+@class MidiManagerProxy;
 @class MouseProxy;
 @class PaulaProxy;
 @class DefaultsProxy;
@@ -49,6 +53,7 @@ using namespace vamiga;
 @class RetroShellProxy;
 @class RtcProxy;
 @class SerialPortProxy;
+@class SnapshotProxy;
 @class VideoPortProxy;
 
 //
@@ -124,6 +129,8 @@ typedef struct {
 extern const VAmigaConstants VAMIGA;
 
 NSString *EventSlotName(EventSlot slot);
+ImageInfo scan(const fs::path &url);
+
 
 //
 // Exception wrapper
@@ -131,11 +138,11 @@ NSString *EventSlotName(EventSlot slot);
 
 @interface ExceptionWrapper : NSObject {
     
-    Fault fault;
+    long fault;
     NSString *what;
 }
 
-@property Fault fault;
+@property long fault;
 @property NSString *what;
 
 @end
@@ -193,6 +200,7 @@ NSString *EventSlotName(EventSlot slot);
     KeyboardProxy *keyboard;
     LogicAnalyzerProxy *logicAnalyzer;
     MemProxy *mem;
+    MidiManagerProxy *midiManager;
     PaulaProxy *paula;
     DefaultsProxy *properties;
     RemoteManagerProxy *remoteManager;
@@ -229,6 +237,7 @@ NSString *EventSlotName(EventSlot slot);
 @property (readonly, strong) KeyboardProxy *keyboard;
 @property (readonly, strong) LogicAnalyzerProxy *logicAnalyzer;
 @property (readonly, strong) MemProxy *mem;
+@property (readonly, strong) MidiManagerProxy *midiManager;
 @property (readonly, strong) PaulaProxy *paula;
 @property (readonly, strong) RemoteManagerProxy *remoteManager;
 @property (readonly, strong) RetroShellProxy *retroShell;
@@ -245,7 +254,7 @@ NSString *EventSlotName(EventSlot slot);
 
 @property (readonly) EmulatorInfo info;
 @property (readonly) EmulatorInfo cachedInfo;
-@property (readonly) EmulatorStats stats;
+@property (readonly) EmulatorMetrics stats;
 
 @property (readonly) BOOL poweredOn;
 @property (readonly) BOOL poweredOff;
@@ -403,8 +412,8 @@ NSString *EventSlotName(EventSlot slot);
 @property NSInteger autoInspectionMask;
 @property (readonly) NSString *stateString;
 
-- (MediaFileProxy *) takeSnapshot:(Compressor)compressor;
-- (void)loadSnapshot:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
+- (SnapshotProxy *) takeSnapshot:(Compressor)compressor;
+- (void)loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadSnapshotFromUrl:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (void)saveSnapshotToUrl:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
@@ -424,7 +433,7 @@ NSString *EventSlotName(EventSlot slot);
  
 @property (readonly) CIAInfo info;
 @property (readonly) CIAInfo cachedInfo;
-@property (readonly) CIAStats stats;
+@property (readonly) CIAMetrics stats;
 
 @end
 
@@ -438,20 +447,17 @@ NSString *EventSlotName(EventSlot slot);
 @property (readonly) MemConfig config;
 @property (readonly) MemInfo info;
 @property (readonly) MemInfo cachedInfo;
-@property (readonly) MemStats stats;
+@property (readonly) MemMetrics stats;
 @property (readonly) RomTraits romTraits;
 @property (readonly) RomTraits womTraits;
 @property (readonly) RomTraits extTraits;
 
 - (void)deleteRom;
 - (BOOL)isRom:(NSURL *)url;
-- (void)loadRom:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadRomFromBuffer:(NSData *)buffer exception:(ExceptionWrapper *)ex;
 - (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
 - (void)deleteExt;
-// - (BOOL)isExt:(NSURL *)url;
-- (void)loadExt:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)loadExtFromBuffer:(NSData *)buffer exception:(ExceptionWrapper *)ex;
 - (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
 
@@ -475,7 +481,7 @@ NSString *EventSlotName(EventSlot slot);
 
 @interface AudioPortProxy : CoreComponentProxy { }
 
-@property (readonly) AudioPortStats stats;
+@property (readonly) AudioPortMetrics stats;
 
 - (NSInteger)copyMono:(float *)target size:(NSInteger)n;
 - (NSInteger)copyStereo:(float *)target1 buffer2:(float *)target2 size:(NSInteger)n;
@@ -497,7 +503,7 @@ NSString *EventSlotName(EventSlot slot);
 
 @property (readonly) AgnusInfo info;
 @property (readonly) AgnusInfo cachedInfo;
-@property (readonly) AgnusStats stats;
+@property (readonly) AgnusMetrics stats;
 @property (readonly) AgnusTraits traits;
 
 - (EventSlotInfo)cachedSlotInfo:(NSInteger)slot;
@@ -648,6 +654,27 @@ NSString *EventSlotName(EventSlot slot);
 
 @end
 
+//
+// MidiManager
+//
+
+@interface MidiManagerProxy : CoreComponentProxy { }
+
+// Device enumeration
++ (NSInteger)outputCount;
++ (NSInteger)inputCount;
++ (NSString *)outputDeviceName:(NSInteger)index;
++ (NSString *)inputDeviceName:(NSInteger)index;
+
+// Current selection
+@property (readonly) NSInteger selectedOutputDevice;
+@property (readonly) NSInteger selectedInputDevice;
+
+// Set device
+- (void)setOutputDevice:(NSInteger)index;
+- (void)setInputDevice:(NSInteger)index;
+
+@end
 
 //
 // Mouse
@@ -724,11 +751,9 @@ NSString *EventSlotName(EventSlot slot);
 
 - (BOOL)isInsertable:(Diameter)type density:(Density)density;
 - (void)insertBlankDisk:(FSFormat)fs bootBlock:(BootBlockId)bb name:(NSString *)name url:(NSURL *)url exception:(ExceptionWrapper *)ex;
-- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp exception:(ExceptionWrapper *)ex;
 - (void)insertFile:(NSURL *)url protected:(BOOL)wp exception:(ExceptionWrapper *)ex;
 - (void)eject;
-- (MediaFileProxy *)exportDisk:(FileType)type exception:(ExceptionWrapper *)ex;
-
+- (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (NSString *)readTrackBits:(NSInteger)track;
 
 @end
@@ -765,7 +790,6 @@ NSString *EventSlotName(EventSlot slot);
 - (BOOL)getFlag:(DiskFlags)mask;
 - (void)setFlag:(DiskFlags)mask value:(BOOL)value;
 
-- (void)attach:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex;
 - (void)attach:(NSInteger)c h:(NSInteger)h s:(NSInteger)s b:(NSInteger)b exception:(ExceptionWrapper *)ex;
 - (void)attachFile:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (void)importFiles:(NSURL *)url exception:(ExceptionWrapper *)ex;
@@ -782,7 +806,8 @@ NSString *EventSlotName(EventSlot slot);
 
 @interface FileSystemProxy : Proxy { }
 
-+ (instancetype)makeWithMedia:(MediaFileProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithImage:(FloppyDiskImageProxy *)proxy exception:(ExceptionWrapper *)ex;
++ (instancetype)makeWithImage:(HardDiskImageProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
 
 @property (readonly) NSString *name;
 @property (readonly) NSString *creationDate;
@@ -846,7 +871,7 @@ NSString *EventSlotName(EventSlot slot);
 - (void)pressKey:(char)c;
 - (void)pressSpecialKey:(RSKey)key;
 - (void)pressSpecialKey:(RSKey)key shift:(BOOL)shift;
-- (void)executeScript:(MediaFileProxy *)file;
+- (void)executeScript:(NSURL *)url;
 - (void)executeString:(NSString *)string;
 
 @end
@@ -865,62 +890,22 @@ NSString *EventSlotName(EventSlot slot);
 @end
 
 @protocol MakeWithDrive <NSObject>
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy exception:(ExceptionWrapper *)ex;
+
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy
+                       format:(ImageFormat)fmt
+                    exception:(ExceptionWrapper *)ex;
 @end
 
 @protocol MakeWithHardDrive <NSObject>
-+ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy exception:(ExceptionWrapper *)ex;
+
++ (instancetype)makeWithDrive:(HardDriveProxy *)proxy
+                       format:(ImageFormat)fmt
+                    exception:(ExceptionWrapper *)ex;
+
 @end
 
 @protocol MakeWithFileSystem <NSObject>
 + (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy exception:(ExceptionWrapper *)ex;
-@end
-
-
-//
-// MediaFile
-//
-
-@interface MediaFileProxy : Proxy
-{
-    NSImage *preview;
-}
-
-+ (FileType) typeOfUrl:(NSURL *)url;
-
-+ (instancetype)make:(void *)file;
-+ (instancetype)makeWithFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFile:(NSString *)path type:(FileType)t exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len type:(FileType)t exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy compressor:(Compressor)c;
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
-+ (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy type:(FileType)t exception:(ExceptionWrapper *)ex;
-
-@property (readonly) FileType type;
-@property (readonly) NSInteger size;
-@property (readonly) u64 fnv;
-@property (readonly) Compressor compressor;
-@property (readonly) BOOL compressed;
-
-@property (readonly) u8 *data;
-
-- (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex;
-- (void)writeToFile:(NSString *)path partition:(NSInteger)part exception:(ExceptionWrapper *)ex;
-
-@property (readonly, strong) NSImage *previewImage;
-@property (readonly) time_t timeStamp;
-@property (readonly) DiskInfo diskInfo;
-@property (readonly) FloppyDiskInfo floppyDiskInfo;
-@property (readonly) HDFInfo hdfInfo;
-@property (readonly) NSString *describeCapacity;
-
-- (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset;
-- (void)readSector:(NSInteger)b destination:(unsigned char *)buf;
-
-- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
-- (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
-
 @end
 
 
@@ -930,12 +915,8 @@ NSString *EventSlotName(EventSlot slot);
 
 @interface AnyFileProxy : Proxy
 
-+ (FileType) typeOfUrl:(NSURL *)url;
-
-@property (readonly) FileType type;
 @property (readonly) NSURL *path;
 @property (readonly) NSInteger size;
-@property (readonly) NSString *getSizeAsString;
 @property (readonly) u64 fnv;
 
 - (void)setPath:(NSString *)path;
@@ -945,24 +926,100 @@ NSString *EventSlotName(EventSlot slot);
 
 
 //
-// DiskFileProxy
+// Snapshot
 //
 
-@interface DiskFileProxy : AnyFileProxy
+@interface SnapshotProxy : AnyFileProxy
+{
+    NSImage *preview;
+}
 
++ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy compressor:(Compressor)c;
+
+@property (readonly) NSInteger size;
+@property (readonly) u64 fnv;
+@property (readonly) Compressor compressor;
+@property (readonly) BOOL compressed;
+
+@property (readonly) u8 *data;
+
+@property (readonly, strong) NSImage *previewImage;
+@property (readonly) time_t timeStamp;
+
+@end
+
+
+//
+// DiskImageProxy
+//
+
+@interface DiskImageProxy : Proxy
+
++ (ImageInfo)about:(NSURL *)url;
+
+- (NSArray<NSString *> *)describe;
+
+@property (readonly) NSURL *path;
+@property (readonly) NSInteger size;
+@property (readonly) u64 fnv;
+
+- (NSInteger)writeToFile:(NSURL *)path exception:(ExceptionWrapper *)ex;
+
+@property (readonly) ImageType type;
+@property (readonly) ImageFormat format;
+@property (readonly) ImageInfo info;
+
+@property (readonly) NSInteger bsize;
 @property (readonly) NSInteger numCyls;
 @property (readonly) NSInteger numHeads;
 @property (readonly) NSInteger numTracks;
-@property (readonly) NSInteger bsize;
 @property (readonly) NSInteger numSectors;
 @property (readonly) NSInteger numBlocks;
-@property (readonly) NSString *describeGeometry;
-@property (readonly) NSString *describeCapacity;
+@property (readonly) NSInteger numBytes;
 
 - (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset;
-- (void)readSector:(NSInteger)b destination:(unsigned char *)buf;
-
-- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
 - (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len;
+
+@end
+
+
+//
+// FloppyDiskImageProxy
+//
+
+@interface FloppyDiskImageProxy : DiskImageProxy <MakeWithDrive> { }
+
++ (ImageInfo)about:(NSURL *)url;
+
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy
+                       format:(ImageFormat)fmt
+                    exception:(ExceptionWrapper *)ex;
+
+@property (readonly) Diameter diameter;
+@property (readonly) Density density;
+@property (readonly) BOOL isSD;
+@property (readonly) BOOL isDD;
+@property (readonly) BOOL isHD;
+
+@end
+
+
+//
+// HardDiskImageProxy
+//
+
+@interface HardDiskImageProxy : DiskImageProxy <MakeWithHardDrive> { }
+
++ (ImageInfo)about:(NSURL *)url;
+
++ (instancetype)makeWithDrive:(HardDriveProxy *)proxy
+                       format:(ImageFormat)fmt
+                    exception:(ExceptionWrapper *)ex;
+
+- (NSInteger)writeToFile:(NSURL *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex;
+
+@property (readonly) NSInteger numPartitions;
+- (NSInteger)lowerCyl:(NSInteger)partition;
+- (NSInteger)upperCyl:(NSInteger)partition;
 
 @end

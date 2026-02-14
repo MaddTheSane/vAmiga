@@ -8,7 +8,7 @@
 // -----------------------------------------------------------------------------
 
 @MainActor
-public extension MetalView {
+extension MetalView {
 
     func acceptedTypes() -> [NSPasteboard.PasteboardType] {
 
@@ -17,12 +17,11 @@ public extension MetalView {
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         
-        // debug(.dragndrop, "draggingEntered \(sender)\n")
+        // loginfo(.dragndrop, "draggingEntered \(sender)\n")
         
         dropZone = nil
         dropUrl = nil
-        dropType = nil
-        
+
         let pasteBoard = sender.draggingPasteboard
         guard let type = pasteBoard.availableType(from: acceptedTypes()) else {
             return NSDragOperation()
@@ -40,14 +39,10 @@ public extension MetalView {
             
             if let url = NSURL.init(from: pasteBoard) as URL? {
             
-                // Unpack the file if it is compressed
-                dropUrl = url // url.unpacked(maxSize: 2048 * 1024)
-
-                // Analyze the file type
-                let type = MediaFileProxy.type(of: dropUrl)
+                dropUrl = url
 
                 // Open the drop zone layer
-                parent.renderer.dropZone.open(type: type, delay: 0.25)
+                parent.renderer.dropZone.open(url: url, delay: 0.25)
             }
 
             return NSDragOperation.copy
@@ -59,7 +54,7 @@ public extension MetalView {
     
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
         
-        // debug(.dragndrop, "draggingUpdated \(sender)\n")
+        // loginfo(.dragndrop, "draggingUpdated \(sender)\n")
 
         parent.renderer.dropZone.draggingUpdated(sender)
         return NSDragOperation.copy
@@ -67,14 +62,14 @@ public extension MetalView {
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
     
-        debug(.dragndrop, "draggingExited \(String(describing: sender))")
+        loginfo(.dragndrop, "draggingExited \(String(describing: sender))")
         
         parent.renderer.dropZone.close(delay: 0.25)
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
         
-        debug(.dragndrop, "prepareForDragOperation \(sender)\n")
+        loginfo(.dragndrop, "prepareForDragOperation \(sender)\n")
         
         parent.renderer.dropZone.close(delay: 0.25)
         return true
@@ -82,7 +77,7 @@ public extension MetalView {
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         
-        debug(.dragndrop, "performDragOperation \(sender)\n")
+        loginfo(.dragndrop, "performDragOperation \(sender)\n")
         
         let pasteBoard = sender.draggingPasteboard
         
@@ -118,8 +113,8 @@ public extension MetalView {
 
     func performUrlDrag(_ sender: NSDraggingInfo) -> Bool {
                 
-        if dropUrl == nil { return false }
-        
+        guard let url = dropUrl else { return false }
+
         // Check drop zones
         var zone: Int?
         for i in 0...3 {
@@ -127,21 +122,10 @@ public extension MetalView {
         }
 
         // Check file types
-        let type = FileType(url: dropUrl)
-        switch type {
-            
-        case .WORKSPACE, .SNAPSHOT, .SCRIPT:
-            break
-            
-        case .ADF, .ADZ, .DIR, .DMS, .EADF, .EXE, .HDF, .HDZ, .IMG, .ST:
-            if zone == nil { return false }
-            
-        default:
-            return false
-        }
+        if !url.isDiskImage && !url.hasDirectoryPath { return false }
+        if zone == nil { return false }
 
         dropZone = zone
-        dropType = type
         return true
     }
             

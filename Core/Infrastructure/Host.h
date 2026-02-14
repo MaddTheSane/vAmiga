@@ -11,7 +11,6 @@
 
 #include "SubComponent.h"
 #include "HostTypes.h"
-#include "IOUtils.h"
 
 namespace vamiga {
 
@@ -101,10 +100,10 @@ public:
 public:
 
     // Makes a file name compatible with the host file system
-    static fs::path sanitize(const string &filename);
+    // static fs::path sanitize(const string &filename);
 
     // Makes a file name compatible with the Amiga file system
-    static string unsanitize(const fs::path &filename);
+    // static string unsanitize(const fs::path &filename);
 
     // Sets the search path used in makeAbsolute
     void setSearchPath(const fs::path &path);
@@ -113,10 +112,10 @@ public:
     fs::path makeAbsolute(const fs::path &path) const;
 
     // Returns a path to a temporary folder
-    fs::path tmp() const throws;
+    fs::path tmp() const;
 
     // Assembles a path to a temporary file
-    fs::path tmp(const string &name, bool unique = false) const throws;
+    fs::path tmp(const string &name, bool unique = false) const;
 };
 
 }

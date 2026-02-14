@@ -9,9 +9,9 @@
 
 #include "config.h"
 #include "RemoteManager.h"
-#include "IOUtils.h"
 #include "Agnus.h"
 #include "SerialPort.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
@@ -19,19 +19,22 @@ RemoteManager::RemoteManager(Amiga& ref) : SubComponent(ref)
 {
     subComponents = std::vector<CoreComponent *> {
         
-        &serServer,
         &rshServer,
+        &rpcServer,
+        &gdbServer,
         &promServer,
-        &gdbServer
+        &serServer
     };
+
+    info.bind([this] { return cacheInfo(); } );
 }
 
 void
 RemoteManager::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-    
-    if (category == Category::Status) {
+    using namespace utl;
+
+    if (category == Category::State) {
 
         os << "Remote server status: " << std::endl << std::endl;
 
@@ -52,16 +55,18 @@ RemoteManager::_dump(Category category, std::ostream &os) const
     }
 }
 
-void
-RemoteManager::cacheInfo(RemoteManagerInfo &result) const
+RemoteManagerInfo
+RemoteManager::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        info.numLaunching = numLaunching();
-        info.numListening = numListening();
-        info.numConnected = numConnected();
-        info.numErroneous = numErroneous();
-    }
+    RemoteManagerInfo info;
+
+    info.rshInfo = rshServer.cacheInfo();
+    info.rpcInfo = rpcServer.cacheInfo();
+    info.gdbInfo = gdbServer.cacheInfo();
+    info.promInfo = promServer.cacheInfo();
+    info.serInfo = serServer.cacheInfo();
+
+    return info;
 }
 
 isize
@@ -97,26 +102,37 @@ RemoteManager::numErroneous() const
 }
 
 void
+RemoteManager::update()
+{
+    if (frame++ % 32 != 0) return;
+
+    auto launchDaemon = [&](RemoteServer &server, ServerConfig &config) {
+
+        if (config.enable) {
+            if (server.isOff()) server.switchState(SrvState::WAITING);
+        } else {
+            if (!server.isOff()) server.stop();
+        }
+
+        if (server.canRun()) {
+            if (server.isWaiting()) server.start();
+        } else {
+            if (!server.isOff() && !server.isWaiting()) server.stop();
+        }
+    };
+
+    launchDaemon(rshServer, rshServer.config);
+    launchDaemon(rpcServer, rpcServer.config);
+    launchDaemon(gdbServer, gdbServer.config);
+    launchDaemon(promServer, promServer.config);
+    launchDaemon(serServer, serServer.config);
+}
+
+void
 RemoteManager::serviceServerEvent()
 {
-    assert(agnus.id[SLOT_SRV] == SRV_LAUNCH_DAEMON);
-
-    // Run the launch daemon
-    if (serServer.config.autoRun) {
-        serServer.shouldRun() ? serServer.start() : serServer.stop();
-    }
-    if (rshServer.config.autoRun) {
-        rshServer.shouldRun() ? rshServer.start() : rshServer.stop();
-    }
-    if (promServer.config.autoRun) {
-        promServer.shouldRun() ? promServer.start() : promServer.stop();
-    }
-    if (gdbServer.config.autoRun) {
-        gdbServer.shouldRun() ? gdbServer.start() : gdbServer.stop();
-    }
-
-    // Schedule next event
-    agnus.scheduleInc <SLOT_SRV> (SEC(0.5), SRV_LAUNCH_DAEMON);
+    // The server event slot is no longer used, as the launch demon is
+    // now run in update(). It is safe to remove the SRV_SLOT.
 }
 
 }

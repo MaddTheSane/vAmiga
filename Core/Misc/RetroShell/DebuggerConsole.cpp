@@ -10,6 +10,9 @@
 #include "config.h"
 #include "Console.h"
 #include "Emulator.h"
+#include "utl/abilities/Loggable.h"
+#include "utl/io.h"
+#include "utl/support.h"
 
 namespace vamiga {
 
@@ -19,13 +22,13 @@ DebuggerConsole::_pause()
     if (retroShell.inDebugShell()) {
         
         *this << '\n';
-        exec("state");
-        *this << getPrompt();
+        exec(InputLine {.input = "state"});
+        *this << prompt();
     }
 }
 
 string
-DebuggerConsole::getPrompt()
+DebuggerConsole::prompt()
 {
     std::stringstream ss;
     
@@ -41,50 +44,44 @@ DebuggerConsole::getPrompt()
 }
 
 void
-DebuggerConsole::welcome()
+DebuggerConsole::didActivate()
 {
-    Console::welcome();
+    emulator.trackOn(1);
 }
 
 void
-DebuggerConsole::summary()
+DebuggerConsole::didDeactivate()
 {
-    std::stringstream ss;
-    
-    // ss << "RetroShell Debugger" << std::endl << std::endl;
-    amiga.dump(Category::Current, ss);
-    
-    *this << vspace{1};
-    string line;
-    while(std::getline(ss, line)) { *this << "    " << line << '\n'; }
-    // *this << ss;
-    *this << vspace{1};
-}
-
-void
-DebuggerConsole::printHelp(isize tab)
-{
-    Console::printHelp(tab);
-}
-
-void
-DebuggerConsole::pressReturn(bool shift)
-{
-    if (emulator.isPaused() && !shift && input.empty()) {
-        
-        emulator.stepInto();
-        
-    } else {
-        
-        Console::pressReturn(shift);
-    }
+    emulator.trackOff(1);
 }
 
 void
 DebuggerConsole::initCommands(RSCommand &root)
 {
     Console::initCommands(root);
-    
+
+    //
+    // Empty command
+    //
+
+    root.add({
+
+        .tokens = { "return" },
+        .chelp  = { "Print status information" },
+        .flags  = rs::hidden,
+        .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
+
+            if (emulator.isPaused()) {
+                emulator.stepInto();
+            } else {
+                os << std::endl;
+                // amiga.dump(Category::Current, os);
+                amiga.report(os, isize(Category::Current));
+            }
+        }
+    });
+
+
     //
     // Console management
     //
@@ -229,7 +226,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto addr = parseAddr(args.at("address"));
-                if (IS_ODD(addr)) throw AppError(Fault::ADDR_UNALIGNED);
+                if (IS_ODD(addr)) throw CoreError(CoreError::ADDR_UNALIGNED);
                 cpu.breakpoints.setAt(addr, parseNum(args, "ignores", 0));
             }
     });
@@ -334,7 +331,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto nr = parseNum(args, "vector");
-                if (nr < 0 || nr > 255) throw AppError(Fault::OPT_INV_ARG, "0...255");
+                if (nr < 0 || nr > 255) throw CoreError(CoreError::OPT_INV_ARG, "0...255");
                 cpu.catchpoints.setAt(u32(nr), parseNum(args, "ignores", 0));
             }
     });
@@ -350,7 +347,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto nr = parseNum(args, "interrupt");
-                if (nr < 1 || nr > 7) throw AppError(Fault::OPT_INV_ARG, "1...7");
+                if (nr < 1 || nr > 7) throw CoreError(CoreError::OPT_INV_ARG, "1...7");
                 cpu.catchpoints.setAt(u32(nr + 24), parseNum(args, "ignores", 0));
             }
     });
@@ -366,7 +363,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto nr = parseNum(args, "trap");
-                if (nr < 0 || nr > 15) throw AppError(Fault::OPT_INV_ARG, "0...15");
+                if (nr < 0 || nr > 15) throw CoreError(CoreError::OPT_INV_ARG, "0...15");
                 cpu.catchpoints.setAt(u32(nr + 32), parseNum(args, "ignores", 0));
             }
     });
@@ -420,7 +417,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto addr = parseAddr(args, "address");
-                if (IS_ODD(addr)) throw AppError(Fault::ADDR_UNALIGNED);
+                if (IS_ODD(addr)) throw CoreError(CoreError::ADDR_UNALIGNED);
                 copper.debugger.breakpoints.setAt(addr, parseNum(args, "ignores", 0));
             }
     });
@@ -474,7 +471,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto addr = parseAddr(args, "address");
-                if (IS_ODD(addr)) throw AppError(Fault::ADDR_UNALIGNED);
+                if (IS_ODD(addr)) throw CoreError(CoreError::ADDR_UNALIGNED);
                 copper.debugger.watchpoints.setAt(addr, parseNum(args, "ignores", 0));
             }
     });
@@ -570,9 +567,7 @@ DebuggerConsole::initCommands(RSCommand &root)
         .args   = { { .name = { "address", "Memory address" }, .flags = rs::opt } },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
             
-            std::stringstream ss;
-            cpu.disassembleRange(ss, parseAddr(args, "address", cpu.getPC0()), 16);
-            retroShell << '\n' << ss << '\n';
+            cpu.disassembleRange(os, parseAddr(args, "address", cpu.getPC0()), 16);
         }
     });
     
@@ -585,9 +580,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             
             if (args.contains("address")) { current = parseAddr(args, "address"); }
             
-            std::stringstream ss;
-            current += (u32)mem.debugger.ascDump<Accessor::CPU>(ss, current, 16);
-            retroShell << '\n' << ss << '\n';
+            current += (u32)mem.debugger.ascDump<Accessor::CPU>(os, current, 16);
         }
     });
     
@@ -608,9 +601,7 @@ DebuggerConsole::initCommands(RSCommand &root)
             
             if (args.contains("address")) { current = parseAddr(args, "address"); }
             
-            std::stringstream ss;
-            current += (u32)mem.debugger.memDump<Accessor::CPU>(ss, current, 16, values[0]);
-            retroShell << '\n' << ss << '\n';
+            current += (u32)mem.debugger.memDump<Accessor::CPU>(os, current, 16, values[0]);
         }, .payload = {2}
     });
     
@@ -726,16 +717,12 @@ DebuggerConsole::initCommands(RSCommand &root)
                 
                 if (found >= 0) {
                     
-                    std::stringstream ss;
-                    mem.debugger.memDump<Accessor::CPU>(ss, u32(found), 1, values[0]);
-                    retroShell << ss;
+                    mem.debugger.memDump<Accessor::CPU>(os, u32(found), 1, values[0]);
                     current = u32(found);
                     
                 } else {
                     
-                    std::stringstream ss;
-                    ss << "Not found";
-                    retroShell << ss;
+                    os << "Not found";
                 }
             }, .payload = {1}
     });
@@ -1051,7 +1038,7 @@ DebuggerConsole::initCommands(RSCommand &root)
                 case 2: copper.debugger.disassemble(os, 2, true); break;
                     
                 default:
-                    throw AppError(Fault::OPT_INV_ARG, "1 or 2");
+                    throw CoreError(CoreError::OPT_INV_ARG, "1 or 2");
             }
         }
     });
@@ -1343,7 +1330,7 @@ DebuggerConsole::initCommands(RSCommand &root)
         .chelp  = { "Display a server status summary" },
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
             
-            dump(os, remoteManager, Category::Status);
+            dump(os, remoteManager, Category::State);
         }
     });
     
@@ -1400,9 +1387,7 @@ DebuggerConsole::initCommands(RSCommand &root)
         
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
             
-            std::stringstream ss;
-            osDebugger.dumpInfo(ss);
-            retroShell << ss;
+            osDebugger.dumpInfo(os);
         }
     });
     
@@ -1412,9 +1397,7 @@ DebuggerConsole::initCommands(RSCommand &root)
         
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
             
-            std::stringstream ss;
-            osDebugger.dumpExecBase(ss);
-            retroShell << ss;
+            osDebugger.dumpExecBase(os);
         }
     });
     
@@ -1425,9 +1408,7 @@ DebuggerConsole::initCommands(RSCommand &root)
         
         .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
             
-            std::stringstream ss;
-            osDebugger.dumpIntVectors(ss);
-            retroShell << ss;
+            osDebugger.dumpIntVectors(os);
         }
     });
     
@@ -1440,18 +1421,15 @@ DebuggerConsole::initCommands(RSCommand &root)
         },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
-                std::stringstream ss;
                 isize num;
                 
                 if (!args.contains("nr")) {
-                    osDebugger.dumpLibraries(ss);
-                } else if (util::parseHex(args.at("nr"), &num)) {
-                    osDebugger.dumpLibrary(ss, (u32)num);
+                    osDebugger.dumpLibraries(os);
+                } else if (utl::parseHex(args.at("nr"), &num)) {
+                    osDebugger.dumpLibrary(os, (u32)num);
                 } else {
-                    osDebugger.dumpLibrary(ss, args.at("nr"));
+                    osDebugger.dumpLibrary(os, args.at("nr"));
                 }
-                
-                retroShell << ss;
             }
     });
     
@@ -1464,18 +1442,15 @@ DebuggerConsole::initCommands(RSCommand &root)
         },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
-                std::stringstream ss;
                 isize num;
                 
                 if (!args.contains("nr")) {
-                    osDebugger.dumpDevices(ss);
-                } else if (util::parseHex(args.at("nr"), &num)) {
-                    osDebugger.dumpDevice(ss, (u32)num);
+                    osDebugger.dumpDevices(os);
+                } else if (utl::parseHex(args.at("nr"), &num)) {
+                    osDebugger.dumpDevice(os, (u32)num);
                 } else {
-                    osDebugger.dumpDevice(ss, args.at("nr"));
+                    osDebugger.dumpDevice(os, args.at("nr"));
                 }
-                
-                retroShell << ss;
             }
     });
     
@@ -1488,18 +1463,15 @@ DebuggerConsole::initCommands(RSCommand &root)
         },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
-                std::stringstream ss;
                 isize num;
                 
                 if (!args.contains("nr")) {
-                    osDebugger.dumpResources(ss);
-                } else if (util::parseHex(args.at("nr"), &num)) {
-                    osDebugger.dumpResource(ss, (u32)num);
+                    osDebugger.dumpResources(os);
+                } else if (utl::parseHex(args.at("nr"), &num)) {
+                    osDebugger.dumpResource(os, (u32)num);
                 } else {
-                    osDebugger.dumpResource(ss, args.at("nr"));
+                    osDebugger.dumpResource(os, args.at("nr"));
                 }
-                
-                retroShell << ss;
             }
     });
     
@@ -1512,18 +1484,15 @@ DebuggerConsole::initCommands(RSCommand &root)
         },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
-                std::stringstream ss;
                 isize num;
                 
                 if (!args.contains("nr")) {
-                    osDebugger.dumpTasks(ss);
-                } else if (util::parseHex(args.at("nr"), &num)) {
-                    osDebugger.dumpTask(ss, (u32)num);
+                    osDebugger.dumpTasks(os);
+                } else if (utl::parseHex(args.at("nr"), &num)) {
+                    osDebugger.dumpTask(os, (u32)num);
                 } else {
-                    osDebugger.dumpTask(ss, args.at("nr"));
+                    osDebugger.dumpTask(os, args.at("nr"));
                 }
-                
-                retroShell << ss;
             }
     });
     
@@ -1536,18 +1505,15 @@ DebuggerConsole::initCommands(RSCommand &root)
         },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
-                std::stringstream ss;
                 isize num;
                 
                 if (!args.contains("nr")) {
-                    osDebugger.dumpProcesses(ss);
-                } else if (util::parseHex(args.at("nr"), &num)) {
-                    osDebugger.dumpProcess(ss, (u32)num);
+                    osDebugger.dumpProcesses(os);
+                } else if (utl::parseHex(args.at("nr"), &num)) {
+                    osDebugger.dumpProcess(os, (u32)num);
                 } else {
-                    osDebugger.dumpProcess(ss, args.at("nr"));
+                    osDebugger.dumpProcess(os, args.at("nr"));
                 }
-                
-                retroShell << ss;
             }
     });
     
@@ -1613,38 +1579,31 @@ DebuggerConsole::initCommands(RSCommand &root)
             dump(os, emulator, Category::Debug);
         }
     });
-    
+
     if (debugBuild) {
-        
-        for (auto i : DebugFlagEnum::elements()) {
-            
+
+        auto& channels = Loggable::getChannels();
+
+        for (isize i = 0; i < isize(channels.size()); ++i) {
+
             root.add({
                 
-                .tokens = { "debug", DebugFlagEnum::key(i) },
-                .chelp  = { DebugFlagEnum::help(i) },
+                .tokens = { "debug", channels[i].name },
+                .chelp  = { channels[i].description },
                 .args   = {
                     { .name = { "level", "Debug level" } }
                 },
                     .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                        
-                        Emulator::setDebugVariable(DebugFlag(values[0]), int(parseNum(args, "level")));
-                        
-                    }, .payload = { isize(i) }
+
+                        auto level = parseNum(args, "level");
+                        if (level >= 0 && level <= 8) {
+                            Loggable::setLevel(values[0], LogLevel(level));
+                        } else {
+                            Loggable::setLevel(values[0], {});
+                        }
+                    }, .payload = { i }
             });
         }
-        
-        root.add({
-            
-            .tokens = { "debug", "verbosity" },
-            .chelp  = { "Set the verbosity level for generated debug output" },
-            .args   = {
-                { .name = { "level", "Verbosity level" } }
-            },
-                .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
-                    
-                    CoreObject::verbosity = isize(parseNum(args, "level"));
-                }
-        });
     }
     
     root.add({
@@ -1656,16 +1615,13 @@ DebuggerConsole::initCommands(RSCommand &root)
         },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
-                std::stringstream ss;
                 auto value = args.at("value");
                 
                 if (isNum(value)) {
-                    mem.debugger.convertNumeric(ss, (u32)parseNum(value));
+                    mem.debugger.convertNumeric(os, (u32)parseNum(value));
                 } else {
-                    mem.debugger.convertNumeric(ss, value);
+                    mem.debugger.convertNumeric(os, value);
                 }
-                
-                retroShell << '\n' << ss << '\n';
             }
     });
 }

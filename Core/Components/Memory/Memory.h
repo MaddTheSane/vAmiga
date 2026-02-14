@@ -12,13 +12,13 @@
 #include "MemoryTypes.h"
 #include "MemoryDebugger.h"
 #include "RomFileTypes.h"
-#include "MemUtils.h"
-#include "Buffer.h"
+#include "utl/storage.h"
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
-using util::Allocator;
-using util::Buffer;
+using utl::Allocator;
+using utl::Buffer;
 
 #define SLOW_RAM_STRT 0xC00000
 #define FAST_RAM_STRT ramExpansion.getBaseAddr()
@@ -102,7 +102,7 @@ assert((x) >= 0xE80000 && (x) <= 0xE8FFFF);
 #define WRITE_EXT_16(x,y)   W16BE(ext + ((x) & extMask), (y))
 
 
-class Memory final : public SubComponent, public Inspectable<MemInfo, MemStats> {
+class Memory final : public SubComponent {
 
     Descriptions descriptions = {{
 
@@ -131,7 +131,17 @@ class Memory final : public SubComponent, public Inspectable<MemInfo, MemStats> 
 
 public:
 
+    // Result of the latest inspection
+    utl::Backed<MemInfo> info;
+    utl::Backed<MemMetrics> metrics;
+
+
+    //
     // Subcomponents
+    //
+
+public:
+
     MemoryDebugger debugger = MemoryDebugger(amiga);
 
     /* About
@@ -213,7 +223,10 @@ public:
 
     // The last value on the data bus
     u16 dataBus;
-    
+
+    // Statistics
+    // MemMetrics _metrics = {};
+
 
     //
     // Methods
@@ -309,13 +322,12 @@ private:
 
 
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(MemInfo &result) const override;
-    // void cacheStats(MemStats &result) const override;
+    MemInfo cacheInfo() const;
 
 private:
     
@@ -341,7 +353,7 @@ public:
     
 private:
 
-    void _isReady() const throws override;
+    void _isReady() const override;
 
 
     //
@@ -423,19 +435,19 @@ public:
     void eraseExt() { std::memset(ext, 0, config.extSize); }
     
     // Installs a Boot Rom or Kickstart Rom
-    void loadRom(class MediaFile &file) throws;
-    void loadRom(const fs::path &path) throws;
-    void loadRom(const u8 *buf, isize len) throws;
+    void loadRom(class RomFile &file);
+    void loadRom(const fs::path &path);
+    void loadRom(const u8 *buf, isize len);
     
     // Installs a Kickstart expansion Rom
-    void loadExt(class MediaFile &file) throws;
-    void loadExt(const fs::path &path) throws;
-    void loadExt(const u8 *buf, isize len) throws;
+    void loadExt(class RomFile &file);
+    void loadExt(const fs::path &path);
+    void loadExt(const u8 *buf, isize len);
 
     // Saves a Rom to disk
-    void saveRom(const fs::path &path) const throws;
-    void saveWom(const fs::path &path) const throws;
-    void saveExt(const fs::path &path) const throws;
+    void saveRom(const fs::path &path) const;
+    void saveWom(const fs::path &path) const;
+    void saveExt(const fs::path &path) const;
 
     // Fixes two bugs in Kickstart 1.2 expansion.library
     void patchExpansionLib();

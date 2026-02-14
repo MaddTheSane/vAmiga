@@ -46,15 +46,15 @@ class DiskExporter: DialogController {
     var partition: Int?
     
     // Number of available partitions
-    var numPartitions: Int { return hdf?.hdfInfo.partitions ?? 1 }
-    
+    var numPartitions: Int { return hdf?.numPartitions ?? 1 }
+
     // Results of the different decoders
-    var hdf: MediaFileProxy?
-    var hdz: MediaFileProxy?
-    var adf: MediaFileProxy?
-    var adz: MediaFileProxy?
-    var ext: MediaFileProxy?
-    var img: MediaFileProxy?
+    var hdf: HardDiskImageProxy?
+    var hdz: HardDiskImageProxy?
+    var adf: FloppyDiskImageProxy?
+    var adz: FloppyDiskImageProxy?
+    var ext: FloppyDiskImageProxy?
+    var img: FloppyDiskImageProxy?
     var vol: FileSystemProxy?
     
     func showSheet(diskDrive nr: Int) {
@@ -62,20 +62,20 @@ class DiskExporter: DialogController {
         dfn = emu.df(nr)
         
         // Run the ADF decoder
-        adf = try? MediaFileProxy.make(with: dfn!, type: .ADF)
-        
+        adf = try? FloppyDiskImageProxy.make(with: dfn!, format: .ADF)
+
         // Run the ADZ decoder
-        adz = try? MediaFileProxy.make(with: dfn!, type: .ADZ)
-        
+        adz = try? FloppyDiskImageProxy.make(with: dfn!, format: .ADZ)
+
         // Run the extended ADF decoder
-        ext = try? MediaFileProxy.make(with: dfn!, type: .EADF)
-        
+        ext = try? FloppyDiskImageProxy.make(with: dfn!, format: .EADF)
+
         // Run the DOS decoder
-        img = try? MediaFileProxy.make(with: dfn!, type: .IMG)
-        
+        img = try? FloppyDiskImageProxy.make(with: dfn!, format: .IMG)
+
         // Select the export partition
         select(partition: 0)
-        
+
         super.showAsSheet()
     }
     
@@ -84,11 +84,11 @@ class DiskExporter: DialogController {
         hdn = emu.hd(nr)
         
         // Run the HDF decoder
-        hdf = try? MediaFileProxy.make(with: hdn!, type: .HDF)
-        
+        hdf = try? HardDiskImageProxy.make(with: hdn!, format: .HDF)
+
         // Run the HDZ decoder
-        hdz = try? MediaFileProxy.make(with: hdn!, type: .HDZ)
-        
+        hdz = try? HardDiskImageProxy.make(with: hdn!, format: .HDZ)
+
         // Select the export partition
         select(partition: numPartitions == 1 ? 0 : nil)
         
@@ -128,9 +128,9 @@ class DiskExporter: DialogController {
         partitionPopup.removeAllItems()
         
         addItem("Entire disk", tag: -1)
-        
-        if hdf?.hdfInfo.hasRDB == true {
-            
+
+        if numPartitions > 1 {
+
             for i in 1...numPartitions {
                 addItem("Partition \(i)", tag: i - 1)
             }
@@ -159,7 +159,6 @@ class DiskExporter: DialogController {
     override func dialogWillShow() {
         
         super.dialogWillShow()
-        
         updatePartitionPopup()
         updateFormatPopup()
         update()
@@ -228,10 +227,10 @@ class DiskExporter: DialogController {
     }
     
     func updateHardDiskInfo() {
-        
-        let info = hdf!.hdfInfo
-        
-        let num = info.partitions
+
+//        let info = hdf!.hdfInfo
+
+        let num =  hdf!.numPartitions
         let s = num == 1 ? "" : "s"
         
         if let partition {
@@ -245,7 +244,7 @@ class DiskExporter: DialogController {
             
         } else {
             
-            if info.hasRDB {
+            if num > 1 {
                 info1.stringValue = "RDB hard drive with \(num) partition\(s)"
             } else {
                 info1.stringValue = "Standard hard drive"
@@ -256,9 +255,9 @@ class DiskExporter: DialogController {
     }
     
     func updateFloppyDiskInfo() {
-        
-        if let adf {
-            info1.stringValue = adf.typeInfo + ", " + adf.layoutInfo
+
+        if adf != nil {
+            info1.stringValue = "Amiga Floppy Disk" // adf!.typeInfo + ", " + adf!.layoutInfo
         } else {
             info1.stringValue = ""
         }
@@ -361,32 +360,37 @@ class DiskExporter: DialogController {
                 
             case Format.adf:
                 
-                debug(.media, "Exporting ADF")
-                try parent.mydocument.export(fileProxy: adf!, to: url)
-                
+                loginfo(.media, "Exporting ADF")
+                try adf!.writeToFile(url: url)
+                // try parent.mydocument.export(fileProxy: adf!, to: url)
+
             case Format.adz:
                 
-                debug(.media, "Exporting ADZ")
-                try parent.mydocument.export(fileProxy: adz!, to: url)
-                
+                loginfo(.media, "Exporting ADZ")
+                try adz!.writeToFile(url: url)
+                // try parent.mydocument.export(fileProxy: adz!, to: url)
+
             case Format.ext:
                 
-                debug(.media, "Exporting Extended ADF")
-                try parent.mydocument.export(fileProxy: ext!, to: url)
-                
+                loginfo(.media, "Exporting Extended ADF")
+                try ext!.writeToFile(url: url)
+                // try parent.mydocument.export(fileProxy: ext!, to: url)
+
             case Format.img:
                 
-                debug(.media, "Exporting IMG")
-                try parent.mydocument.export(fileProxy: img!, to: url)
-                
+                loginfo(.media, "Exporting IMG")
+                try img!.writeToFile(url: url)
+                // try parent.mydocument.export(fileProxy: img!, to: url)
+
             case Format.ima:
                 
-                debug(.media, "Exporting IMA")
-                try parent.mydocument.export(fileProxy: img!, to: url)
-                
+                loginfo(.media, "Exporting IMA")
+                try img!.writeToFile(url: url)
+                // try parent.mydocument.export(fileProxy: img!, to: url)
+
             case Format.vol:
                 
-                debug(.media, "Exporting file system")
+                loginfo(.media, "Exporting file system")
                 try vol!.export(url: url)
                 
             default:
@@ -412,32 +416,32 @@ class DiskExporter: DialogController {
             case Format.hdf:
                 
                 if let nr = partition {
-                    
-                    debug(.media, "Exporting partiton \(nr) to \(url)")
-                    try hdf?.writeToFile(url: url, partition: nr)
-                    
+
+                    loginfo(.media, "Exporting partiton \(nr) to \(url)")
+                    try hdf?.writePartitionToFile(url: url, partition: nr)
+
                 } else {
-                    
-                    debug(.media, "Exporting entire hard disk to \(url)")
+
+                    loginfo(.media, "Exporting entire hard disk to \(url)")
                     try hdf?.writeToFile(url: url)
                 }
                 
             case Format.hdz:
                 
                 if let nr = partition {
-                    
-                    debug(.media, "Exporting partiton \(nr) to \(url)")
-                    try hdz?.writeToFile(url: url, partition: nr)
-                    
+
+                    loginfo(.media, "Exporting partiton \(nr) to \(url)")
+                    try hdf?.writePartitionToFile(url: url, partition: nr)
+
                 } else {
-                    
-                    debug(.media, "Exporting entire hard disk to \(url)")
+
+                    loginfo(.media, "Exporting entire hard disk to \(url)")
                     try hdz?.writeToFile(url: url)
                 }
                 
             case Format.vol:
-                
-                debug(.media, "Exporting file system")
+
+                loginfo(.media, "Exporting file system")
                 try vol!.export(url: url)
                 
             default:

@@ -18,7 +18,7 @@
 
 namespace vamiga {
 
-class Emulator : public Thread, public Synchronizable, public Inspectable<EmulatorInfo, EmulatorStats> {
+class Emulator : public Thread, public Synchronizable {
 
     friend class API;
     friend class VAmiga;
@@ -28,6 +28,10 @@ public:
     // User default settings
     static Defaults defaults;
 
+    // Result of the latest inspection
+    utl::Memorized<EmulatorInfo> info;
+    utl::Memorized<EmulatorMetrics> metrics;
+
 private:
 
     // The main emulator instance
@@ -36,6 +40,9 @@ private:
     // The run-ahead instance
     Amiga ahead = Amiga(*this, 1);
 
+    // Counts the number of created clones
+    isize clones = 0;
+    
     // Indicates if the run-ahead instance needs to be updated
     bool isDirty = true;
 
@@ -43,7 +50,7 @@ private:
     CmdQueue cmdQueue;
 
     // Texture lock
-    util::Mutex textureLock;
+    utl::Mutex textureLock;
 
 
     //
@@ -79,13 +86,13 @@ private:
 
 
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(EmulatorInfo &result) const override;
-    void cacheStats(EmulatorStats &result) const override;
+    EmulatorInfo cacheInfo() const;
+    EmulatorMetrics cacheMetrics() const;
 
 
     //
@@ -95,17 +102,17 @@ public:
 public:
 
     // Queries an option
-    i64 get(Opt opt, isize objid = 0) const throws;
+    i64 get(Opt opt, isize objid = 0) const;
 
     // Checks an option
-    void check(Opt opt, i64 value, const std::vector<isize> objids = { }) throws;
+    void check(Opt opt, i64 value, const std::vector<isize> objids = { });
 
     // Sets an option
-    void set(Opt opt, i64 value, const std::vector<isize> objids = { }) throws;
+    void set(Opt opt, i64 value, const std::vector<isize> objids = { });
 
     // Convenience wrappers
-    void set(Opt opt, const string &value, const std::vector<isize> objids = { }) throws;
-    void set(const string &opt, const string &value, const std::vector<isize> objids = { }) throws;
+    void set(Opt opt, const string &value, const std::vector<isize> objids = { });
+    void set(const string &opt, const string &value, const std::vector<isize> objids = { });
 
     // Configures the emulator to match a specific configuration
     void set(ConfigScheme scheme);
@@ -196,8 +203,10 @@ public:
 public:
 
     // Gets or sets an internal debug variable (only available in debug builds)
+    /*
     static int getDebugVariable(DebugFlag flag);
     static void setDebugVariable(DebugFlag flag, bool val);
+    */
 };
 
 }

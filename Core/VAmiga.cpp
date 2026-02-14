@@ -9,9 +9,10 @@
 
 #include "config.h"
 #include "VAmiga.h"
-#include "Concurrency.h"
 #include "Emulator.h"
+#include "Codecs.h"
 #include "GuardList.h"
+#include "utl/concurrency.h"
 
 namespace vamiga {
 
@@ -80,14 +81,14 @@ const AmigaInfo &
 AmigaAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return amiga->getInfo();
+    return amiga->info.current();
 }
 
 const AmigaInfo &
 AmigaAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return amiga->getCachedInfo();
+    return amiga->info.backed();
 }
 
 void
@@ -113,14 +114,14 @@ const LogicAnalyzerInfo &
 LogicAnalyzerAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return logicAnalyzer->getInfo();
+    return logicAnalyzer->info.current();
 }
 
 const LogicAnalyzerInfo &
 LogicAnalyzerAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return logicAnalyzer->getCachedInfo();
+    return logicAnalyzer->info.backed();
 }
 
 const DmaDebuggerConfig &
@@ -134,14 +135,14 @@ const DmaDebuggerInfo &
 DmaDebuggerAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return dmaDebugger->getInfo();
+    return dmaDebugger->info.current();
 }
 
 const DmaDebuggerInfo &
 DmaDebuggerAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return dmaDebugger->getCachedInfo();
+    return dmaDebugger->info.backed();
 }
 
 const AgnusConfig &
@@ -155,21 +156,28 @@ const AgnusInfo &
 AgnusAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return agnus->getInfo();
+    return agnus->info.current();
 }
 
 const AgnusInfo &
 AgnusAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return agnus->getCachedInfo();
+    return agnus->info.cached();
 }
 
-const AgnusStats &
-AgnusAPI::getStats() const
+const AgnusMetrics &
+AgnusAPI::getMetrics() const
 {
     VAMIGA_PUBLIC
-    return agnus->getStats();
+    return agnus->metrics.current();
+}
+
+const AgnusMetrics &
+AgnusAPI::getCachedMetrics() const
+{
+    VAMIGA_PUBLIC
+    return agnus->metrics.cached();
 }
 
 const AgnusTraits
@@ -188,14 +196,14 @@ const BlitterInfo &
 BlitterAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return blitter->getInfo();
+    return blitter->info.current();
 }
 
 const BlitterInfo &
 BlitterAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return blitter->getCachedInfo();
+    return blitter->info.cached();
 }
 
 
@@ -214,21 +222,28 @@ const CIAInfo &
 CIAAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return cia->getInfo();
+    return cia->info.current();
 }
 
 const CIAInfo &
 CIAAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return cia->getCachedInfo();
+    return cia->info.cached();
 }
 
-CIAStats
-CIAAPI::getStats() const
+CIAMetrics
+CIAAPI::getMetrics() const
 {
     VAMIGA_PUBLIC
-    return cia->getStats();
+    return cia->metrics.current();
+}
+
+CIAMetrics
+CIAAPI::getCachedMetrics() const
+{
+    VAMIGA_PUBLIC
+    return cia->metrics.cached();
 }
 
 
@@ -240,14 +255,14 @@ const CopperInfo &
 CopperAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return copper->getInfo();
+    return copper->info.current();
 }
 
 const CopperInfo &
 CopperAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return copper->getCachedInfo();
+    return copper->info.backed();
 }
 
 string
@@ -469,14 +484,14 @@ const CPUInfo &
 CPUAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return cpu->getInfo();
+    return cpu->info.current();
 }
 
 const CPUInfo &
 CPUAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return cpu->getCachedInfo();
+    return cpu->info.backed();
 }
 
 
@@ -495,14 +510,14 @@ const DeniseInfo &
 DeniseAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return denise->getInfo();
+    return denise->info.current();
 }
 
 const DeniseInfo &
 DeniseAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return denise->getCachedInfo();
+    return denise->info.backed();
 }
 
 
@@ -611,21 +626,28 @@ const MemInfo &
 MemoryAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return mem->getInfo();
+    return mem->info.current();
 }
 
 const MemInfo &
 MemoryAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return mem->getCachedInfo();
+    return mem->info.backed();
 }
 
-const MemStats &
-MemoryAPI::getStats() const
+const MemMetrics &
+MemoryAPI::getMetrics() const
 {
     VAMIGA_PUBLIC
-    return mem->getStats();
+    return mem->metrics.current();
+}
+
+const MemMetrics &
+MemoryAPI::getCachedMetrics() const
+{
+    VAMIGA_PUBLIC
+    return mem->metrics.backed();
 }
 
 const RomTraits &
@@ -662,22 +684,6 @@ MemoryAPI::loadExt(const fs::path &path)
 {
     VAMIGA_PUBLIC_SUSPEND
     mem->loadExt(path);
-    emu->markAsDirty();
-}
-
-void
-MemoryAPI::loadRom(MediaFile &file)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    mem->loadRom(file);
-    emu->markAsDirty();
-}
-
-void
-MemoryAPI::loadExt(MediaFile &file)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    mem->loadExt(file);
     emu->markAsDirty();
 }
 
@@ -754,10 +760,10 @@ AudioChannelAPI::getInfo() const
     
     switch (channel) {
             
-        case 0:     return paula->channel0.getInfo();
-        case 1:     return paula->channel1.getInfo();
-        case 2:     return paula->channel2.getInfo();
-        default:    return paula->channel3.getInfo();
+        case 0:     return paula->channel0.info.current();
+        case 1:     return paula->channel1.info.current();
+        case 2:     return paula->channel2.info.current();
+        default:    return paula->channel3.info.current();
     }
 }
 
@@ -768,10 +774,10 @@ AudioChannelAPI::getCachedInfo() const
     
     switch (channel) {
             
-        case 0:     return paula->channel0.getCachedInfo();
-        case 1:     return paula->channel1.getCachedInfo();
-        case 2:     return paula->channel2.getCachedInfo();
-        default:    return paula->channel3.getCachedInfo();
+        case 0:     return paula->channel0.info.backed();
+        case 1:     return paula->channel1.info.backed();
+        case 2:     return paula->channel2.info.backed();
+        default:    return paula->channel3.info.backed();
     }
 }
 
@@ -786,42 +792,42 @@ const DiskControllerInfo &
 DiskControllerAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return diskController->getInfo();
+    return diskController->info.current();
 }
 
 const DiskControllerInfo &
 DiskControllerAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return diskController->getCachedInfo();
+    return diskController->info.backed();
 }
 
 const UARTInfo &
 UARTAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return uart->getInfo();
+    return uart->info.current();
 }
 
 const UARTInfo &
 UARTAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return uart->getCachedInfo();
+    return uart->info.backed();
 }
 
 const PaulaInfo &
 PaulaAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return paula->getInfo();
+    return paula->info.current();
 }
 
 const PaulaInfo &
 PaulaAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return paula->getCachedInfo();
+    return paula->info.backed();
 }
 
 
@@ -865,21 +871,28 @@ const AudioPortInfo &
 AudioPortAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return port->getInfo();
+    return port->info.current();
 }
 
 const AudioPortInfo &
 AudioPortAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return port->getCachedInfo();
+    return port->info.cached();
 }
 
-const AudioPortStats &
+const AudioPortMetrics &
 AudioPortAPI::getStats() const
 {
     VAMIGA_PUBLIC
-    return port->getStats();
+    return port->metrics.current();
+}
+
+const AudioPortMetrics &
+AudioPortAPI::getCachedStats() const
+{
+    VAMIGA_PUBLIC
+    return port->metrics.cached();
 }
 
 isize
@@ -926,14 +939,14 @@ const ControlPortInfo &
 ControlPortAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return controlPort->getInfo();
+    return controlPort->info.current();
 }
 
 const ControlPortInfo &
 ControlPortAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return controlPort->getCachedInfo();
+    return controlPort->info.backed();
 }
 
 
@@ -952,14 +965,14 @@ const SerialPortInfo &
 SerialPortAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return serialPort->getInfo();
+    return serialPort->info.current();
 }
 
 const SerialPortInfo &
 SerialPortAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return serialPort->getCachedInfo();
+    return serialPort->info.backed();
 }
 
 int
@@ -1042,14 +1055,14 @@ const KeyboardInfo &
 KeyboardAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return keyboard->getInfo();
+    return keyboard->info.current();
 }
 
 const KeyboardInfo &
 KeyboardAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return keyboard->getCachedInfo();
+    return keyboard->info.backed();
 }
 
 bool
@@ -1063,17 +1076,10 @@ void
 KeyboardAPI::press(KeyCode key, double delay, double duration)
 {
     VAMIGA_PUBLIC
-    if (delay == 0.0) {
 
-        keyboard->press(key);
-        emu->markAsDirty();
+    emu->put(Command(Cmd::KEY_PRESS, KeyCmd { .keycode = key, .delay = delay }));
 
-    } else {
-        
-        emu->put(Command(Cmd::KEY_PRESS, KeyCmd { .keycode = key, .delay = delay }));
-    }
     if (duration != 0.0) {
-        
         emu->put(Command(Cmd::KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay + duration }));
     }
 }
@@ -1082,17 +1088,10 @@ void
 KeyboardAPI::toggle(KeyCode key, double delay, double duration)
 {
     VAMIGA_PUBLIC
-    if (delay == 0.0) {
-        
-        keyboard->toggle(key);
-        emu->markAsDirty();
-        
-    } else {
-        
-        emu->put(Command(Cmd::KEY_TOGGLE, KeyCmd { .keycode = key, .delay = delay }));
-    }
+
+    emu->put(Command(Cmd::KEY_TOGGLE, KeyCmd { .keycode = key, .delay = delay }));
+
     if (duration != 0.0) {
-        
         emu->put(Command(Cmd::KEY_TOGGLE, KeyCmd { .keycode = key, .delay = delay + duration }));
     }
 }
@@ -1101,15 +1100,8 @@ void
 KeyboardAPI::release(KeyCode key, double delay)
 {
     VAMIGA_PUBLIC
-    if (delay == 0.0) {
-        
-        keyboard->release(key);
-        emu->markAsDirty();
-        
-    } else {
-        
-        emu->put(Command(Cmd::KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay }));
-    }
+
+    emu->put(Command(Cmd::KEY_RELEASE, KeyCmd { .keycode = key, .delay = delay }));
 }
 
 void
@@ -1141,14 +1133,14 @@ const FloppyDriveInfo &
 FloppyDriveAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return drive->getInfo();
+    return drive->info.current();
 }
 
 const FloppyDriveInfo &
 FloppyDriveAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return drive->getCachedInfo();
+    return drive->info.backed();
 }
 
 FloppyDisk &
@@ -1181,18 +1173,11 @@ FloppyDriveAPI::isInsertable(Diameter t, Density d) const
 }
 
 void
-FloppyDriveAPI::insertBlankDisk(FSFormat fstype, BootBlockId bb, string name, const std::filesystem::path &path)
+FloppyDriveAPI::insertBlankDisk(amiga::FSFormat fstype, amiga::BootBlockId bb,
+                                string name, const std::filesystem::path &path)
 {
     VAMIGA_PUBLIC_SUSPEND
     drive->insertNew(fstype, bb, name, path);
-    emu->markAsDirty();
-}
-
-void
-FloppyDriveAPI::insertMedia(MediaFile &file, bool wp)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    drive->insertMediaFile(file, wp);
     emu->markAsDirty();
 }
 
@@ -1212,11 +1197,11 @@ FloppyDriveAPI::ejectDisk()
     drive->ejectDisk();
 }
 
-class MediaFile *
-FloppyDriveAPI::exportDisk(FileType type)
+void
+FloppyDriveAPI::writeToFile(const std::filesystem::path& path)
 {
     VAMIGA_PUBLIC_SUSPEND
-    return drive->exportDisk(type);
+    drive->writeToFile(path);
 }
 
 string
@@ -1249,14 +1234,14 @@ const HardDriveInfo &
 HardDriveAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return drive->getInfo();
+    return drive->info.current();
 }
 
 const HardDriveInfo &
 HardDriveAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return drive->getCachedInfo();
+    return drive->info.backed();
 }
 
 const HardDriveTraits &
@@ -1308,13 +1293,6 @@ HardDriveAPI::attach(const fs::path &path)
     drive->init(path.string());
 }
 
-void 
-HardDriveAPI::attach(const MediaFile &file)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    drive->init(file);
-}
-
 void
 HardDriveAPI::attach(isize c, isize h, isize s, isize b)
 {
@@ -1324,10 +1302,10 @@ HardDriveAPI::attach(isize c, isize h, isize s, isize b)
 }
 
 void 
-HardDriveAPI::format(FSFormat fs, const string &name)
+HardDriveAPI::format(amiga::FSFormat fs, const string &name)
 {
     VAMIGA_PUBLIC_SUSPEND
-    drive->format(fs, name);
+    drive->format(fs, FSName(name));
 }
 
 void
@@ -1344,13 +1322,6 @@ HardDriveAPI::writeToFile(const fs::path &path)
     drive->writeToFile(path);
 }
 
-MediaFile *
-HardDriveAPI::createHDF()
-{
-    VAMIGA_PUBLIC_SUSPEND
-    return new HDFFile(*drive);
-}
-
 
 //
 // Peripherals (HdController)
@@ -1360,21 +1331,28 @@ const HdcInfo &
 HdControllerAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return controller->getInfo();
+    return controller->info.current();
 }
 
 const HdcInfo &
 HdControllerAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return controller->getCachedInfo();
+    return controller->info.cached();
 }
 
 const HdcStats &
 HdControllerAPI::getStats() const
 {
     VAMIGA_PUBLIC
-    return controller->getStats();
+    return controller->metrics.current();
+}
+
+const HdcStats &
+HdControllerAPI::getCachedStats() const
+{
+    VAMIGA_PUBLIC
+    return controller->metrics.cached();
 }
 
 
@@ -1386,14 +1364,14 @@ const JoystickInfo &
 JoystickAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return joystick->getInfo();
+    return joystick->info.current();
 }
 
 const JoystickInfo &
 JoystickAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return joystick->getCachedInfo();
+    return joystick->info.backed();
 }
 
 void 
@@ -1679,14 +1657,14 @@ const RemoteManagerInfo &
 RemoteManagerAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return remoteManager->getInfo();
+    return remoteManager->info.current();
 }
 
 const RemoteManagerInfo &
 RemoteManagerAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return remoteManager->getCachedInfo();
+    return remoteManager->info.backed();
 }
 
 
@@ -1698,14 +1676,14 @@ const RetroShellInfo &
 RetroShellAPI::getInfo() const
 {
     VAMIGA_PUBLIC
-    return retroShell->getInfo();
+    return retroShell->info.current();
 }
 
 const RetroShellInfo &
 RetroShellAPI::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return retroShell->getCachedInfo();
+    return retroShell->info.backed();
 }
 
 const char *
@@ -1737,6 +1715,13 @@ RetroShellAPI::press(const string &s)
 }
 
 void
+RetroShellAPI::execScript(const fs::path &path)
+{
+    VAMIGA_PUBLIC_SUSPEND
+    retroShell->asyncExecScript(path);
+}
+
+void
 RetroShellAPI::execScript(std::stringstream &ss)
 {
     VAMIGA_PUBLIC_SUSPEND
@@ -1757,13 +1742,7 @@ RetroShellAPI::execScript(const string &contents)
     retroShell->asyncExecScript(contents);
 }
 
-void
-RetroShellAPI::execScript(const MediaFile &file)
-{
-    VAMIGA_PUBLIC_SUSPEND
-    retroShell->asyncExecScript(file);
-}
-
+/*
 void
 RetroShellAPI::import(const FloppyDrive &dfn)
 {
@@ -1798,6 +1777,7 @@ RetroShellAPI::import(const fs::path &path, bool recursive, bool contents)
     VAMIGA_PUBLIC_SUSPEND
     retroShell->navigator.import(path, recursive, contents);
 }
+*/
 
 void
 RetroShellAPI::exportBlocks(const std::filesystem::path &path)
@@ -1977,21 +1957,28 @@ const EmulatorInfo &
 VAmiga::getInfo() const
 {
     VAMIGA_PUBLIC
-    return emu->getInfo();
+    return emu->info.current();
 }
 
 const EmulatorInfo &
 VAmiga::getCachedInfo() const
 {
     VAMIGA_PUBLIC
-    return emu->getCachedInfo();
+    return emu->info.cached();
 }
 
-const EmulatorStats &
-VAmiga::getStats() const
+const EmulatorMetrics &
+VAmiga::getMetrics() const
 {
     VAMIGA_PUBLIC
-    return emu->getStats();
+    return emu->metrics.current();
+}
+
+const EmulatorMetrics &
+VAmiga::getCachedMetrics() const
+{
+    VAMIGA_PUBLIC
+    return emu->metrics.cached();
 }
 
 bool
@@ -2258,7 +2245,7 @@ VAmiga::put(const Command &cmd)
 // AmigaAPI
 //
 
-MediaFile *
+std::unique_ptr<Snapshot>
 AmigaAPI::takeSnapshot(Compressor compressor, isize delay, bool repeat)
 {
     VAMIGA_PUBLIC_SUSPEND
@@ -2280,19 +2267,19 @@ AmigaAPI::saveWorkspace(const fs::path &path) const
 }
 
 void
-AmigaAPI::loadSnapshot(const MediaFile &snapshot)
+AmigaAPI::loadSnapshot(const Snapshot &snapshot)
 {
     VAMIGA_PUBLIC_SUSPEND
-    
+
     emu->markAsDirty();
-    
+
     try {
-        
+
         // Restore the saved state
         amiga->loadSnapshot(snapshot);
-        
-    } catch (AppError &) {
-        
+
+    } catch(Error &) {
+
         /* If we reach this point, the emulator has been put into an
          * inconsistent state due to corrupted snapshot data. We cannot
          * continue emulation, because it would likely crash the
@@ -2303,7 +2290,7 @@ AmigaAPI::loadSnapshot(const MediaFile &snapshot)
         throw;
     }
 }
- 
+
 void
 AmigaAPI::loadSnapshot(const fs::path &path)
 {

@@ -10,7 +10,8 @@
 #pragma once
 
 #include "DriveTypes.h"
-#include "DriveDescriptors.h"
+#include "FileSystems/Amiga/FSTypes.h"
+#include "DeviceDescriptors.h"
 
 namespace vamiga {
 
@@ -23,7 +24,7 @@ enum class HardDriveType : long
     GENERIC
 };
 
-struct HardDriveTypeEnum : Reflection<HardDriveTypeEnum, HardDriveType>
+struct HardDriveTypeEnum : Reflectable<HardDriveTypeEnum, HardDriveType>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = long(HardDriveType::GENERIC);
@@ -49,7 +50,7 @@ enum class HardDriveState : long
     WRITING
 };
 
-struct HardDriveStateEnum : Reflection<HardDriveStateEnum, HardDriveState>
+struct HardDriveStateEnum : Reflectable<HardDriveStateEnum, HardDriveState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = long(HardDriveState::WRITING);
@@ -118,7 +119,7 @@ typedef struct
     string name;
     isize lowerCyl;
     isize upperCyl;
-    FSFormat fsType;
+    amiga::FSFormat fsType;
 }
 PartitionTraits;
 

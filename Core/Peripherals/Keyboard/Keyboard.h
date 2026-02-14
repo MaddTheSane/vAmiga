@@ -13,11 +13,12 @@
 #include "AgnusTypes.h"
 #include "SubComponent.h"
 #include "CmdQueue.h"
-#include "RingBuffer.h"
+#include "utl/storage.h"
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
-class Keyboard final : public SubComponent, public Inspectable<KeyboardInfo> {
+class Keyboard final : public SubComponent {
 
     Descriptions descriptions = {{
 
@@ -31,6 +32,13 @@ class Keyboard final : public SubComponent, public Inspectable<KeyboardInfo> {
 
         Opt::KBD_ACCURACY
     };
+
+public:
+
+    // Result of the latest inspection
+    utl::Backed<KeyboardInfo> info;
+
+private:
 
     // Current configuration
     KeyboardConfig config;
@@ -48,13 +56,13 @@ class Keyboard final : public SubComponent, public Inspectable<KeyboardInfo> {
     Cycle spHigh;
 
     // The keycode type-ahead buffer. The Amiga can hold up to 10 keycodes
-    util::RingBuffer<KeyCode, 10> queue;
+    utl::RingBuffer<KeyCode, 10> queue;
 
     // Remebers the keys that are currently held down
     bool keyDown[128];
 
     // Delayed keyboard commands (used, e.g., for auto-typing)
-    util::SortedRingBuffer<Command, 1024> pending;
+    utl::SortedRingBuffer<Command, 1024> pending;
 
 
     //
@@ -63,8 +71,8 @@ class Keyboard final : public SubComponent, public Inspectable<KeyboardInfo> {
     
 public:
     
-    using SubComponent::SubComponent;
-    
+    Keyboard(Amiga& ref);
+
     Keyboard& operator= (const Keyboard& other) {
 
         CLONE(state)
@@ -122,13 +130,13 @@ public:
 
     
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(KeyboardInfo &result) const override;
-    
+    KeyboardInfo cacheInfo() const;
+
 
     //
     // Methods from Configurable

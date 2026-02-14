@@ -12,10 +12,11 @@
 #include "LogicAnalyzerTypes.h"
 #include "SubComponent.h"
 #include "Constants.h"
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
-class LogicAnalyzer final : public SubComponent, public Inspectable<LogicAnalyzerInfo> {
+class LogicAnalyzer final : public SubComponent {
     
     Descriptions descriptions = {{
 
@@ -39,7 +40,14 @@ class LogicAnalyzer final : public SubComponent, public Inspectable<LogicAnalyze
 
     // The current configuration
     LogicAnalyzerConfig config = {};
-    
+
+public:
+
+    // Result of the latest inspection
+    utl::Backed<LogicAnalyzerInfo> info;
+
+private:
+
     // Recorded signal traces
     isize record[4][HPOS_CNT];
     
@@ -51,8 +59,8 @@ private:
     
 public:
     
-    using SubComponent::SubComponent;
-    
+    LogicAnalyzer(Amiga& ref);
+
     LogicAnalyzer& operator= (const LogicAnalyzer& other) {
 
         return *this;
@@ -79,13 +87,13 @@ public:
 
     
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(LogicAnalyzerInfo &result) const override;
-    
+    LogicAnalyzerInfo cacheInfo() const;
+
     
     //
     // Methods from Configurable

@@ -12,33 +12,57 @@
 #include "RetroShellTypes.h"
 #include "SubComponent.h"
 #include "RSCommand.h"
-#include "Parser.h"
 #include "TextStorage.h"
-#include "MutableFileSystem.h"
+#include "FileSystems/Amiga/FileSystem.h"
+#include "FileSystems/CBM/FileSystem.h"
+#include "ADFFile.h"
+#include "D64File.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
-typedef std::pair<isize, string> QueuedCmd;
+using retro::vault::BlockNr;
+using retro::vault::Volume;
+using retro::vault::amiga::FileSystem;
+using retro::vault::amiga::FSName;
+using retro::vault::amiga::FSBlock;
+using retro::vault::image::ADFFile;
+using retro::vault::image::D64File;
 
-struct TooFewArgumentsError : public util::ParseError {
+class ConsoleDelegate {
+
+public:
+
+    virtual ~ConsoleDelegate() { }
+
+    // Called when the console is entered or left
+    virtual void didActivate() { };
+    virtual void didDeactivate() { };
+
+    // Provides the output of an executed RetroShell command
+    virtual void willExecute(const InputLine &input) = 0;
+
+    virtual void didExecute(const InputLine &input, std::stringstream &ss) = 0; // DEPRECATED
+    virtual void didExecute(const InputLine &input, std::stringstream &ss, std::exception &e) = 0; // DEPRECATED
+};
+
+/*
+struct TooFewArgumentsError : public ParseError {
     using ParseError::ParseError;
 };
 
-struct TooManyArgumentsError : public util::ParseError {
+struct TooManyArgumentsError : public ParseError {
     using ParseError::ParseError;
 };
 
-struct UnknownFlagError : public util::ParseError {
+struct UnknownFlagError : public ParseError {
     using ParseError::ParseError;
 };
 
-struct UnknownKeyValueError : public util::ParseError {
+struct UnknownKeyValueError : public ParseError {
     using ParseError::ParseError;
 };
-
-struct ScriptInterruption: AppException {
-    using AppException::AppException;
-};
+*/
 
 class HistoryBuffer {
     
@@ -61,8 +85,8 @@ public:
     void add(const string &input);
 };
 
-class Console : public SubComponent {
-    
+class Console : public SubComponent, public ConsoleDelegate {
+
     friend class RetroShell;
     friend class RshServer;
     friend class Interpreter;
@@ -92,6 +116,11 @@ class Console : public SubComponent {
         
     };
     
+public:
+
+    // Delegates
+    std::vector<ConsoleDelegate *> delegates;
+
 protected:
     
     // Root node of the command tree
@@ -114,7 +143,7 @@ protected:
     static HistoryBuffer historyBuffer;
     
     // Additional output inserted before and after command execution
-    string vdelim = RSH_DEBUG ? "[DEBUG]\n" : "\n";
+    string vdelim = debug::RSH_DEBUG ? "[DEBUG]\n" : "\n";
     
     //
     // User input
@@ -181,7 +210,15 @@ protected:
 public:
     
     const Options &getOptions() const override { return options; }
-    
+
+
+    //
+    // Methods from ConsoleDelegate
+    //
+
+    void willExecute(const InputLine &input) override;
+    void didExecute(const InputLine &input, std::stringstream &ss) override;
+    void didExecute(const InputLine &input, std::stringstream &ss, std::exception &e) override;
     
     //
     // Working with the text storage
@@ -206,7 +243,7 @@ public:
     Console &operator<<(const vspace &value);
     
     // Returns the prompt
-    virtual string getPrompt() = 0;
+    virtual string prompt() = 0;
     
     // Returns the contents of the whole storage as a single C string
     const char *text();
@@ -219,7 +256,7 @@ public:
     
     // Marks the text storage as dirty
     void needsDisplay();
-    
+
 protected:
     
     // Clears the console window
@@ -230,16 +267,7 @@ protected:
     
     // Returns true if the last line contains no text
     bool lastLineIsEmpty();
-    
-    // Prints the welcome message
-    virtual void welcome() = 0;
-    
-    // Prints the status summary
-    virtual void summary() = 0;
-    
-    // Prints the help line
-    virtual void printHelp(isize tab = 0);
-    
+
     
     //
     // Managing user input
@@ -315,16 +343,16 @@ protected:
     string parseSeq(const string &argv, const string &fallback) const;
     
     template <typename T> long parseEnum(const string &argv) {
-        return util::parseEnum<T>(argv);
+        return utl::parseEnum<T>(argv);
     }
     template <typename T> long parseEnum(const string &argv, long fallback) {
-        try { return util::parseEnum<T>(argv); } catch(...) { return fallback; }
+        try { return utl::parseEnum<T>(argv); } catch(...) { return fallback; }
     }
     template <typename E, typename T> E parseEnum(const string &argv) {
-        return (E)util::parseEnum<T>(argv);
+        return (E)utl::parseEnum<T>(argv);
     }
     template <typename E, typename T> long parseEnum(const string &argv, E fallback) {
-        try { return (E)util::parseEnum<T>(argv); } catch(...) { return fallback; }
+        try { return (E)utl::parseEnum<T>(argv); } catch(...) { return fallback; }
     }
     
     
@@ -340,9 +368,8 @@ public:
 protected:
     
     // Executes a single command
-    void exec(const string& userInput, bool verbose = false) throws;
-    void exec(const Tokens &argv, bool verbose = false) throws;
-    
+    void exec(const InputLine& cmd);
+
     // Prints a usage string for a command
     void cmdUsage(const RSCommand &cmd, const string &prefix);
     void argUsage(const RSCommand &cmd, const string &prefix);
@@ -353,7 +380,7 @@ protected:
     // Creates a textual description of an error
     void describe(const std::exception &exc, isize line = 0, const string &cmd = "");
     void describe(std::ostream &os, const std::exception &exc, isize line = 0, const string &cmd = "");
-    
+
     
     //
     // Command handlers
@@ -371,15 +398,25 @@ protected:
 
 class CommanderConsole final : public Console
 {
+    bool activated = false;
+
     using Console::Console;
-    
+
+    //
+    // Methods from Console
+    //
+
     virtual void initCommands(RSCommand &root) override;
     void _pause() override;
-    string getPrompt() override;
-    void welcome() override;
-    void summary() override;
-    void printHelp(isize tab = 0) override;
-    void pressReturn(bool shift) override;
+    string prompt() override;
+
+
+    //
+    // Methods from ConsoleDelegate
+    //
+
+    void didActivate() override;
+    void didDeactivate() override;
 };
 
 class DebuggerConsole final : public Console
@@ -392,17 +429,23 @@ class DebuggerConsole final : public Console
     
     virtual void initCommands(RSCommand &root) override;
     void _pause() override;
-    string getPrompt() override;
-    void welcome() override;
-    void summary() override;
-    void printHelp(isize tab = 0) override;
-    void pressReturn(bool shift) override;
+    string prompt() override;
+
+
+    //
+    // Methods from ConsoleDelegate
+    //
+
+    void didActivate() override;
+    void didDeactivate() override;
 };
 
 class NavigatorConsole final : public Console
 {
-    MutableFileSystem fs;
-    
+    unique_ptr<ADFFile> adf;
+    unique_ptr<Volume> vol;
+    unique_ptr<FileSystem> fs;
+
     using Console::Console;
     
     //
@@ -411,45 +454,131 @@ class NavigatorConsole final : public Console
     
     virtual void initCommands(RSCommand &root) override;
     void _pause() override;
-    string getPrompt() override;
-    void welcome() override;
-    void summary() override;
-    void printHelp(isize tab = 0) override;
-    void pressReturn(bool shift) override;
+    string prompt() override;
     void autoComplete(Tokens &argv) override;
     void help(std::ostream &os, const string &argv, isize tabs) override;
     string autoCompleteFilename(const string &input, usize flags) const;
-    
+
+
+    //
+    // Methods from ConsoleDelegate
+    //
+
+    void didActivate() override;
+    void didDeactivate() override;
+
+
     //
     // Parsing input
     //
     
-    Block parseBlock(const string &arg);
-    Block parseBlock(const Arguments &argv, const string &token);
-    Block parseBlock(const Arguments &argv, const string &token, Block fallback);
-    FSBlock &parsePath(const Arguments &argv, const string &token);
-    FSBlock &parsePath(const Arguments &argv, const string &token, FSBlock &fallback);
-    FSBlock &parseFile(const Arguments &argv, const string &token);
-    FSBlock &parseFile(const Arguments &argv, const string &token, FSBlock &fallback);
-    FSBlock &parseDirectory(const Arguments &argv, const string &token);
-    FSBlock &parseDirectory(const Arguments &argv, const string &token, FSBlock &fallback);
+    BlockNr parseBlock(const string &arg);
+    BlockNr parseBlock(const Arguments &argv, const string &token);
+    BlockNr parseBlock(const Arguments &argv, const string &token, BlockNr fallback);
+    BlockNr parsePath(const Arguments &argv, const string &token);
+    BlockNr parsePath(const Arguments &argv, const string &token, BlockNr fallback);
+    BlockNr parseFile(const Arguments &argv, const string &token);
+    BlockNr parseFile(const Arguments &argv, const string &token, BlockNr fallback);
+    BlockNr parseDirectory(const Arguments &argv, const string &token);
+    BlockNr parseDirectory(const Arguments &argv, const string &token, BlockNr fallback);
     
-    util::DumpOpt parseDumpOpts(const Arguments &argv);
-    
+    std::pair<DumpOpt,DumpFmt> parseDumpOpts(const Arguments &argv);
+
     // Experimental
-    FSBlock &matchPath(const Arguments &argv, const string &token, Tokens &notFound);
-    FSBlock &matchPath(const Arguments &argv, const string &token, Tokens &notFound, FSBlock &fallback);
-    FSBlock &matchPath(const string &path, Tokens &notFound);
+    BlockNr matchPath(const Arguments &argv, const string &token, Tokens &notFound);
+    BlockNr matchPath(const Arguments &argv, const string &token, Tokens &notFound, BlockNr fallback);
+    BlockNr matchPath(const string &path, Tokens &notFound);
     
 public:
-    
+
     // Imports the file system from a floppy drive or hard drive
     void import(const FloppyDrive &dfn);
     void import(const HardDrive &hdn, isize part);
     void importDf(isize n);
     void importHd(isize n, isize part);
     void import(const fs::path &path, bool recursive = true, bool contents = false);
-    
+
+    // Throws an exception if the file system fails to match the condition
+    void requireFS() const;
+    void requireFormattedFS() const;
+
+    // Exports the file system
+    void exportBlocks(fs::path path);
+};
+
+//
+// Experimental console for CBM images
+//
+
+class CBMNavigator final : public Console
+{
+    unique_ptr<D64File> d64;
+    unique_ptr<Volume> vol;
+    unique_ptr<retro::vault::cbm::FileSystem> fs;
+
+    // Currently observed block
+    BlockNr cb = 0;
+
+    using Console::Console;
+
+    //
+    // Methods from Console
+    //
+
+    virtual void initCommands(RSCommand &root) override;
+    void _pause() override;
+    string prompt() override;
+    void autoComplete(Tokens &argv) override;
+    void help(std::ostream &os, const string &argv, isize tabs) override;
+    string autoCompleteFilename(const string &input, usize flags) const;
+
+
+    //
+    // Methods from ConsoleDelegate
+    //
+
+    void didActivate() override;
+    void didDeactivate() override;
+
+
+    //
+    // Parsing input
+    //
+
+    BlockNr parseBlock(const string &arg);
+    BlockNr parseBlock(const Arguments &argv, const string &token, BlockNr fallback);
+    BlockNr parseBlock(const Arguments &argv, const string &token);
+    BlockNr parseFile(const string &arg);
+    BlockNr parseFile(const Arguments &argv, const string &token, BlockNr fallback);
+    BlockNr parseFile(const Arguments &argv, const string &token);
+    BlockNr parseFileOrBlock(const string &arg);
+    BlockNr parseFileOrBlock(const Arguments &argv, const string &token, BlockNr fallback);
+    BlockNr parseFileOrBlock(const Arguments &argv, const string &token);
+
+    std::pair<DumpOpt,DumpFmt> parseDumpOpts(const Arguments &argv);
+
+    // Experimental
+    /*
+    BlockNr matchPath(const Arguments &argv, const string &token, Tokens &notFound);
+    BlockNr matchPath(const Arguments &argv, const string &token, Tokens &notFound, BlockNr fallback);
+    BlockNr matchPath(const string &path, Tokens &notFound);
+    */
+
+public:
+
+    // Imports the file system from a floppy drive or hard drive
+    /*
+    void import(const FloppyDrive &dfn);
+    void import(const HardDrive &hdn, isize part);
+    void importDf(isize n);
+    void importHd(isize n, isize part);
+     */
+    void import(const fs::path &path, bool recursive = true, bool contents = false);
+
+    // Throws an exception if the file system fails to match the condition
+    void requireFS() const;
+    void requireFormattedFS() const;
+
     // Exports the file system
     void exportBlocks(fs::path path);
 };

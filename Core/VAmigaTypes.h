@@ -14,9 +14,8 @@
 #include "Infrastructure/EmulatorTypes.h"
 #include "Infrastructure/Constants.h"
 #include "Infrastructure/CmdQueueTypes.h"
+#include "Infrastructure/CoreObjectTypes.h"
 #include "Infrastructure/CoreComponentTypes.h"
-#include "Infrastructure/DumpableTypes.h"
-#include "Infrastructure/ErrorTypes.h"
 #include "Infrastructure/GuardListTypes.h"
 #include "Infrastructure/MsgQueueTypes.h"
 
@@ -47,8 +46,9 @@
 #include "Peripherals/Monitor/MonitorTypes.h"
 
 // Media
-#include "Media/MediaFileTypes.h"
-#include "FileSystems/FSTypes.h"
+#include "Media/Rom/RomFileTypes.h"
+#include "RetroVault/FileSystems/Amiga/FSTypes.h"
+#include "RetroVault/Images/ImageTypes.h"
 
 // Miscellaneous
 #include "Misc/LogicAnalyzer/LogicAnalyzerTypes.h"

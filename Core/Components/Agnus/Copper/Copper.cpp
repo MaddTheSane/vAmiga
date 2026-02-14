@@ -11,8 +11,6 @@
 #include "Copper.h"
 #include "Emulator.h"
 #include "CopperDebugger.h"
-#include "Checksum.h"
-#include "IOUtils.h"
 #include "PixelEngine.h"
 
 namespace vamiga {
@@ -23,6 +21,8 @@ Copper::Copper(Amiga& ref) : SubComponent(ref)
         
         &debugger
     };
+
+    info.bind([this] { return cacheInfo(); } );
 }
 
 void
@@ -197,13 +197,13 @@ Copper::move(u32 addr, u16 value)
     assert(IS_EVEN(addr));
     assert(addr < 0x1FF);
     
-    trace(COP_DEBUG,
+    logdebug(COP_DEBUG,
           "COPPC: %X move(%s, $%X) (%d)\n", coppc0, MemoryDebugger::regName(addr), value, value);
 
     // Catch registers with special timing needs
     if (addr >= 0x180 && addr <= 0x1BE) {
 
-        trace(OCSREG_DEBUG,
+        logdebug(OCSREG_DEBUG,
               "pokeCustom16(%X [%s], %X)\n", addr, MemoryDebugger::regName(addr), value);
 
         // Color registers
@@ -416,14 +416,14 @@ Copper::eofHandler()
      */
     agnus.scheduleRel <SLOT_COP> (DMA_CYCLES(0), COP_VBLANK);
     
-    if (COP_CHECKSUM) {
-        
-        if (checkcnt) {
-            msg("[%lld] Checksum: %x (%lld) lc1 = %x lc2 = %x\n",
-                agnus.pos.frame, checksum, checkcnt, cop1lc, cop2lc);
-        }
+    if constexpr (debug::COP_CHECKSUM) {
+
+        if (checkcnt)
+            loginfo(COP_CHECKSUM, "[%lld] Checksum: %x (%lld) lc1 = %x lc2 = %x\n",
+                    agnus.pos.frame, checksum, checkcnt, cop1lc, cop2lc);
+
         checkcnt = 0;
-        checksum = util::fnvInit32();
+        checksum = Hashable::fnvInit32();
     }
 }
 

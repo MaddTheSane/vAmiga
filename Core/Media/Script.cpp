@@ -10,8 +10,7 @@
 #include "config.h"
 #include "Script.h"
 #include "Amiga.h"
-#include "IOUtils.h"
-
+#include "utl/support/Strings.h"
 #include <sstream>
 
 namespace vamiga {
@@ -19,21 +18,9 @@ namespace vamiga {
 bool
 Script::isCompatible(const fs::path &path)
 {
-    auto suffix = util::uppercased(path.extension().string());
+    auto suffix = utl::uppercased(path.extension().string());
 
     return suffix == ".RETROSH";
-}
-
-bool
-Script::isCompatible(const u8 *buf, isize len)
-{
-    return true;
-}
-
-bool
-Script::isCompatible(const Buffer<u8> &buf)
-{
-    return isCompatible(buf.ptr, buf.size);
 }
 
 }

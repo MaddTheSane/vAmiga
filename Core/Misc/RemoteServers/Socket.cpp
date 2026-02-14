@@ -9,18 +9,19 @@
 
 #include "config.h"
 #include "Socket.h"
-#include "MemUtils.h"
+#include "ServerError.h"
+#include "utl/support/Bits.h"
 
 namespace vamiga {
 
 Socket::Socket() : socket(INVALID_SOCKET)
 {
-    debug(SCK_DEBUG, "Socket constructor\n");
+    loginfo(SCK_DEBUG, "Socket constructor\n");
 }
 
 Socket::Socket(SOCKET id) : socket(id)
 {
-    debug(SCK_DEBUG, "Wrapping socket %lld\n", (i64)id);
+    loginfo(SCK_DEBUG, "Wrapping socket %lld\n", (i64)id);
 }
 
 Socket::Socket(Socket&& other)
@@ -44,7 +45,7 @@ Socket& Socket::operator=(Socket&& other)
 
 Socket::~Socket()
 {
-    debug(SCK_DEBUG, "Socket destructor\n");
+    loginfo(SCK_DEBUG, "Socket destructor\n");
     
     if (socket != INVALID_SOCKET) {
         close();
@@ -60,7 +61,7 @@ void Socket::create()
             
             WSADATA wsaData;
             if (WSAStartup(MAKEWORD(2, 2), &wsaData))
-                throw AppError(Fault::SOCK_CANT_CREATE);
+                throw ServerError(ServerError::SOCK_CANT_CREATE);
         }
         ~WSAInit() {
             
@@ -74,7 +75,7 @@ void Socket::create()
         // Create a new socket
         socket = ::socket(AF_INET, SOCK_STREAM, 0);
         if (socket == INVALID_SOCKET) {
-            throw AppError(Fault::SOCK_CANT_CREATE);
+            throw ServerError(ServerError::SOCK_CANT_CREATE);
         }
         
         // Set options
@@ -85,10 +86,10 @@ void Socket::create()
                                   (const char *)&opt,
                                   sizeof(opt));
         if (success < 0) {
-            throw AppError(Fault::SOCK_CANT_CREATE);
+            throw ServerError(ServerError::SOCK_CANT_CREATE);
         }
         
-        debug(SCK_DEBUG, "Created new socket %lld\n", (i64)socket);
+        loginfo(SCK_DEBUG, "Created new socket %lld\n", (i64)socket);
     }
 }
 
@@ -101,10 +102,10 @@ Socket::connect(u16 port)
     struct sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = util::bigEndian(port);
+    address.sin_port = bigEndian(port);
     
     if (::connect(socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        throw AppError(Fault::SOCK_CANT_CONNECT);
+        throw ServerError(ServerError::SOCK_CANT_CONNECT);
     }
 }
 
@@ -117,10 +118,10 @@ Socket::bind(u16 port)
     struct sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = util::bigEndian(port);
+    address.sin_port = bigEndian(port);
     
     if (::bind(socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        throw AppError(Fault::SOCK_CANT_BIND);
+        throw ServerError(ServerError::SOCK_CANT_BIND);
     }
 }
 
@@ -128,7 +129,7 @@ void
 Socket::listen()
 {
     if (::listen(socket, 3) < 0) {
-        throw AppError(Fault::SOCK_CANT_LISTEN);
+        throw ServerError(ServerError::SOCK_CANT_LISTEN);
     }
 }
 
@@ -140,7 +141,7 @@ Socket::accept()
     auto s = ::accept(socket, (struct sockaddr *)&address, &addrlen);
 
     if (s == INVALID_SOCKET) {
-        throw AppError(Fault::SOCK_CANT_ACCEPT);
+        throw ServerError(ServerError::SOCK_CANT_ACCEPT);
     }
     
     return Socket(s);
@@ -157,14 +158,14 @@ Socket::recv()
         return result;
     }
     
-    throw AppError(Fault::SOCK_CANT_RECEIVE);
+    throw ServerError(ServerError::SOCK_CANT_RECEIVE);
 }
 
 void
 Socket::send(u8 value)
 {
     if (::send(socket, (const char *)&value, 1, 0) < 1) {
-        throw AppError(Fault::SOCK_CANT_SEND);
+        throw ServerError(ServerError::SOCK_CANT_SEND);
     }
 }
 
@@ -172,7 +173,7 @@ void
 Socket::send(const string &s)
 {
     if (::send(socket, s.c_str(), (int)s.length(), 0) < 0) {
-        throw AppError(Fault::SOCK_CANT_SEND);
+        throw ServerError(ServerError::SOCK_CANT_SEND);
     }
 }
 
@@ -181,7 +182,7 @@ Socket::close()
 {    
     if (socket != INVALID_SOCKET) {
 
-        debug(SCK_DEBUG, "Closing socket %lld\n", (i64)socket);
+        loginfo(SCK_DEBUG, "Closing socket %lld\n", (i64)socket);
 #ifdef _WIN32
         closesocket(socket);
 #else

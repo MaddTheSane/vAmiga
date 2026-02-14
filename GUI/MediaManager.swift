@@ -65,8 +65,8 @@ class MediaManager {
     var exportedHardDrives3: [URL] = []
     
     // Pictograms used in menu items
-    var diskMenuImage = NSImage(named: "diskTemplate")!.resize(width: 16.0, height: 16.0)
-    var hdrMenuImage = NSImage(named: "hdrTemplate")!.resize(width: 16.0, height: 16.0)
+    var diskMenuImage = Symbol.get(.floppy35, size: 16)
+    var hdrMenuImage = Symbol.get(.harddrive, size: 16)
     
     //
     // Initializing
@@ -74,7 +74,7 @@ class MediaManager {
     
     init(with document: MyDocument) {
         
-        debug(.lifetime, "Creating media manager")
+        loginfo(.lifetime, "Creating media manager")
         self.mydocument = document
         
         diskMenuImage.isTemplate = true
@@ -237,8 +237,8 @@ class MediaManager {
         }
     }
     
-    func noteNewRecentlyOpenedURL(_ url: URL, type: FileType) {
-        
+    func noteNewRecentlyOpenedURL(_ url: URL, type: ImageFormat) {
+
         switch type {
             
         case .ADF, .ADZ, .EADF, .DMS, .EXE, .IMG, .ST: MediaManager.noteNewRecentlyInsertedDiskURL(url)
@@ -249,7 +249,7 @@ class MediaManager {
         }
     }
     
-    func noteNewRecentlyExportedURL(_ url: URL, nr: Int, type: FileType) {
+    func noteNewRecentlyExportedURL(_ url: URL, nr: Int, type: ImageFormat) {
         
         switch type {
             
@@ -262,73 +262,9 @@ class MediaManager {
     }
     
     //
-    // Creating media files from URLs
-    //
-    
-    static func createFileProxy(from url: URL, type: FileType) throws -> MediaFileProxy {
-        
-        return try createFileProxy(from: url, allowedTypes: [type])
-    }
-    
-    static func createFileProxy(from url: URL, allowedTypes: [FileType]) throws -> MediaFileProxy {
-        
-        debug(.media, "Reading file \(url.lastPathComponent)")
-        
-        // Iterate through all allowed file types
-        for type in allowedTypes {
-            
-            do {
-                return try MediaFileProxy.make(with: url, type: type)
-            } catch let error as AppError {
-                if error.errorCode != .FILE_TYPE_MISMATCH { throw error }
-            }
-        }
-        
-        // None of the allowed types matched the file
-        throw AppError(.FILE_TYPE_MISMATCH,
-                       "The type of this file is not known to the emulator.")
-    }
-    
-    //
     // Mouting media files
     //
-    
-    func mount(url: URL,
-               allowedTypes types: [FileType] = FileType.all,
-               drive n: Int = 0,
-               options: [Option] = [.remember]) throws {
-        
-        debug(.media, "url = \(url) types = \(types)")
-        
-        let type = MediaFileProxy.type(of: url)
-        if !types.contains(type) {
-            
-            throw AppError(.FILE_TYPE_MISMATCH,
-                           "The type of this file is not known to the emulator.")
-        }
-        
-        switch type {
-            
-        case .WORKSPACE:
-            try mydocument.processWorkspaceFile(url: url)
-            
-        case .SNAPSHOT:
-            try mydocument.processSnapshotFile(url: url)
-            
-        case .SCRIPT:
-            try mydocument.processScriptFile(url: url)
-            
-        case .HDF, .HDZ:
-            try mount(hd: n, url: url, options: options)
-            
-        case .ADF, .ADZ, .DMS, .EXE, .EADF, .IMG, .ST, .DIR:
-            try mount(df: n, url: url, options: options)
-            
-        default:
-            break
-        }
-    }
-    
+
     func mount(df n: Int, url: URL, options: [Option] = [.remember]) throws {
         
         guard let emu = emu else { return }

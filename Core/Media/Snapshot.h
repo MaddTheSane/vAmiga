@@ -11,6 +11,7 @@
 
 #include "AnyFile.h"
 #include "Constants.h"
+#include "AmigaTypes.h"
 
 namespace vamiga {
 
@@ -55,32 +56,26 @@ class Snapshot : public AnyFile {
 public:
     
     static bool isCompatible(const fs::path &path);
-    static bool isCompatible(const u8 *buf, isize len);
-    static bool isCompatible(const Buffer<u8> &buffer);
-    
+
     
     //
     // Initializing
     //
     
-    Snapshot(const Snapshot &other) throws { init(other.data.ptr, other.data.size); }
-    Snapshot(const fs::path &path) throws { init(path); }
-    Snapshot(const u8 *buf, isize len) throws { init(buf, len); }
+    Snapshot(const Snapshot &other) { init(other.data.ptr, other.data.size); }
+    Snapshot(const fs::path &path) { init(path); }
+    Snapshot(const u8 *buf, isize len) { init(buf, len); }
     Snapshot(isize capacity);
     Snapshot(Amiga &amiga);
     Snapshot(Amiga &amiga, Compressor compressor);
-    
-    const char *objectName() const override { return "Snapshot"; }
     
     
     //
     // Methods from AnyFile
     //
     
-    FileType type() const override { return FileType::SNAPSHOT; }
     bool isCompatiblePath(const fs::path &path) const override { return isCompatible(path); }
-    bool isCompatibleBuffer(const u8 *buf, isize len) const override { return isCompatible(buf, len); }
-    void finalizeRead() throws override;
+    void didLoad() override;
     
     
     //
@@ -89,9 +84,9 @@ public:
     
 public:
     
-    std::pair <isize,isize> previewImageSize() const override;
-    const u32 *previewImageData() const override;
-    time_t timestamp() const override;
+    std::pair <isize,isize> previewImageSize() const;
+    const u32 *previewImageData() const;
+    time_t timestamp() const;
     
     // Checks the snapshot version number
     bool isTooOld() const;
@@ -106,7 +101,7 @@ public:
     const Thumbnail &getThumbnail() const { return getHeader()->screenshot; }
     
     // Returns pointer to the core data
-    u8 *getData() const override { return data.ptr + sizeof(SnapshotHeader); }
+    // u8 *getData() const override { return data.ptr + sizeof(SnapshotHeader); }
     
     // Takes a screenshot
     void takeScreenshot(Amiga &amiga);
@@ -115,13 +110,16 @@ public:
     //
     // Compressing
     //
-    
+
     // Returns the compression method
-    Compressor compressor() const override { return Compressor(getHeader()->compressor); }
-    
+    Compressor compressor() const { return Compressor(getHeader()->compressor); }
+
+    // Convenience wrapper
+    bool isCompressed() const { return compressor() != Compressor::NONE; }
+
     // Compresses or uncompresses the snapshot
-    void compress(Compressor method) override;
-    void uncompress() override;
+    void compress(Compressor method);
+    void uncompress();
 };
 
 }

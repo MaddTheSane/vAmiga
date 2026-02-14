@@ -10,7 +10,7 @@
 import MetalKit
 
 @MainActor
-public class MetalView: MTKView {
+class MetalView: MTKView {
     
     @IBOutlet weak var parent: MyController!
     
@@ -41,8 +41,7 @@ public class MetalView: MTKView {
     // Temporary storage of the properties of a dragged in file
     var dropZone: Int?
     var dropUrl: URL?
-    var dropType: FileType?
-    
+
     required public init(coder: NSCoder) {
     
         super.init(coder: coder)

@@ -10,6 +10,7 @@
 #include "config.h"
 #include "Emulator.h"
 #include "CIA.h"
+#include "utl/io.h"
 #include <cmath>
 
 namespace vamiga {
@@ -139,7 +140,7 @@ AudioFilter::AudioFilter(Amiga& amiga, AudioPort& port) : SubComponent(amiga, po
 void
 AudioFilter::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     if (category == Category::Config) {
 
@@ -205,12 +206,12 @@ AudioFilter::checkOption(Opt opt, i64 value)
         case Opt::AUD_FILTER_TYPE:
 
             if (!FilterTypeEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, FilterTypeEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, FilterTypeEnum::keyList());
             }
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -233,7 +234,7 @@ AudioFilter::setOption(Opt option, i64 value)
 void
 AudioFilter::setup(double sampleRate)
 {
-    trace(AUD_DEBUG, "Setting sample rate to %.1f Hz\n", sampleRate);
+    logdebug(AUD_DEBUG, "Setting sample rate to %.1f Hz\n", sampleRate);
 
     setupLoFilter(sampleRate);
     setupLedFilter(sampleRate);

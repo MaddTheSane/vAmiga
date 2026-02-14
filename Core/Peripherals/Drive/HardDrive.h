@@ -11,15 +11,31 @@
 
 #include "HardDriveTypes.h"
 #include "HdControllerTypes.h"
+#include "FileSystems/Amiga/FSTypes.h"
+#include "ImageTypes.h"
+#include "FileSystems/Amiga/FSObjects.h"
 #include "AgnusTypes.h"
 #include "Drive.h"
-#include "Buffer.h"
-#include "MemUtils.h"
+#include "HardDiskImage.h"
+#include "HDFFile.h"
+#include "HDZFile.h"
+#include "TrackDevice.h"
+#include "utl/storage.h"
+#include "utl/wrappers.h"
+
+namespace retro::vault::amiga { class FileSystem; }
 
 namespace vamiga {
 
-class HardDrive final : public Drive, public Inspectable<HardDriveInfo> {
-    
+using image::HDFFile;
+using image::HDZFile;
+
+class HardDrive final : public Drive, public TrackDevice {
+
+    friend class Codec;
+    friend class image::HDFFile;
+    friend class HdController;
+
     Descriptions descriptions = {
         {
             .type           = Class::HardDrive,
@@ -53,9 +69,13 @@ class HardDrive final : public Drive, public Inspectable<HardDriveInfo> {
         Opt::HDR_PAN,
         Opt::HDR_STEP_VOLUME
     };
-    
-    friend class HDFFile;
-    friend class HdController;
+
+public:
+
+    // Result of the latest inspection
+    utl::Backed<HardDriveInfo> info;
+
+private:
 
     // Write-through storage files
     static std::fstream wtStream[4];
@@ -81,10 +101,10 @@ class HardDrive final : public Drive, public Inspectable<HardDriveInfo> {
     std::vector <DriverDescriptor> drivers;
 
     // Disk data
-    util::Buffer<u8> data;
+    utl::Buffer<u8> data;
     
     // Keeps track of modified blocks (to update the run-ahead instance)
-    util::Buffer<bool> dirty;
+    utl::Buffer<bool> dirty;
 
     // Current position of the read/write head
     DriveHead head;
@@ -114,17 +134,14 @@ public:
     void init(isize size);
 
     // Creates a hard drive with the contents of a file system
-    void init(const class MutableFileSystem &fs) throws;
-
-    // Creates a hard drive with the contents of a media file
-    void init(const class MediaFile &file) throws;
+    void init(const amiga::FileSystem &fs);
 
     // Creates a hard drive with the contents of an HDF or HDZ
-    void init(const class HDFFile &hdf) throws;
-    void init(const class HDZFile &hdz) throws;
+    void init(const HDFFile &hdf);
+    void init(const HDZFile &hdz);
 
     // Creates a hard drive with the contents of an HDF file
-    void init(const fs::path &path) throws;
+    void init(const fs::path &path);
 
     const HardDriveTraits &getTraits() const {
 
@@ -156,6 +173,8 @@ public:
 
     const PartitionTraits &getPartitionTraits(isize nr) const {
 
+        using amiga::FSFormat;
+
         static PartitionTraits traits;
 
         auto descr = getPartitionDescriptor(nr);
@@ -165,7 +184,7 @@ public:
         traits.upperCyl = descr.highCyl;
         
         switch (descr.dosType) {
-                
+
             case 0x444F5300: traits.fsType = FSFormat::OFS; break;
             case 0x444F5301: traits.fsType = FSFormat::FFS; break;
             case 0x444F5302: traits.fsType = FSFormat::OFS_INTL; break;
@@ -259,8 +278,8 @@ public:
 
     bool isConnected() const override;
 
-    Cylinder currentCyl() const override { return head.cylinder; }
-    Head currentHead() const override { return head.head; }
+    CylNr currentCyl() const override { return head.cylinder; }
+    HeadNr currentHead() const override { return head.head; }
     isize currentOffset() const override { return head.offset; }
 
     bool getFlag(DiskFlags mask) const override;
@@ -271,8 +290,8 @@ public:
     bool hasProtectedDisk() const override;
     void setModificationFlag(bool value) override;
     void setProtectionFlag(bool value) override;
-    
-    
+
+
     //
     // Methods from Configurable
     //
@@ -290,7 +309,36 @@ private:
     void connect();
     void disconnect();
 
-    
+
+    //
+    // Methods from LinearDevice
+    //
+
+public:
+
+    isize size() const override { return data.size; }
+    void read(u8 *dst, isize offset, isize count) const override;
+    void write(const u8 *src, isize offset, isize count) override;
+
+
+    //
+    // Methods from BlockDevice
+    //
+
+public:
+
+    isize bsize() const override { return geometry.bsize; }
+
+
+    //
+    // Methods from TrackDevice
+    //
+
+    isize numCyls() const override { return geometry.cylinders; }
+    isize numHeads() const override { return geometry.heads; }
+    isize numSectors(isize t) const override { return geometry.sectors; }
+
+
     //
     // Analyzing
     //
@@ -298,7 +346,7 @@ private:
 public:
 
     // Returns information about the disk
-    void cacheInfo(HardDriveInfo &info) const override;
+    HardDriveInfo cacheInfo() const;
 
     // Returns information about a specific partition
     const PartitionDescriptor &getPartitionDescriptor(isize nr) const;
@@ -336,11 +384,11 @@ public:
     string defaultName(isize partition = 0) const;
 
     // Formats the disk
-    void format(FSFormat fs, string name) throws;
+    void format(amiga::FSFormat fs, amiga::FSName name);
 
     // Change the drive geometry
-    void changeGeometry(isize c, isize h, isize s, isize b = 512) throws;
-    void changeGeometry(const GeometryDescriptor &geometry) throws;
+    void changeGeometry(isize c, isize h, isize s, isize b = 512);
+    void changeGeometry(const GeometryDescriptor &geometry);
     
     
     //
@@ -356,7 +404,7 @@ public:
     i8 write(isize offset, isize length, u32 addr);
     
     // Reads a loadable file system
-    void readDriver(isize nr, util::Buffer<u8> &driver);
+    void readDriver(isize nr, utl::Buffer<u8> &driver);
     
 private:
 
@@ -375,12 +423,15 @@ private:
 public:
     
     // Imports files from a folder (deletes existing files)
-    void importFolder(const fs::path &path) throws;
+    void importFolder(const fs::path &path);
     
-    // Exports the disk in HDF format
-    void writeToFile(const fs::path &path) throws;
+    // Exports the disk to a file
+    void writeToFile(const fs::path &path);
 
-    
+    // Exports the disk to a HardDiskImage
+    std::unique_ptr<HardDiskImage> exportDisk(ImageFormat fmt) const;
+
+
     //
     // Scheduling and serving events
     //

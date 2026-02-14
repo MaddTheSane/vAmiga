@@ -11,15 +11,21 @@
 #include "RshServer.h"
 #include "Amiga.h"
 #include "RetroShell.h"
-#include "StringUtils.h"
+#include "utl/support.h"
 
 namespace vamiga {
 
 void
-RshServer::_dump(Category category, std::ostream &os) const
+RshServer::_initialize()
 {
-    using namespace util;
-    
+    retroShell.commander.delegates.push_back(this);
+    retroShell.debugger.delegates.push_back(this);
+    retroShell.navigator.delegates.push_back(this);
+}
+
+void
+RshServer::_dump(Category category, std::ostream &os) const
+{    
     RemoteServer::_dump(category, os);
 }
 
@@ -39,7 +45,18 @@ RshServer::didConnect()
         
         try {
 
-            retroShell.asyncExec("welcome");
+            *this << "vAmiga RetroShell Remote Server ";
+            *this << Amiga::build() << '\n';
+            *this << '\n';
+
+            *this << "Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de" << '\n';
+            *this << "https://github.com/dirkwhoffmann/vamiga" << '\n';
+            *this << '\n';
+
+            *this << "Type 'help' for help.\n";
+            *this << '\n';
+
+            *this << retroShell.prompt();
 
         } catch (...) { };
     }
@@ -51,11 +68,11 @@ RshServer::doReceive()
     string payload = connection.recv();
     
     // Remove LF and CR (if present)
-    payload = util::rtrim(payload, "\n\r");
+    payload = utl::rtrim(payload, "\n\r");
 
     // Ask the client to delete the input (will be replicated by RetroShell)
-    connection.send("\033[A\33[2K\r");
-    
+    // connection.send("\033[A\33[2K\r");
+
     return payload;
 }
 
@@ -91,8 +108,47 @@ RshServer::doSend(const string &payload)
 void
 RshServer::doProcess(const string &payload)
 {
-    retroShell.press(payload);
-    retroShell.press('\n');
+    retroShell.asyncExec(InputLine {
+
+        .type = InputLine::Source::RSH,
+        .input = payload
+    });
+}
+
+void
+RshServer::didActivate()
+{
+
+}
+
+void
+RshServer::didDeactivate()
+{
+
+}
+
+void
+RshServer::willExecute(const InputLine &input)
+{
+    // Echo the command if it came from somewhere else
+    if (!input.isRshCommand()) { *this << input.input << '\n'; }
+}
+
+void
+RshServer::didExecute(const InputLine &input, std::stringstream &ss)
+{
+    *this << '\n' << ss.str() << '\n';
+    *this << retroShell.prompt();
+}
+
+void
+RshServer::didExecute(const InputLine &input, std::stringstream &ss, std::exception &e)
+{
+    // Echo the command if it came from somewhere else
+    if (!input.isRpcCommand()) { *this << input.input << '\n'; }
+
+    *this << '\n' << ss.str() << e.what() << '\n';
+    *this << retroShell.prompt();
 }
 
 }

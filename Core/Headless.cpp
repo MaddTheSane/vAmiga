@@ -13,6 +13,8 @@
 #include "Amiga.h"
 #include "Script.h"
 #include "DiagRom.h"
+#include "utl/chrono.h"
+#include "utl/support.h"
 #include <chrono>
 
 int main(int argc, char *argv[])
@@ -37,7 +39,7 @@ int main(int argc, char *argv[])
             std::cout << what << std::endl;
         }
 
-    } catch (vamiga::AppError &e) {
+    } catch (vamiga::CoreError &e) {
 
         std::cout << "Emulator Error: " << e.what() << std::endl;
 
@@ -112,7 +114,7 @@ Headless::checkArguments()
     }
 
     // The input file must exist
-    if (keys.find("arg1") != keys.end() && !util::fileExists(keys["arg1"])) {
+    if (keys.find("arg1") != keys.end() && !utl::fileExists(keys["arg1"])) {
         throw SyntaxError("File " + keys["arg1"] + " does not exist");
     }
 }
@@ -132,9 +134,6 @@ Headless::runScript(const char **script)
 void
 Headless::runScript(const fs::path &path)
 {
-    // Read the input script
-    Script script(path);
-
     // Create an emulator instance
     VAmiga vamiga;
 
@@ -148,8 +147,8 @@ Headless::runScript(const fs::path &path)
     vamiga.launch(this, vamiga::process);
 
     // Execute script
-    const auto timeout = util::Time::seconds(500.0);
-    vamiga.retroShell.execScript(script);
+    const auto timeout = utl::Time::seconds(500.0);
+    vamiga.retroShell.execScript(path);
     waitForWakeUp(timeout);
 }
 
@@ -192,30 +191,30 @@ Headless::process(Message msg)
 void 
 Headless::reportSize()
 {
-    msg("             Amiga : %zu bytes\n", sizeof(Amiga));
-    msg("             Agnus : %zu bytes\n", sizeof(Agnus));
-    msg("       AudioFilter : %zu bytes\n", sizeof(AudioFilter));
-    msg("               CIA : %zu bytes\n", sizeof(CIA));
-    msg("       ControlPort : %zu bytes\n", sizeof(ControlPort));
-    msg("               CPU : %zu bytes\n", sizeof(CPU));
-    msg("            Denise : %zu bytes\n", sizeof(Denise));
-    msg("             Drive : %zu bytes\n", sizeof(FloppyDrive));
-    msg("          Keyboard : %zu bytes\n", sizeof(Keyboard));
-    msg("            Memory : %zu bytes\n", sizeof(Memory));
-    msg("moira::Breakpoints : %zu bytes\n", sizeof(moira::Breakpoints));
-    msg("moira::Watchpoints : %zu bytes\n", sizeof(moira::Watchpoints));
-    msg("   moira::Debugger : %zu bytes\n", sizeof(moira::Debugger));
-    msg("      moira::Moira : %zu bytes\n", sizeof(moira::Moira));
-    msg("         AudioPort : %zu bytes\n", sizeof(AudioPort));
-    msg("             Paula : %zu bytes\n", sizeof(Paula));
-    msg("       PixelEngine : %zu bytes\n", sizeof(PixelEngine));
-    msg("     RemoteManager : %zu bytes\n", sizeof(RemoteManager));
-    msg("               RTC : %zu bytes\n", sizeof(RTC));
-    msg("        RetroShell : %zu bytes\n", sizeof(RetroShell));
-    msg("           Sampler : %zu bytes\n", sizeof(Sampler));
-    msg("        SerialPort : %zu bytes\n", sizeof(SerialPort));
-    msg("             Zorro : %zu bytes\n", sizeof(ZorroManager));
-    msg("\n");
+    printf("             Amiga : %zu bytes\n", sizeof(Amiga));
+    printf("             Agnus : %zu bytes\n", sizeof(Agnus));
+    printf("       AudioFilter : %zu bytes\n", sizeof(AudioFilter));
+    printf("               CIA : %zu bytes\n", sizeof(CIA));
+    printf("       ControlPort : %zu bytes\n", sizeof(ControlPort));
+    printf("               CPU : %zu bytes\n", sizeof(CPU));
+    printf("            Denise : %zu bytes\n", sizeof(Denise));
+    printf("             Drive : %zu bytes\n", sizeof(FloppyDrive));
+    printf("          Keyboard : %zu bytes\n", sizeof(Keyboard));
+    printf("            Memory : %zu bytes\n", sizeof(Memory));
+    printf("moira::Breakpoints : %zu bytes\n", sizeof(moira::Breakpoints));
+    printf("moira::Watchpoints : %zu bytes\n", sizeof(moira::Watchpoints));
+    printf("   moira::Debugger : %zu bytes\n", sizeof(moira::Debugger));
+    printf("      moira::Moira : %zu bytes\n", sizeof(moira::Moira));
+    printf("         AudioPort : %zu bytes\n", sizeof(AudioPort));
+    printf("             Paula : %zu bytes\n", sizeof(Paula));
+    printf("       PixelEngine : %zu bytes\n", sizeof(PixelEngine));
+    printf("     RemoteManager : %zu bytes\n", sizeof(RemoteManager));
+    printf("               RTC : %zu bytes\n", sizeof(RTC));
+    printf("        RetroShell : %zu bytes\n", sizeof(RetroShell));
+    printf("           Sampler : %zu bytes\n", sizeof(Sampler));
+    printf("        SerialPort : %zu bytes\n", sizeof(SerialPort));
+    printf("             Zorro : %zu bytes\n", sizeof(ZorroManager));
+    printf("\n");
 }
 
 const char *
@@ -585,21 +584,32 @@ Headless::smokeTestScript[] = {
     "hd1 set PAN 50",
     "hd1 set STEP_VOLUME 50",
 
-    "server",
-    "server serial",
-    "server serial set PORT 8000",
-    "server serial set VERBOSE true",
-    "server serial set VERBOSE false",
+    "server rsh",
+    "server rsh set PORT 8000",
+    "server rsh set VERBOSE true",
+    "server rsh set VERBOSE false",
 
-    "server rshell",
-    "server rshell set PORT 8000",
-    "server rshell set VERBOSE true",
-    "server rshell set VERBOSE false",
+    "server rpc",
+    "server rpc set PORT 8000",
+    "server rpc set VERBOSE true",
+    "server rpc set VERBOSE false",
 
     "server gdb",
     "server gdb set PORT 8000",
     "server gdb set VERBOSE true",
     "server gdb set VERBOSE false",
+
+    "server",
+    "server prom",
+    "server prom set PORT 8000",
+    "server prom set VERBOSE true",
+    "server prom set VERBOSE false",
+
+    "server",
+    "server ser",
+    "server ser set PORT 8000",
+    "server ser set VERBOSE true",
+    "server ser set VERBOSE false",
 
     // Enter debugger
     "debugger",

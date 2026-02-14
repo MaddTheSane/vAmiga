@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24128" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24506" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24128"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24506"/>
+        <capability name="Image references" minToolsVersion="12.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -94,7 +95,7 @@
             <windowStyleMask key="styleMask" titled="YES" closable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="196" y="240" width="646" height="495"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="3440" height="1409"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="1728" height="1084"/>
             <value key="minSize" type="size" width="646" height="495"/>
             <value key="maxSize" type="size" width="646" height="495"/>
             <view key="contentView" wantsLayer="YES" id="EiT-Mj-1SZ">
@@ -723,33 +724,36 @@
                                             </textFieldCell>
                                         </textField>
                                         <button tag="1" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="HiD-6D-klX">
-                                            <rect key="frame" x="567" y="340" width="16" height="16"/>
+                                            <rect key="frame" x="567" y="340.5" width="16" height="16"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="trashTemplate" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" imageScaling="proportionallyDown" inset="2" id="WBu-KV-33I">
+                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" inset="2" id="WBu-KV-33I">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                 <font key="font" metaFont="system"/>
+                                                <imageReference key="image" image="trash" catalog="system" symbolScale="large"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="conDeleteKeysetAction:" target="-2" id="tKl-wz-UlJ"/>
                                             </connections>
                                         </button>
                                         <button tag="2" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="HXz-VN-lav">
-                                            <rect key="frame" x="567" y="228" width="16" height="16"/>
+                                            <rect key="frame" x="567" y="228.5" width="16" height="16"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="trashTemplate" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" imageScaling="proportionallyDown" inset="2" id="tlA-sg-j9U">
+                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" inset="2" id="tlA-sg-j9U">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                 <font key="font" metaFont="system"/>
+                                                <imageReference key="image" image="trash" catalog="system" symbolScale="large"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="conDeleteKeysetAction:" target="-2" id="NHh-eY-YQb"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="g51-Ax-Tce">
-                                            <rect key="frame" x="567" y="133" width="16" height="16"/>
+                                            <rect key="frame" x="567" y="133.5" width="16" height="16"/>
                                             <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
-                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="trashTemplate" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" imageScaling="proportionallyDown" inset="2" id="Rdu-Mo-Epb">
+                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" refusesFirstResponder="YES" state="on" inset="2" id="Rdu-Mo-Epb">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                 <font key="font" metaFont="system"/>
+                                                <imageReference key="image" image="trash" catalog="system" symbolScale="large"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="conDeleteKeysetAction:" target="-2" id="mOk-Ge-fXW"/>
@@ -1503,15 +1507,15 @@
                                             <rect key="frame" x="305" y="79" width="278" height="149"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                             <clipView key="contentView" drawsBackground="NO" id="ZbA-Ci-i6F">
-                                                <rect key="frame" x="0.0" y="0.0" width="261" height="149"/>
-                                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                <rect key="frame" x="0.0" y="0.0" width="278" height="149"/>
+                                                <autoresizingMask key="autoresizingMask"/>
                                                 <subviews>
                                                     <textView wantsLayer="YES" importsGraphics="NO" richText="NO" verticallyResizable="YES" spellingCorrection="YES" smartInsertDelete="YES" id="lue-lV-Oit">
-                                                        <rect key="frame" x="0.0" y="0.0" width="261" height="149"/>
+                                                        <rect key="frame" x="0.0" y="0.0" width="278" height="149"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                                        <size key="minSize" width="261" height="149"/>
+                                                        <size key="minSize" width="278" height="149"/>
                                                         <size key="maxSize" width="278" height="10000000"/>
                                                         <connections>
                                                             <outlet property="delegate" destination="-2" id="sDV-l9-oMY"/>
@@ -1565,6 +1569,6 @@
         <image name="joystick2" width="261" height="300"/>
         <image name="mouse" width="128" height="128"/>
         <image name="recordKey" width="36" height="36"/>
-        <image name="trashTemplate" width="174" height="214"/>
+        <image name="trash" catalog="system" width="19" height="22"/>
     </resources>
 </document>

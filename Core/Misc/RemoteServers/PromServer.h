@@ -19,8 +19,6 @@ public:
 
     using HttpServer::HttpServer;
 
-protected:
-
     PromServer& operator= (const PromServer& other) {
 
         HttpServer::operator = (other);
@@ -43,6 +41,7 @@ protected:
 
 public:
 
+    virtual bool canRun() override { return true; }
     void main() override;
 
 

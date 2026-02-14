@@ -11,7 +11,10 @@
 #import "EmulatorProxy.h"
 #import "VAmiga.h"
 #import "Emulator.h"
-#import "MutableFileSystem.h"
+#import "DiskImage.h"
+#import "RomFile.h"
+#import "utl/support/Strings.h"
+#import "utl/support/Strings.h"
 
 using namespace vamiga;
 using namespace vamiga::moira;
@@ -88,7 +91,16 @@ NSString *EventSlotName(EventSlot slot)
 {
     return @(EventSlotEnum::help(slot));
 }
- 
+
+ImageInfo scan(const fs::path &url)
+{
+    if (auto info = DiskImage::about(url)) {
+        return *info;
+    } else {
+        return { ImageType::UNKNOWN, ImageFormat::UNKNOWN };
+    }
+}
+
 @implementation ExceptionWrapper
 
 @synthesize fault;
@@ -98,16 +110,33 @@ NSString *EventSlotName(EventSlot slot)
 
     if (self = [super init]) {
         
-        fault = Fault::OK;
+        fault = 0; // Fault::OK;
         what = @"";
     }
     return self;
 }
 
-- (void)save:(const AppError &)exception
+/*
+- (void)save:(const Error &)exception
 {
     fault = exception.fault();
     what = @(exception.what());
+}
+*/
+
+- (void)save:(const std::exception &)exception
+{
+    if (auto *error = dynamic_cast<const Error *>(&exception)) {
+
+        fault = error->fault();
+        what = @(error->what());
+
+    } else {
+
+        // Uncatched C++ error (this is a bug)
+        fault = 666;
+        what = @(exception.what());
+    }
 }
 
 @end
@@ -153,13 +182,13 @@ NSString *EventSlotName(EventSlot slot)
 - (void)load:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self props]->load([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)save:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self props]->save([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)register:(NSString *)key value:(NSString *)value
@@ -446,9 +475,9 @@ NSString *EventSlotName(EventSlot slot)
     return [self cia]->getCachedInfo();
 }
 
-- (CIAStats)stats
+- (CIAMetrics)stats
 {
-    return [self cia]->getStats();
+    return [self cia]->getMetrics();
 }
 
 @end
@@ -480,9 +509,9 @@ NSString *EventSlotName(EventSlot slot)
     return [self mem]->getCachedInfo();
 }
 
-- (MemStats)stats
+- (MemMetrics)stats
 {
-    return [self mem]->getStats();
+    return [self mem]->getMetrics();
 }
 
 - (RomTraits)romTraits
@@ -507,13 +536,7 @@ NSString *EventSlotName(EventSlot slot)
 
 - (BOOL)isRom:(NSURL *)url
 {
-    return MediaFile::type([url fileSystemRepresentation]) == FileType::ROM;
-}
-
-- (void)loadRom:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self mem]->loadRom(*(MediaFile *)proxy->obj); }
-    catch (AppError &error) { [ex save:error]; }
+    return RomFile::isCompatible([url fileSystemRepresentation]);
 }
 
 - (void)loadRomFromBuffer:(NSData *)data exception:(ExceptionWrapper *)ex
@@ -522,31 +545,18 @@ NSString *EventSlotName(EventSlot slot)
     const u8 *bytes = (const u8 *)[data bytes];
     
     try { return [self mem]->loadRom(bytes, [data length]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)loadRomFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->loadRom([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)deleteExt
 {
     [self mem]->deleteExt();
-}
-
-/*
-- (BOOL)isExt:(NSURL *)url
-{
-    return MediaFile::type([url fileSystemRepresentation]) == FileType::EXTENDED_ROM;
-}
-*/
-
-- (void)loadExt:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try { return [self mem]->loadExt(*(MediaFile *)proxy->obj); }
-    catch (AppError &error) { [ex save:error]; }
 }
 
 - (void)loadExtFromBuffer:(NSData *)data exception:(ExceptionWrapper *)ex
@@ -555,31 +565,31 @@ NSString *EventSlotName(EventSlot slot)
     const u8 *bytes = (const u8 *)[data bytes];
     
     try { return [self mem]->loadExt(bytes, [data length]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)loadExtFromFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->loadExt([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)saveRom:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->saveRom([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)saveWom:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->saveWom([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)saveExt:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self mem]->saveExt([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (MemSrc)memSrc:(Accessor)accessor addr:(NSInteger)addr
@@ -640,7 +650,7 @@ NSString *EventSlotName(EventSlot slot)
     return (AudioPortAPI *)obj;
 }
 
-- (AudioPortStats)stats
+- (AudioPortMetrics)stats
 {
     return [self port]->getStats();
 }
@@ -710,9 +720,9 @@ NSString *EventSlotName(EventSlot slot)
     return [self agnus]->getCachedInfo();
 }
 
-- (AgnusStats)stats
+- (AgnusMetrics)stats
 {
-    return [self agnus]->getStats();
+    return [self agnus]->getMetrics();
 }
 
 - (AgnusTraits)traits
@@ -1137,6 +1147,60 @@ NSString *EventSlotName(EventSlot slot)
 
 @end
 
+//
+// MidiManager proxy
+//
+
+@implementation MidiManagerProxy
+
+- (MidiManager *)midi
+{
+    return (MidiManager *)obj;
+}
+
++ (NSInteger)outputCount
+{
+    return (NSInteger)MidiManager::getOutputCount();
+}
+
++ (NSInteger)inputCount
+{
+    return (NSInteger)MidiManager::getInputCount();
+}
+
++ (NSString *)outputDeviceName:(NSInteger)index
+{
+    auto name = MidiManager::getOutputName((ItemCount)index);
+    return [NSString stringWithUTF8String:name.c_str()];
+}
+
++ (NSString *)inputDeviceName:(NSInteger)index
+{
+    auto name = MidiManager::getInputName((ItemCount)index);
+    return [NSString stringWithUTF8String:name.c_str()];
+}
+
+- (NSInteger)selectedOutputDevice
+{
+    return [self midi]->getOption(Opt::MIDI_DEVICE_OUT);
+}
+
+- (NSInteger)selectedInputDevice
+{
+    return [self midi]->getOption(Opt::MIDI_DEVICE_IN);
+}
+
+- (void)setOutputDevice:(NSInteger)index
+{
+    [self midi]->setOption(Opt::MIDI_DEVICE_OUT, index);
+}
+
+- (void)setInputDevice:(NSInteger)index
+{
+    [self midi]->setOption(Opt::MIDI_DEVICE_IN, index);
+}
+
+@end
 
 //
 // Keyboard
@@ -1271,19 +1335,13 @@ NSString *EventSlotName(EventSlot slot)
             return [self drive]->insertBlankDisk(fs, bb, [name UTF8String]);
         }
     }
-    catch (AppError &error) { [ex save:error]; }
-}
-
-- (void)insertMedia:(MediaFileProxy *)proxy protected:(BOOL)wp exception:(ExceptionWrapper *)ex
-{
-    try { [self drive]->insertMedia(*(MediaFile *)proxy->obj, wp); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)insertFile:(NSURL *)url protected:(BOOL)wp exception:(ExceptionWrapper *)ex
 {
     try { [self drive]->insert([url fileSystemRepresentation], wp); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(std::exception &error) { [ex save:error]; }
 }
 
 - (void)eject
@@ -1291,11 +1349,10 @@ NSString *EventSlotName(EventSlot slot)
     [self drive]->ejectDisk();
 }
 
-- (MediaFileProxy *)exportDisk:(FileType)type exception:(ExceptionWrapper *)ex
+- (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    try { return [MediaFileProxy make:[self drive]->exportDisk(type)]; }
-    catch (AppError &error) { [ex save:error]; }
-    return nil;
+    try { [self drive]->writeToFile([url fileSystemRepresentation]); }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (NSString *)readTrackBits:(NSInteger)track
@@ -1335,12 +1392,12 @@ NSString *EventSlotName(EventSlot slot)
 
 @implementation FileSystemProxy
 
-- (MutableFileSystem *)fs
+- (FileSystem *)fs
 {
-    return (MutableFileSystem *)obj;
+    return (FileSystem *)obj;
 }
 
-+ (instancetype)make:(MutableFileSystem *)volume
++ (instancetype)make:(FileSystem *)volume
 {
     if (volume == nullptr) { return nil; }
     
@@ -1348,30 +1405,45 @@ NSString *EventSlotName(EventSlot slot)
     return proxy;
 }
 
-+ (instancetype)makeWithMedia:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
++ (instancetype)makeWithImage:(FloppyDiskImageProxy *)proxy exception:(ExceptionWrapper *)ex
 {
     try {
 
-        auto file = (MediaFile *)(proxy->obj);
-        auto dev = new MutableFileSystem(*file);
-        return [self make:dev];
+        auto *base = (FloppyDiskImage *)proxy->obj;
 
-    }  catch (AppError &error) {
+        if (auto* adf = dynamic_cast<ADFFile *>(base)) {
+
+            auto *vol = new Volume(*adf); // MEMORY LEAK!
+            auto *fs = new FileSystem(*vol);
+            return [self make:fs];
+        }
+
+        throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
+
+    } catch(Error &error) {
 
         [ex save:error];
         return nil;
     }
 }
 
-+ (instancetype)makeWithMedia:(MediaFileProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
+
++ (instancetype)makeWithImage:(HardDiskImageProxy *)proxy partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
 {
     try {
 
-        auto file = (MediaFile *)(proxy->obj);
-        auto dev = new MutableFileSystem(*file, nr);
-        return [self make:dev];
+        auto *base = (HardDiskImage *)proxy->obj;
 
-    }  catch (AppError &error) {
+        if (auto* hdf = dynamic_cast<HDFFile *>(base)) {
+
+            auto *vol = new Volume(*hdf, hdf->partition(nr)); // MEMORY LEAK!
+            auto *fs = new FileSystem(*vol);
+            return [self make:fs];
+        }
+
+        throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
+
+    } catch(Error &error) {
 
         [ex save:error];
         return nil;
@@ -1380,37 +1452,48 @@ NSString *EventSlotName(EventSlot slot)
 
 - (NSString *)name
 {
-    auto str = [self fs]->getName();
+    auto str = [self fs]->stat().name;
     return @(str.c_str());
 }
 
 - (NSString *)creationDate
 {
-    auto str = [self fs]->getCreationDate();
-    return @(str.c_str());
+    auto time = [self fs]->stat().btime;
+    if (time == 0) return @"-";
+
+    return [NSDateFormatter localizedStringFromDate:
+            [NSDate dateWithTimeIntervalSince1970:[self fs]->stat().btime]
+                                          dateStyle:NSDateFormatterMediumStyle
+                                          timeStyle:NSDateFormatterMediumStyle];
 }
 
 - (NSString *)modificationDate
 {
-    auto str = [self fs]->getModificationDate();
-    return @(str.c_str());
+    auto time = [self fs]->stat().mtime;
+    if (time == 0) return @"-";
+
+    return [NSDateFormatter localizedStringFromDate:
+            [NSDate dateWithTimeIntervalSince1970:[self fs]->stat().btime]
+                                          dateStyle:NSDateFormatterMediumStyle
+                                          timeStyle:NSDateFormatterMediumStyle];
 }
 
 - (NSString *)bootBlockName
 {
-    auto str = [self fs]->getBootBlockName();
+    auto str = [self fs]->bootStat().name;
     return @(str.c_str());
 }
 
 - (NSString *)capacityString
 {
-    auto str = util::byteCountAsString([self fs]->numBytes());
+    auto str = utl::byteCountAsString([self fs]->bytes());
     return @(str.c_str());
 }
 
 - (NSString *)fillLevelString
 {
-    auto str = util::fillLevelAsString([self fs]->getInfo().fillLevel);
+    auto st = [self fs]->stat();
+    auto str = utl::fillLevelAsString(100.0 * st.usedBlocks / st.blocks);
     return @(str.c_str());
 }
 
@@ -1431,32 +1514,33 @@ NSString *EventSlotName(EventSlot slot)
 
 - (NSInteger)blockSize
 {
-    return [self fs]->blockSize();
+    return [self fs]->bsize();
 }
 
 - (NSInteger)numBlocks
 {
-    return [self fs]->numBlocks();
+    return [self fs]->blocks();
 }
 
 - (NSInteger)numBytes
 {
-    return [self fs]->numBytes();
+    return [self fs]->bytes();
 }
 
 - (NSInteger)usedBlocks
 {
-    return [self fs]->getInfo().usedBlocks;
+    return [self fs]->stat().usedBlocks;
 }
 
 - (double)fillLevel
 {
-    return [self fs]->getInfo().fillLevel;
+    auto st = [self fs]->stat();
+    return 100.0 * st.usedBlocks / st.blocks;
 }
 
 - (BOOL)hasVirus
 {
-    return [self fs]->hasVirus();
+    return [self fs]->bootStat().hasVirus;
 }
 
 - (void)killVirus
@@ -1489,7 +1573,7 @@ NSString *EventSlotName(EventSlot slot)
     auto &errors = [self fs]->doctor.diagnosis.blockErrors;
 
     NSMutableArray<NSNumber *> *array = [NSMutableArray arrayWithCapacity:errors.size()];
-    for (Block value : errors) { [array addObject:@(value)]; }
+    for (BlockNr value : errors) { [array addObject:@(value)]; }
 
     return [array copy];
 }
@@ -1501,8 +1585,8 @@ NSString *EventSlotName(EventSlot slot)
     auto size = unusedButAllocated.size() + usedButUnallocated.size();
 
     NSMutableArray<NSNumber *> *array = [NSMutableArray arrayWithCapacity:size];
-    for (Block value : unusedButAllocated) { [array addObject:@(value)]; }
-    for (Block value : usedButUnallocated) { [array addObject:@(value)]; }
+    for (BlockNr value : unusedButAllocated) { [array addObject:@(value)]; }
+    for (BlockNr value : usedButUnallocated) { [array addObject:@(value)]; }
 
     return [array sortedArrayUsingSelector:@selector(compare:)];
 }
@@ -1521,7 +1605,7 @@ NSString *EventSlotName(EventSlot slot)
 
 - (NSInteger)readByte:(NSInteger)block offset:(NSInteger)offset
 {
-    if (auto *ptr = [self fs]->read(Block(block)); ptr && offset < 512) {
+    if (auto *ptr = [self fs]->tryFetch(BlockNr(block)); ptr && offset < 512) {
         return ptr->data()[offset];
     }
     return 0;
@@ -1529,38 +1613,38 @@ NSString *EventSlotName(EventSlot slot)
 
 - (NSString *)ascii:(NSInteger)block offset:(NSInteger)offset length:(NSInteger)len
 {
-    return @([self fs]->ascii(Block(block), offset, len).c_str());
+    return @([self fs]->doctor.ascii(BlockNr(block), offset, len).c_str());
 }
 
 - (void)export:(NSString *)path recursive:(BOOL)rec contents:(BOOL)con exception:(ExceptionWrapper *)ex
 {
-    try { return [self fs]->exportFiles([path fileSystemRepresentation], rec, con); }
-    catch (AppError &error) { [ex save:error]; }
+    try { return [self fs]->exporter.exportFiles([path fileSystemRepresentation], rec, con); }
+    catch(std::exception &error) { [ex save:error]; }
 }
 
 - (void)createUsageMap:(u8 *)buf length:(NSInteger)len
 {
-    [self fs]->createUsageMap((u8 *)buf, len);
+    [self fs]->doctor.createUsageMap((u8 *)buf, len);
 }
 
 - (void)createAllocationMap:(u8 *)buf length:(NSInteger)len
 {
-    [self fs]->createAllocationMap((u8 *)buf, len);
+    [self fs]->doctor.createAllocationMap((u8 *)buf, len);
 }
 
 - (void)createHealthMap:(u8 *)buf length:(NSInteger)len
 {
-    [self fs]->createHealthMap((u8 *)buf, len);
+    [self fs]->doctor.createHealthMap((u8 *)buf, len);
 }
 
 - (NSInteger)nextBlockOfType:(FSBlockType)type after:(NSInteger)after
 {
-    return [self fs]->nextBlockOfType(type, Block(after));
+    return [self fs]->doctor.nextBlockOfType(type, BlockNr(after));
 }
 
 - (void)rectifyAllocationMap
 {
-    [self fs]->rectifyAllocationMap();
+    [self fs]->doctor.rectifyBitmap();
 }
 
 @end
@@ -1638,208 +1722,14 @@ NSString *EventSlotName(EventSlot slot)
     [self shell]->press(key, shift);
 }
 
-- (void)executeScript:(MediaFileProxy *)file
+- (void)executeScript:(NSURL *)url
 {
-    [self shell]->execScript(*(MediaFile *)file->obj);
+    [self shell]->execScript(fs::path(url.fileSystemRepresentation));
 }
 
 - (void)executeString:(NSString *)str
 {
     [self shell]->execScript(std::string([str UTF8String]));
-}
-
-@end
-
-
-//
-// MediaFile
-//
-
-@implementation MediaFileProxy
-
-- (MediaFile *)file
-{
-    return (MediaFile *)obj;
-}
-
-+ (instancetype)make:(void *)file
-{
-    return file ? [[self alloc] initWith:file] : nil;
-}
-
-+ (FileType)typeOfUrl:(NSURL *)url
-{
-    return MediaFile::type([url fileSystemRepresentation]);
-}
-
-+ (instancetype)makeWithFile:(NSString *)path
-                   exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: MediaFile::make([path fileSystemRepresentation])]; }
-    catch (AppError &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithFile:(NSString *)path
-                        type:(FileType)type
-                   exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: MediaFile::make([path fileSystemRepresentation], type)]; }
-    catch (AppError &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithBuffer:(const void *)buf length:(NSInteger)len
-                          type:(FileType)type
-                     exception:(ExceptionWrapper *)ex
-{
-    try { return [self make: MediaFile::make((u8 *)buf, len, type)]; }
-    catch (AppError &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy compressor:(Compressor)c
-{
-    auto amiga = (VAmiga *)proxy->obj;
-    return [self make:amiga->amiga.takeSnapshot(c)];
-}
-
-+ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy
-                         type:(FileType)type
-                    exception:(ExceptionWrapper *)ex
-{
-    auto drive = (FloppyDriveAPI *)proxy->obj;
-    try { return [self make: MediaFile::make(*drive, type)]; }
-    catch (AppError &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithHardDrive:(HardDriveProxy *)proxy
-                             type:(FileType)type
-                        exception:(ExceptionWrapper *)ex
-{
-    auto drive = (HardDriveAPI *)proxy->obj;
-    try { return [self make: MediaFile::make(*drive, type)]; }
-    catch (AppError &error) { [ex save:error]; return nil; }
-}
-
-+ (instancetype)makeWithFileSystem:(FileSystemProxy *)proxy
-                              type:(FileType)type
-                         exception:(ExceptionWrapper *)ex
-{
-    auto fs = (MutableFileSystem *)proxy->obj;
-    try { return [self make: MediaFile::make(*fs, type)]; }
-    catch (AppError &error) { [ex save:error]; return nil; }
-}
-
-- (FileType)type
-{
-    return [self file]->type();
-}
-
-- (u64)fnv
-{
-    return [self file]->fnv64();
-}
-
-- (NSInteger)size
-{
-    return [self file]->getSize();
-}
-
-- (Compressor)compressor
-{
-    return [self file]->compressor();
-}
-
-- (BOOL)compressed
-{
-    return [self file]->isCompressed();
-}
-
-- (u8 *)data
-{
-    return [self file]->getData();
-}
-
-- (void)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex
-{
-    try { [self file]->writeToFile(string([path fileSystemRepresentation])); }
-    catch (AppError &err) { [ex save:err]; }
-}
-
-- (void)writeToFile:(NSString *)path partition:(NSInteger)part exception:(ExceptionWrapper *)ex
-{
-    try { [self file]->writePartitionToFile(string([path fileSystemRepresentation]), part); }
-    catch (AppError &err) { [ex save:err]; }
-}
-
-- (NSImage *)previewImage
-{
-    // Return cached image (if any)
-    if (preview) { return preview; }
-
-    // Get dimensions and data
-    auto size = [self file]->previewImageSize();
-    auto data = (unsigned char *)[self file]->previewImageData();
-
-    // Create preview image
-    if (data) {
-
-        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
-                                 initWithBitmapDataPlanes: &data
-                                 pixelsWide:size.first
-                                 pixelsHigh:size.second
-                                 bitsPerSample:8
-                                 samplesPerPixel:4
-                                 hasAlpha:true
-                                 isPlanar:false
-                                 colorSpaceName:NSCalibratedRGBColorSpace
-                                 bytesPerRow:4*size.first
-                                 bitsPerPixel:32];
-
-        preview = [[NSImage alloc] initWithSize:[rep size]];
-        [preview addRepresentation:rep];
-
-        // image.makeGlossy()
-    }
-    return preview;
-}
-
-- (time_t)timeStamp
-{
-    return [self file]->timestamp();
-}
-
-- (DiskInfo)diskInfo
-{
-    return [self file]->getDiskInfo();
-}
-
-- (FloppyDiskInfo)floppyDiskInfo
-{
-    return [self file]->getFloppyDiskInfo();
-}
-
--(HDFInfo)hdfInfo
-{
-    return [self file]->getHDFInfo();
-}
-
-- (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset
-{
-    return [self file]->readByte(b, offset);
-}
-
-- (void)readSector:(NSInteger)b destination:(unsigned char *)buf
-{
-    [self file]->readSector(buf, b);
-}
-
-- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
-{
-    return @([self file]->hexdump(b, offset, len).c_str());
-}
-
-- (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
-{
-    return @([self file]->asciidump(b, offset, len).c_str());
 }
 
 @end
@@ -1903,7 +1793,7 @@ NSString *EventSlotName(EventSlot slot)
 {
     try {
         [self drive]->attach([url fileSystemRepresentation]);
-    }  catch (AppError &error) {
+    }  catch(Error &error) {
         [ex save:error];
     }
 }
@@ -1912,16 +1802,7 @@ NSString *EventSlotName(EventSlot slot)
 {
     try {
         [self drive]->importFiles([url fileSystemRepresentation]);
-    } catch (AppError &error) {
-        [ex save:error];
-    }
-}
-
-- (void)attach:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
-{
-    try {
-        [self drive]->attach(*(MediaFile *)proxy->obj);
-    }  catch (AppError &error) {
+    } catch(Error &error) {
         [ex save:error];
     }
 }
@@ -1931,7 +1812,7 @@ NSString *EventSlotName(EventSlot slot)
 {
     try {
         [self drive]->attach(c, h, s, b);
-    }  catch (AppError &error) {
+    }  catch(Error &error) {
         [ex save:error];
     }
 }
@@ -1942,7 +1823,7 @@ NSString *EventSlotName(EventSlot slot)
 
     try {
         [self drive]->format(fs, str);
-    }  catch (AppError &error) {
+    }  catch(Error &error) {
         [ex save:error];
     }
 }
@@ -1951,7 +1832,7 @@ NSString *EventSlotName(EventSlot slot)
 {
     try {
         [self drive]->changeGeometry(c, h, s, b);
-    }  catch (AppError &error) {
+    }  catch(Error &error) {
         [ex save:error];
     }
 }
@@ -1978,7 +1859,7 @@ NSString *EventSlotName(EventSlot slot)
 - (void)writeToFile:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { return [self drive]->writeToFile([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 @end
@@ -2000,16 +1881,6 @@ NSString *EventSlotName(EventSlot slot)
     return file ? [[self alloc] initWith:file] : nil;
 }
 
-+ (FileType)typeOfUrl:(NSURL *)url
-{
-    return AnyFile::type([url fileSystemRepresentation]);
-}
-
-- (FileType)type
-{
-    return [self file]->type();
-}
-
 - (NSURL *)path
 {
     auto nsPath = @([self file]->path.c_str());
@@ -2019,12 +1890,6 @@ NSString *EventSlotName(EventSlot slot)
 - (NSInteger)size
 {
     return [self file]->getSize();
-}
-
-- (NSString *)getSizeAsString
-{
-    const string &str = [self file]->getSizeAsString();
-    return @(str.c_str());
 }
 
 - (u64)fnv
@@ -2040,7 +1905,7 @@ NSString *EventSlotName(EventSlot slot)
 - (NSInteger)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex
 {
     try { return [self file]->writeToFile([path fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; return 0; }
+    catch(Error &error) { [ex save:error]; return 0; }
 }
 
 - (void)dealloc
@@ -2052,14 +1917,164 @@ NSString *EventSlotName(EventSlot slot)
 
 
 //
+// Snapshot
+//
+
+@implementation SnapshotProxy
+
++ (instancetype)makeWithAmiga:(EmulatorProxy *)proxy compressor:(Compressor)c
+{
+    auto amiga = (VAmiga *)proxy->obj;
+    auto snap = amiga->amiga.takeSnapshot(c);
+
+    //Transfer ownership to ObjC via release
+    return [self make:snap.release()];
+}
+
+- (Snapshot *)file
+{
+    return (Snapshot *)obj;
+}
+
+- (NSInteger)size
+{
+    return [self file]->getSize();
+}
+
+- (u64)fnv
+{
+    return [self file]->fnv64();
+}
+
+- (Compressor)compressor
+{
+    return [self file]->compressor();
+}
+
+- (BOOL)compressed
+{
+    return [self file]->isCompressed();
+}
+
+- (u8 *)data
+{
+    return [self file]->getData()+ sizeof(SnapshotHeader);
+}
+
+- (NSImage *)previewImage
+{
+    // Return cached image (if any)
+    if (preview) { return preview; }
+
+    // Get dimensions and data
+    auto size = [self file]->previewImageSize();
+    auto data = (unsigned char *)[self file]->previewImageData();
+
+    // Create preview image
+    if (data) {
+
+        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
+                                 initWithBitmapDataPlanes: &data
+                                 pixelsWide:size.first
+                                 pixelsHigh:size.second
+                                 bitsPerSample:8
+                                 samplesPerPixel:4
+                                 hasAlpha:true
+                                 isPlanar:false
+                                 colorSpaceName:NSCalibratedRGBColorSpace
+                                 bytesPerRow:4*size.first
+                                 bitsPerPixel:32];
+
+        preview = [[NSImage alloc] initWithSize:[rep size]];
+        [preview addRepresentation:rep];
+
+        // image.makeGlossy()
+    }
+    return preview;
+}
+
+- (time_t)timeStamp
+{
+    return [self file]->timestamp();
+}
+
+@end
+
+
+//
 // DiskFileProxy
 //
 
-@implementation DiskFileProxy
+@implementation DiskImageProxy
 
-- (DiskFile *)file
++ (ImageInfo)about:(NSURL *)url
 {
-    return (DiskFile *)obj;
+    if (auto about = DiskImage::about([url fileSystemRepresentation])) {
+        return *about;
+    } else {
+        return { ImageType::UNKNOWN, ImageFormat::UNKNOWN };
+    }
+}
+
+- (DiskImage *)file
+{
+    return (DiskImage *)obj;
+}
+
+- (NSArray<NSString *> *)describe
+{
+    const auto vec = [self file]->describeImage();
+
+    NSMutableArray<NSString *> *result =
+        [NSMutableArray arrayWithCapacity:vec.size()];
+
+    for (const auto &s : vec) {
+        [result addObject:[NSString stringWithUTF8String:s.c_str()]];
+    }
+
+    return result;
+}
+
+- (NSURL *)path
+{
+    auto nsPath = @([self file]->path.c_str());
+    return [NSURL fileURLWithPath:nsPath];
+}
+
+- (NSInteger)size
+{
+    return [self file]->getSize();
+}
+
+- (u64)fnv
+{
+    return [self file]->fnv64();
+}
+
+- (NSInteger)writeToFile:(NSURL *)path exception:(ExceptionWrapper *)ex
+{
+    try { return [self file]->writeToFile([path fileSystemRepresentation]); }
+    catch(Error &error) { [ex save:error]; return 0; }
+}
+
+- (ImageType)type
+{
+    return [self file]->type();
+}
+
+- (ImageFormat)format
+{
+    return [self file]->format();
+}
+
+-(ImageInfo)info
+{
+    return [self file]->info();
+}
+
+- (NSInteger)bsize
+{
+    return [self file]->bsize();
 }
 
 - (NSInteger)numCyls
@@ -2072,11 +2087,6 @@ NSString *EventSlotName(EventSlot slot)
     return [self file]->numHeads();
 }
 
-- (NSInteger)bsize
-{
-    return [self file]->bsize();
-}
-
 - (NSInteger)numTracks
 {
     return [self file]->numTracks();
@@ -2084,7 +2094,7 @@ NSString *EventSlotName(EventSlot slot)
 
 - (NSInteger)numSectors
 {
-    return [self file]->numSectors();
+    return [self file]->numSectors(0);
 }
 
 - (NSInteger)numBlocks
@@ -2092,34 +2102,146 @@ NSString *EventSlotName(EventSlot slot)
     return [self file]->numBlocks();
 }
 
+- (NSInteger)numBytes
+{
+    return [self file]->numBytes();
+}
+
 - (NSInteger)readByte:(NSInteger)b offset:(NSInteger)offset
 {
-    return [self file]->readByte(b, offset);
-}
-
-- (void)readSector:(NSInteger)b destination:(unsigned char *)buf
-{
-    [self file]->readSector(buf, b);
-}
-
-- (NSString *) describeGeometry
-{
-    return @([self file]->describeGeometry().c_str());
-}
-
-- (NSString *) describeCapacity
-{
-    return @([self file]->describeCapacity().c_str());
-}
-
-- (NSString *)hexdump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
-{
-    return @([self file]->hexdump(b, offset, len).c_str());
+    return [self file]->readByte(b * [self bsize] + offset);
 }
 
 - (NSString *)asciidump:(NSInteger)b offset:(NSInteger)offset len:(NSInteger)len
 {
-    return @([self file]->asciidump(b, offset, len).c_str());
+    string result;
+    auto p = [self file]->data.ptr + b * [self bsize] + offset;
+
+    for (isize i = 0; i < len; i++) {
+        result += isprint(int(p[i])) ? char(p[i]) : '.';
+    }
+
+    return @(result.c_str());
+}
+
+@end
+
+
+//
+// DiskFileProxy
+//
+
+@implementation FloppyDiskImageProxy
+
++ (ImageInfo)about:(NSURL *)url
+{
+    if (auto about = FloppyDiskImage::about([url fileSystemRepresentation])) {
+        return *about;
+    } else {
+        return { ImageType::UNKNOWN, ImageFormat::UNKNOWN };
+    }
+}
+
+- (FloppyDiskImage *)image
+{
+    return (FloppyDiskImage *)obj;
+}
+
++ (instancetype)make:(void *)file
+{
+    return file ? [[self alloc] initWith:file] : nil;
+}
+
++ (instancetype)makeWithDrive:(FloppyDriveProxy *)proxy
+                       format:(ImageFormat)fmt
+                    exception:(ExceptionWrapper *)ex
+{
+    auto drive = (FloppyDriveAPI *)proxy->obj;
+    try { return [self make: drive->drive->exportDisk(fmt).release()]; }
+    catch(Error &error) { [ex save:error]; return nil; }
+}
+
+- (Diameter)diameter
+{
+    return [self image]->getDiameter();
+}
+
+- (Density)density
+{
+    return [self image]->getDensity();
+}
+
+- (BOOL)isSD
+{
+    return [self image]->isSD();
+}
+
+- (BOOL)isDD
+{
+    return [self image]->isDD();
+}
+
+- (BOOL)isHD
+{
+    return [self image]->isHD();
+}
+
+@end
+
+
+//
+// HardDiskImageProxy
+//
+
+@implementation HardDiskImageProxy
+
++ (ImageInfo)about:(NSURL *)url
+{
+    if (auto about = HardDiskImage::about([url fileSystemRepresentation])) {
+        return *about;
+    } else {
+        return { ImageType::UNKNOWN, ImageFormat::UNKNOWN };
+    }
+}
+
+- (HardDiskImage *)image
+{
+    return (HardDiskImage *)obj;
+}
+
++ (instancetype)make:(void *)file
+{
+    return file ? [[self alloc] initWith:file] : nil;
+}
+
++ (instancetype)makeWithDrive:(HardDriveProxy *)proxy
+                       format:(ImageFormat)fmt
+                    exception:(ExceptionWrapper *)ex
+{
+    auto drive = (FloppyDriveAPI *)proxy->obj;
+    try { return [self make: drive->drive->exportDisk(fmt).release()]; }
+    catch(Error &error) { [ex save:error]; return nil; }
+}
+
+- (NSInteger)writeToFile:(NSURL *)path partition:(NSInteger)nr exception:(ExceptionWrapper *)ex
+{
+    try { return [self image]->writePartitionToFile([path fileSystemRepresentation], nr); }
+    catch(Error &error) { [ex save:error]; return 0; }
+}
+
+- (NSInteger)numPartitions
+{
+    return [self image]->numPartitions();
+}
+
+- (NSInteger)lowerCyl:(NSInteger)partition
+{
+    return [self image]->partition(partition).lower;
+}
+
+- (NSInteger)upperCyl:(NSInteger)partition
+{
+    return [self image]->partition(partition).upper;
 }
 
 @end
@@ -2163,47 +2285,49 @@ NSString *EventSlotName(EventSlot slot)
     return @(ss.str().c_str());
 }
 
-- (MediaFileProxy *) takeSnapshot:(Compressor)compressor
+- (SnapshotProxy *) takeSnapshot:(Compressor)compressor
 {
     try {
 
-        MediaFile *snapshot = [self amiga]->takeSnapshot(compressor);
-        return [MediaFileProxy make:snapshot];
+        auto snap = [self amiga]->takeSnapshot(compressor);
 
-    } catch (AppError &error) {
+        //Transfer ownership to ObjC via release
+        return [SnapshotProxy make:snap.release()];
+
+    } catch(Error &error) {
 
         return nil;
     }
 }
 
-- (void)loadSnapshot:(MediaFileProxy *)proxy exception:(ExceptionWrapper *)ex
+- (void)loadSnapshot:(SnapshotProxy *)proxy exception:(ExceptionWrapper *)ex
 {
     try { [self amiga]->loadSnapshot(*[proxy file]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)loadSnapshotFromUrl:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { [self amiga]->loadSnapshot([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)saveSnapshotToUrl:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { [self amiga]->saveSnapshot([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)loadWorkspace:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { [self amiga]->loadWorkspace([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)saveWorkspace:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { [self amiga]->saveWorkspace([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (BOOL)getMessage:(Message *)msg
@@ -2246,6 +2370,7 @@ NSString *EventSlotName(EventSlot slot)
 @synthesize keyboard;
 @synthesize logicAnalyzer;
 @synthesize mem;
+@synthesize midiManager;
 @synthesize paula;
 @synthesize remoteManager;
 @synthesize retroShell;
@@ -2290,6 +2415,7 @@ NSString *EventSlotName(EventSlot slot)
     keyboard = [[KeyboardProxy alloc] initWith:&vamiga->keyboard];
     logicAnalyzer = [[LogicAnalyzerProxy alloc] initWith:&vamiga->agnus.logicAnalyzer];
     mem = [[MemProxy alloc] initWith:&vamiga->mem];
+    midiManager = [[MidiManagerProxy alloc] initWith:&vamiga->amiga.amiga->midiManager];
     paula = [[PaulaProxy alloc] initWith:&vamiga->paula];
     retroShell = [[RetroShellProxy alloc] initWith:&vamiga->retroShell];
     rtc = [[RtcProxy alloc] initWith:&vamiga->rtc];
@@ -2343,9 +2469,9 @@ NSString *EventSlotName(EventSlot slot)
     return [self emu]->getCachedInfo();
 }
 
-- (EmulatorStats)stats
+- (EmulatorMetrics)stats
 {
-    return [self emu]->getStats();
+    return [self emu]->getMetrics();
 }
 
 - (BOOL)poweredOn
@@ -2411,13 +2537,13 @@ NSString *EventSlotName(EventSlot slot)
 - (void)launch:(ExceptionWrapper *)ex
 {
     try { [self emu]->launch(); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)launch:(const void *)listener function:(Callback *)func exception:(ExceptionWrapper *)ex
 {
     try { [self emu]->launch(listener, func); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (NSInteger)get:(Opt)opt
@@ -2440,7 +2566,7 @@ NSString *EventSlotName(EventSlot slot)
     try {
         [self emu]->set(opt, val);
         return true;
-    } catch (AppError &exception) {
+    } catch(Error &exception) {
         return false;
     }
 }
@@ -2450,7 +2576,7 @@ NSString *EventSlotName(EventSlot slot)
     try {
         [self emu]->set(opt, val ? 1 : 0);
         return true;
-    } catch (AppError &exception) {
+    } catch(Error &exception) {
         return false;
     }
 }
@@ -2460,7 +2586,7 @@ NSString *EventSlotName(EventSlot slot)
     try {
         [self emu]->set(opt, val, id);
         return true;
-    } catch (AppError &exception) {
+    } catch(Error &exception) {
         return false;
     }
 }
@@ -2470,7 +2596,7 @@ NSString *EventSlotName(EventSlot slot)
     try {
         [self emu]->set(opt, val ? 1 : 0, id);
         return true;
-    } catch (AppError &exception) {
+    } catch(Error &exception) {
         return false;
     }
 }
@@ -2480,7 +2606,7 @@ NSString *EventSlotName(EventSlot slot)
     try {
         [self emu]->set(opt, val, (long)id);
         return true;
-    } catch (AppError &exception) {
+    } catch(Error &exception) {
         return false;
     }
 }
@@ -2490,7 +2616,7 @@ NSString *EventSlotName(EventSlot slot)
     try {
         [self emu]->set(opt, val ? 1 : 0, (long)id);
         return true;
-    } catch (AppError &exception) {
+    } catch(Error &exception) {
         return false;
     }
 }
@@ -2508,7 +2634,7 @@ NSString *EventSlotName(EventSlot slot)
 - (void)isReady:(ExceptionWrapper *)ex
 {
     try { [self emu]->isReady(); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)powerOn
@@ -2524,7 +2650,7 @@ NSString *EventSlotName(EventSlot slot)
 - (void)run:(ExceptionWrapper *)ex
 {
     try { [self emu]->run(); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)pause
@@ -2595,7 +2721,7 @@ NSString *EventSlotName(EventSlot slot)
 - (void)exportConfig:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
     try { [self emu]->exportConfig([url fileSystemRepresentation]); }
-    catch (AppError &error) { [ex save:error]; }
+    catch(Error &error) { [ex save:error]; }
 }
 
 - (void)put:(Cmd)type

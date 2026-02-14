@@ -10,8 +10,8 @@
 #include "config.h"
 #include "Mouse.h"
 #include "Amiga.h"
-#include "Chrono.h"
-#include "IOUtils.h"
+#include "utl/chrono.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
@@ -47,12 +47,12 @@ Mouse::checkOption(Opt opt, i64 value)
         case Opt::MOUSE_VELOCITY:
 
             if (value < 0 || value > 255) {
-                throw AppError(Fault::OPT_INV_ARG, "0...255");
+                throw CoreError(CoreError::OPT_INV_ARG, "0...255");
             }
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -92,8 +92,8 @@ Mouse::updateScalingFactors()
 void
 Mouse::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-    
+    using namespace utl;
+
     if (category == Category::Config) {
         
         dumpConfig(os);
@@ -132,13 +132,19 @@ Mouse::changePotgo(u16 &potgo) const
     u16 maskR = port.isPort1() ? 0x0400 : 0x4000;
     u16 maskM = port.isPort1() ? 0x0100 : 0x1000;
 
-    if (rightButton || HOLD_MOUSE_R) {
+    bool rb = rightButton;
+    bool mb = middleButton;
+
+    if constexpr (debug::HOLD_MOUSE_R) rb = true;
+    if constexpr (debug::HOLD_MOUSE_M) mb = true;
+
+    if (rb) {
         potgo &= ~maskR;
     } else if (config.pullUpResistors) {
         potgo |= maskR;
     }
 
-    if (middleButton || HOLD_MOUSE_M) {
+    if (mb) {
         potgo &= ~maskM;
     } else if (config.pullUpResistors) {
         potgo |= maskM;
@@ -150,7 +156,11 @@ Mouse::changePra(u8 &pra) const
 {
     u16 mask = port.isPort1() ? 0x0040 : 0x0080;
 
-    if (leftButton || HOLD_MOUSE_L) {
+    bool lb = leftButton;
+
+    if constexpr (debug::HOLD_MOUSE_L) lb = true;
+
+    if (lb) {
         pra &= ~mask;
     } else if (config.pullUpResistors) {
         pra |= mask;
@@ -212,7 +222,7 @@ Mouse::detectShakeDxDy(double dx, double dy)
 void
 Mouse::setXY(double x, double y)
 {
-    debug(PRT_DEBUG, "setXY(%f,%f)\n", x, y);
+    loginfo(PRT_DEBUG, "setXY(%f,%f)\n", x, y);
 
     targetX = x * scaleX;
     targetY = y * scaleY;
@@ -224,7 +234,7 @@ Mouse::setXY(double x, double y)
 void
 Mouse::setDxDy(double dx, double dy)
 {
-    debug(PRT_DEBUG, "setDxDy(%f,%f)\n", dx, dy);
+    loginfo(PRT_DEBUG, "setDxDy(%f,%f)\n", dx, dy);
     
     targetX += dx * scaleX;
     targetY += dy * scaleY;
@@ -236,7 +246,7 @@ Mouse::setDxDy(double dx, double dy)
 void
 Mouse::setLeftButton(bool value)
 {
-    trace(PRT_DEBUG, "setLeftButton(%d)\n", value);
+    logdebug(PRT_DEBUG, "setLeftButton(%d)\n", value);
     
     leftButton = value;
     port.setDevice(ControlPortDevice::MOUSE);
@@ -245,7 +255,7 @@ Mouse::setLeftButton(bool value)
 void
 Mouse::setMiddleButton(bool value)
 {
-    trace(PRT_DEBUG, "setMiddleButton(%d)\n", value);
+    logdebug(PRT_DEBUG, "setMiddleButton(%d)\n", value);
 
     middleButton = value;
     port.setDevice(ControlPortDevice::MOUSE);
@@ -254,7 +264,7 @@ Mouse::setMiddleButton(bool value)
 void
 Mouse::setRightButton(bool value)
 {
-    trace(PRT_DEBUG, "setRightButton(%d)\n", value);
+    logdebug(PRT_DEBUG, "setRightButton(%d)\n", value);
     
     rightButton = value;
     port.setDevice(ControlPortDevice::MOUSE);
@@ -263,9 +273,9 @@ Mouse::setRightButton(bool value)
 void
 Mouse::trigger(GamePadAction event)
 {
-    assert_enum(GamePadAction, event);
+    GamePadActionEnum::validate(event);
 
-    debug(PRT_DEBUG, "trigger(%s)\n", GamePadActionEnum::key(event));
+    loginfo(PRT_DEBUG, "trigger(%s)\n", GamePadActionEnum::key(event));
 
     switch (event) {
 
@@ -302,7 +312,7 @@ ShakeDetector::isShakingRel(double dx) {
     // Check for a direction reversal
     if (dx * dxsign < 0) {
 
-        u64 dt = util::Time::now().asNanoseconds() - lastTurn;
+        u64 dt = utl::Time::now().asNanoseconds() - lastTurn;
         dxsign = -dxsign;
 
         // A direction reversal is considered part of a shake, if the
@@ -319,8 +329,8 @@ ShakeDetector::isShakingRel(double dx) {
                 // Report a shake if the threshold has been reached.
                 if (dxturns > 3) {
                     
-                    // debug(PRT_DEBUG, "Mouse shake detected\n");
-                    lastShake = util::Time::now().asNanoseconds();
+                    // loginfo(PRT_DEBUG, "Mouse shake detected\n");
+                    lastShake = utl::Time::now().asNanoseconds();
                     dxturns = 0;
                     return true;
                 }
@@ -334,7 +344,7 @@ ShakeDetector::isShakingRel(double dx) {
             dxsum = 0;
         }
         
-        lastTurn = util::Time::now().asNanoseconds();
+        lastTurn = utl::Time::now().asNanoseconds();
     }
     
     return false;

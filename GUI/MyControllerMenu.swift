@@ -181,7 +181,8 @@ extension MyController: NSMenuItemValidation {
             if result == .OK, let url = self.myOpenPanel.url {
                 
                 do {
-                    try self.mm.mount(url: url, allowedTypes: [.SCRIPT])
+                    // try self.mm.mount(url: url, allowedTypes: [.SCRIPT])
+                    try self.mydocument.processScriptFile(url: url)
                 } catch {
                     self.showAlert(.cantOpen(url: url), error: error, async: true)
                 }
@@ -455,9 +456,9 @@ extension MyController: NSMenuItemValidation {
             virtualKeyboard = VirtualKeyboardController.make(parent: self)
         }
         if virtualKeyboard?.window?.isVisible == true {
-            debug(.lifetime, "Virtual keyboard already open")
+            loginfo(.lifetime, "Virtual keyboard already open")
         } else {
-            debug(.lifetime, "Opeining virtual keyboard as a window")
+            loginfo(.lifetime, "Opeining virtual keyboard as a window")
         }
         virtualKeyboard?.showAsWindow()
     }
@@ -544,14 +545,12 @@ extension MyController: NSMenuItemValidation {
     
     func insertRecentDiskAction(df n: Int, slot: Int) {
         
-        debug(.media, "insertRecentDiskAction(df: \(n), slot: \(slot))")
-        
-        let types: [FileType] = [ .ADF, .EADF, .DMS, .EXE, .DIR ]
-        
+        loginfo(.media, "insertRecentDiskAction(df: \(n), slot: \(slot))")
+                
         if let url = MediaManager.getRecentlyInsertedDiskURL(slot) {
             
             do {
-                try self.mm.mount(url: url, allowedTypes: types, drive: n)
+                try self.mm.mount(df: n, url: url)
             } catch {
                 self.showAlert(.cantInsert, error: error)
             }
@@ -689,7 +688,7 @@ extension MyController: NSMenuItemValidation {
     
     func attachRecentHdrAction(hd n: Int, slot: Int) {
         
-        debug(.media, "attachRecentHdrAction(hd: \(n), slot: \(slot))")
+        loginfo(.media, "attachRecentHdrAction(hd: \(n), slot: \(slot))")
         
         if let url = MediaManager.getRecentlyAttachedHdrURL(slot) {
             
@@ -721,7 +720,7 @@ extension MyController: NSMenuItemValidation {
     
     func exportRecentAction(hd n: Int, slot: Int) {
         
-        debug(.media, "exportRecentAction(hd: \(n), slot: \(slot))")
+        loginfo(.media, "exportRecentAction(hd: \(n), slot: \(slot))")
         
         if let url = mm.getRecentlyExportedHdrURL(slot, hd: n) {
             
@@ -792,11 +791,11 @@ extension MyController: NSMenuItemValidation {
         
         let height = renderer.canvas.visible.height * 2
         
-        debug(.metal, "Old metal view: \(metal.frame)")
-        debug(.metal, "Visible texture lines: \(height)")
+        loginfo(.metal, "Old metal view: \(metal.frame)")
+        loginfo(.metal, "Visible texture lines: \(height)")
         
         adjustWindowSize(height: height)
         
-        debug(.metal, "New metal view: \(metal.frame)")
+        loginfo(.metal, "New metal view: \(metal.frame)")
     }
 }

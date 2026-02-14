@@ -11,12 +11,11 @@
 #include "Configurable.h"
 #include "Option.h"
 #include "Defaults.h"
-#include "IOUtils.h"
+#include "utl/io.h"
+#include "utl/support.h"
 #include <algorithm>
 
 namespace vamiga {
-
-using namespace util;
 
 bool
 Configurable::isValidOption(Opt opt) const
@@ -36,7 +35,7 @@ Configurable::checkOption(Opt opt, const string &value)
 void
 Configurable::checkOption(const string &opt, const string &value)
 {
-    checkOption(Opt(util::parseEnum<OptEnum>(opt)), value);
+    checkOption(Opt(utl::parseEnum<OptEnum>(opt)), value);
 }
 
 void
@@ -48,7 +47,7 @@ Configurable::setOption(Opt opt, const string &value)
 void
 Configurable::setOption(const string &opt, const string &value)
 {
-    setOption(Opt(util::parseEnum<OptEnum>(opt)), value);
+    setOption(Opt(utl::parseEnum<OptEnum>(opt)), value);
 }
 
 void
@@ -67,7 +66,7 @@ Configurable::resetConfigItems(const Defaults &defaults, isize objid)
 void
 Configurable::dumpConfig(std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     for (auto &opt: getOptions()) {
 

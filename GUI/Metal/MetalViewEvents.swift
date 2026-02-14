@@ -10,7 +10,7 @@
 import AppKit
 
 @MainActor
-public extension MetalView {
+extension MetalView {
 
     //
     // Keyboard events
@@ -71,7 +71,7 @@ public extension MetalView {
             if DispatchTime.diffMilliSec(lastShake) > UInt64(500) {
                 retainMouse()
             } else {
-                debug(.events, "Last shake too recent")
+                loginfo(.events, "Last shake too recent")
             }
         }
     }

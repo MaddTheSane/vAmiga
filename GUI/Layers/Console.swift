@@ -188,12 +188,12 @@ class Console: Layer {
     func keyUp(with event: NSEvent) {
         
     }
-    
-    func runScript(script: MediaFileProxy) {
-        
+
+    func runScript(url: URL) {
+
         open()
-        
-        emu?.retroShell.executeScript(script)
+
+        emu?.retroShell.executeScript(url)
         isDirty = true
     }
 }

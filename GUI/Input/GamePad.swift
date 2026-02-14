@@ -45,8 +45,12 @@ class GamePad {
     // Name of the managed device
     var name = ""
     
-    /// Icon of this device
-    var icon: NSImage?
+    // Icon of this device
+    var symbol: Symbol?
+    
+    func icon(size: Int) -> NSImage {
+        return Symbol.get(symbol ?? .gamecontroller, size: CGFloat(size))
+    }
     
     /// Indicates if this device is officially supported
     var isKnown: Bool { return db.isKnown(guid: guid) }
@@ -81,8 +85,8 @@ class GamePad {
         self.type = type
         
         name = device?.name ?? "HID device"
-        icon = isMouse ? SFSymbol.get(.mouse) : SFSymbol.get(.gamecontroller)
-        
+        symbol = isMouse ? .mouse : .gamecontroller
+                
         updateMapping()
     }
     
@@ -191,7 +195,7 @@ class GamePad {
         
         guard let n = keyMap, let direction = prefs.keyMaps[n][macKey] else { return [] }
         
-        debug(.events, "keyUpEvents \(direction)")
+        loginfo(.events, "keyUpEvents \(direction)")
         
         switch GamePadAction(rawValue: direction) {
             
@@ -295,7 +299,7 @@ class GamePad {
         let usagePage = Int(IOHIDElementGetUsagePage(element))
         let usage     = Int(IOHIDElementGetUsage(element))
         
-        // debug(.hid, "usagePage = \(usagePage) usage = \(usage) value = \(intValue)")
+        // loginfo(.hid, "usagePage = \(usagePage) usage = \(usage) value = \(intValue)")
         
         if usagePage == kHIDPage_Button {
             
@@ -355,7 +359,7 @@ class GamePad {
                 hidEvent = (.DPAD_LEFT, 0, intValue == 0 ? 0 : 1)
                 
             default:
-                debug(.hid, "Unknown HID usage: \(usage)")
+                loginfo(.hid, "Unknown HID usage: \(usage)")
             }
         }
         

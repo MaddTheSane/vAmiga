@@ -7,8 +7,6 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-// import Foundation
-
 @MainActor
 class MyDocumentController: NSDocumentController {
 
@@ -17,7 +15,7 @@ class MyDocumentController: NSDocumentController {
 
         var doc : NSDocument!
 
-        debug(.lifetime, "makeDocument(withContentsOf: \(url), ofType: \(typeName)")
+        loginfo(.lifetime, "makeDocument(withContentsOf: \(url), ofType: \(typeName)")
 
         if typeName.components(separatedBy: ".").last?.lowercased() != "vamiga" {
 

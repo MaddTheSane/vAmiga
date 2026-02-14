@@ -128,9 +128,9 @@ class Screenshot: CustomStringConvertible {
     
     static func newUrl(format: NSBitmapImageRep.FileType = .jpeg) -> URL? {
                 
-        guard let folder = folder else { return nil }
+        guard let folder else { return nil }
 
-        debug(.media, "Determining next free URL in \(folder)")
+        loginfo(.media, "Determining next free URL in \(folder)")
 
         // Get a list of all filenames without extensions
         let names = allFiles.map({ (url) -> String in
@@ -144,7 +144,7 @@ class Screenshot: CustomStringConvertible {
                 let url = folder.appendingPathComponent(name)
                 return url.byAddingExtension(for: format)
             } else {
-                debug(.media, "\(name) already exists")
+                loginfo(.media, "\(name) already exists")
             }
         }
         

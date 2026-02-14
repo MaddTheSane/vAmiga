@@ -10,7 +10,6 @@
 #include "config.h"
 #include "Blitter.h"
 #include "Agnus.h"
-#include "Checksum.h"
 #include "Memory.h"
 #include "Paula.h"
 
@@ -109,21 +108,21 @@ void Blitter::doFastCopyBlit()
             // Fetch A
             if (useA) {
                 anew = mem.peek16 <Accessor::AGNUS> (apt);
-                trace(BLT_DEBUG, "    A = %X <- %X\n", anew, apt);
+                logdebug(BLT_DEBUG, "    A = %X <- %X\n", anew, apt);
                 apt = U32_ADD(apt, incr);
             }
 
             // Fetch B
             if (useB) {
                 bnew = mem.peek16 <Accessor::AGNUS> (bpt);
-                trace(BLT_DEBUG, "    B = %X <- %X\n", bnew, bpt);
+                logdebug(BLT_DEBUG, "    B = %X <- %X\n", bnew, bpt);
                 bpt = U32_ADD(bpt, incr);
             }
 
             // Fetch C
             if (useC) {
                 chold = mem.peek16 <Accessor::AGNUS> (cpt);
-                trace(BLT_DEBUG, "    C = %X <- %X\n", chold, cpt);
+                logdebug(BLT_DEBUG, "    C = %X <- %X\n", chold, cpt);
                 cpt = U32_ADD(cpt, incr);
             }
             
@@ -150,11 +149,12 @@ void Blitter::doFastCopyBlit()
             if (useD) {
                 mem.poke16 <Accessor::AGNUS> (dpt, dhold);
 
-                if (BLT_CHECKSUM) {
-                    check1 = util::fnvIt32(check1, dhold);
-                    check2 = util::fnvIt32(check2, dpt & agnus.ptrMask);
+                if (debug::BLT_CHECKSUM) {
+                    
+                    check1 = Hashable::fnvIt32(check1, dhold);
+                    check2 = Hashable::fnvIt32(check2, dpt & agnus.ptrMask);
                 }
-                trace(BLT_DEBUG, "    D = %X -> %X\n", dhold, dpt);
+                logdebug(BLT_DEBUG, "    D = %X -> %X\n", dhold, dpt);
                 
                 dpt = U32_ADD(dpt, incr);
             }
@@ -286,9 +286,10 @@ Blitter::doFastLineBlit()
 
             mem.poke16 <Accessor::AGNUS> (bltdpt, dhold);
             
-            if (BLT_CHECKSUM) {
-                check1 = util::fnvIt32(check1, dhold);
-                check2 = util::fnvIt32(check2, bltdpt & agnus.ptrMask);
+            if constexpr (debug::BLT_CHECKSUM) {
+
+                check1 = Hashable::fnvIt32(check1, dhold);
+                check2 = Hashable::fnvIt32(check2, bltdpt & agnus.ptrMask);
             }
         }
         

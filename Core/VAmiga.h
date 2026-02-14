@@ -10,10 +10,15 @@
 #pragma once
 
 #include "VAmigaTypes.h"
-#include "Error.h"
-#include "MediaFile.h"
+#include "CoreError.h"
+#include "Snapshot.h"
+
+namespace retro::vault::amiga { class FileSystem; }
 
 namespace vamiga {
+
+using namespace retro::vault;
+
 
 //
 // Base class for all APIs
@@ -84,13 +89,13 @@ public:
      *
      *  @param  path    Path to a workspace folder
      */
-    void loadWorkspace(const fs::path &path);
+    void loadWorkspace(const std::filesystem::path &path);
 
     /** @brief  Saves a workspace to disk.
      *
      *  @param  path    Destination path
      */
-    void saveWorkspace(const fs::path &path) const;
+    void saveWorkspace(const std::filesystem::path &path) const;
 
     /** @brief  Takes a snapshot
      *
@@ -103,25 +108,25 @@ public:
      *  @note   The function transfers the ownership to the caller. It is
      *          his responsibility of the caller to free the object.
      */
-    MediaFile *takeSnapshot(Compressor compressor, isize delay = 0, bool repeat = false);
+    std::unique_ptr<Snapshot> takeSnapshot(Compressor compressor, isize delay = 0, bool repeat = false);
 
     /** @brief  Loads a snapshot.
      *
      *  @param  snapshot    Reference to a snapshot
      */
-    void loadSnapshot(const MediaFile &snapshot);
+    void loadSnapshot(const Snapshot &snapshot);
 
     /** @brief  Loads a snapshot
      *
      *  @param  path    Source path
      */
-    void loadSnapshot(const fs::path &path);
-    
+    void loadSnapshot(const std::filesystem::path &path);
+
     /** @brief  Saves a snapshot to disk.
      *
      *  @param  path    Destination path
      */
-    void saveSnapshot(const fs::path &path) const;
+    void saveSnapshot(const std::filesystem::path &path) const;
 
     
     /// @}
@@ -272,7 +277,8 @@ public:
 
     /** @brief  Returns statistical information about the components.
      */
-    const AgnusStats &getStats() const;
+    const AgnusMetrics &getMetrics() const;
+    const AgnusMetrics &getCachedMetrics() const;
 
     /** @brief  Provides details about the currently selected chip revision.
      */
@@ -303,7 +309,8 @@ public:
 
     /** @brief  Returns statistical information about the components.
      */
-    CIAStats getStats() const;
+    CIAMetrics getMetrics() const;
+    CIAMetrics getCachedMetrics() const;
 };
 
 
@@ -531,7 +538,8 @@ public:
 
     /** @brief  Returns statistical information about the components.
      */
-    const MemStats &getStats() const;
+    const MemMetrics &getMetrics() const;
+    const MemMetrics &getCachedMetrics() const;
 
     /** @brief  Provides details about the installed ROM, WOM, or ROM extension.
      */
@@ -546,13 +554,8 @@ public:
     /** @brief  Loads a ROM from a file
      *          The ROM type is determined automatically.
      */
-    void loadRom(const fs::path &path);
-    void loadExt(const fs::path &path);
-
-    /** @brief  Loads a ROM provided by a RomFile
-     */
-    void loadRom(MediaFile &file);
-    void loadExt(MediaFile &file);
+    void loadRom(const std::filesystem::path &path);
+    void loadExt(const std::filesystem::path &path);
 
     /** @brief  Loads a ROM provided by a memory buffer
      */
@@ -561,9 +564,9 @@ public:
 
     /** @brief  Saves a Rom to disk
      */
-    void saveRom(const fs::path &path);
-    void saveWom(const fs::path &path);
-    void saveExt(const fs::path &path);
+    void saveRom(const std::filesystem::path &path);
+    void saveWom(const std::filesystem::path &path);
+    void saveExt(const std::filesystem::path &path);
 
     /** @brief  Removes a ROM
      */
@@ -721,26 +724,29 @@ public:
      *  @param  name  Name of the disk
      *  @param  path Optional folder to import
      */
-    void insertBlankDisk(FSFormat fstype, BootBlockId id, string name, const std::filesystem::path &path = {});
+    void insertBlankDisk(amiga::FSFormat fstype, amiga::BootBlockId id,
+                         string name, const std::filesystem::path &path = {});
 
     /** @brief  Inserts a disk created from a media file.
-     *  @param  file    A media file wrapper object.
+     *  @param  path   Path to the media file.
      *  @param  wp      Write-protection status of the disk.
      */
-    void insertMedia(MediaFile &file, bool wp);
-    void insert(const fs::path &path, bool wp);
-    
+    void insert(const std::filesystem::path& path, bool wp);
+
     /** @brief  Inserts a disk created from a file system.
      *  @param  fs      A file system wrapper object.
      *  @param  wp      Write-protection status of the disk.
      */
-    void insertFileSystem(const class MutableFileSystem &fs, bool wp);
+    void insertFileSystem(const amiga::FileSystem& fs, bool wp);
 
     /** @brief  Ejects the current disk.
      */
     void ejectDisk();
 
-    MediaFile *exportDisk(FileType type);
+    /** @brief  Exports the current disk to a file.
+     *  @param  path   Path to the destination file.
+     */
+    void writeToFile(const std::filesystem::path& path);
 
     /** @brief  Creates a textual bit representation of a track's data
      */
@@ -772,6 +778,7 @@ public:
     /** @brief  Returns statistical information about the components.
      */
     const HdcStats &getStats() const;
+    const HdcStats &getCachedStats() const;
 };
 
 class HardDriveAPI : public API {
@@ -826,17 +833,12 @@ public:
 
     /** @brief  Formats the hard drive
      */
-    void format(FSFormat fs, const string &name);
-    
+    void format(amiga::FSFormat fs, const string &name);
+
     /** @brief  Attaches a hard drive provided by an URL to a media file.
      *  @param  path    Path to the media file.
      */
-    void attach(const fs::path &path);
-
-    /** @brief  Attaches a hard drive provided by a media file.
-     *  @param  file    A media file wrapper object.
-     */
-    void attach(const MediaFile &file);
+    void attach(const std::filesystem::path &path);
 
     /** @brief  Attaches a hard drive with a particular geometry.
      *  @param  c       Number of cylinders
@@ -849,15 +851,11 @@ public:
     /** @brief  Imports files from a folder
      *  @note   All existing files are deleted prior to importing the folder.
      */
-    void importFiles(const fs::path &path);
-    
+    void importFiles(const std::filesystem::path &path);
+
     /** @brief  Exports the hard drive to an HDF file on disk
      */
-    void writeToFile(const fs::path &path);
-
-    /** @brief  Converts the hard drive to an HDF media file
-     */
-    MediaFile *createHDF();
+    void writeToFile(const std::filesystem::path &path);
 };
 
 
@@ -1031,7 +1029,8 @@ public:
 
     /** @brief  Returns statistical information about the components.
      */
-    const AudioPortStats &getStats() const;
+    const AudioPortMetrics &getStats() const;
+    const AudioPortMetrics &getCachedStats() const;
 
     /// @}
     /// @name Retrieving audio data
@@ -1287,25 +1286,25 @@ public:
     /// @name Loading and saving the key-value storage
 
     /** @brief  Loads a storage file from disk
-     *  @throw  AppError (#Fault::FILE_NOT_FOUND)
-     *  @throw  AppError (#Fault::SYNTAX)
+     *  @throw  CoreError (#Fault::FILE_NOT_FOUND)
+     *  @throw  CoreError (#Fault::SYNTAX)
      */
-    void load(const fs::path &path);
+    void load(const std::filesystem::path &path);
 
     /** @brief  Loads a storage file from a stream
-     *  @throw  AppError (#Fault::SYNTAX)
+     *  @throw  CoreError (#Fault::SYNTAX)
      */
     void load(std::ifstream &stream);
 
     /** @brief  Loads a storage file from a string stream
-     *  @throw  AppError (#Fault::SYNTAX)
+     *  @throw  CoreError (#Fault::SYNTAX)
      */
     void load(std::stringstream &stream);
 
     /** @brief  Saves a storage file to disk
-     *  @throw  AppError (#Fault::FILE_CANT_WRITE)
+     *  @throw  CoreError (#Fault::FILE_CANT_WRITE)
      */
-    void save(const fs::path &path);
+    void save(const std::filesystem::path &path);
 
     /** @brief  Saves a storage file to stream
      */
@@ -1323,14 +1322,14 @@ public:
     /** @brief  Queries a key-value pair.
      *  @param  key     The key.
      *  @result The value as a string.
-     *  @throw  AppError (#ERROR\_INVALID\_KEY)
+     *  @throw  CoreError (#ERROR\_INVALID\_KEY)
      */
     string getRaw(const string &key) const;
 
     /** @brief  Queries a key-value pair.
      *  @param  key     The key.
      *  @result The value as an integer. 0 if the value cannot not be parsed.
-     *  @throw  AppError (#ERROR\_INVALID\_KEY)
+     *  @throw  CoreError (#ERROR\_INVALID\_KEY)
      */
     i64 get(const string &key) const;
 
@@ -1338,21 +1337,21 @@ public:
      *  @param  option  A config option whose name is used as the prefix of the key.
      *  @param  nr      Optional number that is appened to the key as suffix.
      *  @result The value as an integer.
-     *  @throw  AppError (#ERROR\_INVALID\_KEY)
+     *  @throw  CoreError (#ERROR\_INVALID\_KEY)
      */
     i64 get(Opt option, isize nr = 0) const;
 
     /** @brief  Queries a fallback key-value pair.
      *  @param  key     The key.
      *  @result The value as a string.
-     *  @throw  AppError (#ERROR\_INVALID\_KEY)
+     *  @throw  CoreError (#ERROR\_INVALID\_KEY)
      */
     string getFallbackRaw(const string &key) const;
 
     /** @brief  Queries a fallback key-value pair.
      *  @param  key     The key.
      *  @result The value as an integer. 0 if the value cannot not be parsed.
-     *  @throw  AppError (#ERROR\_INVALID\_KEY)
+     *  @throw  CoreError (#ERROR\_INVALID\_KEY)
      */
     i64 getFallback(const string &key) const;
 
@@ -1360,7 +1359,7 @@ public:
      *  @param  option  A config option whose name is used as the key.
      *  @param  nr      Optional number that is appened to the key as suffix.
      *  @result The value as an integer.
-     *  @throw  AppError (#ERROR\_INVALID\_KEY)
+     *  @throw  CoreError (#ERROR\_INVALID\_KEY)
      */
     i64 getFallback(Opt option, isize nr = 0) const;
 
@@ -1372,14 +1371,14 @@ public:
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  key     The key, given as a string.
      *  @param  value   The value, given as a string.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void set(const string &key, const string &value);
 
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as a string.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void set(Opt opt, const string &value);
 
@@ -1387,14 +1386,14 @@ public:
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as a string.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void set(Opt opt, const string &value, std::vector<isize> objids);
 
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void set(Opt opt, i64 value);
 
@@ -1402,7 +1401,7 @@ public:
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as an integer.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void set(Opt opt, i64 value, std::vector<isize> objids);
 
@@ -1415,7 +1414,7 @@ public:
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void setFallback(Opt opt, const string &value);
 
@@ -1429,7 +1428,7 @@ public:
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void setFallback(Opt opt, i64 value);
 
@@ -1451,20 +1450,20 @@ public:
 
     /** @brief  Deletes a key-value pair
      *  @param  key     The key of the key-value pair.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void remove(const string &key);
 
     /** @brief  Deletes a key-value pair
      *  @param  option  The option's name forms the key.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void remove(Opt option);
 
     /** @brief  Deletes multiple key-value pairs.
      *  @param  option  The option's name forms the prefix of the keys.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  AppError (#Fault::INVALID_KEY)
+     *  @throw  CoreError (#Fault::INVALID_KEY)
      */
     void remove(Opt option, std::vector <isize> objids);
 
@@ -1543,23 +1542,25 @@ public:
      *  MSG\_SCRIPT\_DONE is sent. If shell execution has been aborted due
      *  to an error, MSG\_SCRIPT\_ABORT is sent.
      */
+    void execScript(const fs::path &path);
     void execScript(std::stringstream &ss);
     void execScript(const std::ifstream &fs);
     void execScript(const string &contents);
-    void execScript(const MediaFile &file);
 
+    
     /// @}
     /// @name Misc
     /// @{
 
     /** @brief  Installs a file system in the file system navigator
      */
+    /*
     void import(const FloppyDrive &dfn);
     void import(const HardDrive &hdn, isize part);
     void importDf(isize n);
     void importHd(isize n, isize part);
-    void import(const fs::path &path, bool recursive = true, bool contents = false);
-
+    void import(const std::filesystem::path &path, bool recursive = true, bool contents = false);
+    */
 
     /** @brief  Exports the file system in the file system navigator
      */
@@ -1615,8 +1616,7 @@ public:
     
     // Ports
     AudioPortAPI audioPort;
-    ControlPortAPI controlPort1;
-    ControlPortAPI controlPort2;
+    ControlPortAPI controlPort1, controlPort2;
     SerialPortAPI serialPort;
     VideoPortAPI videoPort;
 
@@ -1667,7 +1667,8 @@ public:
     
     /** @brief  Returns statistical information about the components.
      */
-    const EmulatorStats &getStats() const;
+    const EmulatorMetrics &getMetrics() const;
+    const EmulatorMetrics &getCachedMetrics() const;
 
     /// @}
     /// @name Querying the emulator state
@@ -1939,7 +1940,7 @@ public:
      *              This feature is useful for debugging to compare two virtual
      *              machine configurations.
      */
-    void exportConfig(const fs::path &path, bool diff = false) const;
+    void exportConfig(const std::filesystem::path &path, bool diff = false) const;
     void exportConfig(std::ostream &stream, bool diff = false) const;
     
     

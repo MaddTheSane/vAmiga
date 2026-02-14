@@ -11,7 +11,8 @@
 #include "CopperDebugger.h"
 #include "Emulator.h"
 #include "Copper.h"
-#include "IOUtils.h"
+#include "utl/io.h"
+#include "utl/support.h"
 
 namespace vamiga {
 
@@ -48,7 +49,7 @@ CopperDebugger::_didReset(bool hard)
 void
 CopperDebugger::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     auto print = [&](const string &name, const GuardList &guards) {
 
@@ -260,8 +261,8 @@ CopperDebugger::disassemble(u32 addr, bool symbolic) const
         auto word1 = mem.spypeek16 <Accessor::AGNUS> (addr);
         auto word2 = mem.spypeek16 <Accessor::AGNUS> (addr + 2);
         
-        auto hex1 = util::hexstr <4> (word1);
-        auto hex2 = util::hexstr <4> (word2);
+        auto hex1 = utl::hexstr <4> (word1);
+        auto hex2 = utl::hexstr <4> (word2);
         
         return "dc.w " + hex1 + "," + hex2;
     }

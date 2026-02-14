@@ -10,15 +10,13 @@
 #include "config.h"
 #include "Blitter.h"
 #include "Amiga.h"
-#include "Checksum.h"
-#include "IOUtils.h"
 #include "Thread.h"
 
 namespace vamiga {
 
 Blitter::Blitter(Amiga& ref) : SubComponent(ref)
 {
-
+    info.bind([this] { return cacheInfo(); } );
 }
 
 void
@@ -64,7 +62,7 @@ Blitter::_didReset(bool hard)
 void
 Blitter::_run()
 {
-    if (BLT_MEM_GUARD) {
+    if constexpr (debug::BLT_MEM_GUARD) {
 
         memguard.resize(mem.getConfig().chipSize);
         memguard.clear();
@@ -91,12 +89,12 @@ Blitter::checkOption(Opt opt, i64 value)
         case Opt::BLITTER_ACCURACY:
 
             if (value < 0 || value > 2) {
-                throw AppError(Fault::OPT_INV_ARG, "0, 1, 2");
+                throw CoreError(CoreError::OPT_INV_ARG, "0, 1, 2");
             }
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -130,8 +128,8 @@ Blitter::doMintermLogic(u16 a, u16 b, u16 c, u8 minterm) const
 {
     u16 result = doMintermLogicQuick(a, b, c, minterm);
 
-    if (BLT_DEBUG) {
-        
+    if constexpr (debug::BLT_DEBUG) {
+
         u16 result2 = 0;
         
         if (minterm & 0b10000000) result2 |=  a &  b &  c;
@@ -153,6 +151,7 @@ u16
 Blitter::doMintermLogicQuick(u16 a, u16 b, u16 c, u8 minterm) const
 {
     switch (minterm) {
+
         case 0: return 0;
         case 1: return (~c & ~b & ~a);
         case 2: return (c & ~b & ~a);
@@ -417,7 +416,7 @@ Blitter::doFill(u16 &data, bool &carry) const
 {
     assert(carry == 0 || carry == 1);
 
-    trace(BLT_DEBUG, "data = %X carry = %X\n", data, carry);
+    logdebug(BLT_DEBUG, "data = %X carry = %X\n", data, carry);
     
     u8 dataHi = HI_BYTE(data);
     u8 dataLo = LO_BYTE(data);
@@ -503,40 +502,40 @@ Blitter::beginBlit()
 
     if (bltconLINE()) {
 
-        if (BLT_CHECKSUM) {
-            
+        if constexpr (debug::BLT_CHECKSUM) {
+
             linecount++;
-            check1 = check2 = util::fnvInit32();
-            msg("Line %ld (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x\n",
-                linecount, bltsizeH, bltsizeV,
-                bltconUSEA(), bltconUSEB(), bltconUSEC(), bltconUSED(),
-                bltcon0,
-                bltamod, bltbmod, bltcmod, bltdmod,
-                bltapt & agnus.ptrMask,
-                bltbpt & agnus.ptrMask,
-                bltcpt & agnus.ptrMask,
-                bltdpt & agnus.ptrMask);
+            check1 = check2 = Hashable::fnvInit32();
+            loginfo(BLT_CHECKSUM, "Line %ld (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x\n",
+                    linecount, bltsizeH, bltsizeV,
+                    bltconUSEA(), bltconUSEB(), bltconUSEC(), bltconUSED(),
+                    bltcon0,
+                    bltamod, bltbmod, bltcmod, bltdmod,
+                    bltapt & agnus.ptrMask,
+                    bltbpt & agnus.ptrMask,
+                    bltcpt & agnus.ptrMask,
+                    bltdpt & agnus.ptrMask);
         }
 
         beginLineBlit(level);
 
     } else {
 
-        if (BLT_CHECKSUM) {
-            
+        if constexpr (debug::BLT_CHECKSUM) {
+
             copycount++;
-            check1 = check2 = util::fnvInit32();
-            msg("Blit %ld (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x %s%s\n",
-                copycount,
-                bltsizeH, bltsizeV,
-                bltconUSEA(), bltconUSEB(), bltconUSEC(), bltconUSED(),
-                bltcon0,
-                bltamod, bltbmod, bltcmod, bltdmod,
-                bltapt & agnus.ptrMask,
-                bltbpt & agnus.ptrMask,
-                bltcpt & agnus.ptrMask,
-                bltdpt & agnus.ptrMask,
-                bltconDESC() ? "D" : "", bltconFE() ? "F" : "");
+            check1 = check2 = Hashable::fnvInit32();
+            loginfo(BLT_CHECKSUM, "Blit %ld (%d,%d) (%d%d%d%d)[%x] (%d %d %d %d) %x %x %x %x %s%s\n",
+                    copycount,
+                    bltsizeH, bltsizeV,
+                    bltconUSEA(), bltconUSEB(), bltconUSEC(), bltconUSED(),
+                    bltcon0,
+                    bltamod, bltbmod, bltcmod, bltdmod,
+                    bltapt & agnus.ptrMask,
+                    bltbpt & agnus.ptrMask,
+                    bltcpt & agnus.ptrMask,
+                    bltdpt & agnus.ptrMask,
+                    bltconDESC() ? "D" : "", bltconFE() ? "F" : "");
         }
 
         beginCopyBlit(level);
@@ -549,7 +548,7 @@ Blitter::beginLineBlit(isize level)
     static u64 verbose = 0;
 
     if (verbose++ == 0) {
-        debug(BLT_CHECKSUM, "Performing level %ld line blits.\n", level);
+        loginfo(BLT_CHECKSUM, "Performing level %ld line blits.\n", level);
     }
     if (bltcon0 & BLTCON0_USEB) {
         xfiles("Performing line blit with channel B enabled\n");
@@ -575,7 +574,7 @@ Blitter::beginCopyBlit(isize level)
     static u64 verbose = 0;
 
     if (verbose++ == 0) {
-        debug(BLT_CHECKSUM, "Performing level %ld copy blits.\n", level);
+        loginfo(BLT_CHECKSUM, "Performing level %ld copy blits.\n", level);
     }
 
     switch (level) {
@@ -592,7 +591,7 @@ Blitter::beginCopyBlit(isize level)
 void
 Blitter::clearBusyFlag()
 {
-    debug(BLTTIM_DEBUG, "(%ld,%ld) Blitter bbusy\n", agnus.pos.v, agnus.pos.h);
+    loginfo(BLTTIM_DEBUG, "(%ld,%ld) Blitter bbusy\n", agnus.pos.v, agnus.pos.h);
 
     // Clear the Blitter busy flag
     bbusy = false;
@@ -601,16 +600,16 @@ Blitter::clearBusyFlag()
 void
 Blitter::endBlit()
 {
-    debug(BLTTIM_DEBUG, "(%ld,%ld) Blitter terminates\n", agnus.pos.v, agnus.pos.h);
+    loginfo(BLTTIM_DEBUG, "(%ld,%ld) Blitter terminates\n", agnus.pos.v, agnus.pos.h);
     
     running = false;
-    if (BLT_MEM_GUARD) blitcount++;
+    if constexpr (debug::BLT_MEM_GUARD) blitcount++;
     
     // Clear the Blitter slot
     agnus.cancel<SLOT_BLT>();
     
     // Dump checksums if requested
-    debug(BLT_CHECKSUM,
+    loginfo(BLT_CHECKSUM,
           "check1: %x check2: %x ABCD: %x %x %x %x\n",
           check1, check2,
           bltapt & agnus.ptrMask, bltbpt & agnus.ptrMask,

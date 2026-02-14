@@ -53,17 +53,17 @@ class GamePadManager {
         // Add default devices
         gamePads[0] = GamePad(manager: self, type: .MOUSE)
         gamePads[0]!.name = "Mouse"
-        gamePads[0]!.icon = SFSymbol.get(.mouse)
+        gamePads[0]!.symbol = .mouse
         gamePads[0]!.keyMap = 0
         
         gamePads[1] = GamePad(manager: self, type: .JOYSTICK)
         gamePads[1]!.name = "Joystick Keyset 1"
-        gamePads[1]!.icon = SFSymbol.get(.arrowkeys)
+        gamePads[1]!.symbol = .arrowkeys
         gamePads[1]!.keyMap = 1
         
         gamePads[2] = GamePad(manager: self, type: .JOYSTICK)
         gamePads[2]!.name = "Joystick Keyset 2"
-        gamePads[2]!.icon = SFSymbol.get(.arrowkeys)
+        gamePads[2]!.symbol = .arrowkeys
         gamePads[2]!.keyMap = 2
         
         // Tell the mouse event receiver where the mouse resides
@@ -113,9 +113,9 @@ class GamePadManager {
     
     func shutDown() {
         
-        debug(.hid, "GamePadManager: shutdown")
+        loginfo(.hid, "GamePadManager: shutdown")
         
-        debug(.shutdown)
+        loginfo(.shutdown)
         
         // Terminate communication with all connected HID devices
         for (_, pad) in gamePads { pad.device?.close() }
@@ -129,8 +129,8 @@ class GamePadManager {
     
     deinit {
         
-        debug(.hid, "GamePadManager: deinit")
-        debug(.shutdown)
+        loginfo(.hid, "GamePadManager: deinit")
+        loginfo(.shutdown)
     }
     
     //
@@ -167,10 +167,10 @@ class GamePadManager {
         return gamePads[slot]?.name ?? "External device"
     }
     
-    func icon(slot: Int) -> NSImage {
-        return gamePads[slot]?.icon ?? SFSymbol.get(.gamecontroller)
+    func icon(slot: Int, size: Int) -> NSImage {
+        return gamePads[slot]?.icon(size: size) ?? Symbol.get(.gamecontroller, size: CGFloat(size))
     }
-    
+
     //
     // HID support
     //
@@ -183,7 +183,7 @@ class GamePadManager {
         
         lock.lock(); defer { lock.unlock() }
         
-        debug(.hid)
+        loginfo(.hid)
         if (Int.hid != 0) { device.listProperties() }
         
         // Ignore internal devices
@@ -239,7 +239,7 @@ class GamePadManager {
         
         lock.lock(); defer { lock.unlock() }
         
-        debug(.hid)
+        loginfo(.hid)
         
         // Search for a matching locationID and remove device
         for (slot, pad) in gamePads where pad.locationID == device.locationID {
@@ -268,12 +268,12 @@ class GamePadManager {
         }
     }
     
-    func refresh(popup: NSPopUpButton, hide: Bool = false) {
+    func refresh(popup: NSPopUpButton, hide: Bool = false, small: Bool = false) {
         
-        refresh(menu: popup.menu!, hide: hide)
+        refresh(menu: popup.menu!, hide: hide, small: small)
     }
     
-    func refresh(menu: NSMenu, hide: Bool = false) {
+    func refresh(menu: NSMenu, hide: Bool = false, small: Bool = false) {
         
         let slots = [
             InputDevice.mouse,
@@ -288,7 +288,7 @@ class GamePadManager {
         for s in slots {
             if let item = menu.item(withTag: s) {
                 item.title = name(slot: s)
-                item.image = icon(slot: s)
+                item.image = icon(slot: s, size: small ? 16 : 24)
                 item.isEnabled = isUsed(slot: s)
                 item.isHidden = isEmpty(slot: s) && hide
             }

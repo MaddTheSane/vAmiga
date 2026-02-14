@@ -77,9 +77,8 @@ class MyController: NSWindowController, MessageReceiver {
     var infoText2: String?
     
     // Pictograms for being used in NSMenuItems (MOVE TO AppDelegate)
-    static let iconSize = CGSize(width: 16, height: 16)
-    var smallDisk = NSImage(named: "diskTemplate")!.resize(size: iconSize)
-    var smallHdr = NSImage(named: "hdrTemplate")!.resize(size: iconSize)
+    var smallDisk = Symbol.get(.floppy35, size: 16)
+    var smallHdr = Symbol.get(.harddrive, size: 16)
     
     // Serial input and output
     var serialIn = ""
@@ -165,7 +164,7 @@ extension MyController {
     
     func commonInit() {
         
-        debug(.lifetime)
+        loginfo(.lifetime)
         assert(!initialized, "Double-initialization of MyController")
         
         mydocument = document as? MyDocument
@@ -367,8 +366,12 @@ extension MyController {
                 renderer.canvas.open(delay: delay)
                 
                 if let url = mydocument.launchURL {
-                    
-                    try? mm.mount(url: url, options: [.remember, .force])
+
+                    if url.isFloppyDiskImage || url.hasDirectoryPath {
+                        try? mm.mount(df: 0, url: url, options: [.remember, .force])
+                    } else if url.isHardDiskImage {
+                        try? mm.mount(hd: 0, url: url, options: [.remember, .force])
+                    }
                     mydocument.launchURL = nil
                 }
                 
@@ -418,7 +421,7 @@ extension MyController {
             shutDown()
             
         case .ABORT:
-            debug(.shutdown, "Aborting with exit code \(value)")
+            loginfo(.shutdown, "Aborting with exit code \(value)")
             exit(Int32(value))
             
         case .MUTE:
@@ -488,8 +491,8 @@ extension MyController {
                                               vstrt: Int(msg.viewport.vstrt),
                                               hstop: Int(msg.viewport.hstop),
                                               vstop: Int(msg.viewport.vstop))
-            
-        case .MEM_LAYOUT:
+
+        case .AUDBUF_OVERFLOW, .AUDBUF_UNDERFLOW, .MEM_LAYOUT:
                 break
 
         case .DRIVE_CONNECT:
@@ -591,7 +594,7 @@ extension MyController {
             
         case .SNAPSHOT_TAKEN:
             let ptr = msg.snapshot.snapshot
-            let proxy = MediaFileProxy.init(ptr)!
+            let proxy = SnapshotProxy.init(ptr)!
             if !mydocument.appendSnapshot(file: proxy) {
                 NSSound.beep()
             }
@@ -613,12 +616,13 @@ extension MyController {
             
         case .SRV_STATE:
             refreshStatusBar()
-            
+            settings?.refresh()
+
         case .SRV_RECEIVE, .SRV_SEND:
             break
             
         case .ALARM:
-            debug(.events, "Received Alarm \(msg.value)")
+            loginfo(.events, "Received Alarm \(msg.value)")
             
         default:
             warn("Unknown message: \(msg)")

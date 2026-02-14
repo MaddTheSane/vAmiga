@@ -15,10 +15,11 @@
 #include "Beamtraps.h"
 #include "Colors.h"
 #include "Constants.h"
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
-class DmaDebugger final : public SubComponent, public Inspectable<DmaDebuggerInfo> {
+class DmaDebugger final : public SubComponent {
     
     Descriptions descriptions = {{
         
@@ -53,7 +54,14 @@ class DmaDebugger final : public SubComponent, public Inspectable<DmaDebuggerInf
     
     // Current configuration
     DmaDebuggerConfig config = {};
-    
+
+public:
+
+    // Result of the latest inspection
+    utl::Backed<DmaDebuggerInfo> info;
+
+private:
+
     // Enable bits
     bool visualize[BUS_COUNT] = {};
     
@@ -122,13 +130,13 @@ private:
     
     
     //
-    // Methods from Inspectable
+    //  Analyzing
     //
     
 public:
     
-    void cacheInfo(DmaDebuggerInfo &result) const override;
-    
+    DmaDebuggerInfo cacheInfo() const;
+
     
     //
     // Methods from Configurable

@@ -9,15 +9,15 @@
 
 #include "config.h"
 #include "ZorroBoard.h"
-#include "IOUtils.h"
 #include "Memory.h"
+#include "utl/io.h"
 
 namespace vamiga {
 
 void
 ZorroBoard::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
     
     if (category == Category::Properties) {
         
@@ -118,14 +118,14 @@ ZorroBoard::peekACF8(u32 addr) const
         result = 0x00;
     }
     
-    trace(ACF_DEBUG, "peekACF8(%06x) = %02x\n", offset, result);
+    logdebug(ACF_DEBUG, "peekACF8(%06x) = %02x\n", offset, result);
     return result;
 }
 
 void
 ZorroBoard::pokeACF8(u32 addr, u8 value)
 {
-    trace(ACF_DEBUG, "pokeACF8(%06x,%02x)\n", addr, value);
+    logdebug(ACF_DEBUG, "pokeACF8(%06x,%02x)\n", addr, value);
     
     switch (addr & 0xFFFF) {
 
@@ -139,7 +139,7 @@ ZorroBoard::pokeACF8(u32 addr, u8 value)
             // Update the memory map
             mem.updateMemSrcTables();
 
-            trace(ACF_DEBUG, "Device mapped to $%06x\n", baseAddr);
+            logdebug(ACF_DEBUG, "Device mapped to $%06x\n", baseAddr);
             return;
             
         case 0x4A: // ec_BaseAddress (A19 - A16, 0x---X0000)

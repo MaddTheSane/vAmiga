@@ -45,10 +45,15 @@
 #include "RetroShell.h"
 #include "RshServer.h"
 #include "SerialPort.h"
+#include "MidiManager.h"
+#include "Snapshot.h"
+
+// Utilities
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
-class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
+class Amiga final : public CoreComponent {
 
     friend class Emulator;
 
@@ -81,6 +86,11 @@ class Amiga final : public CoreComponent, public Inspectable<AmigaInfo> {
     // The current configuration
     AmigaConfig config = {};
 
+public:
+    
+    // Result of the latest inspection
+    utl::Backed<AmigaInfo> info;
+
 
     //
     // Subcomponents
@@ -108,6 +118,7 @@ public:
     ControlPort controlPort1 = ControlPort(*this, 0);
     ControlPort controlPort2 = ControlPort(*this, 1);
     SerialPort serialPort = SerialPort(*this);
+    MidiManager midiManager = MidiManager(*this);
     ZorroManager zorro = ZorroManager(*this);
 
     // Floppy drives
@@ -286,7 +297,8 @@ public:
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
-    void prefix(isize level, const char *component, isize line) const override;
+    string prefix(LogLevel, const std::source_location &) const override;
+    void report(std::ostream &os, isize category) const override;
 
 private:
 
@@ -306,12 +318,12 @@ private:
 
 
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(AmigaInfo &result) const override;
+    AmigaInfo cacheInfo() const;
 
     u64 getAutoInspectionMask() const;
     void setAutoInspectionMask(u64 mask);
@@ -341,17 +353,17 @@ public:
 public:
 
     // Queries an option
-    i64 get(Opt opt, isize id = 0) const throws;
+    i64 get(Opt opt, isize id = 0) const;
 
     // Checks an option
-    void check(Opt opt, i64 value, const std::vector<isize> objids = { }) throws;
+    void check(Opt opt, i64 value, const std::vector<isize> objids = { });
 
     // Sets an option
-    void set(Opt opt, i64 value, const std::vector<isize> objids = { }) throws;
+    void set(Opt opt, i64 value, const std::vector<isize> objids = { });
 
     // Convenience wrappers
-    void set(Opt opt, const string &value, const std::vector<isize> objids = { }) throws;
-    void set(const string &opt, const string &value, const std::vector<isize> objids = { }) throws;
+    void set(Opt opt, const string &value, const std::vector<isize> objids = { });
+    void set(const string &opt, const string &value, const std::vector<isize> objids = { });
 
     // Configures the emulator to match a specific Amiga model
     void set(ConfigScheme model);
@@ -421,7 +433,7 @@ public:
 public:
     
     // Loads a workspace from a file
-    void loadWorkspace(const fs::path &path) throws;
+    void loadWorkspace(const fs::path &path);
 
     // Saves the current workspace to a file
     void saveWorkspace(const fs::path &path);
@@ -438,14 +450,14 @@ public:
 public:
 
     // Takes a snapshot
-    MediaFile *takeSnapshot(Compressor compressor, isize delay = 0, bool repeat = false);
+    std::unique_ptr<Snapshot> takeSnapshot(Compressor compressor, isize delay = 0, bool repeat = false);
 
     // Loads a snapshot from a file
-    void loadSnapshot(const fs::path &path) throws;
-    void loadSnapshot(const MediaFile &file) throws;
+    void loadSnapshot(const fs::path &path);
+    void loadSnapshot(const Snapshot &file);
 
     // Saves a snapshot to a file
-    void saveSnapshot(const fs::path &path) throws;
+    void saveSnapshot(const fs::path &path);
 
     // Services a snapshot event
     void serviceSnpEvent(EventID id);
@@ -498,3 +510,4 @@ public:
 };
 
 }
+

@@ -10,8 +10,7 @@
 #include "config.h"
 #include "Host.h"
 #include "Emulator.h"
-#include "IOUtils.h"
-#include "StringUtils.h"
+#include "utl/io.h"
 #include <unordered_set>
 
 namespace vamiga {
@@ -43,7 +42,7 @@ Host::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw AppError(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -87,7 +86,7 @@ Host::resetConfigItems(const class Defaults &defaults, isize objid)
 void
 Host::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
+    using namespace utl;
 
     if (category == Category::Config) {
 
@@ -98,6 +97,7 @@ Host::_dump(Category category, std::ostream &os) const
     }
 }
 
+/*
 fs::path
 Host::sanitize(const string &filename)
 {
@@ -163,12 +163,6 @@ Host::sanitize(const string &filename)
     // Avoid reserved Windows names
     if (isReserved(result)) result = "__" + result;
 
-    /*
-    if (filename != result) {
-        printf("sanitize: %s -> %s\n", filename.c_str(), result.c_str());
-    }
-    */
-    
     return fs::path(result);
 }
 
@@ -238,15 +232,10 @@ Host::unsanitize(const fs::path &filename)
             }
         }
     }
-    
-    /*
-    if (filename.string() != result) {
-        printf("unsanitize: %s -> %s\n", filename.string().c_str(), result.c_str());
-    }
-    */
-    
+
     return result;
 }
+*/
 
 void
 Host::setSearchPath(const fs::path &path)
@@ -287,7 +276,7 @@ Host::tmp() const
 
             if (!logfile.is_open()) {
 
-                throw AppError(Fault::DIR_NOT_FOUND);
+                throw IOError(IOError::DIR_NOT_FOUND);
             }
         }
 
@@ -305,7 +294,7 @@ Host::tmp(const string &name, bool unique) const
     auto result = base / name;
 
     // Make the file name unique if requested
-    if (unique) result = fs::path(util::makeUniquePath(result));
+    if (unique) result = fs::path(utl::makeUniquePath(result));
 
     return result;
 }

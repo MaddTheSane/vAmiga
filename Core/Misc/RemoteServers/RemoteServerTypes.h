@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Infrastructure/Reflection.h"
+#include "BasicTypes.h"
 
 namespace vamiga {
 
@@ -19,15 +19,16 @@ namespace vamiga {
 
 enum class SrvState : long
 {
-    OFF,        // The server is inactive
-    STARTING,   // The server is starting up
-    LISTENING,  // The server is waiting for a client to connect
-    CONNECTED,  // The server is connected to a client
-    STOPPING,   // The server is shutting down
-    INVALID     // The server is in an error state
+    OFF,            // The server is inactive
+    WAITING,        // The server is waiting for the launch condition to be met
+    STARTING,       // The server is starting up
+    LISTENING,      // The server is waiting for a client to connect
+    CONNECTED,      // The server is connected to a client
+    STOPPING,       // The server is shutting down
+    INVALID         // The server is in an error state
 };
 
-struct SrvStateEnum : Reflection<SrvStateEnum, SrvState>
+struct SrvStateEnum : Reflectable<SrvStateEnum, SrvState>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = long(SrvState::INVALID);
@@ -37,6 +38,7 @@ struct SrvStateEnum : Reflection<SrvStateEnum, SrvState>
         switch (value) {
                 
             case SrvState::OFF:         return "OFF";
+            case SrvState::WAITING:     return "WAITING";
             case SrvState::STARTING:    return "STARTING";
             case SrvState::LISTENING:   return "LISTENING";
             case SrvState::CONNECTED:   return "CONNECTED";
@@ -56,7 +58,7 @@ enum class ServerProtocol
     DEFAULT
 };
 
-struct ServerProtocolEnum : Reflection<ServerProtocolEnum, ServerProtocol>
+struct ServerProtocolEnum : Reflectable<ServerProtocolEnum, ServerProtocol>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = long(ServerProtocol::DEFAULT);
@@ -82,18 +84,24 @@ struct ServerProtocolEnum : Reflection<ServerProtocolEnum, ServerProtocol>
 
 typedef struct
 {
+    // Enable status
+    bool enable;
+
     // The socket port number of this server
     u16 port;
-    
+
     // Indicates special operation modes (if not DEFAULT)
     ServerProtocol protocol;
-    
-    // If true, the lauch manager starts and stops the server automatically
-    bool autoRun;
-    
+
     // If true, transmitted packets are shown in RetroShell
     bool verbose;
 }
 ServerConfig;
+
+typedef struct
+{
+    SrvState state;
+}
+RemoteServerInfo;
 
 }

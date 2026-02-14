@@ -44,15 +44,15 @@ class MyDocument: NSDocument {
     
     // Snapshots
     static let maxSnapshots: Int = 16
-    private(set) var snapshots = ManagedArray<MediaFileProxy>(maxCount: maxSnapshots)
-    
+    private(set) var snapshots = ManagedArray<SnapshotProxy>(maxCount: maxSnapshots)
+
     //
     // Initializing
     //
     
     override init() {
         
-        debug(.lifetime)
+        loginfo(.lifetime)
         
         super.init()
         
@@ -92,7 +92,7 @@ class MyDocument: NSDocument {
     
     override open func makeWindowControllers() {
         
-        debug(.lifetime)
+        loginfo(.lifetime)
         
         let controller = MyController(windowNibName: "MyDocument")
         self.addWindowController(controller)
@@ -100,12 +100,12 @@ class MyDocument: NSDocument {
     
     func shutDown() {
         
-        debug(.shutdown, "Remove proxy...")
+        loginfo(.shutdown, "Remove proxy...")
         
         emu?.kill()
         emu = nil
         
-        debug(.shutdown, "Done")
+        loginfo(.shutdown, "Done")
     }
     
     //
@@ -114,16 +114,17 @@ class MyDocument: NSDocument {
     
     override open func read(from url: URL, ofType typeName: String) throws {
         
-        debug(.media)
+        loginfo(.media)
     }
     
     override open func revert(toContentsOf url: URL, ofType typeName: String) throws {
         
-        debug(.media)
+        loginfo(.media)
         
         do {
-            try mm.mount(url: url, allowedTypes: [.WORKSPACE])
-            
+            // try mm.mount(url: url, allowedTypes: [.WORKSPACE])
+            try processWorkspaceFile(url: url)
+
         } catch let error as AppError {
             
             throw NSError(error: error)
@@ -136,7 +137,7 @@ class MyDocument: NSDocument {
     
     override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType) async throws {
         
-        debug(.media, "url = \(url)")
+        loginfo(.media, "url = \(url)")
         
         if typeName == "de.dirkwhoffmann.retro.vamiga" {
             
@@ -204,9 +205,7 @@ class MyDocument: NSDocument {
     //
     
     func processWorkspaceFile(url: URL, force: Bool = false) throws {
-        
-        // Swift.print("processWorkspaceFile \(url) force: \(force)")
-        
+
         // Load workspace
         try emu?.amiga.loadWorkspace(url: url)
         
@@ -216,7 +215,7 @@ class MyDocument: NSDocument {
         self.updateChangeCount(.changeCleared)
         
         // Scan directory for additional media files
-        let supportedTypes: [String : FileType] =
+        let supportedTypes: [String : ImageFormat] =
         ["adf": .ADF, "adz": .ADZ, "dms": .DMS, "exe": .EXE, "img": .IMG, "hdf": .HDF, "hdz": .HDZ, "st": .ST]
         let exclude = ["df0", "df1", "df2", "df3", "hd0", "hd1", "hd2", "hd3"]
         
@@ -235,19 +234,12 @@ class MyDocument: NSDocument {
     //
     
     func processSnapshotFile(url: URL) throws {
-        
-        let file = try MediaManager.createFileProxy(from: url, type: .SNAPSHOT)
-        try processSnapshotFile(file: file)
+
+        try emu?.amiga.loadSnapshot(url: url)
     }
-    
-    func processSnapshotFile(file: MediaFileProxy) throws {
-        
-        try emu?.amiga.loadSnapshot(file)
-        appendSnapshot(file: file)
-    }
-    
+
     @discardableResult
-    func appendSnapshot(file: MediaFileProxy) -> Bool {
+    func appendSnapshot(file: SnapshotProxy) -> Bool {
         
         // Remove the oldest entry if applicable
         if snapshots.full && pref.snapshotAutoDelete { snapshots.remove(at: 0) }
@@ -265,67 +257,47 @@ class MyDocument: NSDocument {
     //
     
     func processScriptFile(url: URL, force: Bool = false) throws {
-        
-        let file = try MediaManager.createFileProxy(from: url, type: .SCRIPT)
-        try processScriptFile(file: file, force: force)
-    }
-    
-    func processScriptFile(file: MediaFileProxy, force: Bool = false) throws {
-        
-        console.runScript(script: file)
-    }
-    
+
+        console.runScript(url: url)
+     }
+
     //
     // Exporting disks
     //
     
     func export(drive nr: Int, to url: URL) throws {
-        
+
         guard let dfn = emu?.df(nr) else { return }
-        
-        var file: MediaFileProxy?
-        switch url.pathExtension.uppercased() {
-        case "ADF":
-            file = try MediaFileProxy.make(with: dfn, type: .ADF)
-        case "IMG", "IMA":
-            file = try MediaFileProxy.make(with: dfn, type: .IMG)
-        default:
+
+        let ext = url.pathExtension.uppercased();
+        if !["ADF", "IMG", "IMA"].contains(ext) {
+
             warn("Invalid path extension")
             return
         }
-        
-        try export(fileProxy: file!, to: url)
+
+        try dfn.writeToFile(url: url)
         dfn.setFlag(.MODIFIED, value: false)
         mm.noteNewRecentlyExportedDiskURL(url, df: nr)
-        
-        debug(.media, "Disk exported successfully")
+
+        loginfo(.media, "Disk exported successfully")
     }
     
     func export(hardDrive nr: Int, to url: URL) throws {
         
         guard let hdn = emu?.hd(nr) else { return }
-        
-        var file: MediaFileProxy?
-        
-        switch url.pathExtension.uppercased() {
-        case "HDF":
-            file = try MediaFileProxy.make(with: hdn, type: .HDF)
-        default:
+
+        let ext = url.pathExtension.uppercased();
+        if !["HDF"].contains(ext) {
+
             warn("Invalid path extension")
             return
         }
-        
-        try export(fileProxy: file!, to: url)
-        
+
+        try hdn.writeToFile(url: url)
         hdn.setFlag(.MODIFIED, value: false)
         mm.noteNewRecentlyExportedHdrURL(url, hd: nr)
-        
-        debug(.media, "Hard Drive exported successfully")
-    }
-    
-    func export(fileProxy: MediaFileProxy, to url: URL) throws {
-        
-        debug(.media, "Exporting to \(url)")
-        try fileProxy.writeToFile(url: url)
+
+        loginfo(.media, "Hard Drive exported successfully")
     }
 }

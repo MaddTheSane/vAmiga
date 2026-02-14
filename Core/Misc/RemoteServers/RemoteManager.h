@@ -11,14 +11,16 @@
 
 #include "SubComponent.h"
 #include "RemoteManagerTypes.h"
-#include "SerServer.h"
 #include "RshServer.h"
+#include "RpcServer.h"
 #include "GdbServer.h"
 #include "PromServer.h"
+#include "SerServer.h"
+#include "utl/wrappers.h"
 
 namespace vamiga {
 
-class RemoteManager final : public SubComponent, public Inspectable<RemoteManagerInfo> {
+class RemoteManager final : public SubComponent {
 
     Descriptions descriptions = {{
 
@@ -32,16 +34,27 @@ class RemoteManager final : public SubComponent, public Inspectable<RemoteManage
     };
 
 public:
+
+    // Result of the latest inspection
+    utl::Backed<RemoteManagerInfo> info;
+
+private:
+
+    // Frame counter
+    usize frame = 0;
+
+public:
     
     // The remote servers
-    SerServer serServer = SerServer(amiga, isize(ServerType::SER));
     RshServer rshServer = RshServer(amiga, isize(ServerType::RSH));
-    PromServer promServer = PromServer(amiga, isize(ServerType::PROM));
+    RpcServer rpcServer = RpcServer(amiga, isize(ServerType::RPC));
     GdbServer gdbServer = GdbServer(amiga, isize(ServerType::GDB));
+    PromServer promServer = PromServer(amiga, isize(ServerType::PROM));
+    SerServer serServer = SerServer(amiga, isize(ServerType::SER));
 
     // Convenience access
     std::vector <RemoteServer *> servers = {
-        &serServer, &rshServer, &gdbServer, &promServer
+        &rshServer, &rpcServer, &gdbServer, &promServer, &serServer
     };
 
     
@@ -55,9 +68,11 @@ public:
     
     RemoteManager& operator= (const RemoteManager& other) {
 
-        CLONE(serServer)
         CLONE(rshServer)
+        CLONE(rpcServer)
         CLONE(gdbServer)
+        CLONE(promServer)
+        CLONE(serServer)
 
         return *this;
     }
@@ -95,12 +110,12 @@ public:
 
 
     //
-    // Methods from Inspectable
+    // Analyzing
     //
 
 public:
 
-    void cacheInfo(RemoteManagerInfo &result) const override;
+    RemoteManagerInfo cacheInfo() const;
 
 
     //
@@ -117,11 +132,13 @@ public:
 
 
     //
-    // Servicing events
+    // Running the launch daemon
     //
     
 public:
-    
+
+    void update();
+
     void serviceServerEvent();
 };
 

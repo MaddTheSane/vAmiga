@@ -31,6 +31,9 @@ VideoPort::VideoPort(Amiga &ref) : SubComponent(ref)
     for (isize i = 0; i < blank.pixels.size; i++) {
         blank.pixels.ptr[i] = 0xFF000000;
     }
+
+    info.bind([this] { return cacheInfo(); } );
+    metrics.bind([this] { return cacheStats(); } );
 };
 
 VideoPort::~VideoPort()
@@ -43,8 +46,6 @@ VideoPort::~VideoPort()
 void
 VideoPort::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-
     if (category == Category::Config) {
 
         dumpConfig(os);
@@ -77,7 +78,7 @@ VideoPort::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw AppError(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -98,16 +99,16 @@ VideoPort::setOption(Opt opt, i64 value)
     }
 }
 
-void 
-VideoPort::cacheInfo(VideoPortInfo &result) const
+VideoPortInfo
+VideoPort::cacheInfo() const
 {
-
+    return VideoPortInfo { .latestGrabbedFrame = latestGrabbedFrame };
 }
 
-void 
-VideoPort::cacheStats(VideoPortStats &result) const
+VideoPortStats
+VideoPort::cacheStats() const
 {
-
+    return VideoPortStats { .droppedFrames = droppedFrames };
 }
 
 const Texture &
@@ -116,7 +117,7 @@ VideoPort::getTexture(isize offset) const
     if (isPoweredOn()) {
 
         auto &result = denise.pixelEngine.getStableBuffer(offset);
-        info.latestGrabbedFrame = result.nr;
+        latestGrabbedFrame = result.nr;
         return result;
     }
     if (config.whiteNoise) {
@@ -136,14 +137,14 @@ void
 VideoPort::buffersWillSwap()
 {
     // Check if the texture has been grabbed
-    auto grabbed = info.latestGrabbedFrame;
+    auto grabbed = latestGrabbedFrame;
     auto current = denise.pixelEngine.getStableBuffer().nr;
 
     if (grabbed < current) {
 
-        stats.droppedFrames++;
-        debug(VID_DEBUG, "Frame %lld dropped (total: %ld latest: %lld)\n", 
-            current, stats.droppedFrames, grabbed);
+        droppedFrames++;
+        loginfo(VID_DEBUG, "Frame %lld dropped (total: %ld latest: %lld)\n", 
+            current, droppedFrames, grabbed);
     }
 }
 

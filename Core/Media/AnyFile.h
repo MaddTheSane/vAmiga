@@ -9,23 +9,20 @@
 
 #pragma once
 
-#include "CoreObject.h"
-#include "MediaFile.h"
-#include "Checksum.h"
-#include "IOUtils.h"
-#include "Buffer.h"
-#include <sstream>
-#include <fstream>
+#include "utl/abilities.h"
+#include "utl/storage.h"
+#include <iostream>
 
 namespace vamiga {
 
-using util::Buffer;
+using namespace utl;
 
-class AnyFile : public CoreObject, public MediaFile {
+// Base class for all file-backed binary formats
+class AnyFile : public Hashable, public Dumpable, public Loggable {
 
 public:
     
-    // Physical location of this file
+    // The location of this file (may be empty)
     fs::path path;
 
     // The raw data of this file
@@ -38,81 +35,91 @@ public:
     
 public:
 
-    virtual ~AnyFile();
+    virtual ~AnyFile() = default;
 
-    // void init(std::istream &stream) throws;
-    // void init(const fs::path &path, std::istream &stream) throws;
-    void init(isize len) throws;
-    void init(const u8 *buf, isize len) throws;
-    void init(const Buffer<u8> &buffer) throws;
-    void init(const string &str) throws;
-    void init(const fs::path &path) throws;
-    // void init(FILE *file) throws;
-    
-    explicit operator bool() const { return data.ptr != nullptr; }
-
-    
-    //
-    // Methods from CoreObject
-    //
-    
-    /*
-private:
-    
-    void _dump(Category category, std::ostream &os) const override { }
-     */
+    void init(isize len);
+    void init(const u8 *buf, isize len);
+    void init(const Buffer<u8> &buffer);
+    void init(const string &str);
+    void init(const fs::path &path);
 
 
     //
-    // Methods from MediaFile
+    // Methods from Hashable
     //
-    
+
 public:
 
-    virtual isize getSize() const override { return data.size; }
-    virtual u8 *getData() const override { return data.ptr; }
-    virtual u64 fnv64() const override { return data.fnv64(); }
-    virtual u32 crc32() const override { return data.crc32(); }
+    u64 hash(HashAlgorithm algorithm) const override {
+        return data.hash(algorithm);
+    }
 
-    
+
     //
-    // Flashing
+    // Methods from Dumpable
     //
+
+public:
+
+    Dumpable::DataProvider dataProvider() const override {
+        return data.dataProvider();
+    }
+
+
+    //
+    // Querying meta information
+    //
+
+public:
+
+    isize getSize() const { return data.size; }
+    u8* getData() const { return data.ptr; }
+    bool empty() const { return data.empty(); }
+
+    // Returns meta-information about the file
+    virtual std::vector<string> describe() const { return {}; }
+
+
+    //
+    // Accessing data
+    //
+
+public:
+
+    ByteView byteView(isize offset = 0) const;
+    ByteView byteView(isize offset, isize len) const;
+    MutableByteView byteView(isize offset = 0);
+    MutableByteView byteView(isize offset, isize len);
 
     // Copies the file contents into a buffer
-    virtual void flash(u8 *buf, isize offset, isize len) const override;
-    virtual void flash(u8 *buf, isize offset = 0) const override;
+    virtual void copy(u8 *dst, isize offset, isize len) const;
+    virtual void copy(u8 *dst, isize offset = 0) const;
 
-    
-    //
-    // Serializing
-    //
-    
-protected:
-    
-    virtual bool isCompatiblePath(const fs::path &path) const = 0;
-    virtual bool isCompatibleBuffer(const u8 *buf, isize len) const = 0;
-    bool isCompatibleBuffer(const Buffer<u8> &buffer);
-    isize readFromBuffer(const u8 *buf, isize len) throws override;
-    isize readFromBuffer(const Buffer<u8> &buffer) throws;
 
+    //
+    // Importing
+    //
+
+    // Returns true if path points to a compatible file
+    virtual bool isCompatiblePath(const fs::path &path) const { return true; }
+
+
+    //
+    // Exporting
+    //
+    
 public:
-    
-    isize writeToStream(std::ostream &stream, isize offset, isize len) const throws;
-    isize writeToFile(const fs::path &path, isize offset, isize len) const throws;
-    isize writeToBuffer(u8 *buf, isize offset, isize len) const throws;
-    isize writeToBuffer(Buffer<u8> &buffer, isize offset, isize len) const throws;
 
-    isize writeToStream(std::ostream &stream) const throws override;
-    isize writeToFile(const fs::path &path) const throws override;
-    isize writePartitionToFile(const fs::path &path, isize partition) const throws override;
-    isize writeToBuffer(u8 *buf) const throws override;
-    isize writeToBuffer(Buffer<u8> &buffer) const throws;
+    isize writeToStream(std::ostream &stream) const;
+    isize writeToFile(const fs::path &path) const;
+
+    isize writeToStream(std::ostream &stream, isize offset, isize len) const;
+    isize writeToFile(const fs::path &path, isize offset, isize len) const;
 
 private:
     
-    // Delegation methods
-    virtual void finalizeRead() throws { };
+    // Called at the end of init()
+    virtual void didLoad() {};
 };
 
 }

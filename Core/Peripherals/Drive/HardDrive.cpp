@@ -10,20 +10,21 @@
 #include "config.h"
 #include "HardDrive.h"
 #include "Emulator.h"
-#include "MutableFileSystem.h"
-#include "HDFFile.h"
-#include "HDZFile.h"
-#include "IOUtils.h"
+#include "Codecs.h"
+#include "DeviceError.h"
 #include "Memory.h"
 #include "MsgQueue.h"
+#include "utl/io.h"
 
 namespace vamiga {
+
+using namespace retro::vault;
 
 std::fstream HardDrive::wtStream[4];
 
 HardDrive::HardDrive(Amiga& ref, isize nr) : Drive(ref, nr)
 {
-
+    info.bind([this] { return cacheInfo(); } );
 }
 
 HardDrive::~HardDrive()
@@ -49,7 +50,7 @@ HardDrive::operator= (const HardDrive& other) {
     CLONE(state)
     CLONE(flags)
 
-    if (RUA_ON_STEROIDS) {
+    if constexpr (debug::RUA_ON_STEROIDS) {
 
         // Clone all blocks
         CLONE(data)
@@ -62,7 +63,7 @@ HardDrive::operator= (const HardDrive& other) {
 
             if (other.dirty[i]) {
 
-                debug(RUA_DEBUG, "Cloning block %ld\n", i);
+                loginfo(RUA_DEBUG, "Cloning block %ld\n", i);
                 memcpy(data.ptr + 512 * i, other.data.ptr + 512 * i, 512);
             }
         }
@@ -87,7 +88,7 @@ HardDrive::init()
     ptable.clear();
     drivers.clear();
     head = {};
-    setFlag(DiskFlags::MODIFIED, FORCE_HDR_MODIFIED);
+    setFlag(DiskFlags::MODIFIED, force::HDR_MODIFIED);
 }
 
 void
@@ -123,37 +124,19 @@ HardDrive::init(isize size)
 }
 
 void
-HardDrive::init(const MutableFileSystem &fs)
+HardDrive::init(const FileSystem &fs)
 {
-    auto geometry = GeometryDescriptor(fs.numBytes());
-    
+    auto geometry = GeometryDescriptor(fs.bytes());
+
     // Create the drive
     init(geometry);
         
     // Update the partition table
-    ptable[0].name = fs.getName().cpp_str();
+    ptable[0].name = fs.stat().name;
     ptable[0].dosType = 0x444F5300 | (u32)fs.getTraits().dos;
 
     // Copy over all blocks
-    fs.exportVolume(data.ptr, geometry.numBytes());
-}
-
-void 
-HardDrive::init(const MediaFile &file)
-{
-    if (const auto *hdf = dynamic_cast<const HDFFile *>(&file)) {
-        
-        init(*hdf);
-        return;
-    }
-    
-    if (const auto *hdz = dynamic_cast<const HDZFile *>(&file)) {
-        
-        init(*hdz);
-        return;
-    }
-    
-    throw AppError(Fault::FILE_TYPE_UNSUPPORTED);
+    fs.exporter.exportVolume(data.ptr, geometry.numBytes());
 }
 
 void
@@ -181,7 +164,7 @@ HardDrive::init(const HDFFile &hdf)
     // Copy over all needed file system drivers
     for (const auto &driver : hdf.drivers) {
 
-        bool needed = HDR_FS_LOAD_ALL;
+        bool needed = debug::HDR_FS_LOAD_ALL;
 
         for (const auto &part : ptable) {
             if (driver.dosType == part.dosType) {
@@ -198,42 +181,42 @@ HardDrive::init(const HDFFile &hdf)
     
     if (data.size < numBytes) {
         
-        debug(HDR_DEBUG, "HDF is too large. Ignoring excess bytes.\n");
+        loginfo(HDR_DEBUG, "HDF is too large. Ignoring excess bytes.\n");
         numBytes = data.size;
     }
     if (data.size > hdf.data.size) {
         
-        debug(HDR_DEBUG, "HDF is too small. Padding with zeroes.");
+        loginfo(HDR_DEBUG, "HDF is too small. Padding with zeroes.");
         data.clear(0, hdf.data.size);
     }
     
     // Copy over all blocks
-    hdf.flash(data.ptr, 0, numBytes);
+    hdf.copy(data.ptr, 0, numBytes);
         
     // Print some debug information
-    debug(HDR_DEBUG, "%zu (needed) file system drivers\n", drivers.size());
-    if (HDR_DEBUG) {
+    loginfo(HDR_DEBUG, "%zu (needed) file system drivers\n", drivers.size());
+    if constexpr (debug::HDR_DEBUG) {
         for (auto &driver : drivers) driver.dump();
     }
 }
 
 void
-HardDrive::init(const HDZFile &hdz) throws
+HardDrive::init(const HDZFile &hdz)
 {
     init(hdz.hdf);
 }
 
 void
-HardDrive::init(const fs::path &path) throws
+HardDrive::init(const fs::path &path)
 {
     if (!fs::exists(path)) {
 
-        throw AppError(Fault::FILE_NOT_FOUND, path);
+        throw IOError(IOError::FILE_NOT_FOUND, path);
     }
 
     if (fs::is_directory(path)) {
         
-        debug(HDR_DEBUG, "Importing directory...\n");
+        loginfo(HDR_DEBUG, "Importing directory...\n");
         
         importFolder(path);
         
@@ -242,7 +225,7 @@ HardDrive::init(const fs::path &path) throws
         try { init(HDFFile(path)); return; } catch(...) { }
         try { init(HDZFile(path)); return; } catch(...) { }
         
-        throw AppError(Fault::FILE_TYPE_UNSUPPORTED);
+        throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
     }
 }
 
@@ -255,7 +238,8 @@ HardDrive::_initialize()
 void
 HardDrive::_didReset(bool hard)
 {
-    if (FORCE_HDR_MODIFIED) { setFlag(DiskFlags::MODIFIED, true); }
+    if constexpr (force::HDR_MODIFIED)
+        setFlag(DiskFlags::MODIFIED, true);
 
     // Mark all blocks as dirty
     dirty.clear(true);
@@ -283,7 +267,7 @@ HardDrive::checkOption(Opt opt, i64 value)
         case Opt::HDR_TYPE:
 
             if (!HardDriveTypeEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, HardDriveTypeEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, HardDriveTypeEnum::keyList());
             }
             return;
 
@@ -293,7 +277,7 @@ HardDrive::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -305,7 +289,7 @@ HardDrive::setOption(Opt option, i64 value)
         case Opt::HDR_TYPE:
             
             if (!HardDriveTypeEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, HardDriveTypeEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, HardDriveTypeEnum::keyList());
             }
             config.type = (HardDriveType)value;
             return;
@@ -331,9 +315,9 @@ HardDrive::connect()
     // Attach a small default disk
     if (!hasDisk()) {
         
-        debug(WT_DEBUG, "Creating default disk...\n");
+        loginfo(WT_DEBUG, "Creating default disk...\n");
         init(MB(10));
-        format(FSFormat::OFS, defaultName());
+        format(amiga::FSFormat::OFS, FSName(defaultName()));
     }
 }
 
@@ -366,48 +350,55 @@ bool
 HardDrive::isBootable()
 {
     try {
-        
-        if (FileSystem(*this).exists("s/startup-sequence")) {
 
-            debug(HDR_DEBUG, "Bootable drive\n");
+        auto vol = Volume(*this);
+        auto fs = FileSystem(vol);
+
+        // auto dev = make_unique<Device>(getGeometry());
+        // auto fs = FileSystemFactory::fromHardDrive(*dev, *this);
+
+        if (fs.exists("s/startup-sequence")) {
+
+            loginfo(HDR_DEBUG, "Bootable drive\n");
             return true;
         }
         
     } catch (...) {
         
-        debug(HDR_DEBUG, "No file system found\n");
+        loginfo(HDR_DEBUG, "No file system found\n");
     }
     
-    debug(HDR_DEBUG, "Unbootable drive\n");
+    loginfo(HDR_DEBUG, "Unbootable drive\n");
     return false;
 }
 
-void
-HardDrive::cacheInfo(HardDriveInfo &info) const
+HardDriveInfo
+HardDrive::cacheInfo() const
 {
-    {   SYNCHRONIZED
-        
-        info.nr = objid;
-        
-        info.isConnected = isConnected();
-        info.isCompatible = isCompatible();
+    HardDriveInfo info;
 
-        info.hasDisk = hasDisk();
-        info.hasModifiedDisk = hasModifiedDisk();
-        info.hasUnmodifiedDisk = hasUnmodifiedDisk();
-        info.hasProtectedDisk = hasProtectedDisk();
-        info.hasUnprotectedDisk = hasUnprotectedDisk();
+    info.nr = objid;
 
-        info.partitions = numPartitions();
+    info.isConnected = isConnected();
+    info.isCompatible = isCompatible();
 
-        // Flags
-        info.writeProtected = getFlag(DiskFlags::PROTECTED);
-        info.modified = getFlag(DiskFlags::MODIFIED);
+    info.hasDisk = hasDisk();
+    info.hasModifiedDisk = hasModifiedDisk();
+    info.hasUnmodifiedDisk = hasUnmodifiedDisk();
+    info.hasProtectedDisk = hasProtectedDisk();
+    info.hasUnprotectedDisk = hasUnprotectedDisk();
 
-        // State
-        info.state = state;
-        info.head = head;
-    }
+    info.partitions = numPartitions();
+
+    // Flags
+    info.writeProtected = getFlag(DiskFlags::PROTECTED);
+    info.modified = getFlag(DiskFlags::MODIFIED);
+
+    // State
+    info.state = state;
+    info.head = head;
+    
+    return info;
 }
 
 void
@@ -420,8 +411,8 @@ HardDrive::_didLoad()
 void
 HardDrive::_dump(Category category, std::ostream &os) const
 {
-    using namespace util;
-    
+    using namespace utl;
+
     if (category == Category::Config) {
         
         dumpConfig(os);
@@ -457,13 +448,15 @@ HardDrive::_dump(Category category, std::ostream &os) const
         os << tab("Controller Revision");
         os << controllerRevision << std::endl;
     }
-    
+
+    /*
     if (category == Category::Volumes) {
 
         for (isize i = 0; i < isize(ptable.size()); i++) {
-            
-            auto fs = MutableFileSystem(*this, i);
-            fs.dump(i == 0 ? Category::Info : Category::State, os);
+
+            auto dev = make_unique<Device>(getGeometry());
+            auto fs = FileSystemFactory::fromHardDrive(*dev, *this, i);
+            i == 0 ? fs->dumpInfo(os) : fs->dumpState(os);
         }
         
         for (isize i = 0; i < isize(ptable.size()); i++) {
@@ -471,10 +464,12 @@ HardDrive::_dump(Category category, std::ostream &os) const
             os << std::endl;
             os << tab("Partition");
             os << dec(i) << std::endl;
-            auto fs = MutableFileSystem(*this, i);
-            fs.dump(Category::Properties, os);
+            auto dev = make_unique<Device>(getGeometry());
+            auto fs = FileSystemFactory::fromHardDrive(*dev, *this, i);
+            fs->dumpProps(os);
         }
     }
+    */
     
     if (category == Category::Partitions) {
         
@@ -488,6 +483,20 @@ HardDrive::_dump(Category category, std::ostream &os) const
             part.dump(os);
         }
     }
+}
+
+void
+HardDrive::read(u8 *dst, isize offset, isize count) const
+{
+    assert(offset + count <= data.size);
+    memcpy((void *)dst, (void *)(data.ptr + offset), count);
+}
+
+void
+HardDrive::write(const u8 *src, isize offset, isize count)
+{
+    assert(offset + count <= data.size);
+    memcpy((void *)(data.ptr + offset), (void *)src, count);
 }
 
 bool
@@ -548,31 +557,51 @@ HardDrive::defaultName(isize partition) const
 }
 
 void
-HardDrive::format(FSFormat fsType, string name)
+HardDrive::format(amiga::FSFormat fsType, FSName name)
 {
-    if (HDR_DEBUG) {
+    using amiga::FSFormat;
 
-        msg("Formatting hard drive\n");
-        msg("    File system : %s\n", FSFormatEnum::key(fsType));
-        msg("           Name : %s\n", name.c_str());
+    if constexpr (debug::HDR_DEBUG) {
+
+        loginfo(HDR_DEBUG, "Formatting hard drive\n");
+        loginfo(HDR_DEBUG, "    File system : %s\n", amiga::FSFormatEnum::key(fsType));
+        loginfo(HDR_DEBUG, "           Name : %s\n", name.c_str());
     }
     
     // Only proceed if a disk is present
     if (!data.ptr) return;
 
     if (fsType != FSFormat::NODOS) {
-        
-        // Create a device descriptor matching this drive
+
+        // Convert the drive to an HDF
+        auto hdf = Codec::makeHDF(*this);
+
+        // Create a file system on top of the HDF
+        auto vol = Volume(*hdf);
+        auto fs = FileSystem(vol);
+
+        // Format the file system
+        fs.format(fsType);
+
+        // Name the file system
+        fs.setName(name);
+
+        /*
+        // Create a file system descriptor matching this drive
         auto layout = FSDescriptor(geometry, fsType);
 
+        // Create an empty device
+        auto dev = Device(geometry);
+
         // Create an empty file system
-        auto fs = MutableFileSystem(layout);
-        
+        auto fs = FileSystem(dev, layout);
+
         // Name the file system
         fs.setName(name);
         
-        // Copy the file system over
+        // Initialize the hard drive with the created file system
         init(fs);
+        */
     }
 }
 
@@ -594,14 +623,14 @@ HardDrive::changeGeometry(const GeometryDescriptor &geometry)
 
     } else {
         
-        throw AppError(Fault::HDR_UNMATCHED_GEOMETRY);
+        throw DeviceError(DeviceError::HDR_UNMATCHED_GEOMETRY);
     }
 }
 
 i8
 HardDrive::read(isize offset, isize length, u32 addr)
 {
-    debug(HDR_DEBUG, "read(%ld, %ld, %u)\n", offset, length, addr);
+    loginfo(HDR_DEBUG, "read(%ld, %ld, %u)\n", offset, length, addr);
 
     // Check arguments
     auto error = verify(offset, length, addr);
@@ -629,7 +658,7 @@ HardDrive::read(isize offset, isize length, u32 addr)
 i8
 HardDrive::write(isize offset, isize length, u32 addr)
 {
-    debug(HDR_DEBUG, "write(%ld, %ld, %u)\n", offset, length, addr);
+    loginfo(HDR_DEBUG, "write(%ld, %ld, %u)\n", offset, length, addr);
 
     // Check arguments
     auto error = verify(offset, length, addr);
@@ -690,25 +719,25 @@ HardDrive::verify(isize offset, isize length, u32 addr)
 
     if (length % 512) {
         
-        debug(HDR_DEBUG, "Length must be a multiple of 512 bytes");
+        loginfo(HDR_DEBUG, "Length must be a multiple of 512 bytes");
         return IOERR_BADLENGTH;
     }
 
     if (offset % 512) {
         
-        debug(HDR_DEBUG, "Offset is not aligned");
+        loginfo(HDR_DEBUG, "Offset is not aligned");
         return IOERR_BADADDRESS;
     }
 
     if (offset + length > geometry.numBytes()) {
         
-        debug(HDR_DEBUG, "Invalid block location");
+        loginfo(HDR_DEBUG, "Invalid block location");
         return IOERR_BADADDRESS;
     }
 
     if (!mem.inRam(addr) || !mem.inRam(u32(addr + length))) {
         
-        debug(HDR_DEBUG, "Invalid RAM location");
+        loginfo(HDR_DEBUG, "Invalid RAM location");
         return IOERR_BADADDRESS;
     }
 
@@ -742,44 +771,78 @@ HardDrive::moveHead(isize c, isize h, isize s)
 }
 
 void
-HardDrive::importFolder(const fs::path &path) throws
+HardDrive::importFolder(const fs::path &path)
 {
     if (!fs::exists(path)) {
 
-        throw AppError(Fault::FILE_NOT_FOUND, path);
+        throw IOError(IOError::FILE_NOT_FOUND, path);
     }
     
     if (fs::is_directory(path)) {
         
-        debug(HDR_DEBUG, "Importing directory...\n");
+        loginfo(HDR_DEBUG, "Importing directory...\n");
 
         // Retrieve some information about the first partition
         auto traits = getPartitionTraits(0);
-                
+
+        // Create a file system on top of the drive
+        auto vol = Volume(*this);
+        auto fs = FileSystem(vol);
+
+        // Import all files
+        fs.importer.import(fs.root(), path, true, true);
+
+        // Name the file system
+        fs.setName(FSName(traits.name));
+
+        // Write back
+        fs.flush();
+
+        /*
+        // Retrieve some information about the first partition
+        auto traits = getPartitionTraits(0);
+
         // Create a device descriptor matching this drive
         FSDescriptor layout(geometry, traits.fsType);
-        
+
+        // Create an empty device
+        auto dev = Device(geometry);
+
         // Create a new file system
-        auto fs = MutableFileSystem(layout);
+        auto fs = FileSystem(dev, layout);
         
         // Import all files
-        fs.import(fs.root(), path, true, true);
+        fs.importer.import(fs.root(), path, true, true);
 
         // Name the file system
         fs.setName(traits.name);
         
         // Copy the file system back to the disk
         init(fs);
+        */
     }
 }
 
 void
-HardDrive::writeToFile(const fs::path &path) throws
+HardDrive::writeToFile(const fs::path &path)
 {
     if (!path.empty()) {
 
-        auto hdf = HDFFile(*this);
-        hdf.writeToFile(path);
+        auto hdf = Codec::makeHDF(*this);
+        hdf->writeToFile(path);
+    }
+}
+
+std::unique_ptr<HardDiskImage>
+HardDrive::exportDisk(ImageFormat fmt) const
+{
+    switch (fmt) {
+
+        case ImageFormat::HDF: return Codec::makeHDF(*this);
+        // case ImageFormat::HDZ: return Codec::makeHDZ(*this);
+
+        default:
+            throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
     }
 }
 

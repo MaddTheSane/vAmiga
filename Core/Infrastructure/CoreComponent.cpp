@@ -11,8 +11,8 @@
 #include "CoreComponent.h"
 #include "Emulator.h"
 #include "Defaults.h"
-#include "Checksum.h"
 #include "Option.h"
+#include "MediaError.h"
 #include <algorithm>
 
 namespace vamiga {
@@ -264,14 +264,16 @@ CoreComponent::load(const u8 *buf)
         auto count = u64(reader.ptr - (buf + result));
 
         // Check integrity
-        if (size != count || hash != c->checksum(false) || FORCE_SNAP_CORRUPTED) {
+        if (size != count || hash != c->checksum(false) || force::SNAP_CORRUPTED) {
 
-            msg("Loaded %llu bytes (expected %llu)\n", count, size);
-            msg("Hash: %llx (expected %llx)\n", hash, c->checksum(false));
-            if (SNP_DEBUG) { fatalError; } else { throw AppError(Fault::SNAP_CORRUPTED); }
+            logcritical("Loaded %llu bytes (expected %llu)\n", count, size);
+            logcritical("Hash: %llx (expected %llx)\n", hash, c->checksum(false));
+            if constexpr (debug::SNP_DEBUG) { fatalError; }
+
+            throw MediaError(MediaError::SNAP_CORRUPTED);
         }
 
-        debug(SNP_DEBUG >= 2, "Loaded %llu bytes (expected %llu)\n", count, size);
+        loginfo(NULLDEV, "Loaded %llu bytes (expected %llu)\n", count, size);
         result += isize(count);
     });
 
@@ -300,13 +302,15 @@ CoreComponent::save(u8 *buffer)
         isize count = (isize)(writer.ptr - (buffer + result));
 
         // Check integrity
-        if (count != c->size(false) || FORCE_SNAP_CORRUPTED) {
+        if (count != c->size(false) || force::SNAP_CORRUPTED) {
 
-            msg("Saved %ld bytes (expected %ld)\n", count, c->size(false));
-            if (SNP_DEBUG) { fatalError; } else { throw AppError(Fault::SNAP_CORRUPTED); }
+            logcritical("Saved %ld bytes (expected %ld)\n", count, c->size(false));
+            if constexpr (debug::SNP_DEBUG) { fatalError; }
+
+            throw MediaError(MediaError::SNAP_CORRUPTED);
         }
 
-        debug(SNP_DEBUG >= 2, "Saved %ld bytes (expected %ld)\n", count, c->size(false));
+        loginfo(NULLDEV, "Saved %ld bytes (expected %ld)\n", count, c->size(false));
         result += count;
     });
 
@@ -357,7 +361,7 @@ CoreComponent::diff(CoreComponent &other)
 
     // Compare this component
     if (auto check1 = checksum(false), check2 = other.checksum(false); check1 != check2) {
-        msg("Checksum mismatch: %llx != %llx\n", check1, check2);
+        logerror("Checksum mismatch: %llx != %llx\n", check1, check2);
     }
 }
 
@@ -367,7 +371,7 @@ CoreComponent::exportConfig(const fs::path &path, bool diff, std::vector<Class> 
     auto fs = std::ofstream(path, std::ofstream::binary);
 
     if (!fs.is_open()) {
-        throw AppError(Fault::FILE_CANT_WRITE);
+        throw IOError(IOError::FILE_CANT_WRITE);
     }
 
     exportConfig(fs, diff, exclude);

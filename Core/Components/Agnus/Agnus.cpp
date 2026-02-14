@@ -14,14 +14,17 @@
 namespace vamiga {
 
 Agnus::Agnus(Amiga& ref) : SubComponent(ref)
-{    
+{
     subComponents = std::vector<CoreComponent *> {
-        
+
         &sequencer,
         &copper,
         &blitter,
         &dmaDebugger
     };
+
+    info.bind([this] { return cacheInfo(); } );
+    metrics.bind([this] { return cacheMetrics(); } );
 }
 
 Agnus&
@@ -97,8 +100,8 @@ Agnus::operator << (SerResetter &worker)
     // Adjust to the correct video mode
     setVideoFormat(amiga.getConfig().type);
 
-    // Initialize statistical counters
-    clearStats();
+    // Reset all metrics
+    stats = {};
 
     // Initialize all event slots
     for (isize i = 0; i < SLOT_COUNT; i++) {
@@ -143,10 +146,10 @@ Agnus::checkOption(Opt opt, i64 value)
         case Opt::AGNUS_REVISION:
 
             if (!isPoweredOff()) {
-                throw AppError(Fault::OPT_LOCKED);
+                throw CoreError(CoreError::OPT_LOCKED);
             }
             if (!AgnusRevisionEnum::isValid(value)) {
-                throw AppError(Fault::OPT_INV_ARG, AgnusRevisionEnum::keyList());
+                throw CoreError(CoreError::OPT_INV_ARG, AgnusRevisionEnum::keyList());
             }
             return;
 
@@ -155,7 +158,7 @@ Agnus::checkOption(Opt opt, i64 value)
             return;
 
         default:
-            throw(Fault::OPT_UNSUPPORTED);
+            throw CoreError(CoreError::OPT_UNSUPPORTED);
     }
 }
 
@@ -192,7 +195,7 @@ Agnus::setOption(Opt option, i64 value)
 void
 Agnus::setVideoFormat(TV newFormat)
 {
-    trace(NTSC_DEBUG, "Video format = %s\n", TVEnum::key(newFormat));
+    logdebug(NTSC_DEBUG, "Video format = %s\n", TVEnum::key(newFormat));
 
     // Change the frame type
     agnus.pos.switchMode(newFormat);
@@ -556,7 +559,7 @@ Agnus::executeUntil(Cycle cycle) {
 template <isize nr> void
 Agnus::executeFirstSpriteCycle()
 {
-    trace(SPR_DEBUG, "executeFirstSpriteCycle<%ld>\n", nr);
+    logdebug(SPR_DEBUG, "executeFirstSpriteCycle<%ld>\n", nr);
 
     if (pos.v == sprVStop[nr]) {
 
@@ -598,7 +601,7 @@ Agnus::executeFirstSpriteCycle()
 template <isize nr> void
 Agnus::executeSecondSpriteCycle()
 {
-    trace(SPR_DEBUG, "executeSecondSpriteCycle<%ld>\n", nr);
+    logdebug(SPR_DEBUG, "executeSecondSpriteCycle<%ld>\n", nr);
 
     if (pos.v == sprVStop[nr]) {
 
