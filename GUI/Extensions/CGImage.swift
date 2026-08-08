@@ -23,7 +23,7 @@ extension CGImage {
 
             (info: UnsafeMutableRawPointer?, data: UnsafeRawPointer, size: Int) -> Void in
 
-            // Core Foundation objects are memory managed, aren't they?
+            free(UnsafeMutableRawPointer(mutating: data))
             return
         }
 
