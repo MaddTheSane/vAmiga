@@ -11,7 +11,7 @@
 class GuardTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
 
     @IBOutlet weak var inspector: Inspector!
-    var emu: EmulatorProxy? { return inspector.parent.emu }
+    var emu: EmulatorProxy? { return inspector?.parent.emu }
 
     // Data caches
     var disabledCache: [Int: Bool] = [:]

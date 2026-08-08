@@ -14,6 +14,7 @@
 #include "utl/io.h"
 #include "utl/types/Literals.h"
 #include <algorithm>
+#include <array>
 
 namespace retro::vault {
 
@@ -115,6 +116,47 @@ GeometryDescriptor::driveGeometries(isize numBlocks)
 std::vector<GeometryDescriptor>
 GeometryDescriptor::driveGeometries(isize numBlocks, isize bsize)
 {
+    // Typical number of sectors per track
+    // https://www.win.tue.nl/~aeb/linux/hdtypes/hdtypes-4.html
+    
+    static constexpr std::array<i8, 24> sizes = {
+        16, 17, 24, 26, 27, 28, 29, 32, 34,
+        35, 36, 38, 47, 50, 51, 52, 53, 55,
+        56, 59, 60, 61, 62, 63
+    };
+    
+    std::vector<GeometryDescriptor> result;
+    result.reserve(128);
+
+    for (isize h = hMin; h <= hMax; ++h) {
+        
+        for (auto s_raw : sizes) {
+
+            isize s = isize(s_raw);
+            isize blocksPerCyl = h * s;
+
+            if (blocksPerCyl == 0) continue;
+
+            if (numBlocks % blocksPerCyl == 0) {
+
+                isize c = numBlocks / blocksPerCyl;
+
+                if (c > cMax) continue;
+                if (c < cMin && h > 1) continue;
+
+                result.emplace_back(c, h, s, bsize);
+            }
+        }
+    }
+
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
+/*
+std::vector<GeometryDescriptor>
+GeometryDescriptor::driveGeometries(isize numBlocks, isize bsize)
+{
     std::vector<GeometryDescriptor> result;
     
     // Typical number of sectors per track
@@ -151,6 +193,7 @@ GeometryDescriptor::driveGeometries(isize numBlocks, isize bsize)
 
     return result;
 }
+*/
 
 bool
 GeometryDescriptor::unique() const
@@ -178,7 +221,7 @@ GeometryDescriptor::dump(std::ostream &os) const
 void
 GeometryDescriptor::checkCompatibility() const
 {
-    if constexpr (debug::HDR_ACCEPT_ALL) return;
+    // if constexpr (debug::HDR_ACCEPT_ALL) return;
 
     // Check forced error conditions
     if constexpr (force::HDR_UNKNOWN_GEOMETRY) {
@@ -199,7 +242,7 @@ GeometryDescriptor::checkCompatibility() const
     if constexpr (force::HDR_UNSUPPORTED_B) {
         throw DeviceError(DeviceError::HDR_UNSUPPORTED_BSIZE);
     }
-
+    
     // Check for real error conditions
     if (cylinders == 0) {
         throw DeviceError(DeviceError::HDR_UNKNOWN_GEOMETRY);
@@ -317,10 +360,10 @@ DriverDescriptor::dump(std::ostream &os) const
     using namespace utl;
 
     os << tab("DOS type");
-    os << hex(dosType);
+    os << hex(dosType) << std::endl;
     // os << " (" << OSDebugger::dosTypeStr(dosType) << ")" << std::endl;
     os << tab("DOS version");
-    os << hex(dosVersion);
+    os << hex(dosVersion) << std::endl;
     // os << " (" << OSDebugger::dosVersionStr(dosVersion) << ")" << std::endl;
     os << tab("Patch flags");
     os << hex(patchFlags) << std::endl;

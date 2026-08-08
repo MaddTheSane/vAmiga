@@ -328,98 +328,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "00138939-7F35-442C-97FB-CB1BE3FA07BC"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Core/Peripherals/Drive/FloppyDisk.cpp"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "471"
-            endingLineNumber = "471"
-            landmarkName = "FloppyDisk::encode(img)"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "00138939-7F35-442C-97FB-CB1BE3FA07BC - c80b68b147230c72"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "vamiga::FloppyDisk::decode(retro::vault::image::IMGFile&amp;) const"
-                  moduleName = "vAmiga.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/hoff/Retro/vAmiga/Core/Peripherals/Drive/FloppyDisk.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "472"
-                  endingLineNumber = "472">
-               </Location>
-               <Location
-                  uuid = "00138939-7F35-442C-97FB-CB1BE3FA07BC - faaef92f85a8db65"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "vamiga::FloppyDisk::encode(retro::vault::image::IMGFile const&amp;)"
-                  moduleName = "vAmiga.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/hoff/Retro/vAmiga/Core/Peripherals/Drive/FloppyDisk.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "471"
-                  endingLineNumber = "471">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "A6EFAF8F-F6F9-4F19-BAFE-5BFD294FFF6D"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Core/Peripherals/Drive/FloppyDisk.cpp"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "517"
-            endingLineNumber = "517"
-            landmarkName = "FloppyDisk::encode(img)"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "A6EFAF8F-F6F9-4F19-BAFE-5BFD294FFF6D - 10142d5d19973c17"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "vamiga::FloppyDisk::decode(retro::vault::image::STFile&amp;) const"
-                  moduleName = "vAmiga.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/hoff/Retro/vAmiga/Core/Peripherals/Drive/FloppyDisk.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "518"
-                  endingLineNumber = "518">
-               </Location>
-               <Location
-                  uuid = "A6EFAF8F-F6F9-4F19-BAFE-5BFD294FFF6D - 48d0f472868d613c"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "vamiga::FloppyDisk::encode(retro::vault::image::STFile const&amp;)"
-                  moduleName = "vAmiga.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/hoff/Retro/vAmiga/Core/Peripherals/Drive/FloppyDisk.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "517"
-                  endingLineNumber = "517">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "409955C4-95D4-4338-B1AF-D6DD806BD2B0"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
@@ -436,52 +344,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "C734F4EF-F5E2-41E3-B199-498CBB505750"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Core/Peripherals/Drive/FloppyDisk.cpp"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "369"
-            endingLineNumber = "369"
-            landmarkName = "FloppyDisk::encodeDisk(image)"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "C734F4EF-F5E2-41E3-B199-498CBB505750 - 23a3ed71aaec66b3"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "vamiga::FloppyDisk::encodeDisk(retro::vault::FloppyDiskImage const&amp;)"
-                  moduleName = "vAmiga.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/hoff/Retro/vAmiga/Core/Peripherals/Drive/FloppyDisk.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "373"
-                  endingLineNumber = "373">
-               </Location>
-               <Location
-                  uuid = "C734F4EF-F5E2-41E3-B199-498CBB505750 - 23a3ed71aaec64ac"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "vamiga::FloppyDisk::encodeDisk(retro::vault::FloppyDiskImage const&amp;)"
-                  moduleName = "vAmiga.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/hoff/Retro/vAmiga/Core/Peripherals/Drive/FloppyDisk.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "388"
-                  endingLineNumber = "388">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "EBB255B8-10EC-429C-B99E-D71554494AD7"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -489,9 +351,57 @@
             filePath = "Core/Peripherals/Drive/FloppyDisk.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "365"
-            endingLineNumber = "365"
+            startingLineNumber = "376"
+            endingLineNumber = "376"
             landmarkName = "FloppyDisk::encodeDisk(image)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "26FBAA5A-831F-4752-9782-618A7DAB37D4"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "GUI/Layers/DropZone.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "222"
+            endingLineNumber = "222"
+            landmarkName = "layerDidClose()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "62BDF679-6BFF-496F-9B6C-562C8830F447"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "GUI/MediaManager.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "310"
+            endingLineNumber = "310"
+            landmarkName = "mount(hd:url:options:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "1B39444B-C694-4D5C-9A46-99EE7535B292"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "GUI/MediaManager.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "322"
+            endingLineNumber = "322"
+            landmarkName = "mount(hd:url:options:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

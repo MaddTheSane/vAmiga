@@ -20,16 +20,16 @@
  *           -----------------       -----------------
  * Layer 5: |    POSIX API    |<--->| PosixFileSystem |
  *           -----------------       -----------------
- *           |  |  |                        / \
- *           |  |  |                        \ /
+ *           |  |  |                        < >
+ *           |  |  |                         |
  *           |  |  V                         |
  *           |  |  -----------               |               -----------------
  * Layer 4:  |  | | Services  |..............|..............|                 |
  *           |  |  -----------               |              |    FSImporter   |
  *           |  |  |         |               |              |                 |
- *           |  |  |         |       ----------------- /\   |    FSExporter   |
- *           |  V  V         |      |                 |  ---|                 |
- *           |  -----------  |      |                 |\/   |    FSCrawler    |
+ *           |  |  |         |       -----------------      |    FSExporter   |
+ *           |  V  V         |      |                 |<>---|                 |
+ *           |  -----------  |      |                 |     |    FSCrawler    |
  * Layer 3:  | |   Paths   |.|......|                 |     |                 |
  *           |  -----------  |      |                 |     |    FSDoctor     |
  *           |  |            |      |   FileSystem    |     |                 |
@@ -38,14 +38,14 @@
  *           -----------------      |                 |
  * Layer 2: |     Nodes       |.....|                 |
  *           -----------------       -----------------
- *                   |                      / \
- *                   |                      \ /
+ *                   |                      < >
+ *                   |                       |
  *                   V                       |
  *           -----------------       -----------------
  * Layer 1: |   Block cache   |.....| FSCache/FSBlock |
  *           -----------------       -----------------
- *                   |                      / \
- *                   |                      \ /
+ *                   |                      < >
+ *                   |                       |
  *                   V                       |
  *           -----------------       -----------------
  * Layer 0: |  Block device   |.....|     Volume      |
@@ -89,7 +89,6 @@
 #pragma once
 
 #include "FileSystems/Amiga/FSTypes.h"
-#include "FileSystems/Amiga/FSError.h"
 #include "FileSystems/Amiga/FSBlock.h"
 #include "FileSystems/Amiga/FSContract.h"
 #include "FileSystems/Amiga/FSDescriptor.h"
@@ -100,6 +99,7 @@
 #include "FileSystems/Amiga/FSImporter.h"
 #include "FileSystems/Amiga/FSExporter.h"
 #include "FileSystems/Amiga/FSTree.h"
+#include "FileSystems/FSError.h"
 #include "FileSystems/PosixViewTypes.h"
 #include "DeviceError.h"
 #include "Volume.h"
@@ -111,9 +111,18 @@ class FileSystem : public Loggable {
 
     friend struct FSBlock;
 
+    // Formatting constants
+    static constexpr isize bmHeaderSize = 4;
+    static constexpr u8 bmFreeByte = 0xFF;
+    static constexpr isize bitsPerByte = 8;
+    static constexpr isize reservedBootBlocks = 2;
+
     // Immutable file system properties
     FSTraits traits;
 
+    // Generation counter (increased with every write access)
+    isize generation = 0;
+    
 
     // Block layer
 
@@ -172,6 +181,8 @@ public:
     FileSystem& operator=(const FileSystem &) = delete;
     FileSystem& operator=(FileSystem &&) = delete;
 
+    void stepGeneration() { ++generation; }
+    
 
     //
     // Printing debug information
@@ -197,17 +208,20 @@ public:
     isize bytes() const noexcept { return traits.bytes; }
     isize bsize() const noexcept { return traits.bsize; }
 
+    // Returns a textual description of the file system
+    vector<string> describe() const noexcept;
+
     // Checks whether the file system is formatted
     bool isFormatted() const noexcept;
 
     // Returns usage information and root metadata
-    FSPosixStat stat() const noexcept;
+    FSStat stat() const noexcept;
 
     // Returns information about the boot block
     FSBootStat bootStat() const noexcept;
 
     // Returns information about file permissions
-    FSPosixAttr attr(BlockNr nr) const;
+    FSAttr attr(BlockNr nr) const;
 
 
     //
@@ -256,6 +270,12 @@ public:
     // Writes back dirty cache blocks to the block device
     void flush();
 
+    // Updates the checksums of all cached blocks
+    void updateChecksums();
+    
+    // Invalidates all cached blocks
+    void invalidate();
+    
     // Operator overload for fetch
     const FSBlock &operator[](size_t nr) { return cache.fetch(BlockNr(nr)); }
 

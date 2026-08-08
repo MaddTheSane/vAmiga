@@ -2,18 +2,16 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "FloppyDiskImage.h"
 #include "DeviceDescriptors.h"
-#include "FileSystems/Amiga/FSDescriptor.h"
-
-namespace retro::vault::amiga { class FileSystem; }
+#include "FileSystems/Amiga/FileSystem.h"
 
 namespace retro::vault::image {
 
@@ -52,7 +50,7 @@ public:
     
     explicit ADFFile() { }
     explicit ADFFile(isize len) { init(len); }
-    explicit ADFFile(const u8 *buf, isize len) { init(len); }
+    explicit ADFFile(const u8 *buf, isize len) { init(buf, len); }
     explicit ADFFile(const Buffer<u8>& buffer) { init(buffer); }
     explicit ADFFile(const fs::path& path) { init(path); }
     explicit ADFFile(Diameter dia, Density den) { init(dia, den); }
@@ -65,7 +63,10 @@ public:
     void init(const GeometryDescriptor &descr);
     void init(const FileSystem &volume);
 
+    // Checks if the buffer is in ADF format (throws if not)
+    void ensureADF();
 
+    
     //
     // Methods from AnyImage
     //
@@ -79,7 +80,8 @@ public:
     ImageType type() const noexcept override { return ImageType::FLOPPY; }
     ImageFormat format() const noexcept override { return ImageFormat::ADF; }
     std::vector<string> describeImage() const noexcept override;
-    
+    isize writeToFile(const fs::path &path) const override;
+    isize writeToFile(const fs::path &path, isize offset, isize len) const override;
     void didInitialize() override;
 
 

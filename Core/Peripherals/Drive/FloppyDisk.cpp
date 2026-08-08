@@ -56,11 +56,13 @@ FloppyDisk::init(const class FloppyDiskImage &file, bool wp)
     encodeDisk(file);
 }
 
+/*
 void
 FloppyDisk::init(unique_ptr<FloppyDiskImage> file, bool wp)
 {
     init(*file, wp);
 }
+*/
 
 void
 FloppyDisk::init(SerReader &reader, Diameter dia, Density den, bool wp)
@@ -127,9 +129,13 @@ FloppyDisk::readBlock(u8 *dst, isize nr) const
 void
 FloppyDisk::readBlocks(u8 *dst, Range<isize> range) const
 {
-    for (isize b = range.lower; b < range.upper; ++b)
-        readBlock(dst, b);
-
+    auto *ptr = dst;
+    
+    for (isize b = range.lower; b < range.upper; ++b) {
+        
+        readBlock(ptr, b);
+        ptr += bsize();
+    }
 }
 
 void
@@ -166,8 +172,13 @@ FloppyDisk::writeBlock(const u8 *src, isize nr)
 void
 FloppyDisk::writeBlocks(const  u8 *src, Range<isize> range)
 {
-    for (isize b = range.lower; b < range.upper; ++b)
-        writeBlock(src, b);
+    auto *ptr = src;
+    
+    for (isize b = range.lower; b < range.upper; ++b) {
+        
+        writeBlock(ptr, b);
+        ptr += bsize();
+    }
 }
 
 void
@@ -378,7 +389,7 @@ FloppyDisk::encodeDisk(const FloppyDiskImage &image)
 
     // In debug mode, also run the decoder
     /*
-    if constexpr (debug::ADF_DEBUG) {
+    if constexpr (debug::IMG_DEBUG) {
 
         string tmp = "/tmp/debug.adf";
         fprintf(stderr, "Saving image to %s for debugging\n", tmp.c_str());
@@ -392,7 +403,7 @@ FloppyDisk::decodeDisk(FloppyDiskImage &file) const
 {
     auto tracks = file.numTracks();
 
-    loginfo(ADF_DEBUG, "Decoding disk with %ld tracks\n", tracks);
+    loginfo(IMG_DEBUG, "Decoding disk with %ld tracks\n", tracks);
 
     if (getDiameter() != file.getDiameter()) {
         throw DeviceError(DeviceError::DSK_INVALID_DIAMETER);
@@ -437,7 +448,7 @@ FloppyDisk::decode(ADFFile &adf) const
 {
     auto tracks = adf.numTracks();
 
-    loginfo(ADF_DEBUG, "Decoding Amiga disk with %ld tracks\n", tracks);
+    loginfo(IMG_DEBUG, "Decoding Amiga disk with %ld tracks\n", tracks);
 
     if (getDiameter() != adf.getDiameter()) {
         throw DeviceError(DeviceError::DSK_INVALID_DIAMETER);

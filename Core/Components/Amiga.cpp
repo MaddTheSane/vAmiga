@@ -337,17 +337,9 @@ Amiga::saveWorkspace(const fs::path &path)
             string file = name + (config.compressWorkspaces ? ".adz" : ".adf");
             
             try {
-                
-                if (config.compressWorkspaces) {
 
-                    auto adz = Codec::makeADZ(drive);
-                    adz->writeToFile(path / file);
-
-                } else {
-
-                    auto adf = Codec::makeADF(drive);
-                    adf->writeToFile(path / file);
-                }
+                auto adf = Codec::makeADF(drive);
+                adf->writeToFile(path / file);
                 drive.markDiskAsUnmodified();
                 
                 df << "try " << name << " insert " << file << "\n";
@@ -369,20 +361,10 @@ Amiga::saveWorkspace(const fs::path &path)
             
             try {
                 
-                if (config.compressWorkspaces) {
-
-                    auto hdz = Codec::makeHDZ(drive);
-                    hdz->writeToFile(path / file);
-                    // HDZFile(HDFFile(drive)).writeToFile(path / file);
-
-                } else {
-
-                    auto hdf = Codec::makeHDF(drive);
-                    hdf->writeToFile(path / file);
-                    // HDFFile(drive).writeToFile(path / file);
-                }
+                auto hdf = Codec::makeHDF(drive);
+                hdf->writeToFile(path / file);
                 drive.markDiskAsUnmodified();
-                
+                                
                 hd << "try " << name << " attach " << file << "\n";
                 hd << "try " << name << (drive.hasProtectedDisk() ? " protect\n" : " unprotect\n");
                 
@@ -672,7 +654,7 @@ Amiga::refreshRate() const
     } else {
 
         auto boost = config.speedBoost ? config.speedBoost : 100;
-        return nativeRefreshRate() * boost / 100.0;
+        return nativeRefreshRate() * double(boost) / 100.0;
     }
 }
 
@@ -704,9 +686,9 @@ Amiga::_dump(Category category, std::ostream &os) const
         os << tab("Refresh rate");
         os << dec(isize(refreshRate())) << " Fps" << std::endl;
         os << tab("Native master clock");
-        os << flt(nativeMasterClockFrequency() / float(1000000.0)) << " MHz" << std::endl;
+        os << flt(float(nativeMasterClockFrequency()) / float(1000000.0)) << " MHz" << std::endl;
         os << tab("Emulated master clock");
-        os << flt(masterClockFrequency() / float(1000000.0)) << " MHz" << std::endl;
+        os << flt(float(masterClockFrequency()) / float(1000000.0)) << " MHz" << std::endl;
         os << tab("Native refresh rate");
         os << flt(nativeRefreshRate()) << " Fps" << std::endl;
         os << tab("Emulated refresh rate");
@@ -955,6 +937,8 @@ Amiga::update(CmdQueue &queue)
             case Cmd::KEY_RELEASE:
             case Cmd::KEY_RELEASE_ALL:
             case Cmd::KEY_TOGGLE:
+            case Cmd::KEY_LOCK:
+            case Cmd::KEY_UNLOCK:
 
                 keyboard.processCommand(cmd);
                 break;
@@ -1167,7 +1151,7 @@ Amiga::takeSnapshot(Compressor compressor, isize delay, bool repeat)
     if (delay != 0) {
 
         i64 payload = (i64)compressor << 24 | repeat << 16 | delay;
-        agnus.scheduleRel<SLOT_SNP>(Amiga::sec(delay), SNP_TAKE, payload);
+        agnus.scheduleRel<SLOT_SNP>(Amiga::sec(double(delay)), SNP_TAKE, payload);
         return nullptr;
     }
 
@@ -1216,25 +1200,18 @@ Amiga::loadSnapshot(const fs::path &path)
 void
 Amiga::loadSnapshot(const Snapshot &snapshot)
 {
-    try {
-
-        // Make a copy so we can modify the snapshot
-        Snapshot snap(snapshot);
-
-        // Uncompress the snapshot
-        snap.uncompress();
-
-        // Restore the saved state (may throw)
-        load(snap.getData()+ sizeof(SnapshotHeader));
-
-        // Inform the GUI
-        msgQueue.put(Msg::SNAPSHOT_RESTORED);
-        msgQueue.put(Msg::VIDEO_FORMAT, agnus.isPAL() ? (i64)TV::PAL : (i64)TV::NTSC);
-
-    } catch (const std::bad_cast &) {
-
-        throw IOError(IOError::FILE_TYPE_MISMATCH);
-    }
+    // Make a copy so we can modify the snapshot
+    Snapshot snap(snapshot);
+    
+    // Uncompress the snapshot
+    snap.uncompress();
+    
+    // Restore the saved state (may throw)
+    load(snap.getData() + sizeof(SnapshotHeader));
+    
+    // Inform the GUI
+    msgQueue.put(Msg::SNAPSHOT_RESTORED);
+    msgQueue.put(Msg::VIDEO_FORMAT, agnus.isPAL() ? (i64)TV::PAL : (i64)TV::NTSC);
 }
 
 void

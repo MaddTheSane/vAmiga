@@ -12,7 +12,20 @@
 #include "utl/abilities/Synchronizable.h"
 #include <functional>
 
-namespace utl::wrappers {
+/* Wraps a value with a live view and a cached snapshot. The class provides two
+ * access modes:
+ *
+ *     current(): returns the live value from a getter.
+ *     backed():  returns a cached snapshot (lazy, synchronized).
+ *
+ * By default, the public member `value` is used as the data source. A custom
+ * getter can be installed via the constructor or bind().
+ *
+ * The snapshot can be updated with record() and invalidated with invalidate().
+ * Snapshot operations are synchronized; current() is not.
+ */
+
+namespace utl {
 
 template <typename T> class Backed : utl::Synchronizable {
 

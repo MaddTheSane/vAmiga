@@ -108,6 +108,10 @@ enum class Msg : long
     
     // Keyboard
     CTRL_AMIGA_AMIGA,
+    KB_PRESS,           ///< A key has been pressed
+    KB_RELEASE,         ///< A key has been released
+    KB_LOCK,            ///< A key has been locked
+    KB_UNLOCK,          ///< A key has been unlocked
     
     // Mouse
     SHAKING,
@@ -220,6 +224,10 @@ struct MsgEnum : Reflectable<MsgEnum, Msg>
             case Msg::MON_SETTING:           return "MON_SETTING";
 
             case Msg::CTRL_AMIGA_AMIGA:      return "CTRL_AMIGA_AMIGA";
+            case Msg::KB_PRESS:              return "KB_PRESS";
+            case Msg::KB_RELEASE:            return "KB_RELEASE";
+            case Msg::KB_LOCK:               return "KB_LOCK";
+            case Msg::KB_UNLOCK:             return "KB_UNLOCK";
                 
             case Msg::SHAKING:               return "SHAKING";
                 

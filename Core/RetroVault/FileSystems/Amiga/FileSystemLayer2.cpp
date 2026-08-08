@@ -10,7 +10,9 @@
 #include "config.h"
 #include "FileSystems/Amiga/FileSystem.h"
 #include <cstring>
-
+#include <algorithm>
+#include <ranges>
+#include <span>
 namespace retro::vault::amiga {
 
 void
@@ -21,15 +23,16 @@ FileSystem::format(FSFormat dos) {
     if (dos == FSFormat::NODOS) return;
 
     // Perform some consistency checks
-    assert(blocks() > 2);
+    assert(blocks() > reservedBootBlocks);
     assert(rootBlock > 0);
 
     // Create boot blocks
-    cache.modify(0).init(FSBlockType::BOOT);
-    cache.modify(1).init(FSBlockType::BOOT);
+    for (isize i = 0; i < reservedBootBlocks; i++) {
+        cache.modify(i).init(FSBlockType::BOOT);
+    }
 
     // Wipe out all other blocks
-    for (isize i = 2; i < traits.blocks; i++) {
+    for (isize i = reservedBootBlocks; i < traits.blocks; i++) {
         (*this)[i].mutate().init(FSBlockType::EMPTY);
     }
 
@@ -57,12 +60,21 @@ FileSystem::format(FSFormat dos) {
     (*this)[rootBlock].mutate().addBitmapBlockRefs(bmBlocks);
 
     // Mark free blocks as free in the bitmap block
-    // TODO: SPEED THIS UP
-    for (isize i = 0; i < blocks(); i++) {
-        if (cache.isEmpty(BlockNr(i))) {
-            allocator.markAsFree(BlockNr(i));
-        }
+    for (auto& ref : bmBlocks) {
+        std::span payload(cache.modify(ref).data() + bmHeaderSize, traits.bsize - bmHeaderSize);
+        std::ranges::fill(payload, bmFreeByte);
     }
+
+    // Mark trailing bits out of volume bounds as allocated
+    isize capacity = isize(bmBlocks.size()) * ((traits.bsize - bmHeaderSize) * bitsPerByte) + reservedBootBlocks;
+    for (auto i : std::views::iota(blocks(), capacity)) {
+        allocator.markAsAllocated(BlockNr(i));
+    }
+
+    // Explicitly mark metadata blocks as allocated
+    allocator.markAsAllocated(rootBlock);
+    for (auto& ref : bmBlocks) allocator.markAsAllocated(ref);
+    for (auto& ref : bmExtBlocks) allocator.markAsAllocated(ref);
 
     // Rectify checksums
     fetch(0).mutate().updateChecksum();
@@ -172,6 +184,7 @@ FileSystem::mkdir(BlockNr at, const FSName &name)
 
     auto udb = newUserDirBlock(name);
     fetch(udb).mutate().setParentDirRef(at);
+    fetch(udb).mutate().updateChecksum();
     addToHashTable(at, udb);
 
     return udb;
@@ -456,6 +469,7 @@ FileSystem::replace(BlockNr fhb,
     // Start with a clean reference area
     fhbNode.setNextListBlockRef(0);
     fhbNode.setNextDataBlockRef(0);
+    fhbNode.setNumDataBlockRefs(0);
     for (isize i = 0; i < numRefs; i++) fhbNode.setDataBlockRef(i, 0);
 
     // Set file size
@@ -581,24 +595,19 @@ FileSystem::reclaim(BlockNr fhb)
     if (node.isDirectory()) {
 
         // Remove user directory block
-        cache.erase(node.nr); allocator.markAsFree(node.nr);
-        return;
-    }
+        allocator.markAsFree(node.nr); cache.erase(node.nr);
 
-    if (node.isFile()) {
+    } else if (node.isFile()) {
 
         // Collect all blocks occupied by this file
         auto dataBlocks = collectDataBlocks(node.nr);
         auto listBlocks = collectListBlocks(node.nr);
 
         // Remove all blocks
-        cache.erase(node.nr); allocator.markAsFree(node.nr);
-        for (auto &it : dataBlocks) { cache.erase(it); allocator.markAsFree(it); }
-        for (auto &it : listBlocks) { cache.erase(it); allocator.markAsFree(it); }
-        return;
+        allocator.markAsFree(node.nr); cache.erase(node.nr);
+        for (auto &it : dataBlocks) { allocator.markAsFree(it); cache.erase(it); }
+        for (auto &it : listBlocks) { allocator.markAsFree(it); cache.erase(it); }
     }
-
-    throw FSError(FSError::FS_NOT_A_FILE_OR_DIRECTORY, node.absName());
 }
 
 std::vector<const FSBlock *>
@@ -695,7 +704,7 @@ FileSystem::collectListBlocks(const BlockNr ref) const
     std::vector<BlockNr> result;
 
     if (auto *ptr = tryFetch(ref)) {
-        for (auto &it: collectDataBlocks(*ptr)) result.push_back(it->nr);
+        for (auto &it: collectListBlocks(*ptr)) result.push_back(it->nr);
     }
     return result;
 }

@@ -25,6 +25,7 @@ class EventTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     }
     
     private func cache() {
+        guard let inspector = inspector else { return }
         for row in 0 ..< EventSlotEnum.count() {
             slotInfo[row] = inspector.emu.agnus.cachedSlotInfo(row)
         }
@@ -42,7 +43,7 @@ class EventTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     }
     
     func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {
-        
+        guard let inspector = inspector else { return nil }
         guard let info = slotInfo[row] else { return nil }
 
         let willTrigger = (info.trigger != INT64_MAX)

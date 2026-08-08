@@ -88,6 +88,7 @@ HardDrive::init()
     ptable.clear();
     drivers.clear();
     head = {};
+    setFlag(DiskFlags::BOOTABLE, false);
     setFlag(DiskFlags::MODIFIED, force::HDR_MODIFIED);
 }
 
@@ -112,9 +113,12 @@ HardDrive::init(const GeometryDescriptor &geometry)
     // Add the descriptor to the partition table
     ptable.push_back(partition);
 
+    // User-provided disks are bootable by default
+    setFlag(DiskFlags::BOOTABLE, true);
+
     // Create the new drive
-    data.resize(geometry.numBytes());
-    dirty.resize(geometry.numBytes() / 512, true);
+    data.init(geometry.numBytes(), 0);
+    dirty.init(geometry.numBytes() / 512, true);
 }
 
 void
@@ -132,7 +136,7 @@ HardDrive::init(const FileSystem &fs)
     init(geometry);
         
     // Update the partition table
-    ptable[0].name = fs.stat().name;
+    ptable[0].name = fs.stat().name.cpp_str();
     ptable[0].dosType = 0x444F5300 | (u32)fs.getTraits().dos;
 
     // Copy over all blocks
@@ -201,12 +205,6 @@ HardDrive::init(const HDFFile &hdf)
 }
 
 void
-HardDrive::init(const HDZFile &hdz)
-{
-    init(hdz.hdf);
-}
-
-void
 HardDrive::init(const fs::path &path)
 {
     if (!fs::exists(path)) {
@@ -223,9 +221,8 @@ HardDrive::init(const fs::path &path)
     } else {
         
         try { init(HDFFile(path)); return; } catch(...) { }
-        try { init(HDZFile(path)); return; } catch(...) { }
         
-        throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
+        //throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
     }
 }
 
@@ -318,6 +315,7 @@ HardDrive::connect()
         loginfo(WT_DEBUG, "Creating default disk...\n");
         init(MB(10));
         format(amiga::FSFormat::OFS, FSName(defaultName()));
+        setFlag(DiskFlags::BOOTABLE, false);
     }
 }
 
@@ -349,27 +347,7 @@ HardDrive::isCompatible() const
 bool
 HardDrive::isBootable()
 {
-    try {
-
-        auto vol = Volume(*this);
-        auto fs = FileSystem(vol);
-
-        // auto dev = make_unique<Device>(getGeometry());
-        // auto fs = FileSystemFactory::fromHardDrive(*dev, *this);
-
-        if (fs.exists("s/startup-sequence")) {
-
-            loginfo(HDR_DEBUG, "Bootable drive\n");
-            return true;
-        }
-        
-    } catch (...) {
-        
-        loginfo(HDR_DEBUG, "No file system found\n");
-    }
-    
-    loginfo(HDR_DEBUG, "Unbootable drive\n");
-    return false;
+    return hasDisk() && getFlag(DiskFlags::BOOTABLE);
 }
 
 HardDriveInfo
@@ -580,28 +558,15 @@ HardDrive::format(amiga::FSFormat fsType, FSName name)
         auto vol = Volume(*hdf);
         auto fs = FileSystem(vol);
 
-        // Format the file system
+        // Format the file system and name it
         fs.format(fsType);
-
-        // Name the file system
         fs.setName(name);
 
-        /*
-        // Create a file system descriptor matching this drive
-        auto layout = FSDescriptor(geometry, fsType);
-
-        // Create an empty device
-        auto dev = Device(geometry);
-
-        // Create an empty file system
-        auto fs = FileSystem(dev, layout);
-
-        // Name the file system
-        fs.setName(name);
-        
+        // Write back all changes
+        fs.flush();
+    
         // Initialize the hard drive with the created file system
         init(fs);
-        */
     }
 }
 
@@ -791,35 +756,13 @@ HardDrive::importFolder(const fs::path &path)
 
         // Import all files
         fs.importer.import(fs.root(), path, true, true);
-
-        // Name the file system
-        fs.setName(FSName(traits.name));
-
+        
         // Write back
         fs.flush();
 
-        /*
-        // Retrieve some information about the first partition
-        auto traits = getPartitionTraits(0);
-
-        // Create a device descriptor matching this drive
-        FSDescriptor layout(geometry, traits.fsType);
-
-        // Create an empty device
-        auto dev = Device(geometry);
-
-        // Create a new file system
-        auto fs = FileSystem(dev, layout);
-        
-        // Import all files
-        fs.importer.import(fs.root(), path, true, true);
-
-        // Name the file system
-        fs.setName(traits.name);
-        
+    
         // Copy the file system back to the disk
         init(fs);
-        */
     }
 }
 

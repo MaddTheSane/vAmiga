@@ -2,15 +2,14 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "EXEFile.h"
 #include "FileSystems/Amiga/FileSystem.h"
-#include "OSDescriptors.h"
 #include "utl/io.h"
 #include "utl/support/Strings.h"
 #include <format>
@@ -57,7 +56,7 @@ EXEFile::didInitialize()
     bool hd = data.size > 853000;
 
     // Create a suitable ADF
-    adf = ADFFile(Diameter::INCH_35, hd ? Density::HD : Density::DD);
+    adf.init(Diameter::INCH_35, hd ? Density::HD : Density::DD);
 
     // Mount a file system on top of it
     auto vol = Volume(adf);
@@ -73,7 +72,6 @@ EXEFile::didInitialize()
     fs.createFile(fs.mkdir(fs.root(), FSName("s")), FSName("startup-sequence"), "file");
 
     // Finalize
-    // fs.importer.updateChecksums();
     fs.flush();
 
     if constexpr (debug::FS_DEBUG) {

@@ -500,21 +500,21 @@ Memory::updateStats()
     MemMetrics &_metrics = metrics.value;
 
     _metrics.chipReads.accumulated =
-    w * _metrics.chipReads.accumulated + (1.0 - w) * _metrics.chipReads.raw;
+    w * _metrics.chipReads.accumulated + (1.0 - w) * double(_metrics.chipReads.raw);
     _metrics.chipWrites.accumulated =
-    w * _metrics.chipWrites.accumulated + (1.0 - w) * _metrics.chipWrites.raw;
+    w * _metrics.chipWrites.accumulated + (1.0 - w) * double(_metrics.chipWrites.raw);
     _metrics.slowReads.accumulated =
-    w * _metrics.slowReads.accumulated + (1.0 - w) * _metrics.slowReads.raw;
+    w * _metrics.slowReads.accumulated + (1.0 - w) * double(_metrics.slowReads.raw);
     _metrics.slowWrites.accumulated =
-    w * _metrics.slowWrites.accumulated + (1.0 - w) * _metrics.slowWrites.raw;
+    w * _metrics.slowWrites.accumulated + (1.0 - w) * double(_metrics.slowWrites.raw);
     _metrics.fastReads.accumulated =
-    w * _metrics.fastReads.accumulated + (1.0 - w) * _metrics.fastReads.raw;
+    w * _metrics.fastReads.accumulated + (1.0 - w) * double(_metrics.fastReads.raw);
     _metrics.fastWrites.accumulated =
-    w * _metrics.fastWrites.accumulated + (1.0 - w) * _metrics.fastWrites.raw;
+    w * _metrics.fastWrites.accumulated + (1.0 - w) * double(_metrics.fastWrites.raw);
     _metrics.kickReads.accumulated =
-    w * _metrics.kickReads.accumulated + (1.0 - w) * _metrics.kickReads.raw;
+    w * _metrics.kickReads.accumulated + (1.0 - w) * double(_metrics.kickReads.raw);
     _metrics.kickWrites.accumulated =
-    w * _metrics.kickWrites.accumulated + (1.0 - w) * _metrics.kickWrites.raw;
+    w * _metrics.kickWrites.accumulated + (1.0 - w) * double(_metrics.kickWrites.raw);
 
     _metrics.chipReads.raw = 0;
     _metrics.chipWrites.raw = 0;
@@ -569,26 +569,26 @@ Memory::allocExt(i32 bytes, bool update)
 }
 
 void
-Memory::alloc(Allocator<u8> &allocator, isize bytes, bool update)
+Memory::alloc(Buffer<u8> &buf, isize bytes, bool update)
 {
     // Only proceed if memory layout will change
-    if (bytes == allocator.size) return;
+    if (bytes == buf.size) return;
 
     // Allocate memory
-    allocator.alloc(bytes);
+    buf.alloc(bytes);
 
     // Update the memory source tables if requested
     if (update) updateMemSrcTables();
 }
 
 void
-Memory::alloc(Allocator<u8> &allocator, isize bytes, u32 &mask, bool update)
+Memory::alloc(Buffer<u8> &buf, isize bytes, u32 &mask, bool update)
 {
     // Set the memory mask
     mask = bytes ? u32(bytes - 1) : 0;
 
     // Allocate
-    alloc(allocator, bytes, update);
+    alloc(buf, bytes, update);
 }
 
 void

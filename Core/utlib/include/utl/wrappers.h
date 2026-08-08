@@ -9,7 +9,4 @@
 
 #include "wrappers/Animated.h"
 #include "wrappers/Backed.h"
-#include "wrappers/Cached.h"
-#include "wrappers/Memorized.h"
-
-namespace utl { using namespace wrappers; }
+#include "wrappers/Sticky.h"

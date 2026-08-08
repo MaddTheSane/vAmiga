@@ -2,9 +2,9 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -81,8 +81,8 @@ public:
 
     isize bsize() const override { return adf.bsize(); }
     isize capacity() const override { return adf.capacity(); }
-    void readBlock(u8 *dst, isize nr) const override { adf.readBlock(dst, nr); }
-    void writeBlock(const u8 *src, isize nr) override { adf.writeBlock(src, nr); };
+    void readBlocks(u8 *dst, Range<isize> r) const override { adf.readBlocks(dst, r); }
+    void writeBlocks(const u8 *src, Range<isize> r) override { adf.writeBlocks(src, r); };
 
 
     //

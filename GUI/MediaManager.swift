@@ -241,8 +241,8 @@ class MediaManager {
 
         switch type {
             
-        case .ADF, .ADZ, .EADF, .DMS, .EXE, .IMG, .ST: MediaManager.noteNewRecentlyInsertedDiskURL(url)
-        case .HDF, .HDZ:                               MediaManager.noteNewRecentlyAttachedHdrURL(url)
+        case .ADF, .EADF, .DMS, .EXE, .IMG, .ST: MediaManager.noteNewRecentlyInsertedDiskURL(url)
+        case .HDF, .HDZ:                         MediaManager.noteNewRecentlyAttachedHdrURL(url)
             
         default:
             break
@@ -253,12 +253,34 @@ class MediaManager {
         
         switch type {
             
-        case .ADF, .ADZ, .EADF, .DMS, .EXE, .IMG, .ST: noteNewRecentlyExportedDiskURL(url, df: nr)
-        case .HDF, .HDZ:                               noteNewRecentlyExportedHdrURL(url, hd: nr)
+        case .ADF, .EADF, .DMS, .EXE, .IMG, .ST: noteNewRecentlyExportedDiskURL(url, df: nr)
+        case .HDF, .HDZ:                         noteNewRecentlyExportedHdrURL(url, hd: nr)
             
         default:
             break
         }
+    }
+    
+    //
+    // Workspaces, Snapshots, Scripts
+    //
+
+    func loadWorkspace(url: URL, options: [Option] = []) throws {
+        
+        loginfo(.media, "url = \(url)")
+        try emu?.amiga.loadWorkspace(url: url)
+    }
+    
+    func loadSnapshot(url: URL, options: [Option] = []) throws {
+        
+        loginfo(.media, "url = \(url)")
+        try emu?.amiga.loadSnapshot(url: url)
+    }
+
+    func runScript(url: URL, options: [Option] = []) throws {
+        
+        loginfo(.media, "url = \(url)")
+        try emu?.retroShell.executeScript(url: url)
     }
     
     //

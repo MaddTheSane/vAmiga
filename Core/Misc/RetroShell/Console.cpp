@@ -769,11 +769,14 @@ Console::exec(const InputLine& cmd)
 {
     std::stringstream ss;
 
-    // Skip empty script lines
-    if (cmd.isScriptCommand() && cmd.input.empty()) return;
-
     // Inform the delegates
     for (auto &delegate: delegates) delegate->willExecute(cmd);
+
+    // Skip empty script lines
+    if (cmd.isScriptCommand() && cmd.input.empty()) { return; }
+
+    // Skip comments
+    if (cmd.isComment()) { return; }
 
     try {
 
@@ -846,75 +849,6 @@ Console::describe(std::ostream &ss, const std::exception &e, isize line, const s
         ss << "Line " << line << ": " << cmd << '\n';
     }
     ss << e.what();
-
-    // ss << "Error: ";
-
-    /*
-    if (auto err = dynamic_cast<const TooFewArgumentsError *>(&e)) {
-        
-        ss << err->what() << ": Too few arguments.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const TooManyArgumentsError *>(&e)) {
-        
-        ss << err->what() << ": Too many arguments.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const UnknownFlagError *>(&e)) {
-        
-        ss << err->what() << " is not a valid flag.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const UnknownKeyValueError *>(&e)) {
-        
-        ss << err->what() << " is not a valid key-value pair.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const utl::EnumParseError *>(&e)) {
-        
-        ss << err->token << " is not a valid key." << '\n';
-        ss << "Expected: " << err->expected << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const utl::ParseNumError *>(&e)) {
-        
-        ss << err->token << " is not a number.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const utl::ParseBoolError *>(&e)) {
-        
-        ss << err->token << " must be true or false.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const utl::ParseOnOffError *>(&e)) {
-        
-        ss << "'" << err->token << "' must be on or off.";
-        ss << '\n';
-        return;
-    }
-    if (auto err = dynamic_cast<const utl::ParseError *>(&e)) {
-        
-        if (auto what = string(err->what()); !what.empty()) {
-            ss << err->what() << ": ";
-        }
-        ss << "Syntax error\n";
-        return;
-    }
-    if (auto err = dynamic_cast<const CoreError *>(&e)) {
-        
-        ss << err->what();
-        ss << '\n';
-        return;
-    }
-
-    ss << e.what();
-     */
 }
 
 void
@@ -1086,8 +1020,10 @@ Console::initCommands(RSCommand &root)
             .tokens = { "wait" },
             .chelp  = { "Pause the execution of a command script" },
             .flags  = vAmigaDOS ? rs::disabled : rs::hidden,
-            .args   = { { .name = { "seconds", "Delay" } } },
-            
+            .args   = {
+                { .name = { "seconds", "Delay" } },
+                { .name = { "unit", "Unit" }, .flags = rs::opt } // unused
+            },
             .func   = [this] (std::ostream &os, const Arguments &args, const std::vector<isize> &values) {
                 
                 auto seconds = parseNum(args.at("seconds"));

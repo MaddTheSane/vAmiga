@@ -2,9 +2,9 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -53,6 +53,17 @@ public:
     ByteView byteView(TrackNr t, SectorNr s) const;
     MutableByteView byteView(TrackNr t);
     MutableByteView byteView(TrackNr t, SectorNr s);
+    
+    
+    //
+    // Exporting
+    //
+
+public:
+
+    // Update portions of the image file on disk with the current contents
+    void saveBlocks(const Range<BlockNr>);
+    void saveBlocks(const std::vector<Range<BlockNr>>);
 };
 
 }

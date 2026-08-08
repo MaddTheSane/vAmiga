@@ -271,7 +271,7 @@ FSAllocator::isUnallocated(BlockNr nr) const noexcept
 const FSBlock *
 FSAllocator::locateAllocationBit(BlockNr nr, isize *byte, isize *bit) const noexcept
 {
-    assert(isize(nr) < traits.blocks);
+    // assert(isize(nr) < traits.blocks);
 
     auto &bmBlocks = fs.getBmBlocks();
 
@@ -329,6 +329,8 @@ FSAllocator::locateAllocationBit(BlockNr nr, isize *byte, isize *bit) const noex
 isize
 FSAllocator::numUnallocated() const noexcept
 {
+    if (!fs.isFormatted()) return 0;
+    
     isize result = 0;
     for (auto &it : readBitmap()) result += std::popcount(it);
 
@@ -386,7 +388,7 @@ void
 FSAllocator::setAllocBit(BlockNr nr, bool value)
 {
     isize byte, bit;
-
+    
     if (auto *bm = locateAllocationBit(nr, &byte, &bit)) {
 
         auto *data = bm->mutate().data();

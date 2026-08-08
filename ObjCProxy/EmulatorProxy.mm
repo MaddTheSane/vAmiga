@@ -75,8 +75,8 @@ const VAmigaConstants VAMIGA = {
     .HBLANK.MIN = HBLANK_MIN,
     .HBLANK.MAX = HBLANK_MAX,
 
-    .HPIXELS = HPIXELS,
     .VPIXELS = VPIXELS,
+    .HPIXELS = HPIXELS,
     .PIXELS = PIXELS,
     
     .HDR.C_MIN = HDR_C_MIN,
@@ -1253,6 +1253,31 @@ ImageInfo scan(const fs::path &url)
     [self kb]->releaseAll();
 }
 
+- (BOOL)isLocked:(NSInteger)keycode
+{
+    return [self kb]->isLocked((KeyCode)keycode);
+}
+
+- (void)lock:(NSInteger)keycode
+{
+    [self lock:keycode delay: 0.0];
+}
+
+- (void)lock:(NSInteger)keycode delay:(double)delay
+{
+    [self kb]->lock((KeyCode)keycode, delay);
+}
+
+- (void)unlock:(NSInteger)keycode
+{
+    [self unlock:keycode delay: 0.0];
+}
+
+- (void)unlock:(NSInteger)keycode delay:(double)delay
+{
+    [self kb]->unlock((KeyCode)keycode, delay);
+}
+
 @end
 
 
@@ -1458,22 +1483,22 @@ ImageInfo scan(const fs::path &url)
 
 - (NSString *)creationDate
 {
-    auto time = [self fs]->stat().btime;
+    auto time = [self fs]->stat().bDate.time();
     if (time == 0) return @"-";
 
     return [NSDateFormatter localizedStringFromDate:
-            [NSDate dateWithTimeIntervalSince1970:[self fs]->stat().btime]
+            [NSDate dateWithTimeIntervalSince1970:NSTimeInterval(time)]
                                           dateStyle:NSDateFormatterMediumStyle
                                           timeStyle:NSDateFormatterMediumStyle];
 }
 
 - (NSString *)modificationDate
 {
-    auto time = [self fs]->stat().mtime;
+    auto time = [self fs]->stat().mDate.time();
     if (time == 0) return @"-";
 
     return [NSDateFormatter localizedStringFromDate:
-            [NSDate dateWithTimeIntervalSince1970:[self fs]->stat().btime]
+            [NSDate dateWithTimeIntervalSince1970:NSTimeInterval(time)]
                                           dateStyle:NSDateFormatterMediumStyle
                                           timeStyle:NSDateFormatterMediumStyle];
 }
@@ -1493,7 +1518,7 @@ ImageInfo scan(const fs::path &url)
 - (NSString *)fillLevelString
 {
     auto st = [self fs]->stat();
-    auto str = utl::fillLevelAsString(100.0 * st.usedBlocks / st.blocks);
+    auto str = utl::fillLevelAsString(100.0 * double(st.usedBlocks) / double(st.traits.blocks));
     return @(str.c_str());
 }
 
@@ -1535,7 +1560,7 @@ ImageInfo scan(const fs::path &url)
 - (double)fillLevel
 {
     auto st = [self fs]->stat();
-    return 100.0 * st.usedBlocks / st.blocks;
+    return 100.0 * double(st.usedBlocks) / double(st.traits.blocks);
 }
 
 - (BOOL)hasVirus
@@ -1722,9 +1747,10 @@ ImageInfo scan(const fs::path &url)
     [self shell]->press(key, shift);
 }
 
-- (void)executeScript:(NSURL *)url
+- (void)executeScript:(NSURL *)url exception:(ExceptionWrapper *)ex
 {
-    [self shell]->execScript(fs::path(url.fileSystemRepresentation));
+    try { [self shell]->execScript(fs::path(url.fileSystemRepresentation)); }
+    catch (std::exception &stdex) { [ex save:stdex]; }
 }
 
 - (void)executeString:(NSString *)str
@@ -1897,12 +1923,12 @@ ImageInfo scan(const fs::path &url)
     return [self file]->fnv64();
 }
 
-- (void)setPath:(NSString *)path
+- (void)setPath:(NSURL *)path
 {
     [self file]->path = [path fileSystemRepresentation];
 }
 
-- (NSInteger)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex
+- (NSInteger)writeToFile:(NSURL *)path exception:(ExceptionWrapper *)ex
 {
     try { return [self file]->writeToFile([path fileSystemRepresentation]); }
     catch(Error &error) { [ex save:error]; return 0; }
@@ -2218,7 +2244,7 @@ ImageInfo scan(const fs::path &url)
                        format:(ImageFormat)fmt
                     exception:(ExceptionWrapper *)ex
 {
-    auto drive = (FloppyDriveAPI *)proxy->obj;
+    auto drive = (HardDriveAPI *)proxy->obj;
     try { return [self make: drive->drive->exportDisk(fmt).release()]; }
     catch(Error &error) { [ex save:error]; return nil; }
 }
@@ -2285,7 +2311,7 @@ ImageInfo scan(const fs::path &url)
     return @(ss.str().c_str());
 }
 
-- (SnapshotProxy *) takeSnapshot:(Compressor)compressor
+- (SnapshotProxy *)takeSnapshot:(Compressor)compressor
 {
     try {
 

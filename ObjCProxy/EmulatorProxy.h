@@ -720,6 +720,12 @@ ImageInfo scan(const fs::path &url);
 - (void)toggle:(NSInteger)keycode;
 - (void)releaseAll;
 
+- (BOOL)isLocked:(NSInteger)keycode;
+- (void)lock:(NSInteger)keycode;
+- (void)lock:(NSInteger)keycode delay:(double)delay;
+- (void)unlock:(NSInteger)keycode;
+- (void)unlock:(NSInteger)keycode delay:(double)delay;
+
 @end
 
 
@@ -871,7 +877,7 @@ ImageInfo scan(const fs::path &url);
 - (void)pressKey:(char)c;
 - (void)pressSpecialKey:(RSKey)key;
 - (void)pressSpecialKey:(RSKey)key shift:(BOOL)shift;
-- (void)executeScript:(NSURL *)url;
+- (void)executeScript:(NSURL *)url exception:(ExceptionWrapper *)ex;
 - (void)executeString:(NSString *)string;
 
 @end
@@ -919,8 +925,8 @@ ImageInfo scan(const fs::path &url);
 @property (readonly) NSInteger size;
 @property (readonly) u64 fnv;
 
-- (void)setPath:(NSString *)path;
-- (NSInteger)writeToFile:(NSString *)path exception:(ExceptionWrapper *)ex;
+- (void)setPath:(NSURL *)path;
+- (NSInteger)writeToFile:(NSURL *)path exception:(ExceptionWrapper *)ex;
 
 @end
 

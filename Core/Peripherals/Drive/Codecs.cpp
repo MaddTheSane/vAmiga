@@ -36,18 +36,6 @@ Codec::makeADF(const class FloppyDrive &drive)
     return makeADF(*drive.disk);
 }
 
-std::unique_ptr<ADZFile>
-Codec::makeADZ(const FloppyDisk &disk)
-{
-    return make_unique<ADZFile>(*Codec::makeADF(disk));
-}
-
-std::unique_ptr<ADZFile>
-Codec::makeADZ(const FloppyDrive &drive)
-{
-    return makeADZ(*drive.disk);
-}
-
 std::unique_ptr<EADFFile>
 Codec::makeEADF(const FloppyDisk &disk)
 {
@@ -101,19 +89,6 @@ Codec::makeHDF(const HardDrive &drive)
     hdf->geometry = drive.getGeometry();
 
     return hdf;
-}
-
-std::unique_ptr<HDZFile>
-Codec::makeHDZ(const class HardDrive &hd)
-{
-    return make_unique<HDZFile>(*Codec::makeHDF(hd));
-}
-
-
-void
-Codec::encodeADZ(const ADZFile &adz, FloppyDisk &disk)
-{
-    disk.encode(adz.adf);
 }
 
 void

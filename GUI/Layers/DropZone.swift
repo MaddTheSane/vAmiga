@@ -97,7 +97,7 @@ class DropZone: Layer {
 
         let format = DiskImageProxy.about(url).format
         isDirectory = url.hasDirectoryPath
-        isFloppy35Image = [.ADF, .ADZ, .EADF, .IMG, .ST, .DMS, .EXE].contains(format)
+        isFloppy35Image = [.ADF, .EADF, .IMG, .ST, .DMS, .EXE].contains(format)
         isFloppy525Image = [.D64].contains(format)
         isHardDiskImage = [.HDF, .HDZ].contains(format)
 
@@ -228,8 +228,27 @@ class DropZone: Layer {
                 }
 
             } else {
-
-                // No non-disk types supported yet
+                
+                switch url.pathExtension.lowercased() {
+                    
+                case "vamiga":
+                    
+                    try mydocument.processWorkspaceFile(url: url)
+                    
+                case "vasnap":
+                    
+                    try mm.loadSnapshot(url: url)
+                    break
+                    
+                case "retrosh":
+                    
+                    try mm.runScript(url: url)
+                    mm.console.open()
+                    
+                default:
+                    
+                    NSSound.beep()
+                }
             }
             
         } catch {

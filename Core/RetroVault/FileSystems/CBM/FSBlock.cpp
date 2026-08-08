@@ -349,10 +349,10 @@ FSBlock::exportUserDirBlock(const fs::path &path) const
 {
     // Assemble the host file name
     auto filename = path / sanitizedPath();
-    loginfo(FS_DEBUG >= 2, "Creating directory %s\n", filename.string().c_str());
+    loginfo(FS_DEBUG, "Creating directory %s\n", filename.string().c_str());
 
     // Create directory
-    if (!utl::createDirectory(filename)) return FSError::FS_CANNOT_CREATE_DIR;
+    if (!utl::createDirectory(filename)) return FSError::FS_EXPORT_ERROR;
 
     return FSError::FS_OK;
 }
@@ -362,11 +362,11 @@ FSBlock::exportFileHeaderBlock(const fs::path &path) const
 {
     // Assemble the host file name
     auto filename = path; //  / sanitizedPath();
-    loginfo(FS_DEBUG >= 2, "  Exporting file %s\n", filename.string().c_str());
+    loginfo(FS_DEBUG, "  Exporting file %s\n", filename.string().c_str());
 
     // Open file
     std::ofstream file(filename, std::ofstream::binary);
-    if (!file.is_open()) return FSError::FS_CANNOT_CREATE_FILE;
+    if (!file.is_open()) return FSError::FS_EXPORT_ERROR;
 
     // Write data
     writeData(file);

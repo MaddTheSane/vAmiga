@@ -31,6 +31,8 @@ class BankTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     
     func cache() {
 
+        guard let inspector = inspector else { return }
+
         for i in 0 ..< 256 {
             bankCache[i] = inspector.memSrc(bank: i)
         }

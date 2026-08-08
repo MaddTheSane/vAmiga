@@ -96,7 +96,9 @@ class SpriteTableView: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     }
     
     func tableView(_ tableView: NSTableView, willDisplayCell cell: Any, for tableColumn: NSTableColumn?, row: Int) {
-        
+
+        guard let inspector = inspector else { return }
+
         let cell = cell as? NSTextFieldCell
         if let index = colorIndex(tableColumn: tableColumn, row: row) {
 

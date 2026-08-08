@@ -55,15 +55,7 @@ class MyDocument: NSDocument {
         loginfo(.lifetime)
         
         super.init()
-        
-        // Check for OS compatibility
-        if #available(macOS 27, *) {
-            
-            showAlert(.unsupportedOSVersion)
-            NSApp.terminate(self)
-            return
-        }
-        
+                
         // Check for Metal support
         if MTLCreateSystemDefaultDevice() == nil {
             
@@ -216,7 +208,7 @@ class MyDocument: NSDocument {
         
         // Scan directory for additional media files
         let supportedTypes: [String : ImageFormat] =
-        ["adf": .ADF, "adz": .ADZ, "dms": .DMS, "exe": .EXE, "img": .IMG, "hdf": .HDF, "hdz": .HDZ, "st": .ST]
+        ["adf": .ADF, "dms": .DMS, "exe": .EXE, "img": .IMG, "hdf": .HDF, "hdz": .HDZ, "st": .ST]
         let exclude = ["df0", "df1", "df2", "df3", "hd0", "hd1", "hd2", "hd3"]
         
         let contents = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
@@ -258,7 +250,7 @@ class MyDocument: NSDocument {
     
     func processScriptFile(url: URL, force: Bool = false) throws {
 
-        console.runScript(url: url)
+        try console.runScript(url: url)
      }
 
     //

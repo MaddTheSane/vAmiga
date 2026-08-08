@@ -2,9 +2,9 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -76,7 +76,10 @@ public:
     explicit EADFFile(const fs::path &path) { init(path); }
     explicit EADFFile(const u8 *buf, isize len) { init(buf, len); }
 
+    // Checks if the buffer is in EADF format (throws if not)
+    void ensureEADF();
 
+    
     //
     // Methods from AnyImage
     //
@@ -122,8 +125,8 @@ public:
 public:
 
     isize bsize() const override { return 512; }
-    void readBlock(u8 *dst, isize nr) const override;
-    void writeBlock(const u8 *src, isize nr) override;
+    void readBlocks(u8 *dst, Range<isize> r) const override;
+    void writeBlocks(const u8 *src, Range<isize> r) override;
 
 
     //

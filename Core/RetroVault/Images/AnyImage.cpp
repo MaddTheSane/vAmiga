@@ -55,27 +55,46 @@ AnyImage::init(const Buffer<u8> &buffer)
     init(buffer.ptr, buffer.size);
 }
 
+/*
 void
 AnyImage::init(const string &str)
 {
     init((const u8 *)str.c_str(), (isize)str.length());
 }
+*/
 
 void
 AnyImage::init(const fs::path &path)
 {
-    std::ifstream stream(path, std::ios::binary);
-
-    if (!stream.is_open()) {
-        throw IOError(IOError::FILE_NOT_FOUND, path);
-    }
-    if (!validateURL(path)) {
+    if (!validateURL(path))
         throw IOError(IOError::FILE_TYPE_MISMATCH, path);
-    }
-    std::ostringstream sstr(std::ios::binary);
-    sstr << stream.rdbuf();
-    init(sstr.str());
+
+    std::fstream stream(path, std::ios::binary | std::ios::in);
+    
+    if (!stream)
+        throw IOError(IOError::FILE_NOT_FOUND, path);
+
+    // Read file into a vector
+    stream.seekg(0, std::ios::end);
+        size_t size = stream.tellg();
+        stream.seekg(0, std::ios::beg);
+
+        std::vector<u8> buffer(size);
+
+        stream.read(reinterpret_cast<char *>(buffer.data()), size);
+
+    /*
+    std::vector<u8> buffer((std::istreambuf_iterator<char>(stream)),
+                           std::istreambuf_iterator<char>());
+    */
+    
+    if (buffer.empty())
+        throw IOError(IOError::FILE_CANT_READ, path);
+    
     this->path = path;
+
+    // Initialize image with the vector contents
+    init(buffer.data(), isize(buffer.size()));
 }
 
 void
@@ -135,6 +154,43 @@ void
 AnyImage::copy(u8 *buf, isize offset) const
 {
     copy (buf, offset, data.size);
+}
+
+void
+AnyImage::save()
+{
+    save(Range<isize>{0,size()});
+}
+
+void
+AnyImage::save(const Range<BlockNr> range)
+{
+    std::ofstream file(path, std::ios::binary);
+    if (!file) throw IOError(IOError::FILE_CANT_WRITE, path);
+    
+    printf("Saving range %ld - %ld...\n", range.lower, range.upper - 1);
+    
+    // Move to the correct position
+    file.seekp(range.lower, std::ios::beg);
+    
+    // Write the data to the stream
+    file.write((char *)(data.ptr + range.lower), range.size());
+    
+    // Update the file on disk
+    file.flush();
+}
+
+void
+AnyImage::save(const std::vector<Range<BlockNr>> ranges)
+{
+    for (auto &range: ranges) save(range);
+}
+
+void
+AnyImage::saveAs(const fs::path &newPath)
+{
+    path = newPath;
+    save();
 }
 
 isize

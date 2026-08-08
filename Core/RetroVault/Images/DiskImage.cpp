@@ -2,9 +2,9 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -12,10 +12,8 @@
 #include "utl/support/Strings.h"
 
 #include "ADFFile.h"
-#include "ADZFile.h"
 #include "EADFFile.h"
 #include "HDFFile.h"
-#include "HDZFile.h"
 #include "IMGFile.h"
 #include "STFile.h"
 #include "DMSFile.h"
@@ -64,6 +62,22 @@ DiskImage::write(const u8 *src, isize offset, isize count)
 {
     assert(offset + count <= data.size);
     memcpy((void *)(data.ptr + offset), (void *)src, count);
+    
+    /*
+    if (writeThrough && file) {
+        
+        printf("Write through...\n");
+        
+        // Move to the correct position
+        file.seekp(offset, std::ios::beg);
+
+        // Write the data to the stream
+        file.write((char *)(data.ptr + offset), count);
+        
+        // Update the file on disk
+        file.flush();
+    }
+    */
 }
 
 ByteView
@@ -88,6 +102,18 @@ MutableByteView
 DiskImage::byteView(TrackNr t, SectorNr s)
 {
     return MutableByteView(data.ptr + boffset(TS{t,s}), bsize());
+}
+
+void
+DiskImage::saveBlocks(const Range<BlockNr> range)
+{
+    save(Range<isize>{range.lower * bsize(), range.upper * bsize()});
+}
+
+void
+DiskImage::saveBlocks(const std::vector<Range<BlockNr>> ranges)
+{
+    for (auto &range: ranges) save(range);
 }
 
 }

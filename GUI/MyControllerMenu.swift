@@ -82,9 +82,7 @@ extension MyController: NSMenuItemValidation {
             return true
             
         case #selector(MyController.ejectDiskAction(_:)),
-            #selector(MyController.exportFloppyDiskAction(_:)),
-            #selector(MyController.inspectFloppyDiskAction(_:)),
-            #selector(MyController.inspectDfnVolumeAction(_:)):
+            #selector(MyController.exportFloppyDiskAction(_:)):
             return dfn.info.hasDisk
             
         case #selector(MyController.writeProtectAction(_:)):
@@ -107,6 +105,10 @@ extension MyController: NSMenuItemValidation {
             
         case #selector(MyController.writeProtectHdrAction(_:)):
             item.state = hdn.info.hasProtectedDisk ? .on : .off
+            return hdn.info.hasDisk
+
+        case #selector(MyController.bootableHdrAction(_:)):
+            item.state = hdn.getFlag(.BOOTABLE) ? .on : .off
             return hdn.info.hasDisk
             
         default:
@@ -171,10 +173,7 @@ extension MyController: NSMenuItemValidation {
     }
     
     @IBAction func importScriptAction(_ sender: Any!) {
-        
-        // Power off the emulator if the user doesn't object
-        // if !askToPowerOff() { return }
-        
+                
         myOpenPanel.configure(types: [ .retrosh ], prompt: "Import")
         myOpenPanel.open(for: window, { result in
             
@@ -432,6 +431,7 @@ extension MyController: NSMenuItemValidation {
             fatalError()
         }
         
+        statusBarIsDirty = true
         refreshStatusBar()
         myAppDelegate.settingsController?.refresh()
     }
@@ -568,8 +568,8 @@ extension MyController: NSMenuItemValidation {
     @IBAction func exportRecentDiskAction(_ sender: NSMenuItem!) {
         
         let drive = sender.tag >> 16
-        let slot = sender.tag % 0xFFFF
-        
+        let slot = sender.tag & 0xFFFF
+
         exportRecentAction(df: drive, slot: slot)
     }
     
@@ -611,26 +611,6 @@ extension MyController: NSMenuItemValidation {
         
         let exportPanel = DiskExporter(with: self, nibName: "DiskExporter")
         exportPanel?.showSheet(diskDrive: sender.tag)
-    }
-    
-    @IBAction func inspectFloppyDiskAction(_ sender: NSMenuItem!) {
-        
-        let panel = DiskInspector(with: self, nibName: "DiskInspector")
-        panel?.show(diskDrive: sender.tag)
-    }
-    
-    @IBAction func inspectDfnVolumeAction(_ sender: NSMenuItem!) {
-        
-        let panel = VolumeInspector(with: self, nibName: "VolumeInspector")
-        
-        do {
-            
-            try panel?.show(diskDrive: sender.tag)
-            
-        } catch {
-            
-            showAlert(.cantDecode, error: error, window: window)
-        }
     }
     
     //
@@ -749,26 +729,6 @@ extension MyController: NSMenuItemValidation {
         exportPanel?.showSheet(hardDrive: sender.tag)
     }
     
-    @IBAction func inspectHdrDiskAction(_ sender: NSMenuItem!) {
-        
-        let panel = DiskInspector(with: self, nibName: "DiskInspector")
-        panel?.show(hardDrive: sender.tag)
-    }
-    
-    @IBAction func inspectHdrVolumeAction(_ sender: NSMenuItem!) {
-        
-        let panel = VolumeInspector(with: self, nibName: "VolumeInspector")
-        
-        do {
-            
-            try panel?.show(hardDrive: sender.tag)
-            
-        } catch {
-            
-            showAlert(.cantDecode, error: error, window: window)
-        }
-    }
-    
     @IBAction func configureHdrAction(_ sender: NSMenuItem!) {
         
         let panel = HardDiskConfigurator(with: self, nibName: "HardDiskConfigurator")
@@ -779,6 +739,13 @@ extension MyController: NSMenuItemValidation {
         
         if let hdn = emu?.hd(sender) {
             hdn.setFlag(.PROTECTED, value: !hdn.getFlag(.PROTECTED))
+        }
+    }
+
+    @IBAction func bootableHdrAction(_ sender: NSMenuItem!) {
+
+        if let hdn = emu?.hd(sender) {
+            hdn.setFlag(.BOOTABLE, value: !hdn.getFlag(.BOOTABLE))
         }
     }
     

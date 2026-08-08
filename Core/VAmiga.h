@@ -12,6 +12,7 @@
 #include "VAmigaTypes.h"
 #include "CoreError.h"
 #include "Snapshot.h"
+#include <span>
 
 namespace retro::vault::amiga { class FileSystem; }
 
@@ -727,17 +728,18 @@ public:
     void insertBlankDisk(amiga::FSFormat fstype, amiga::BootBlockId id,
                          string name, const std::filesystem::path &path = {});
 
-    /** @brief  Inserts a disk created from a media file.
-     *  @param  path   Path to the media file.
+    /** @brief  Inserts a disk created from an image file.
+     *  @param  path   Path to the disk image.
      *  @param  wp      Write-protection status of the disk.
      */
     void insert(const std::filesystem::path& path, bool wp);
 
-    /** @brief  Inserts a disk created from a file system.
-     *  @param  fs      A file system wrapper object.
+    /** @brief  Inserts a disk created from an image stored in memory.
+     *  @param  buffer  Buffer holding the raw image data.
+     *  @param  fmt     Format of the supplied image data.
      *  @param  wp      Write-protection status of the disk.
      */
-    void insertFileSystem(const amiga::FileSystem& fs, bool wp);
+    void insert(std::span<const u8> buffer, ImageFormat fmt, bool wp);
 
     /** @brief  Ejects the current disk.
      */
@@ -935,6 +937,24 @@ public:
     /** @brief  Releases all currently pressed keys
      */
     void releaseAll();
+
+    /** @brief  Checks if a key is currently locked.
+     *  @param  key     The key to check.
+     */
+    bool isLocked(KeyCode key) const;
+
+    /** @brief  Locks a key. A locked key stays down until it is unlocked,
+     *          even if release() is called on it.
+     *  @param  key     The key to lock.
+     *  @param  delay   An optional delay in seconds until the key is locked.
+     */
+    void lock(KeyCode key, double delay = 0.0);
+
+    /** @brief  Unlocks a previously locked key.
+     *  @param  key     The key to unlock.
+     *  @param  delay   An optional delay in seconds until the key is unlocked.
+     */
+    void unlock(KeyCode key, double delay = 0.0);
 
     /** @brief  Deletes all pending keyboard events
      */

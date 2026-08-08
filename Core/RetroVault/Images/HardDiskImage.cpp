@@ -2,19 +2,17 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "HardDiskImage.h"
 #include "HDFFile.h"
-#include "HDZFile.h"
 #include "utl/io.h"
 
 using retro::vault::image::HDFFile;
-using retro::vault::image::HDZFile;
 
 namespace retro::vault {
 
@@ -22,7 +20,6 @@ optional<ImageInfo>
 HardDiskImage::about(const fs::path& url)
 {
     if (auto info = HDFFile::about(url)) return info;
-    if (auto info = HDZFile::about(url)) return info;
 
     return {};
 }
@@ -31,7 +28,6 @@ unique_ptr<HardDiskImage>
 HardDiskImage::tryMake(const fs::path &path)
 {
     if (HDFFile::about(path).has_value()) return make_unique<HDFFile>(path);
-    if (HDZFile::about(path).has_value()) return make_unique<HDZFile>(path);
 
     return nullptr;
 }

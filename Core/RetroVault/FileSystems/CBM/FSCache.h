@@ -75,7 +75,7 @@ public:
     isize usedBlocks() const { return (isize)blocks.size(); }
     isize freeBytes() const { return freeBlocks() * bsize(); }
     isize usedBytes() const { return usedBlocks() * bsize(); }
-    double fillLevel() const { return capacity() ? double(100) * usedBlocks() / capacity() : 0; }
+    double fillLevel() const { return capacity() ? double(100) * double(usedBlocks()) / double(capacity()) : 0; }
     bool isEmpty() const { return usedBlocks() == 0; }
 
     // Predicts the file system type based on stored data
@@ -141,10 +141,12 @@ public:
     // Caching
     //
 
-    void markAsDirty(BlockNr nr) { dirty.insert(nr); }
+    isize cachedBlocks() const { return (isize)blocks.size(); }
+    isize dirtyBlocks() const { return (isize)dirty.size(); }
+    void markAsDirty(BlockNr nr);
 
-    void flush(BlockNr nr);
     void flush();
+    void invalidate();
 };
 
 }

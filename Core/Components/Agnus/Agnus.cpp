@@ -121,7 +121,6 @@ Agnus::operator << (SerResetter &worker)
     diskController.scheduleFirstDiskEvent();
     scheduleFirstBplEvent();
     scheduleFirstDasEvent();
-    scheduleRel<SLOT_SRV>(SEC(0.5), SRV_LAUNCH_DAEMON);
     if (insEvent) scheduleRel <SLOT_INS> (0, insEvent);
 }
 
@@ -516,9 +515,6 @@ Agnus::executeUntil(Cycle cycle) {
             if (isDue<SLOT_KEY>(cycle)) {
                 keyboard.serviceKeyEvent();
             }
-            if (isDue<SLOT_SRV>(cycle)) {
-                remoteManager.serviceServerEvent();
-            }
             if (isDue<SLOT_SER>(cycle)) {
                 remoteManager.serServer.serviceSerEvent();
             }
@@ -671,9 +667,11 @@ Agnus::updateSpriteDMA()
     }
 
     // Update the DMA status for all sprites
-    for (isize i = 0; i < 8; i++) {
-        if (v == sprVStrt[i]) sprDmaEnabled[i] = true;
-        if (v == sprVStop[i]) sprDmaEnabled[i] = false;
+    if (!inVBlankArea(v)) {
+        for (isize i = 0; i < 8; i++) {
+            if (v == sprVStrt[i]) sprDmaEnabled[i] = true;
+            if (v == sprVStop[i]) sprDmaEnabled[i] = false;
+        }
     }
 }
 

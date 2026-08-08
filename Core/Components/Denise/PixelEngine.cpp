@@ -15,9 +15,23 @@
 #include "DmaDebugger.h"
 #include "Emulator.h"
 
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 
 namespace vamiga {
+
+namespace {
+
+/* Amiga video output targeted CRT displays with a gamma of roughly 2.8,
+ * while host displays are calibrated for the sRGB-ish standard gamma of
+ * 2.2. GAMMA_IN undoes the former to obtain linear light, GAMMA_OUT
+ * re-applies the latter to encode the result for the host display.
+ */
+constexpr double GAMMA_IN = 2.8;
+constexpr double GAMMA_OUT = 2.2;
+
+}
 
 void
 PixelEngine::clearAll()
@@ -86,113 +100,163 @@ PixelEngine::setColor(isize reg, u16 value)
     color[reg] = newColor;
 
     // Update standard palette entry
-    palette[reg] = colorSpace[value & 0xFFF];
+    palette[reg] = toTexel(newColor); //  colorSpace[value & 0xFFF];
 
     // Update halfbright palette entry
-    palette[reg + 32] = colorSpace[newColor.ehb().rawValue()];
+    palette[reg + 32] = toTexel(newColor.ehb()); //  colorSpace[newColor.ehb().rawValue()];
 }
 
 void
 PixelEngine::updateRGBA()
 {
-    // Iterate through all 4096 colors
-    for (u16 col = 0x000; col <= 0xFFF; col++) {
-
-        u8 r = (col >> 4) & 0xF0;
-        u8 g = (col >> 0) & 0xF0;
-        u8 b = (col << 4) & 0xF0;
-
-        // Adjust the RBG values according to the current video settings
-        adjustRGB(r, g, b);
-
-        // Write the result into the register lookup table
-        colorSpace[col] = TEXEL(HI_HI_LO_LO(0xFF, b, g, r));
-    }
-
+    // Recompute the adjustment coefficients
+    updateAdjLut();
+    
     // Update all cached RGBA values
     for (isize i = 0; i < 32; i++) setColor(i, color[i].rawValue());
 }
 
+Texel
+PixelEngine::toTexel(const AmigaColor c) const
+{
+    assert((c.r << 8 | c.g << 4 | c.b) < 4096);
+
+    // Clamps a 16.16 fixed-point linear-light value to an 8-bit range, then
+    // re-encodes it into the (non-linear) color space of the host display
+    auto clamp = [this](i32 v) {
+        u8 lin = u8(v < 0 ? 0 : v > (255 << 16) ? 255 : v >> 16);
+        return gammaLut[lin];
+    };
+
+    isize r8 = isize(c.r) << 4;
+    isize g8 = isize(c.g) << 4;
+    isize b8 = isize(c.b) << 4;
+
+    u8 r = clamp(adjLut[0 * 256 + r8] + adjLut[1 * 256 + g8] + adjLut[2 * 256 + b8]);
+    u8 g = clamp(adjLut[3 * 256 + r8] + adjLut[4 * 256 + g8] + adjLut[5 * 256 + b8]);
+    u8 b = clamp(adjLut[6 * 256 + r8] + adjLut[7 * 256 + g8] + adjLut[8 * 256 + b8]);
+
+    return TEXEL(HI_HI_LO_LO(0xFF, b, g, r));
+}
+
 void
-PixelEngine::adjustRGB(u8 &r, u8 &g, u8 &b)
+PixelEngine::updateAdjLut()
 {
     auto palette = monitor.getConfig().palette;
 
-    // The RGB palette does not alter anything. Return immediately
-    if (palette == Palette::RGB) return;
-    
-    // Normalize adjustment parameters
-    double brightness =  (monitor.getConfig().brightness - 50.0);
-    double contrast = monitor.getConfig().contrast / 100.0;
-    double saturation = monitor.getConfig().saturation / 50.0;
+    if (palette == Palette::RGB) {
 
-    // Convert RGB to YUV
-    double y =  0.299 * r + 0.587 * g + 0.114 * b;
-    double u = -0.147 * r - 0.289 * g + 0.436 * b;
-    double v =  0.615 * r - 0.515 * g - 0.100 * b;
+        std::memset(adjLut, 0, sizeof(adjLut));
 
-    // Adjust saturation
-    u *= saturation;
-    v *= saturation;
+        for (isize i = 0; i < 256; i++) {
 
-    // Apply contrast
-    y *= contrast;
-    u *= contrast;
-    v *= contrast;
+            auto value = i32(std::round(double(i) * 65536.0));
+            adjLut[0 * 256 + i] = value; // (0,0)
+            adjLut[4 * 256 + i] = value; // (1,1)
+            adjLut[8 * 256 + i] = value; // (2,2)
+            gammaLut[i] = u8(i);
+        }
 
-    // Apply brightness
-    y += brightness;
-
-    // Translate to monochrome if applicable
-    switch(palette) {
-
-        case Palette::BLACK_WHITE:
-            u = 0.0;
-            v = 0.0;
-            break;
-
-        case Palette::PAPER_WHITE:
-            u = -128.0 + 120.0;
-            v = -128.0 + 133.0;
-            break;
-
-        case Palette::GREEN:
-            u = -128.0 + 29.0;
-            v = -128.0 + 64.0;
-            break;
-
-        case Palette::AMBER:
-            u = -128.0 + 24.0;
-            v = -128.0 + 178.0;
-            break;
-
-        case Palette::SEPIA:
-            u = -128.0 + 97.0;
-            v = -128.0 + 154.0;
-            break;
-
-        default:
-            assert(palette == Palette::COLOR);
+        return;
     }
 
-    // Convert YUV to RGB
-    double newR = y             + 1.140 * v;
-    double newG = y - 0.396 * u - 0.581 * v;
-    double newB = y + 2.029 * u;
-    newR = std::max(std::min(newR, 255.0), 0.0);
-    newG = std::max(std::min(newG, 255.0), 0.0);
-    newB = std::max(std::min(newB, 255.0), 0.0);
+    // Normalize adjustment parameters
+    
+    double brightness = double(monitor.getConfig().brightness) - 50.0;
+    double contrast = double(monitor.getConfig().contrast) / 100.0;
+    double saturation = double(monitor.getConfig().saturation) / 50.0;
 
-    // Apply Gamma correction for PAL models
-    /*
-     r = gammaCorrect(r, 2.8, 2.2);
-     g = gammaCorrect(g, 2.8, 2.2);
-     b = gammaCorrect(b, 2.8, 2.2);
-     */
+    // Coefficients of the RGB to YUV conversion. The luminance always depends
+    // on the input color, whereas the chrominance is replaced by a constant
+    // for the monochrome palettes.
+    
+    double y[3] = { 0.299 * contrast, 0.587 * contrast, 0.114 * contrast };
+    double u[3] = { 0.0, 0.0, 0.0 };
+    double v[3] = { 0.0, 0.0, 0.0 };
+    double u0 = 0.0, v0 = 0.0;
 
-    r = u8(newR);
-    g = u8(newG);
-    b = u8(newB);
+    switch (palette) {
+            
+        case Palette::BLACK_WHITE:
+            
+            break;
+            
+        case Palette::PAPER_WHITE:
+            
+            u0 = -128.0 + 120.0;
+            v0 = -128.0 + 133.0;
+            break;
+            
+        case Palette::GREEN:
+            
+            u0 = -128.0 + 29.0;
+            v0 = -128.0 + 64.0;
+            break;
+            
+        case Palette::AMBER:
+            
+            u0 = -128.0 + 24.0;
+            v0 = -128.0 + 178.0;
+            break;
+            
+        case Palette::SEPIA:
+            
+            u0 = -128.0 + 97.0;
+            v0 = -128.0 + 154.0;
+            break;
+            
+        default:
+            
+            assert(palette == Palette::COLOR);
+            double s = saturation * contrast;
+            u[0] = -0.147 * s; u[1] = -0.289 * s; u[2] =  0.436 * s;
+            v[0] =  0.615 * s; v[1] = -0.515 * s; v[2] = -0.100 * s;
+            break;
+    }
+
+    // Convert YUV back to RGB, which yields the affine transformation
+    
+    double m[3][3], off[3];
+
+    for (isize i = 0; i < 3; i++) {
+
+        m[0][i] = y[i]                + 1.140 * v[i];
+        m[1][i] = y[i] - 0.396 * u[i] - 0.581 * v[i];
+        m[2][i] = y[i] + 2.029 * u[i];
+    }
+    off[0] = brightness                + 1.140 * v0;
+    off[1] = brightness - 0.396 * u0   - 0.581 * v0;
+    off[2] = brightness + 2.029 * u0;
+
+    // Tabulate the transformation in 16.16 fixed point format
+    // The constant part is folded into the table of the red input
+
+    for (isize out = 0; out < 3; out++) {
+        for (isize in = 0; in < 3; in++) {
+            for (isize val = 0; val < 256; val++) {
+
+                // Linearize the input value (undo the Amiga's assumed CRT
+                // gamma) before feeding it into the affine transformation,
+                // so brightness, contrast and saturation are applied to
+                // linear light rather than to gamma-encoded values
+                
+                double linear = std::pow(double(val) / 255.0, GAMMA_IN) * 255.0;
+                auto adjIdx = (out * 3 + in) * 256;
+                double t = m[out][in] * linear + (in == 0 ? off[out] : 0.0);
+                adjLut[adjIdx + val] = i32(std::round(t * 65536.0));
+            }
+        }
+    }
+
+    // Tabulate the re-encoding curve that converts the clamped linear-light
+    // result back into the color space expected by the host display
+    
+    for (isize i = 0; i < 256; i++) {
+
+        double linear = std::clamp(double(i) / 255.0, 0.0, 1.0);
+        double display = std::pow(linear, 1.0 / GAMMA_OUT) * 255.0;
+        gammaLut[i] = u8(std::round(std::clamp(display, 0.0, 255.0)));
+    }
 }
 
 const Texture &
@@ -443,7 +507,7 @@ PixelEngine::colorizeHAM(Texel *dst, Pixel from, Pixel to, AmigaColor& ham)
         if (denise.spritePixelIsVisible(i)) {
             dst[i] = palette[mbuf[i]];
         } else {
-            dst[i] = colorSpace[ham.rawValue()];
+            dst[i] = toTexel(ham); //  colorSpace[ham.rawValue()];
         }
     }
 }

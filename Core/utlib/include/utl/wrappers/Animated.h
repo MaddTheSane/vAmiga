@@ -11,7 +11,7 @@
 
 #include "utl/common.h"
 
-namespace utl::wrappers {
+namespace utl {
 
 /* This class provides a wrapper around a value type making it fadable. I.e.,
  * the value can be smoothly increased to it's maximum value or decreases to
@@ -62,7 +62,7 @@ public:
         if (steps == 0) {
             current = delta = 0;
         } else {
-            delta = -maximum / steps;
+            delta = -maximum / double(steps);
         }
     }
 
@@ -72,7 +72,7 @@ public:
         if (steps == 0) {
             current = maximum; delta = 0;
         } else {
-            delta = maximum / steps;
+            delta = maximum / double(steps);
         }
     }
 

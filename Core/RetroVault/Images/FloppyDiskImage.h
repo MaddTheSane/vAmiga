@@ -2,9 +2,9 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -22,6 +22,7 @@ public:
     static optional<ImageInfo> about(const fs::path& url);
     static unique_ptr<FloppyDiskImage> tryMake(const fs::path &path);
     static unique_ptr<FloppyDiskImage> make(const fs::path &path);
+    static unique_ptr<FloppyDiskImage> make(const u8 *buf, isize len, ImageFormat fmt);
 
 
     //

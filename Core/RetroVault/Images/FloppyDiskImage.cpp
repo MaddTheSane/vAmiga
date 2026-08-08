@@ -2,15 +2,14 @@
 // This file is part of RetroVault
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// Licensed under the Mozilla Public License v2
 //
-// See https://www.gnu.org for license information
+// See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "FloppyDiskImage.h"
 #include "ADFFile.h"
-#include "ADZFile.h"
 #include "DMSFile.h"
 #include "EADFFile.h"
 #include "EXEFile.h"
@@ -27,7 +26,6 @@ optional<ImageInfo>
 FloppyDiskImage::about(const fs::path& url)
 {
     if (auto info = ADFFile::about(url))  return info;
-    if (auto info = ADZFile::about(url))  return info;
     if (auto info = EADFFile::about(url)) return info;
     if (auto info = IMGFile::about(url))  return info;
     if (auto info = STFile::about(url))   return info;
@@ -44,7 +42,6 @@ FloppyDiskImage::tryMake(const fs::path &path)
     unique_ptr<FloppyDiskImage> result;
 
     if (ADFFile::about(path).has_value())  return make_unique<ADFFile>(path);
-    if (ADZFile::about(path).has_value())  return make_unique<ADZFile>(path);
     if (EADFFile::about(path).has_value()) return make_unique<EADFFile>(path);
     if (IMGFile::about(path).has_value())  return make_unique<IMGFile>(path);
     if (STFile::about(path).has_value())   return make_unique<STFile>(path);
@@ -58,7 +55,34 @@ FloppyDiskImage::tryMake(const fs::path &path)
 unique_ptr<FloppyDiskImage>
 FloppyDiskImage::make(const fs::path &path)
 {
-    if (auto img = tryMake(path)) return img;
+    if (!utl::fileExists(path))
+        throw IOError(IOError::FILE_NOT_FOUND, path.string());
+        
+    if (auto img = tryMake(path))
+        return img;
+
+    throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
+}
+
+unique_ptr<FloppyDiskImage>
+FloppyDiskImage::make(const u8 *buf, isize len, ImageFormat fmt)
+{
+    switch (fmt) {
+
+        case ImageFormat::ADF:  return make_unique<ADFFile>(buf, len);
+        case ImageFormat::EADF: return make_unique<EADFFile>(buf, len);
+        case ImageFormat::IMG:  return make_unique<IMGFile>(buf, len);
+        case ImageFormat::ST:   return make_unique<STFile>(buf, len);
+        case ImageFormat::DMS:  return make_unique<DMSFile>(buf, len);
+        case ImageFormat::EXE:  return make_unique<EXEFile>(buf, len);
+        case ImageFormat::D64:  return make_unique<D64File>(buf, len);
+
+        case ImageFormat::UNKNOWN:
+        case ImageFormat::HDF:
+        case ImageFormat::HDZ:
+            break;
+    }
+
     throw IOError(IOError::FILE_TYPE_UNSUPPORTED);
 }
 

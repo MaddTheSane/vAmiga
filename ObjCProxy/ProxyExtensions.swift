@@ -312,13 +312,24 @@ extension HardDriveProxy {
     }
 }
 
+@MainActor
+extension RetroShellProxy {
+  
+    func executeScript(url: URL) throws {
+        
+        let exception = ExceptionWrapper()
+        executeScript(url, exception: exception)
+        if exception.fault != 0 { throw AppError(exception) }
+    }
+}
+
 extension AnyFileProxy {
     
     @discardableResult
     func writeToFile(url: URL) throws -> Int {
         
         let exception = ExceptionWrapper()
-        let result = write(toFile: url.path, exception: exception)
+        let result = write(toFile: url, exception: exception)
         if exception.fault != 0 { throw AppError(exception) }
         
         return result
@@ -366,7 +377,7 @@ extension DiskImageProxy {
 
         switch format {
 
-        case .ADF, .ADZ, .EADF, .IMG:
+        case .ADF, .EADF, .IMG:
 
             var name = (density == .HD ? "hd" : "dd") + (format == .IMG ? "_dos" : "_adf")
             if protected { name += "_protected" }
@@ -387,7 +398,7 @@ extension FloppyDiskImageProxy {
 
         switch format {
 
-        case .ADF, .ADZ, .EADF, .IMG:
+        case .ADF, .EADF, .IMG:
 
             name = (density == .HD ? "hd" : "dd") + (format == .IMG ? "_dos" : "_adf")
             // (format == .IMG ? "_dos" : info.dos == .NODOS ? "_other" : "_adf")

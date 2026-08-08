@@ -726,7 +726,7 @@ FloppyDrive::motorSpeed() const
         if (startDelay == 0) return 100.0;
 
         Cycle elapsed = agnus.clock - switchCycle;
-        return std::min(switchSpeed + 100.0 * (elapsed / startDelay), 100.0);
+        return std::min(switchSpeed + 100.0 * (double(elapsed) / double(startDelay)), 100.0);
 
     } else {
 
@@ -736,7 +736,7 @@ FloppyDrive::motorSpeed() const
         if (stopDelay == 0) return 0.0;
 
         Cycle elapsed = agnus.clock - switchCycle;
-        return std::max(switchSpeed - 100.0 * (elapsed / stopDelay), 0.0);
+        return std::max(switchSpeed - 100.0 * (double(elapsed) / double(stopDelay)), 0.0);
     }
 }
 
@@ -1297,6 +1297,13 @@ FloppyDrive::swapDisk(const fs::path &path)
         }
         throw;
     }
+}
+
+void
+FloppyDrive::swapDisk(const u8 *buf, isize len, ImageFormat fmt)
+{
+    auto file = FloppyDiskImage::make(buf, len, fmt);
+    swapDisk(*file);
 }
 
 void
